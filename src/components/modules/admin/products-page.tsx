@@ -4,6 +4,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared";
+import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function ProductsPage() {
   const [search, setSearch] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", description: "", unit: "عدد", basePrice: "" });
+  const [view, setView] = React.useState<"grid" | "table">("table");
 
   const { data, isLoading } = useQuery({
     queryKey: ["products", search],
@@ -36,6 +38,42 @@ export function ProductsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const columns = React.useMemo<ColumnDef<Product>[]>(() => [
+    {
+      accessorKey: "name",
+      header: "نام محصول",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2.5">
+          <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0">
+            <Icon name="package" size={18} />
+          </div>
+          <div>
+            <div className="font-medium">{row.original.name}</div>
+            <div className="text-xs text-muted-foreground">{row.original.unit}</div>
+          </div>
+        </div>
+      ),
+      enableSorting: true,
+    },
+    {
+      accessorKey: "description",
+      header: "توضیحات",
+      cell: ({ row }) => <span className="text-sm text-muted-foreground line-clamp-1 max-w-[300px]">{row.original.description || "—"}</span>,
+    },
+    {
+      accessorKey: "basePrice",
+      header: "قیمت پایه",
+      cell: ({ row }) => <span className="tabular-nums font-semibold" dir="ltr">{row.original.basePrice ? formatCurrency(row.original.basePrice) : "—"}</span>,
+      enableSorting: true,
+    },
+    {
+      accessorKey: "createdAt",
+      header: "تاریخ ثبت",
+      cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
+      enableSorting: true,
+    },
+  ], []);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -43,20 +81,44 @@ export function ProductsPage() {
         description="مدیریت محصولات و خدمات قابل ارائه"
         icon="package"
         actions={
-          <>
-            <div className="relative">
-              <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو..." className="pr-9 w-56" />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center rounded-lg border p-0.5">
+              <button onClick={() => setView("table")} className={`px-2.5 py-1 rounded text-xs flex items-center gap-1 ${view === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+                <Icon name="grid" size={13} /> جدول
+              </button>
+              <button onClick={() => setView("grid")} className={`px-2.5 py-1 rounded text-xs flex items-center gap-1 ${view === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+                <Icon name="layers" size={13} /> کارت
+              </button>
             </div>
             <Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> محصول جدید</Button>
-          </>
+          </div>
         }
       />
 
-      {isLoading ? (
+      {view === "table" ? (
+        <Card className="p-4">
+          <DataTable
+            columns={columns}
+            data={products}
+            isLoading={isLoading}
+            globalFilter={search}
+            onGlobalFilterChange={setSearch}
+            searchPlaceholder="جستجوی محصول..."
+            pageSize={10}
+            emptyState={
+              <EmptyState
+                icon="package"
+                title="محصولی یافت نشد"
+                description="اولین محصول را اضافه کنید."
+                action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن محصول</Button>}
+              />
+            }
+          />
+        </Card>
+      ) : isLoading ? (
         <LoadingState />
       ) : products.length === 0 ? (
-        <Card className="p-0"><EmptyState icon="package" title="محصولی یافت نشد" description="اولین محصول را اضافه کنید." action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن محصول</Button>} /></Card>
+        <Card className="p-0"><EmptyState icon="package" title="محصولی یافت نشد" action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن محصول</Button>} /></Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {products.map((p) => (
@@ -72,7 +134,7 @@ export function ProductsPage() {
               </div>
               {p.description && <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{p.description}</p>}
               <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                <span className="text-sm font-semibold" dir="ltr">{p.basePrice ? formatCurrency(p.basePrice) : "—"}</span>
+                <span className="text-sm font-semibold tabular-nums" dir="ltr">{p.basePrice ? formatCurrency(p.basePrice) : "—"}</span>
                 <span className="text-[11px] text-muted-foreground">{formatDate(p.createdAt)}</span>
               </div>
             </Card>

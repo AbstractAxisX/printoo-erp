@@ -3,15 +3,15 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { PageHeader, LoadingState, EmptyState, StatusBadge, PriorityBadge } from "@/components/shared";
+import { PageHeader, StatusBadge, PriorityBadge, EmptyState } from "@/components/shared";
 import { SearchSelect } from "@/components/shared/search-select";
+import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -36,7 +36,6 @@ export function OrdersPage() {
   const [statusFilter, setStatusFilter] = React.useState<string>("");
   const [customerFilter, setCustomerFilter] = React.useState<string | null>(null);
   const [productFilter, setProductFilter] = React.useState<string | null>(null);
-  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [noteModal, setNoteModal] = React.useState<Order | null>(null);
   const [statusModal, setStatusModal] = React.useState<Order | null>(null);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -63,6 +62,8 @@ export function OrdersPage() {
   });
 
   const orders = ordersData?.orders ?? [];
+  const customers = customersData?.customers ?? [];
+  const products = productsData?.products ?? [];
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => api(`/api/orders/${id}`, { method: "DELETE" }),
@@ -70,13 +71,101 @@ export function OrdersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function toggleExpand(id: string) {
-    setExpanded((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
-    });
-  }
+  const columns = React.useMemo<ColumnDef<Order>[]>(() => [
+    {
+      id: "expand",
+      header: () => null,
+      cell: ({ row }) => {
+        const canExpand = row.original.items.length > 1;
+        return canExpand ? (
+          <button className="size-7 grid place-items-center rounded hover:bg-accent" onClick={(e) => { e.stopPropagation(); row.toggleExpanded(); }}>
+            <Icon name={row.getIsExpanded() ? "chevronDown" : "chevronLeft"} size={14} />
+          </button>
+        ) : null;
+      },
+      size: 32,
+      meta: { hideable: false },
+    },
+    {
+      accessorKey: "number",
+      header: "شماره",
+      cell: ({ row }) => <span className="font-mono text-xs font-bold">#{row.original.number}</span>,
+      enableSorting: true,
+    },
+    {
+      id: "customer",
+      accessorFn: (r) => r.customer.name,
+      header: "مشتری",
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium">{row.original.customer.name}</div>
+          <div className="text-xs text-muted-foreground" dir="ltr">{row.original.customer.phone}</div>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "وضعیت",
+      cell: ({ row }) => (
+        <button onClick={(e) => { e.stopPropagation(); setStatusModal(row.original); }} className="hover:opacity-80 transition">
+          <StatusBadge status={row.original.status} />
+        </button>
+      ),
+      filterFn: (row, _id, val: string) => val === "" || row.original.status === val,
+    },
+    {
+      id: "endDate",
+      accessorFn: (r) => (r.endDate ? new Date(r.endDate).getTime() : 0),
+      header: "تاریخ پایان",
+      cell: ({ row }) => {
+        const o = row.original;
+        if (o.noEndDate) return <span className="text-xs text-muted-foreground">بدون زمان پایان</span>;
+        if (!o.endDate) return <span className="text-xs text-muted-foreground">—</span>;
+        const dr = daysRemaining(o.endDate);
+        return (
+          <div>
+            <div className="text-xs">{formatDate(o.endDate)}</div>
+            {dr.status !== "none" && (
+              <div className={cn("text-[11px] mt-0.5 flex items-center gap-1",
+                dr.status === "remaining" && "text-emerald-600",
+                dr.status === "overdue" && "text-rose-600",
+                dr.status === "today" && "text-amber-600")}>
+                <Icon name={dr.status === "overdue" ? "alertTriangle" : "clock"} size={11} />
+                {dr.text}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "totalAmount",
+      header: "مبلغ کل",
+      cell: ({ row }) => <span className="font-semibold tabular-nums" dir="ltr">{formatCurrency(row.original.totalAmount)}</span>,
+      enableSorting: true,
+    },
+    {
+      id: "priority",
+      accessorFn: (r) => r.priority,
+      header: "اولویت",
+      cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
+      enableSorting: true,
+    },
+    {
+      id: "createdAt",
+      accessorFn: (r) => new Date(r.createdAt).getTime(),
+      header: "تاریخ ساخت",
+      cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.createdAt)}</span>,
+      enableSorting: true,
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-center">عملیات</div>,
+      cell: ({ row }) => <RowActions order={row.original} onNote={() => setNoteModal(row.original)} onDelete={() => setDeleteId(row.original.id)} onEdit={() => navigate("admin", "orders-new")} />,
+      enableSorting: false,
+      meta: { hideable: false },
+    },
+  ], [navigate]);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -85,216 +174,94 @@ export function OrdersPage() {
           title="همه سفارشات"
           description="مدیریت کامل سفارش‌های چاپ"
           icon="orders"
-          actions={
-            <Button onClick={() => navigate("admin", "orders-new")} className="gap-2">
-              <Icon name="plus" size={16} /> سفارش جدید
-            </Button>
-          }
+          actions={<Button onClick={() => navigate("admin", "orders-new")} className="gap-2"><Icon name="plus" size={16} /> سفارش جدید</Button>}
         />
 
-        {/* Filters */}
-        <Card className="p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[180px]">
-              <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجوی نام یا تلفن مشتری..." className="pr-9" />
-            </div>
-            <SearchSelect
-              value={customerFilter}
-              onChange={setCustomerFilter}
-              placeholder="همه مشتریان"
-              searchPlaceholder="جستجوی مشتری..."
-              options={(customersData?.customers ?? []).map((c) => ({ value: c.id, label: c.name, sub: c.phone }))}
-              className="w-48"
-            />
-            <SearchSelect
-              value={productFilter}
-              onChange={setProductFilter}
-              placeholder="همه محصولات"
-              searchPlaceholder="جستجوی محصول..."
-              options={(productsData?.products ?? []).map((p) => ({ value: p.id, label: p.name }))}
-              className="w-48"
-            />
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="همه وضعیت‌ها" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">همه وضعیت‌ها</SelectItem>
-                {Object.entries(ORDER_STATUS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(statusFilter || customerFilter || productFilter || search) && (
-              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => { setSearch(""); setStatusFilter(""); setCustomerFilter(null); setProductFilter(null); }}>
-                <Icon name="cancel" size={14} /> پاک کردن فیلترها
-              </Button>
-            )}
-          </div>
-        </Card>
-
-        {/* Table */}
-        <Card className="p-0 overflow-hidden">
-          {isLoading ? (
-            <LoadingState />
-          ) : orders.length === 0 ? (
-            <EmptyState
-              icon="orders"
-              title="سفارشی یافت نشد"
-              description="با فیلترهای فعلی سفارشی وجود ندارد."
-              action={<Button onClick={() => navigate("admin", "orders-new")} className="gap-2"><Icon name="plus" size={16} /> ایجاد سفارش</Button>}
-            />
-          ) : (
-            <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="w-8 px-2" />
-                    <th className="text-right font-medium px-3 py-3">شماره</th>
-                    <th className="text-right font-medium px-3 py-3">مشتری</th>
-                    <th className="text-right font-medium px-3 py-3">وضعیت</th>
-                    <th className="text-right font-medium px-3 py-3">تاریخ پایان</th>
-                    <th className="text-right font-medium px-3 py-3">مبلغ کل</th>
-                    <th className="text-right font-medium px-3 py-3">تاریخ ساخت</th>
-                    <th className="text-center font-medium px-3 py-3">عملیات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {orders.map((o) => {
-                    const dr = daysRemaining(o.endDate);
-                    const isGrouped = o.items.length > 1;
-                    return (
-                      <React.Fragment key={o.id}>
-                        <tr className="hover:bg-accent/30 transition group">
-                          <td className="px-2">
-                            {isGrouped && (
-                              <button onClick={() => toggleExpand(o.id)} className="size-7 grid place-items-center rounded hover:bg-accent">
-                                <Icon name={expanded.has(o.id) ? "chevronDown" : "chevronLeft"} size={14} />
-                              </button>
-                            )}
-                          </td>
-                          <td className="px-3 py-3"><span className="font-mono text-xs font-semibold">#{o.number}</span></td>
-                          <td className="px-3 py-3">
-                            <div className="font-medium">{o.customer.name}</div>
-                            <div className="text-xs text-muted-foreground" dir="ltr">{o.customer.phone}</div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <button onClick={() => setStatusModal(o)} className="hover:opacity-80 transition">
-                              <StatusBadge status={o.status} />
-                            </button>
-                          </td>
-                          <td className="px-3 py-3">
-                            {o.noEndDate ? (
-                              <span className="text-xs text-muted-foreground">بدون زمان پایان</span>
-                            ) : o.endDate ? (
-                              <div>
-                                <div className="text-xs">{formatDate(o.endDate)}</div>
-                                {dr.status !== "none" && (
-                                  <div className={cn("text-[11px] mt-0.5 flex items-center gap-1",
-                                    dr.status === "remaining" && "text-emerald-600",
-                                    dr.status === "overdue" && "text-rose-600",
-                                    dr.status === "today" && "text-amber-600"
-                                  )}>
-                                    <Icon name={dr.status === "overdue" ? "alertTriangle" : "clock"} size={11} />
-                                    {dr.text}
-                                  </div>
-                                )}
-                              </div>
-                            ) : <span className="text-xs text-muted-foreground">—</span>}
-                          </td>
-                          <td className="px-3 py-3 font-semibold" dir="ltr">{formatCurrency(o.totalAmount)}</td>
-                          <td className="px-3 py-3 text-muted-foreground text-xs">{formatDate(o.createdAt)}</td>
-                          <td className="px-3 py-3">
-                            <div className="flex items-center justify-center gap-0.5">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="size-8" onClick={() => setNoteModal(o)}>
-                                    <Icon name="info" size={15} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>یادداشت</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="size-8" onClick={() => navigate("admin", "orders-new")}>
-                                    <Icon name="edit" size={15} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>ویرایش</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="size-8 hover:text-emerald-600" onClick={() => toast.info("پیش‌فاکتور به‌زودی")}>
-                                    <Icon name="receipt" size={15} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>پیش‌فاکتور</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="size-8 hover:text-blue-600" onClick={() => toast.info(o.status === "completed" ? "فاکتور" : "سفارش تکمیل نشده")}>
-                                    <Icon name="invoice" size={15} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>فاکتور</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="size-8 hover:text-rose-600" onClick={() => setDeleteId(o.id)}>
-                                    <Icon name="trash" size={15} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>حذف</TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </td>
+        <Card className="p-4">
+          <DataTable
+            columns={columns}
+            data={orders}
+            isLoading={isLoading}
+            pageSize={10}
+            showColumnToggle
+            emptyState={
+              <EmptyState
+                icon="orders"
+                title="سفارشی یافت نشد"
+                description="با فیلترهای فعلی سفارشی وجود ندارد."
+                action={<Button onClick={() => navigate("admin", "orders-new")} className="gap-2"><Icon name="plus" size={16} /> ایجاد سفارش</Button>}
+              />
+            }
+            getRowCanExpand={(o) => o.items.length > 1}
+            renderExpandedRow={(o) => (
+              <div className="p-3 bg-muted/10">
+                <div className="rounded-lg border bg-background overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/40 text-muted-foreground">
+                      <tr>
+                        <th className="text-right font-medium px-3 py-2">محصول</th>
+                        <th className="text-right font-medium px-3 py-2">تعداد</th>
+                        <th className="text-right font-medium px-3 py-2">مرحله</th>
+                        <th className="text-right font-medium px-3 py-2">مبلغ</th>
+                        <th className="text-right font-medium px-3 py-2">یادداشت</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {o.items.map((it) => (
+                        <tr key={it.id}>
+                          <td className="px-3 py-2 font-medium">{it.product.name}</td>
+                          <td className="px-3 py-2 tabular-nums" dir="ltr">{it.quantity}</td>
+                          <td className="px-3 py-2"><span className="rounded bg-muted px-1.5 py-0.5">{stageLabel(it.stage)}</span></td>
+                          <td className="px-3 py-2 tabular-nums" dir="ltr">{formatCurrency(it.totalAmount)}</td>
+                          <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">{it.note || "—"}</td>
                         </tr>
-                        {isGrouped && expanded.has(o.id) && (
-                          <tr className="bg-muted/20">
-                            <td />
-                            <td colSpan={7} className="px-4 py-3">
-                              <div className="rounded-lg border bg-background overflow-hidden">
-                                <table className="w-full text-xs">
-                                  <thead className="bg-muted/40 text-muted-foreground">
-                                    <tr>
-                                      <th className="text-right font-medium px-3 py-2">محصول</th>
-                                      <th className="text-right font-medium px-3 py-2">تعداد</th>
-                                      <th className="text-right font-medium px-3 py-2">مرحله</th>
-                                      <th className="text-right font-medium px-3 py-2">مبلغ</th>
-                                      <th className="text-right font-medium px-3 py-2">یادداشت</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y">
-                                    {o.items.map((it) => (
-                                      <tr key={it.id}>
-                                        <td className="px-3 py-2 font-medium">{it.product.name}</td>
-                                        <td className="px-3 py-2" dir="ltr">{it.quantity}</td>
-                                        <td className="px-3 py-2"><span className="rounded bg-muted px-1.5 py-0.5">{stageLabel(it.stage)}</span></td>
-                                        <td className="px-3 py-2" dir="ltr">{formatCurrency(it.totalAmount)}</td>
-                                        <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">{it.note || "—"}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            toolbar={
+              <>
+                <SearchSelect
+                  value={customerFilter}
+                  onChange={setCustomerFilter}
+                  placeholder="همه مشتریان"
+                  searchPlaceholder="جستجوی مشتری..."
+                  options={customers.map((c) => ({ value: c.id, label: c.name, sub: c.phone }))}
+                  className="w-44"
+                />
+                <SearchSelect
+                  value={productFilter}
+                  onChange={setProductFilter}
+                  placeholder="همه محصولات"
+                  searchPlaceholder="جستجوی محصول..."
+                  options={products.map((p) => ({ value: p.id, label: p.name }))}
+                  className="w-44"
+                />
+                <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger className="w-40"><SelectValue placeholder="همه وضعیت‌ها" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">همه وضعیت‌ها</SelectItem>
+                    {Object.entries(ORDER_STATUS).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجوی نام یا تلفن..." className="w-44" />
+                {(statusFilter || customerFilter || productFilter || search) && (
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => { setSearch(""); setStatusFilter(""); setCustomerFilter(null); setProductFilter(null); }}>
+                    <Icon name="cancel" size={14} /> پاک کردن
+                  </Button>
+                )}
+              </>
+            }
+          />
         </Card>
 
-        {/* Note modal */}
         <NoteModal order={noteModal} onClose={() => setNoteModal(null)} />
-
-        {/* Status change modal */}
         <StatusModal order={statusModal} onClose={() => setStatusModal(null)} />
 
-        {/* Delete confirm */}
         <Dialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
           <DialogContent className="max-w-sm">
             <DialogHeader><DialogTitle>حذف سفارش</DialogTitle></DialogHeader>
@@ -315,6 +282,53 @@ export function OrdersPage() {
 function stageLabel(s: string) {
   const m: Record<string, string> = { design: "طراح", print: "چاپ", warehouse: "انبار", completed: "تکمیل", archive: "آرشیو" };
   return m[s] ?? s;
+}
+
+function RowActions({ order, onNote, onDelete, onEdit }: { order: Order; onNote: () => void; onDelete: () => void; onEdit: () => void }) {
+  return (
+    <div className="flex items-center justify-center gap-0.5">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => { e.stopPropagation(); onNote(); }}>
+            <Icon name="info" size={15} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>یادداشت</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+            <Icon name="edit" size={15} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>ویرایش</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8 hover:text-emerald-600" onClick={(e) => { e.stopPropagation(); toast.info("پیش‌فاکتور به‌زودی"); }}>
+            <Icon name="receipt" size={15} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>پیش‌فاکتور</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8 hover:text-blue-600" onClick={(e) => { e.stopPropagation(); toast.info(order.status === "completed" ? "فاکتور" : "سفارش تکمیل نشده"); }}>
+            <Icon name="invoice" size={15} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>فاکتور</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8 hover:text-rose-600" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+            <Icon name="trash" size={15} />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>حذف</TooltipContent>
+      </Tooltip>
+    </div>
+  );
 }
 
 function NoteModal({ order, onClose }: { order: Order | null; onClose: () => void }) {

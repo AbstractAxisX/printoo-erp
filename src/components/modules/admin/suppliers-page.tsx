@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared";
+import { PageHeader, EmptyState } from "@/components/shared";
+import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,59 +38,71 @@ export function SuppliersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const columns = React.useMemo<ColumnDef<Supplier>[]>(() => [
+    {
+      accessorKey: "name",
+      header: "نام",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <div className="size-8 rounded-lg bg-orange-100 text-orange-600 dark:bg-orange-950/40 grid place-items-center">
+            <Icon name="building" size={16} />
+          </div>
+          <span className="font-medium">{row.original.name}</span>
+        </div>
+      ),
+      enableSorting: true,
+    },
+    {
+      accessorKey: "phone",
+      header: "تلفن",
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums" dir="ltr">{row.original.phone || "—"}</span>,
+    },
+    {
+      accessorKey: "contactPerson",
+      header: "مسئول ارتباط",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.contactPerson || "—"}</span>,
+    },
+    {
+      accessorKey: "balanceDue",
+      header: "مانده بدهی",
+      cell: ({ row }) => <span className="tabular-nums font-medium" dir="ltr">{formatCurrency(row.original.balanceDue)}</span>,
+      enableSorting: true,
+    },
+    {
+      accessorKey: "createdAt",
+      header: "تاریخ ثبت",
+      cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
+      enableSorting: true,
+    },
+  ], []);
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="تامین‌کنندگان (SRM)"
         description="مدیریت تامین‌کنندگان و چاپخانه‌های خارجی"
         icon="suppliers"
-        actions={
-          <>
-            <div className="relative">
-              <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجو..." className="pr-9 w-56" />
-            </div>
-            <Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> تامین‌کننده جدید</Button>
-          </>
-        }
+        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> تامین‌کننده جدید</Button>}
       />
 
-      <Card className="p-0 overflow-hidden">
-        {isLoading ? <LoadingState /> : suppliers.length === 0 ? (
-          <EmptyState icon="suppliers" title="تامین‌کننده‌ای یافت نشد" description="اولین تامین‌کننده را اضافه کنید." action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن</Button>} />
-        ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
-                <tr>
-                  <th className="text-right font-medium px-4 py-3">نام</th>
-                  <th className="text-right font-medium px-4 py-3">تلفن</th>
-                  <th className="text-right font-medium px-4 py-3">مسئول ارتباط</th>
-                  <th className="text-right font-medium px-4 py-3">مانده بدهی</th>
-                  <th className="text-right font-medium px-4 py-3">تاریخ ثبت</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {suppliers.map((s) => (
-                  <tr key={s.id} className="hover:bg-accent/40 transition">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="size-8 rounded-lg bg-orange-100 text-orange-600 dark:bg-orange-950/40 grid place-items-center">
-                          <Icon name="building" size={16} />
-                        </div>
-                        <span className="font-medium">{s.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground" dir="ltr">{s.phone || "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{s.contactPerson || "—"}</td>
-                    <td className="px-4 py-3" dir="ltr">{formatCurrency(s.balanceDue)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(s.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <Card className="p-4">
+        <DataTable
+          columns={columns}
+          data={suppliers}
+          isLoading={isLoading}
+          globalFilter={search}
+          onGlobalFilterChange={setSearch}
+          searchPlaceholder="جستجوی نام یا تلفن..."
+          pageSize={10}
+          emptyState={
+            <EmptyState
+              icon="suppliers"
+              title="تامین‌کننده‌ای یافت نشد"
+              description="اولین تامین‌کننده را اضافه کنید."
+              action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن</Button>}
+            />
+          }
+        />
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>

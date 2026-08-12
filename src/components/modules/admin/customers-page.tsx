@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { PageHeader, LoadingState, EmptyState } from "@/components/shared";
+import { PageHeader, EmptyState } from "@/components/shared";
+import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,67 +55,85 @@ export function CustomersPage() {
     createMut.mutate(form);
   }
 
+  const columns = React.useMemo<ColumnDef<Customer>[]>(() => [
+    {
+      accessorKey: "name",
+      header: "نام مشتری",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {row.original.isFavorite && <Icon name="star" size={14} className="text-amber-500" />}
+          <span className="font-medium">{row.original.name}</span>
+        </div>
+      ),
+      enableSorting: true,
+    },
+    {
+      accessorKey: "phone",
+      header: "تلفن",
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums" dir="ltr">{row.original.phone}</span>,
+      enableSorting: true,
+    },
+    {
+      id: "orders",
+      accessorFn: (r) => r._count?.orders ?? 0,
+      header: "سفارش‌ها",
+      cell: ({ row }) => <span className="tabular-nums">{row.original._count?.orders ?? 0}</span>,
+      enableSorting: true,
+    },
+    {
+      accessorKey: "balanceDue",
+      header: "مانده حساب",
+      cell: ({ row }) => <span className="tabular-nums font-medium" dir="ltr">{formatCurrency(row.original.balanceDue)}</span>,
+      enableSorting: true,
+    },
+    {
+      accessorKey: "createdAt",
+      header: "تاریخ ثبت",
+      cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
+      enableSorting: true,
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-center">عملیات</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center">
+          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => { e.stopPropagation(); openEdit(row.original); }}>
+            <Icon name="edit" size={16} />
+          </Button>
+        </div>
+      ),
+      enableSorting: false,
+      meta: { hideable: false },
+    },
+  ], []);
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="مشتریان (CRM)"
         description="مدیریت مشتریان و ارتباطات"
         icon="customers"
-        actions={
-          <>
-            <div className="relative">
-              <Icon name="search" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="جستجوی نام یا تلفن..." className="pr-9 w-56" />
-            </div>
-            <Button onClick={openNew} className="gap-2"><Icon name="plus" size={16} /> مشتری جدید</Button>
-          </>
-        }
+        actions={<Button onClick={openNew} className="gap-2"><Icon name="plus" size={16} /> مشتری جدید</Button>}
       />
 
-      <Card className="p-0 overflow-hidden">
-        {isLoading ? (
-          <LoadingState />
-        ) : customers.length === 0 ? (
-          <EmptyState icon="customers" title="مشتری‌ای یافت نشد" description="اولین مشتری خود را اضافه کنید." action={<Button onClick={openNew} className="gap-2"><Icon name="plus" size={16} /> افزودن مشتری</Button>} />
-        ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
-                <tr>
-                  <th className="text-right font-medium px-4 py-3">نام مشتری</th>
-                  <th className="text-right font-medium px-4 py-3">تلفن</th>
-                  <th className="text-right font-medium px-4 py-3">سفارش‌ها</th>
-                  <th className="text-right font-medium px-4 py-3">مانده حساب</th>
-                  <th className="text-right font-medium px-4 py-3">تاریخ ثبت</th>
-                  <th className="text-center font-medium px-4 py-3">عملیات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-accent/40 transition">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {c.isFavorite && <Icon name="star" size={14} className="text-amber-500" />}
-                        <span className="font-medium">{c.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground" dir="ltr">{c.phone}</td>
-                    <td className="px-4 py-3">{c._count?.orders ?? 0}</td>
-                    <td className="px-4 py-3" dir="ltr">{formatCurrency(c.balanceDue)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(c.createdAt)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
-                        <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(c)}>
-                          <Icon name="edit" size={16} />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <Card className="p-4">
+        <DataTable
+          columns={columns}
+          data={customers}
+          isLoading={isLoading}
+          globalFilter={search}
+          onGlobalFilterChange={setSearch}
+          searchPlaceholder="جستجوی نام یا تلفن..."
+          pageSize={10}
+          emptyState={
+            <EmptyState
+              icon="customers"
+              title="مشتری‌ای یافت نشد"
+              description="اولین مشتری خود را اضافه کنید."
+              action={<Button onClick={openNew} className="gap-2"><Icon name="plus" size={16} /> افزودن مشتری</Button>}
+            />
+          }
+        />
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
