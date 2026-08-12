@@ -1,0 +1,205 @@
+// Printoo24 ERP — Prisma schema
+// SQLite datasource
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users / Auth ───────────────────────────────────────────────
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("master") // master | admin | designer | print | warehouse | finance | qc | crm | srm
+  phone     String?
+  avatar    String?
+  status    String   @default("active") // active | inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── CRM: Customers ─────────────────────────────────────────────
+model Customer {
+  id          String       @id @default(cuid())
+  name        String
+  phone       String
+  isFavorite  Boolean      @default(false)
+  balanceDue  Float        @default(0)
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  orders      Order[]
+  preInvoices PreInvoice[]
+  invoices    Invoice[]
+  payments    Payment[]
+}
+
+// ─── SRM: Suppliers ─────────────────────────────────────────────
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String?
+  contactPerson String?
+  address       String?
+  balanceDue    Float    @default(0)
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── Products / Services ────────────────────────────────────────
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  unit        String      @default("عدد")
+  basePrice   Float?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+// ─── Orders ─────────────────────────────────────────────────────
+model Order {
+  id          String       @id @default(cuid())
+  number      Int          @unique // sequential display #1, #2 ... (computed in code)
+  customerId  String
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  status      String       @default("pending_design") // pending_design | in_printing | warehouse_logistics | completed | archived | cancelled
+  splitMode   String       @default("grouped") // grouped | separated
+  priority    String       @default("normal") // normal | urgent
+  endDate     DateTime? // overall order end date (optional)
+  noEndDate   Boolean      @default(false)
+  totalAmount Float        @default(0)
+  paidAmount  Float        @default(0)
+  note        String?
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  items       OrderItem[]
+  preInvoices PreInvoice[]
+  invoice     Invoice?
+  tasks       Task[]
+}
+
+// ─── Order Items (the core unit that flows between modules) ─────
+model OrderItem {
+  id             String   @id @default(cuid())
+  orderId        String
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product  @relation(fields: [productId], references: [id])
+  quantity       Int      @default(1)
+  pricePerUnit   Float    @default(0)
+  totalAmount    Float    @default(0)
+  note           String?
+  description    String?
+  stage          String   @default("design") // design | print | warehouse | completed | archive
+  needsMaterial  Boolean  @default(false)
+  designStartDate DateTime?
+  designEndDate   DateTime?
+  printStartDate  DateTime?
+  printEndDate    DateTime?
+  createdAt      DateTime @default(now())
+}
+
+// ─── Pre-Invoice (پیش فاکتور) ──────────────────────────────────
+model PreInvoice {
+  id          String   @id @default(cuid())
+  number      Int      @unique
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id])
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  totalAmount Float    @default(0)
+  paidAmount  Float    @default(0)
+  date        DateTime @default(now())
+  items       String // JSON string: [{name, quantity, total, paid}]
+  createdAt   DateTime @default(now())
+}
+
+// ─── Invoice (فاکتور) ───────────────────────────────────────────
+model Invoice {
+  id             String   @id @default(cuid())
+  number         Int      @unique
+  orderId        String   @unique
+  order          Order    @relation(fields: [orderId], references: [id])
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  totalAmount    Float    @default(0)
+  paidAmount     Float    @default(0)
+  discountAmount Float    @default(0)
+  date           DateTime @default(now())
+  items          String // JSON string
+  createdAt      DateTime @default(now())
+}
+
+// ─── Tasks ──────────────────────────────────────────────────────
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("todo") // todo | in_progress | done
+  priority    String   @default("normal") // normal | urgent
+  dueDate     DateTime?
+  module      String   @default("admin") // admin | designer | print | warehouse | finance | qc | crm | srm
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  customerId  String?
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Notifications (real) ───────────────────────────────────────
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("info") // info | success | warning | error
+  read      Boolean  @default(false)
+  userId    String?
+  link      String? // nav target e.g. "admin:orders"
+  createdAt DateTime @default(now())
+}
+
+// ─── Finance: Expenses & Payments ───────────────────────────────
+model Expense {
+  id        String   @id @default(cuid())
+  title     String
+  amount    Float
+  category  String?
+  date      DateTime @default(now())
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  orderId    String?
+  invoiceId  String?
+  amount     Float
+  status     String   @default("awaiting") // awaiting | validated
+  method     String?
+  date       DateTime @default(now())
+  note       String?
+  createdAt  DateTime @default(now())
+}
+
+// ─── Audit Log ──────────────────────────────────────────────────
+model AuditLog {
+  id       String   @id @default(cuid())
+  employee String
+  action   String // CREATE | UPDATE | DELETE
+  path     String
+  status   Int
+  date     DateTime @default(now())
+}
