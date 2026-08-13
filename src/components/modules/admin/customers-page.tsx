@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { ToggleButton } from "@/components/ui/toggle-button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -151,8 +151,7 @@ export function CustomersPage() {
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required dir="ltr" placeholder="0912..." />
             </div>
             <div className="flex items-center gap-2">
-              <Switch checked={form.isFavorite} onCheckedChange={(v) => setForm({ ...form, isFavorite: v })} id="fav" />
-              <Label htmlFor="fav">مشتری ویژه</Label>
+              <ToggleButton checked={form.isFavorite} onChange={(v) => setForm({ ...form, isFavorite: v })} id="fav" label="مشتری ویژه" />
             </div>
             <div className="space-y-1.5">
               <Label>یادداشت</Label>

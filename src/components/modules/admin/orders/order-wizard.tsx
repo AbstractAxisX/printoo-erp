@@ -9,8 +9,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ToggleButton } from "@/components/ui/toggle-button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -400,8 +401,7 @@ function Step1({
       </div>
 
       <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
-        <Switch checked={multiMode} onCheckedChange={setMultiMode} id="multi" />
-        <Label htmlFor="multi" className="cursor-pointer flex-1">ساخت سفارش برای چند مشتری</Label>
+        <ToggleButton checked={multiMode} onChange={setMultiMode} id="multi" label="ساخت سفارش برای چند مشتری" />
         <span className="text-xs text-muted-foreground">{multiMode ? "حالت چندمشتری فعال" : "تک مشتری"}</span>
       </div>
 
@@ -789,8 +789,8 @@ function Step3(props: {
           <div className="rounded-lg border bg-background p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium"><Icon name="design" size={16} className="text-violet-500" /> ماژول طراحی</div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label className="text-xs">شروع</Label><Input type="date" value={designStart} onChange={(e) => setDesignStart(e.target.value)} dir="ltr" /></div>
-              <div className="space-y-1"><Label className="text-xs">پایان</Label><Input type="date" value={designEnd} onChange={(e) => setDesignEnd(e.target.value)} dir="ltr" /></div>
+              <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={designStart || null} onChange={(d) => setDesignStart(d ? d.toISOString().slice(0,10) : "")} placeholder="شروع" /></div>
+              <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={designEnd || null} onChange={(d) => setDesignEnd(d ? d.toISOString().slice(0,10) : "")} placeholder="پایان" /></div>
             </div>
           </div>
         )}
@@ -798,8 +798,8 @@ function Step3(props: {
         <div className="rounded-lg border bg-background p-3 space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium"><Icon name="print" size={16} className="text-amber-500" /> ماژول چاپ</div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">شروع</Label><Input type="date" value={printStart} onChange={(e) => setPrintStart(e.target.value)} dir="ltr" /></div>
-            <div className="space-y-1"><Label className="text-xs">پایان</Label><Input type="date" value={printEnd} onChange={(e) => setPrintEnd(e.target.value)} dir="ltr" /></div>
+            <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={printStart || null} onChange={(d) => setPrintStart(d ? d.toISOString().slice(0,10) : "")} placeholder="شروع" /></div>
+            <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={printEnd || null} onChange={(d) => setPrintEnd(d ? d.toISOString().slice(0,10) : "")} placeholder="پایان" /></div>
           </div>
         </div>
 
@@ -812,14 +812,11 @@ function Step3(props: {
       <div className="rounded-xl border p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2"><Icon name="clock" size={18} className="text-primary" /><h3 className="font-medium text-sm">تاریخ پایان سفارش</h3></div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <Switch checked={noEndDate} onCheckedChange={setNoEndDate} id="noend" />
-            <Label htmlFor="noend" className="text-xs cursor-pointer">سفارش بدون زمان پایان</Label>
-          </label>
+          <ToggleButton checked={noEndDate} onChange={setNoEndDate} id="noend" label="سفارش بدون زمان پایان" size="sm" />
         </div>
         {!noEndDate && (
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">تاریخ پایان</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} dir="ltr" /></div>
+            <div className="space-y-1"><Label className="text-xs">تاریخ پایان</Label><DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? d.toISOString().slice(0,10) : "")} placeholder="تاریخ پایان" /></div>
           </div>
         )}
         <p className="text-[11px] text-muted-foreground">تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ می‌باشد.</p>
@@ -889,13 +886,9 @@ function Step4(props: {
 
       {/* Pre-invoice */}
       <div className="rounded-xl border p-4 space-y-3">
-        <label className="flex items-center gap-2.5 cursor-pointer">
-          <Switch checked={preInvoiceEnabled} onCheckedChange={setPreInvoiceEnabled} id="pi" />
-          <div className="flex items-center gap-2">
-            <Icon name="receipt" size={18} className="text-emerald-600" />
-            <span className="font-medium text-sm">صدور پیش‌فاکتور</span>
-          </div>
-        </label>
+        <div className="flex items-center gap-3">
+          <ToggleButton checked={preInvoiceEnabled} onChange={setPreInvoiceEnabled} id="pi" label="صدور پیش‌فاکتور" activeColor="emerald" />
+        </div>
 
         {preInvoiceEnabled && (
           <PreInvoiceTable
@@ -910,14 +903,7 @@ function Step4(props: {
       {/* Invoice (only if completed) */}
       {anyCompleted && (
         <div className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 space-y-3">
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <Switch checked={invoiceEnabled} onCheckedChange={setInvoiceEnabled} id="inv" />
-            <div className="flex items-center gap-2">
-              <Icon name="invoice" size={18} className="text-blue-600" />
-              <span className="font-medium text-sm">صدور فاکتور</span>
-              <span className="text-[11px] text-blue-600 bg-blue-100 dark:bg-blue-950 dark:text-blue-300 px-1.5 py-0.5 rounded">سفارش تکمیل شده</span>
-            </div>
-          </label>
+          <ToggleButton checked={invoiceEnabled} onChange={setInvoiceEnabled} id="inv" label="صدور فاکتور" activeColor="emerald" description="سفارش تکمیل شده است" />
           {invoiceEnabled && (
             <p className="text-xs text-muted-foreground">فاکتور رسمی پس از تکمیل سفارش صادر خواهد شد.</p>
           )}

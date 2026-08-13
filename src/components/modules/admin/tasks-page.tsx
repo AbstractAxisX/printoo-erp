@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate } from "@/lib/format";
@@ -108,7 +109,7 @@ export function TasksPage() {
                   <SelectContent><SelectItem value="normal">معمولی</SelectItem><SelectItem value="urgent">فوری</SelectItem></SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5"><Label>تاریخ سررسید</Label><Input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} dir="ltr" /></div>
+              <div className="space-y-1.5"><Label>تاریخ سررسید</Label><DatePicker value={form.dueDate || null} onChange={(d) => setForm({ ...form, dueDate: d ? d.toISOString().slice(0,10) : "" })} placeholder="انتخاب تاریخ" /></div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
