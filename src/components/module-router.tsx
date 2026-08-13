@@ -46,7 +46,7 @@ export function ModuleRouter() {
   }
 
   // other modules
-  return <GenericModulePage moduleKey={module} page={page} />;
+  return <GenericModulePage moduleKey={moduleKey} page={page} />;
 }
 
 function pageTitle(mod: ReturnType<typeof findModule>, page: string) {

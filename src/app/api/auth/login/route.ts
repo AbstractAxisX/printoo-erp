@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "حساب کاربری غیرفعال است" }, { status: 403 });
     }
     await setSession({ id: user.id, name: user.name, email: user.email, role: user.role });
-    return NextResponse.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+    return NextResponse.json({ user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (e) {
     console.error("LOGIN ERROR:", e);
     return NextResponse.json({ error: "خطای سرور: " + (e instanceof Error ? e.message : String(e)) }, { status: 500 });
