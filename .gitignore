@@ -64,3 +64,7 @@ mini-services/
 agent-ctx/
 worklog.md
 tool-results/
+
+# sandbox infrastructure
+.zscripts/
+Caddyfile
