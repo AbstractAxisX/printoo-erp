@@ -82,7 +82,20 @@ export function OrderDetailModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (!order) return null;
+  if (!order) {
+    // Loading state — still render Dialog with DialogTitle for accessibility
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl p-0 gap-0">
+          <DialogTitle className="sr-only">جزئیات سفارش</DialogTitle>
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Icon name="loading" size={28} className="animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">در حال بارگذاری سفارش...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const dr = daysRemaining(order.endDate);
   const s = ORDER_STATUS[order.status];
@@ -274,7 +287,7 @@ export function OrderDetailModal({
                 <Icon name="invoice" size={14} /> فاکتور
               </Button>
             )}
-            <Button size="sm" variant="outline" className="gap-1.5 mr-auto" onClick={() => { onOpenChange(false); navigate("admin", "orders-new"); }}>
+            <Button size="sm" variant="outline" className="gap-1.5 mr-auto" onClick={() => { onOpenChange(false); navigate("admin", "orders-new", order.id); }}>
               <Icon name="edit" size={14} /> ویرایش کامل
             </Button>
           </div>

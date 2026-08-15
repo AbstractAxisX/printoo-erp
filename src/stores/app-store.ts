@@ -52,6 +52,11 @@ type AppState = {
   // notifications panel
   notifOpen: boolean;
   setNotifOpen: (open: boolean) => void;
+
+  // dashboard shortcuts (bookmarked pages, keys formatted as "module:page")
+  shortcuts: string[];
+  addShortcut: (key: string) => void;
+  removeShortcut: (key: string) => void;
 };
 
 export const useAppStore = create<AppState>()(
@@ -122,6 +127,20 @@ export const useAppStore = create<AppState>()(
 
       notifOpen: false,
       setNotifOpen: (open) => set({ notifOpen: open }),
+
+      shortcuts: [
+        "admin:dashboard",
+        "admin:orders",
+        "admin:orders-new",
+        "admin:customers",
+        "admin:calendar",
+      ],
+      addShortcut: (key) =>
+        set((s) =>
+          s.shortcuts.includes(key) ? s : { shortcuts: [...s.shortcuts, key] }
+        ),
+      removeShortcut: (key) =>
+        set((s) => ({ shortcuts: s.shortcuts.filter((k) => k !== key) })),
     }),
     {
       name: "printoo24-app",
@@ -134,6 +153,7 @@ export const useAppStore = create<AppState>()(
         activeTabId: s.activeTabId,
         headerCollapsed: s.headerCollapsed,
         tabbarCollapsed: s.tabbarCollapsed,
+        shortcuts: s.shortcuts,
       }),
     }
   )

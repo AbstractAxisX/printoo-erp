@@ -36,6 +36,35 @@ type ItemDraft = {
 
 type Customer = { id: string; name: string; phone: string };
 
+type OrderEditData = {
+  id: string;
+  number: number;
+  customerId: string;
+  status: string;
+  splitMode: string;
+  priority: string;
+  endDate: string | null;
+  noEndDate: boolean;
+  note: string | null;
+  items: {
+    id: string;
+    productId: string;
+    product: { name: string };
+    quantity: number;
+    pricePerUnit: number;
+    note: string | null;
+    description: string | null;
+    stage: string;
+    needsMaterial: boolean;
+    designStartDate: string | null;
+    designEndDate: string | null;
+    printStartDate: string | null;
+    printEndDate: string | null;
+  }[];
+  preInvoices: { id: string }[];
+  invoice: { id: string } | null;
+};
+
 const STAGES: { value: ItemDraft["stage"]; label: string }[] = [
   { value: "design", label: "طراح" },
   { value: "print", label: "چاپ" },
@@ -74,6 +103,73 @@ export function OrderWizardPage() {
   const [preInvoiceEnabled, setPreInvoiceEnabled] = React.useState(false);
   const [preInvoicePaid, setPreInvoicePaid] = React.useState<Record<string, string>>({});
   const [invoiceEnabled, setInvoiceEnabled] = React.useState(false);
+
+  // Edit mode: read param from store, fetch existing order
+  const param = useAppStore((s) => s.param);
+  const isEditing = !!param;
+  const [loadedOrderId, setLoadedOrderId] = React.useState<string | null>(null);
+
+  const { data: editData, error: editError } = useQuery({
+    queryKey: ["order", param],
+    queryFn: () => api<{ order: OrderEditData }>(`/api/orders/${param}`),
+    enabled: !!param,
+  });
+
+  // Populate wizard state from fetched order (edit mode)
+  React.useEffect(() => {
+    if (!param) {
+      setLoadedOrderId(null);
+      return;
+    }
+    if (!editData?.order) return;
+    if (loadedOrderId === param) return;
+
+    const order = editData.order;
+    // Step 1: customers (single customer for edit)
+    setCustomers([order.customerId]);
+    setActiveCustomer(order.customerId);
+    setMultiMode(false);
+
+    // Step 2: items
+    const items: ItemDraft[] = order.items.map((it) => ({
+      id: crypto.randomUUID(),
+      productId: it.productId,
+      productName: it.product?.name ?? "",
+      quantity: it.quantity,
+      pricePerUnit: it.pricePerUnit,
+      note: it.note ?? "",
+      description: it.description ?? "",
+      stage: (["design", "print", "warehouse", "completed", "archive"].includes(it.stage)
+        ? it.stage
+        : "design") as ItemDraft["stage"],
+      needsMaterial: !!it.needsMaterial,
+    }));
+    setItemsByCustomer({ [order.customerId]: items });
+
+    // Step 3: timing
+    setSplitMode((order.splitMode as "grouped" | "separated") ?? "grouped");
+    setPriority((order.priority as "normal" | "urgent") ?? "normal");
+    setEndDate(order.endDate ? order.endDate.slice(0, 10) : "");
+    setNoEndDate(!!order.noEndDate);
+    setNote(order.note ?? "");
+
+    // Module dates from first item
+    const firstItem = order.items[0];
+    if (firstItem) {
+      setDesignStart(firstItem.designStartDate ? firstItem.designStartDate.slice(0, 10) : "");
+      setDesignEnd(firstItem.designEndDate ? firstItem.designEndDate.slice(0, 10) : "");
+      setPrintStart(firstItem.printStartDate ? firstItem.printStartDate.slice(0, 10) : "");
+      setPrintEnd(firstItem.printEndDate ? firstItem.printEndDate.slice(0, 10) : "");
+    }
+
+    // Step 4: review
+    setPreInvoiceEnabled(order.preInvoices?.length > 0);
+    setInvoiceEnabled(!!order.invoice);
+
+    setLoadedOrderId(param);
+  }, [param, editData, loadedOrderId]);
+
+  const showEditLoading = isEditing && loadedOrderId !== param && !editError;
 
   const { data: customersData } = useQuery({
     queryKey: ["customers-wizard"],
@@ -157,12 +253,45 @@ export function OrderWizardPage() {
 
   const createMut = useMutation({
     mutationFn: () => {
+      // Build items payload (shared by create & edit)
+      const cid = customers[0] ?? "";
+      const items = (itemsByCustomer[cid] ?? []).map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        pricePerUnit: i.pricePerUnit,
+        totalAmount: i.quantity * i.pricePerUnit,
+        note: i.note || null,
+        description: i.description || null,
+        stage: i.stage,
+        needsMaterial: i.needsMaterial,
+      }));
+      const moduleDates = {
+        design: needsDesign ? { start: designStart || null, end: designEnd || null } : undefined,
+        print: { start: printStart || null, end: printEnd || null },
+      };
+
+      if (isEditing && param) {
+        // Edit mode: PUT to /api/orders/[id]
+        const body = {
+          customerId: cid,
+          items,
+          splitMode,
+          priority,
+          endDate: noEndDate ? null : endDate || null,
+          noEndDate,
+          note: note || null,
+          moduleDates,
+        };
+        return api(`/api/orders/${param}`, { method: "PUT", body: JSON.stringify(body) });
+      }
+
+      // Create mode: POST to /api/orders
       const body: Record<string, unknown> = {
         customers,
         itemsByCustomer: Object.fromEntries(
-          Object.entries(itemsByCustomer).map(([cid, items]) => [
-            cid,
-            items.map((i) => ({
+          Object.entries(itemsByCustomer).map(([c, list]) => [
+            c,
+            list.map((i) => ({
               productId: i.productId,
               quantity: i.quantity,
               pricePerUnit: i.pricePerUnit,
@@ -179,10 +308,7 @@ export function OrderWizardPage() {
         endDate: noEndDate ? null : endDate || null,
         noEndDate,
         note: note || null,
-        moduleDates: {
-          design: needsDesign ? { start: designStart || null, end: designEnd || null } : undefined,
-          print: { start: printStart || null, end: printEnd || null },
-        },
+        moduleDates,
         markCompleted: anyCompleted,
       };
       // pre-invoice (per customer in review)
@@ -198,15 +324,41 @@ export function OrderWizardPage() {
       }
       return api("/api/orders", { method: "POST", body: JSON.stringify(body) });
     },
-    onSuccess: (data: { count: number }) => {
+    onSuccess: (data: { count?: number }) => {
       invalidate(["orders"]);
       invalidate(["dashboard"]);
       invalidate(["notifications"]);
-      toast.success(`${data.count} سفارش با موفقیت ایجاد شد`);
+      invalidate(["order"]);
+      if (isEditing) {
+        toast.success("تغییرات سفارش ذخیره شد");
+      } else {
+        toast.success(`${data.count ?? 1} سفارش با موفقیت ایجاد شد`);
+      }
       navigate("admin", "orders");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  if (isEditing && editError) {
+    return (
+      <div className="max-w-6xl mx-auto py-20 flex flex-col items-center gap-3">
+        <Icon name="alertTriangle" size={32} className="text-rose-500" />
+        <p className="text-sm text-muted-foreground">خطا در بارگذاری سفارش</p>
+        <Button variant="outline" size="sm" onClick={() => navigate("admin", "orders")} className="gap-2">
+          <Icon name="arrowRight" size={14} /> بازگشت به سفارشات
+        </Button>
+      </div>
+    );
+  }
+
+  if (showEditLoading) {
+    return (
+      <div className="max-w-6xl mx-auto py-20 flex flex-col items-center gap-3">
+        <Icon name="loading" size={32} className="animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">در حال بارگذاری سفارش...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
@@ -217,8 +369,12 @@ export function OrderWizardPage() {
             <Icon name="arrowRight" size={18} />
           </button>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">سفارش جدید</h1>
-            <p className="text-sm text-muted-foreground">ایجاد سفارش چاپ در ۴ مرحله</p>
+            <h1 className="text-xl font-bold tracking-tight">
+              {isEditing && editData?.order ? `ویرایش سفارش #${editData.order.number}` : "سفارش جدید"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {isEditing ? "ویرایش سفارش چاپ در ۴ مرحله" : "ایجاد سفارش چاپ در ۴ مرحله"}
+            </p>
           </div>
         </div>
       </div>
@@ -352,7 +508,7 @@ export function OrderWizardPage() {
         ) : (
           <Button onClick={() => createMut.mutate()} disabled={createMut.isPending} className="gap-2">
             {createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-            ساخت سفارش
+            {isEditing ? "ذخیره تغییرات" : "ساخت سفارش"}
           </Button>
         )}
       </div>

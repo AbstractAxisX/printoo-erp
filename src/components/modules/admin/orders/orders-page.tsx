@@ -195,7 +195,7 @@ export function OrdersPage() {
     {
       id: "actions",
       header: () => <div className="text-center">عملیات</div>,
-      cell: ({ row }) => <RowActions order={row.original} onNote={() => setNoteModal(row.original)} onDelete={() => setDeleteId(row.original.id)} onEdit={() => navigate("admin", "orders-new")} />,
+      cell: ({ row }) => <RowActions order={row.original} onNote={() => setNoteModal(row.original)} onDelete={() => setDeleteId(row.original.id)} onEdit={() => navigate("admin", "orders-new", row.original.id)} />,
       enableSorting: false,
       meta: { hideable: false },
     },

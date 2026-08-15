@@ -89,6 +89,8 @@ export function CalendarPage() {
     return ev;
   }, [orderEvents, taskEvents, filters]);
 
+  const [activeTab, setActiveTab] = React.useState("calendar");
+
   const filterButtons = [
     { id: "orders", label: "سفارشات", active: filters.orders, onToggle: () => setFilters((f) => ({ ...f, orders: !f.orders })) },
     { id: "tasks", label: "تسک‌ها", active: filters.tasks, onToggle: () => setFilters((f) => ({ ...f, tasks: !f.tasks })) },
@@ -99,7 +101,7 @@ export function CalendarPage() {
     <div className="space-y-5">
       <PageHeader title="تقویم و گانت چارت" description="نمای کامل سفارشات و تسک‌ها در دو نمای تقویمی و گانت" icon="calendar" />
 
-      <Tabs defaultValue="calendar">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="calendar" className="gap-1.5"><Icon name="calendar" size={14} /> تقویم</TabsTrigger>
           <TabsTrigger value="gantt" className="gap-1.5"><Icon name="chart" size={14} /> گانت چارت</TabsTrigger>

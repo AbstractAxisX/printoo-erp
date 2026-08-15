@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { differenceInCalendarDays, parseISO, format, isWithinInterval, isSameDay } from "date-fns";
+import { Gantt, ViewMode, type Task as GanttTask } from "gantt-task-react";
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { addDays, differenceInCalendarDays, parseISO } from "date-fns";
 import type { CalendarEvent } from "./reusable-calendar";
 
 type ReusableGanttProps = {
@@ -15,16 +16,19 @@ type ReusableGanttProps = {
   emptyMessage?: string;
 };
 
-const COLOR_BG: Record<CalendarEvent["color"], string> = {
-  blue: "bg-blue-500",
-  yellow: "bg-amber-500",
-  green: "bg-emerald-500",
-  red: "bg-rose-500",
+// Color mapping for event types
+const COLOR_STYLES: Record<CalendarEvent["color"], { bg: string; bgSelected: string; progress: string }> = {
+  blue: { bg: "#3b82f6", bgSelected: "#2563eb", progress: "#1d4ed8" },
+  yellow: { bg: "#f59e0b", bgSelected: "#d97706", progress: "#b45309" },
+  green: { bg: "#10b981", bgSelected: "#059669", progress: "#047857" },
+  red: { bg: "#f43f5e", bgSelected: "#e11d48", progress: "#be123c" },
 };
 
 export function ReusableGantt({ events, onEventClick, className, title, emptyMessage = "رویدادی برای نمایش نیست" }: ReusableGanttProps) {
+  const [viewMode, setViewMode] = React.useState<ViewMode>(ViewMode.Day);
+  const [viewDate, setViewDate] = React.useState(new Date());
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = React.useState(800);
+  const [containerWidth, setContainerWidth] = React.useState(1000);
 
   React.useEffect(() => {
     const update = () => {
@@ -38,40 +42,51 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
     return () => ro.disconnect();
   }, []);
 
-  // Calculate date range from events
-  const { timelineStart, totalDays, dayWidth, leftPanelWidth } = React.useMemo(() => {
-    if (events.length === 0) {
-      const now = new Date();
-      return { timelineStart: now, totalDays: 30, dayWidth: 30, leftPanelWidth: 200 };
-    }
-    const dates: Date[] = [];
-    for (const e of events) {
-      dates.push(typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate);
-      dates.push(typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate);
-    }
-    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-    // Add 1 day padding on each side
-    minDate.setDate(minDate.getDate() - 1);
-    maxDate.setDate(maxDate.getDate() + 1);
-    const days = differenceInCalendarDays(maxDate, minDate) + 1;
-    const leftW = 200;
-    const availableWidth = Math.max(300, containerWidth - leftW - 20);
-    const dw = Math.max(8, Math.min(40, Math.floor(availableWidth / days)));
-    return { timelineStart: minDate, totalDays: days, dayWidth: dw, leftPanelWidth: leftW };
-  }, [events, containerWidth]);
-
-  const days = React.useMemo(() => {
-    return Array.from({ length: totalDays }, (_, i) => {
-      const d = new Date(timelineStart);
-      d.setDate(d.getDate() + i);
-      return d;
+  // Convert events to Gantt tasks
+  const ganttTasks: GanttTask[] = React.useMemo(() => {
+    return events.map((e) => {
+      const start = typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate;
+      const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
+      // Ensure end is at least same day as start
+      const safeEnd = end < start ? addDays(start, 1) : end;
+      const styles = COLOR_STYLES[e.color];
+      return {
+        id: e.id,
+        type: "task" as const,
+        name: e.title,
+        start,
+        end: safeEnd,
+        progress: 0,
+        styles: {
+          backgroundColor: styles.bg,
+          backgroundSelectedColor: styles.bgSelected,
+          progressColor: styles.progress,
+          progressSelectedColor: styles.progress,
+        },
+        isDisabled: false,
+        displayOrder: events.indexOf(e),
+      };
     });
-  }, [timelineStart, totalDays]);
+  }, [events]);
 
-  const todayIndex = React.useMemo(() => {
-    return days.findIndex(d => isSameDay(d, new Date()));
-  }, [days]);
+  // Event → meta map for click handling
+  const eventMap = React.useMemo(() => {
+    const m = new Map<string, CalendarEvent>();
+    for (const e of events) m.set(e.id, e);
+    return m;
+  }, [events]);
+
+  function handleSelect(task: GanttTask, isSelected: boolean) {
+    if (isSelected) {
+      const event = eventMap.get(task.id);
+      if (event) onEventClick?.(event);
+    }
+  }
+
+  function navigateView(direction: "prev" | "next") {
+    const days = viewMode === ViewMode.Day ? 14 : viewMode === ViewMode.Week ? 28 : 90;
+    setViewDate((d) => addDays(d, direction === "next" ? days : -days));
+  }
 
   if (events.length === 0) {
     return (
@@ -82,67 +97,76 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
     );
   }
 
+  const viewModeOptions: { mode: ViewMode; label: string }[] = [
+    { mode: ViewMode.Day, label: "روزانه" },
+    { mode: ViewMode.Week, label: "هفتگی" },
+    { mode: ViewMode.Month, label: "ماهانه" },
+  ];
+
   return (
     <div ref={containerRef} className={cn("rounded-xl border bg-card overflow-hidden", className)}>
       {title && <div className="px-4 py-2.5 border-b text-sm font-medium">{title}</div>}
-      <div className="flex">
-        {/* Left panel: event names */}
-        <div className="shrink-0 border-l" style={{ width: leftPanelWidth }}>
-          <div className="h-10 border-b px-3 flex items-center text-xs font-medium text-muted-foreground bg-muted/30">نام</div>
-          {events.map((e) => (
-            <div key={e.id} className="h-10 border-b px-3 flex items-center gap-2 hover:bg-accent/30 transition cursor-pointer" onClick={() => onEventClick?.(e)}>
-              <span className={cn("size-2 rounded-full shrink-0", COLOR_BG[e.color])} />
-              <span className="text-xs truncate flex-1">{e.fullTitle}</span>
-            </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-muted/20">
+        {/* View navigation */}
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" className="size-8" onClick={() => navigateView("prev")} title="قبلی">
+            <Icon name="chevronRight" size={14} />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setViewDate(new Date())} className="text-xs">امروز</Button>
+          <Button variant="outline" size="icon" className="size-8" onClick={() => navigateView("next")} title="بعدی">
+            <Icon name="chevronLeft" size={14} />
+          </Button>
+        </div>
+
+        {/* View mode toggle */}
+        <div className="flex items-center rounded-lg border p-0.5">
+          {viewModeOptions.map((opt) => (
+            <button
+              key={opt.mode}
+              onClick={() => setViewMode(opt.mode)}
+              className={cn(
+                "px-2.5 py-1 rounded text-xs font-medium transition",
+                viewMode === opt.mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
           ))}
         </div>
 
-        {/* Right panel: timeline */}
-        <div className="flex-1 min-w-0 overflow-hidden relative">
-          {/* Day headers */}
-          <div className="h-10 border-b flex bg-muted/30" style={{ width: totalDays * dayWidth }}>
-            {days.map((d, i) => (
-              <div key={i} className="border-l flex flex-col items-center justify-center text-[9px] text-muted-foreground shrink-0" style={{ width: dayWidth }}>
-                <span className="font-medium">{format(d, "d")}</span>
-                {dayWidth >= 20 && <span className="opacity-60">{format(d, "MMM").slice(0, 3)}</span>}
-              </div>
-            ))}
-          </div>
-
-          {/* Event bars */}
-          <div className="relative" style={{ width: totalDays * dayWidth }}>
-            {/* Today line */}
-            {todayIndex >= 0 && (
-              <div className="absolute top-0 bottom-0 w-px bg-rose-500 z-10" style={{ left: todayIndex * dayWidth + dayWidth / 2 }} />
-            )}
-            {events.map((e, idx) => {
-              const start = typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate;
-              const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-              const startOffset = differenceInCalendarDays(start, timelineStart);
-              const duration = differenceInCalendarDays(end, start) + 1;
-              const left = startOffset * dayWidth;
-              const width = Math.max(dayWidth, duration * dayWidth);
-              return (
-                <Tooltip key={e.id}>
-                  <TooltipTrigger asChild>
-                    <div
-                      onClick={() => onEventClick?.(e)}
-                      className={cn("h-7 my-1.5 rounded-md flex items-center justify-center text-[10px] text-white font-medium cursor-pointer hover:opacity-80 transition shrink-0", COLOR_BG[e.color])}
-                      style={{ marginLeft: left, width: width - 2, minWidth: dayWidth }}
-                    >
-                      {width > 30 && <span className="truncate px-1">{e.title}</span>}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs max-w-[250px]">
-                    <div className="font-medium">{e.fullTitle}</div>
-                    <div className="text-muted-foreground">{format(start, "yyyy/MM/dd")} → {format(end, "yyyy/MM/dd")}</div>
-                    <div className="text-muted-foreground">{duration} روز</div>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
+        {/* Legend */}
+        <div className="flex items-center gap-3 mr-auto text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-blue-500" /> سفارش عادی</span>
+          <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-amber-500" /> سفارش فوری</span>
+          <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-500" /> تسک عادی</span>
+          <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-rose-500" /> تسک فوری</span>
         </div>
+      </div>
+
+      {/* Gantt chart — fits within container width */}
+      <div style={{ maxWidth: containerWidth - 2, overflow: "hidden" }}>
+        <Gantt
+          tasks={ganttTasks}
+          viewMode={viewMode}
+          viewDate={viewDate}
+          onSelect={handleSelect}
+          onClick={(task) => {
+            const event = eventMap.get(task.id);
+            if (event) onEventClick?.(event);
+          }}
+          listCellWidth="155px"
+          rowHeight={42}
+          headerHeight={56}
+          barCornerRadius={4}
+          fontFamily="var(--font-vazirmatn), Tahoma, sans-serif"
+          fontSize="12px"
+          rtl
+          locale="fa"
+          todayColor="rgba(16, 185, 129, 0.15)"
+          viewListCellWidth="155px"
+        />
       </div>
     </div>
   );

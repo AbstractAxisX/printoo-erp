@@ -204,6 +204,7 @@ export function PreInvoiceModal({ orderId, customerName, open, onOpenChange }: P
       {/* Preview modal */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin p-0">
+          <DialogTitle className="sr-only">پیش‌نمایش پیش‌فاکتور</DialogTitle>
           <div id="pre-invoice-print" className="p-8">
             {/* Header */}
             <div className="flex justify-between items-center border-b-2 border-primary pb-4 mb-6">
