@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -52,7 +53,7 @@ const STEPS = [
 
 export function OrderWizardPage() {
   const navigate = useAppStore((s) => s.navigate);
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
 
   const [step, setStep] = React.useState(1);
   const [multiMode, setMultiMode] = React.useState(false);
@@ -198,9 +199,9 @@ export function OrderWizardPage() {
       return api("/api/orders", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: (data: { count: number }) => {
-      qc.invalidateQueries({ queryKey: ["orders"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["notifications"] });
+      invalidate(["orders"]);
+      invalidate(["dashboard"]);
+      invalidate(["notifications"]);
       toast.success(`${data.count} سفارش با موفقیت ایجاد شد`);
       navigate("admin", "orders");
     },
@@ -373,13 +374,13 @@ function Step1({
 }) {
   const [newCust, setNewCust] = React.useState({ name: "", phone: "" });
   const [createOpen, setCreateOpen] = React.useState(false);
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
 
   const createCust = useMutation({
     mutationFn: (body: { name: string; phone: string }) => api<{ customer: Customer }>("/api/customers", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      qc.invalidateQueries({ queryKey: ["customers-wizard"] });
+      invalidate(["customers"]);
+      invalidate(["customers-wizard"]);
       addCustomer(data.customer.id);
       toast.success("مشتری ایجاد و انتخاب شد");
       setNewCust({ name: "", phone: "" });
@@ -395,20 +396,33 @@ function Step1({
           <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="customers" size={20} /></div>
           <div><h2 className="font-semibold">انتخاب مشتری</h2><p className="text-xs text-muted-foreground">مشتری سفارش را انتخاب کنید</p></div>
         </div>
-        <button onClick={() => setCreateOpen(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
-          <Icon name="plus" size={14} /> مشتری جدید
-        </button>
+        {/* New customer button: only available in multi mode OR when no customer selected yet */}
+        {(multiMode || customers.length === 0) && (
+          <button onClick={() => setCreateOpen(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
+            <Icon name="plus" size={14} /> مشتری جدید
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
-        <ToggleButton checked={multiMode} onChange={setMultiMode} id="multi" label="ساخت سفارش برای چند مشتری" />
-        <span className="text-xs text-muted-foreground">{multiMode ? "حالت چندمشتری فعال" : "تک مشتری"}</span>
+        <ToggleButton checked={multiMode} onChange={(v) => {
+          setMultiMode(v);
+          // When turning OFF multi mode, keep only the first customer (if any)
+          if (!v && customers.length > 1) {
+            const first = customers[0];
+            // remove all but first — call removeCustomer for each extra
+            customers.slice(1).forEach((c) => removeCustomer(c));
+            void first;
+          }
+        }} id="multi" label="ساخت سفارش برای چند مشتری" />
+        <span className="text-xs text-muted-foreground">{multiMode ? "حالت چندمشتری فعال" : "تک مشتری — برای افزودن بیش از یک مشتری، این گزینه را فعال کنید"}</span>
       </div>
 
       {/* Customer selectors */}
       <div className="space-y-3">
         {customers.map((cid, idx) => {
           const c = allCustomers.find((x) => x.id === cid);
+          const canRemove = multiMode || idx > 0; // in single mode, can't remove the only customer (idx 0) — actually allow removing to re-pick
           return (
             <div key={cid} className="flex items-center gap-2">
               <div className="size-8 rounded-lg bg-muted text-muted-foreground grid place-items-center text-xs font-bold shrink-0">{idx + 1}</div>
@@ -419,33 +433,38 @@ function Step1({
                 </div>
                 <StatusPill />
               </div>
-              <Button variant="ghost" size="icon" className="size-9 text-rose-600 hover:text-rose-700" onClick={() => removeCustomer(cid)}>
+              <Button variant="ghost" size="icon" className="size-9 text-rose-600 hover:text-rose-700" onClick={() => canRemove && removeCustomer(cid)} disabled={!canRemove}>
                 <Icon name="trash" size={16} />
               </Button>
             </div>
           );
         })}
 
-        {/* Add customer dropdown */}
-        <div className="flex items-center gap-2">
-          <div className="size-8 shrink-0" />
-          <div className="flex-1">
-            <SearchSelect
-              value={null}
-              onChange={(v) => v && addCustomer(v)}
-              placeholder={customers.length ? "افزودن مشتری دیگر..." : "انتخاب مشتری..."}
-              searchPlaceholder="جستجوی نام یا تلفن..."
-              options={customerOptions.filter((o) => !customers.includes(o.value))}
-              allowClear={false}
-              className="w-full"
-            />
+        {/* Add customer dropdown — only show when: no customers yet OR multi mode is ON */}
+        {(customers.length === 0 || multiMode) && (
+          <div className="flex items-center gap-2">
+            <div className="size-8 shrink-0" />
+            <div className="flex-1">
+              <SearchSelect
+                value={null}
+                onChange={(v) => v && addCustomer(v)}
+                placeholder={customers.length ? "افزودن مشتری دیگر..." : "انتخاب مشتری..."}
+                searchPlaceholder="جستجوی نام یا تلفن..."
+                options={customerOptions.filter((o) => !customers.includes(o.value))}
+                allowClear={false}
+                className="w-full"
+              />
+            </div>
           </div>
-          {multiMode && (
-            <Button variant="outline" size="icon" className="size-9 shrink-0" onClick={() => document.querySelector("[role='combobox']")?.dispatchEvent(new MouseEvent("click", { bubbles: true }))}>
-              <Icon name="plus" size={16} />
-            </Button>
-          )}
-        </div>
+        )}
+
+        {/* Hint when single mode and already has a customer */}
+        {!multiMode && customers.length === 1 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pl-2">
+            <Icon name="info" size={13} />
+            برای افزودن مشتری دیگر، حالت «چند مشتری» را فعال کنید.
+          </div>
+        )}
       </div>
 
       <CreateCustomerDialog
@@ -515,13 +534,13 @@ function Step2({
   const [noteModal, setNoteModal] = React.useState<{ itemId: string } | null>(null);
   const [productModal, setProductModal] = React.useState(false);
   const [newProduct, setNewProduct] = React.useState("");
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
 
   const createProduct = useMutation({
     mutationFn: (name: string) => api<{ product: { id: string; name: string } }>("/api/products", { method: "POST", body: JSON.stringify({ name }) }),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["products"] });
-      qc.invalidateQueries({ queryKey: ["products-wizard"] });
+      invalidate(["products"]);
+      invalidate(["products-wizard"]);
       toast.success("محصول ایجاد شد");
       setProductModal(false);
       setNewProduct("");

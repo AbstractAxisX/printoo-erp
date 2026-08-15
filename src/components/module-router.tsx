@@ -7,7 +7,7 @@ import { PageHeader, EmptyState } from "@/components/shared";
 import { Icon } from "@/lib/icons";
 
 // Admin pages
-import { AdminDashboard } from "@/components/modules/admin/admin-dashboard";
+import { AdminDashboard } from "@/components/modules/admin/dashboard/admin-dashboard";
 import { OrdersPage } from "@/components/modules/admin/orders/orders-page";
 import { OrderWizardPage } from "@/components/modules/admin/orders/order-wizard-page";
 import { OpenOrdersPage } from "@/components/modules/admin/open-orders";

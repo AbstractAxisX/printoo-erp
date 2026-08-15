@@ -1,11 +1,11 @@
 // Printoo24 ERP — formatting helpers
-// All dates Gregorian (English numerals), currency in Toman.
+// All dates Gregorian (English numerals), currency in IQD (Iraqi Dinar).
 
 import { format, formatDistanceToNow, differenceInCalendarDays, isValid } from "date-fns";
 
 export function formatCurrency(amount: number | null | undefined): string {
   const n = Number(amount ?? 0);
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n) + " " + "تومان";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n) + " IQD";
 }
 
 export function formatNumber(amount: number | null | undefined): string {

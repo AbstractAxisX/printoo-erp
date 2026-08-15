@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
@@ -19,7 +20,7 @@ type Product = {
 };
 
 export function ProductsPage() {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [search, setSearch] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", description: "", unit: "عدد", basePrice: "" });
@@ -34,7 +35,7 @@ export function ProductsPage() {
   const createMut = useMutation({
     mutationFn: (body: { name: string; description: string; unit: string; basePrice: number | null }) =>
       api("/api/products", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["products"] }); toast.success("محصول ایجاد شد"); setOpen(false); setForm({ name: "", description: "", unit: "عدد", basePrice: "" }); },
+    onSuccess: () => { invalidate(["products", "products-list", "products-wizard", "dashboard"]); toast.success("محصول ایجاد شد"); setOpen(false); setForm({ name: "", description: "", unit: "عدد", basePrice: "" }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -149,7 +150,7 @@ export function ProductsPage() {
             <div className="space-y-1.5"><Label>نام محصول *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>واحد</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>قیمت پایه (تومان)</Label><Input value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value })} type="number" dir="ltr" /></div>
+              <div className="space-y-1.5"><Label>قیمت پایه (IQD)</Label><Input value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value })} type="number" dir="ltr" /></div>
             </div>
             <div className="space-y-1.5"><Label>توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <DialogFooter>

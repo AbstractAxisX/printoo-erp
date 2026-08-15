@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, StatusBadge, PriorityBadge, EmptyState } from "@/components/shared";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
@@ -30,7 +31,7 @@ type Order = {
 };
 
 export function OrdersPage() {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const navigate = useAppStore((s) => s.navigate);
 
   // Filters state
@@ -86,7 +87,7 @@ export function OrdersPage() {
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => api(`/api/orders/${id}`, { method: "DELETE" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["orders"] }); toast.success("سفارش حذف شد"); setDeleteId(null); },
+    onSuccess: () => { invalidate(["orders"]); toast.success("سفارش حذف شد"); setDeleteId(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -590,12 +591,12 @@ function RowActions({ order, onNote, onDelete, onEdit }: { order: Order; onNote:
 }
 
 function NoteModal({ order, onClose }: { order: Order | null; onClose: () => void }) {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [note, setNote] = React.useState("");
   React.useEffect(() => { setNote(order?.note || ""); }, [order]);
   const saveMut = useMutation({
     mutationFn: (n: string) => api(`/api/orders/${order?.id}`, { method: "PUT", body: JSON.stringify({ note: n }) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["orders"] }); toast.success("یادداشت ذخیره شد"); onClose(); },
+    onSuccess: () => { invalidate(["orders"]); toast.success("یادداشت ذخیره شد"); onClose(); },
     onError: (e: Error) => toast.error(e.message),
   });
   if (!order) return null;
@@ -624,7 +625,7 @@ function NoteModal({ order, onClose }: { order: Order | null; onClose: () => voi
 }
 
 function StatusModal({ order, onClose }: { order: Order | null; onClose: () => void }) {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [status, setStatus] = React.useState<OrderStatus>("pending_design");
   const [designStart, setDesignStart] = React.useState<Date | null>(null);
   const [designEnd, setDesignEnd] = React.useState<Date | null>(null);
@@ -651,7 +652,7 @@ function StatusModal({ order, onClose }: { order: Order | null; onClose: () => v
         printEnd: printEnd ? printEnd.toISOString() : null,
       }),
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["orders"] }); toast.success("وضعیت به‌روزرسانی شد"); onClose(); },
+    onSuccess: () => { invalidate(["orders"]); toast.success("وضعیت به‌روزرسانی شد"); onClose(); },
     onError: (e: Error) => toast.error(e.message),
   });
 

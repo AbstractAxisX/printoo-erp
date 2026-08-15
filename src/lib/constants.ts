@@ -8,7 +8,7 @@ export const COMPANY = {
   email: "info@printoo24.com",
 };
 
-export const CURRENCY = "تومان";
+export const CURRENCY = "IQD";
 
 // Order status flow
 export type OrderStatus =

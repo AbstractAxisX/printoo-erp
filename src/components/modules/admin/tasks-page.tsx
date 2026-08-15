@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, LoadingState, EmptyState, PriorityBadge } from "@/components/shared";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
@@ -30,7 +31,7 @@ const STATUS_BADGE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = { todo: "در صف", in_progress: "در حال انجام", done: "انجام شده" };
 
 export function TasksPage() {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ title: "", description: "", priority: "normal", dueDate: "", module: "admin" });
 
@@ -42,7 +43,7 @@ export function TasksPage() {
 
   const createMut = useMutation({
     mutationFn: (body: typeof form) => api("/api/tasks", { method: "POST", body: JSON.stringify({ ...body, dueDate: body.dueDate || null }) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); toast.success("تسک ایجاد شد"); setOpen(false); setForm({ title: "", description: "", priority: "normal", dueDate: "", module: "admin" }); },
+    onSuccess: () => { invalidate(["tasks"]); toast.success("تسک ایجاد شد"); setOpen(false); setForm({ title: "", description: "", priority: "normal", dueDate: "", module: "admin" }); },
     onError: (e: Error) => toast.error(e.message),
   });
 

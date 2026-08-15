@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, EmptyState } from "@/components/shared";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
@@ -21,7 +22,7 @@ type Supplier = {
 };
 
 export function SuppliersPage() {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [search, setSearch] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", phone: "", contactPerson: "", address: "", note: "" });
@@ -34,7 +35,7 @@ export function SuppliersPage() {
 
   const createMut = useMutation({
     mutationFn: (body: typeof form) => api("/api/suppliers", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["suppliers"] }); toast.success("تامین‌کننده ایجاد شد"); setOpen(false); setForm({ name: "", phone: "", contactPerson: "", address: "", note: "" }); },
+    onSuccess: () => { invalidate(["suppliers", "dashboard"]); toast.success("تامین‌کننده ایجاد شد"); setOpen(false); setForm({ name: "", phone: "", contactPerson: "", address: "", note: "" }); },
     onError: (e: Error) => toast.error(e.message),
   });
 

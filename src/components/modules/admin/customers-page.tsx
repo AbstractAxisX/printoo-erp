@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, EmptyState } from "@/components/shared";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
@@ -22,7 +23,7 @@ type Customer = {
 };
 
 export function CustomersPage() {
-  const qc = useQueryClient();
+  const invalidate = useInvalidate();
   const [search, setSearch] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Customer | null>(null);
@@ -36,7 +37,7 @@ export function CustomersPage() {
 
   const createMut = useMutation({
     mutationFn: (body: typeof form) => api("/api/customers", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["customers"] }); toast.success("مشتری ایجاد شد"); setOpen(false); },
+    onSuccess: () => { invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]); toast.success("مشتری ایجاد شد"); setOpen(false); },
     onError: (e: Error) => toast.error(e.message),
   });
 
