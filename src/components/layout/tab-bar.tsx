@@ -15,6 +15,20 @@ export function TabBar() {
   const tabbarCollapsed = useAppStore((s) => s.tabbarCollapsed);
   const toggleTabbar = useAppStore((s) => s.toggleTabbar);
   const headerCollapsed = useAppStore((s) => s.headerCollapsed);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [availableWidth, setAvailableWidth] = React.useState(1000);
+
+  React.useEffect(() => {
+    const update = () => {
+      if (containerRef.current) {
+        setAvailableWidth(containerRef.current.clientWidth - 50); // minus the collapse button area
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   if (headerCollapsed) return null;
   if (tabs.length === 0 && !tabbarCollapsed) return null;
@@ -29,11 +43,20 @@ export function TabBar() {
     );
   }
 
+  // Calculate tab sizing based on available width and tab count
+  const reservedWidth = 50; // collapse button
+  const usableWidth = availableWidth - reservedWidth;
+  const minTabWidth = 36; // icon-only minimum
+  const maxTabWidth = 180; // full width with text
+  const idealTabWidth = Math.min(maxTabWidth, usableWidth / tabs.length);
+  const showLabels = idealTabWidth > 90; // show text if there's room
+  const tabWidth = Math.max(minTabWidth, idealTabWidth);
+
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="flex items-stretch h-9 border-b bg-muted/20">
-        {/* Scrollable tab list */}
-        <div className="flex items-stretch gap-0.5 px-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-thin scrollbar-thin::-webkit-scrollbar">
+      <div ref={containerRef} className="flex items-stretch h-9 border-b bg-muted/20 overflow-hidden">
+        {/* Tab list — NO scroll, shrinks instead */}
+        <div className="flex items-stretch flex-1 min-w-0">
           {tabs.map((tab) => {
             const active = tab.id === activeTabId;
             const mod = findModule(tab.module);
@@ -42,21 +65,25 @@ export function TabBar() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => switchTab(tab.id)}
+                    style={{ width: tabWidth, minWidth: minTabWidth }}
                     className={cn(
-                      "group relative flex items-center gap-1.5 px-3 py-1.5 text-xs transition-all rounded-t-md border border-transparent shrink-0 max-w-[180px]",
+                      "group relative flex items-center gap-1.5 px-2 py-1.5 text-xs transition-all rounded-t-md border border-transparent shrink-0 overflow-hidden",
                       active
                         ? "bg-background text-foreground border-border border-b-background shadow-sm"
                         : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
                     )}
                   >
-                    <Icon name={tab.icon as "dashboard"} size={13} className={active ? "text-primary" : "text-muted-foreground shrink-0"} />
-                    <span className="truncate max-w-[100px]">{tab.label}</span>
+                    <Icon name={tab.icon as "dashboard"} size={13} className={cn("shrink-0", active ? "text-primary" : "text-muted-foreground")} />
+                    {showLabels && <span className="truncate flex-1">{tab.label}</span>}
                     <span
                       role="button"
                       tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); closeTab(tab.id); } }}
-                      className="ml-1 p-0.5 rounded hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/60 opacity-0 group-hover:opacity-100 transition shrink-0"
+                      className={cn(
+                        "p-0.5 rounded hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/60 transition shrink-0",
+                        showLabels ? "opacity-0 group-hover:opacity-100" : "opacity-60 hover:opacity-100"
+                      )}
                       title="بستن تب"
                     >
                       <Icon name="cancel" size={11} />

@@ -24,6 +24,7 @@ export function ProductsPage() {
   const [search, setSearch] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState({ name: "", description: "", unit: "عدد", basePrice: "" });
+  const [editing, setEditing] = React.useState<Product | null>(null);
   const [view, setView] = React.useState<"grid" | "table">("table");
 
   const { data, isLoading } = useQuery({
@@ -38,8 +39,23 @@ export function ProductsPage() {
     onSuccess: () => { invalidate(["products", "products-list", "products-wizard", "dashboard"]); toast.success("محصول ایجاد شد"); setOpen(false); setForm({ name: "", description: "", unit: "عدد", basePrice: "" }); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const updateMut = useMutation({
+    mutationFn: (body: { name: string; description: string; unit: string; basePrice: number | null }) =>
+      api(`/api/products/${editing?.id}`, { method: "PUT", body: JSON.stringify(body) }),
+    onSuccess: () => { invalidate(["products", "products-list", "products-wizard", "dashboard"]); toast.success("محصول ویرایش شد"); setOpen(false); setEditing(null); setForm({ name: "", description: "", unit: "عدد", basePrice: "" }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api(`/api/products/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(["products", "products-list", "products-wizard", "dashboard"]); toast.success("محصول حذف شد"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  const columns = React.useMemo<ColumnDef<Product>[]>(() => [
+  function openNew() { setEditing(null); setForm({ name: "", description: "", unit: "عدد", basePrice: "" }); setOpen(true); }
+  function openEdit(p: Product) { setEditing(p); setForm({ name: p.name, description: p.description || "", unit: p.unit, basePrice: p.basePrice ? String(p.basePrice) : "" }); setOpen(true); }
+  function submit(e: React.FormEvent) { e.preventDefault(); if (editing) { updateMut.mutate({ name: form.name, description: form.description, unit: form.unit, basePrice: form.basePrice ? Number(form.basePrice) : null }); } else { createMut.mutate({ name: form.name, description: form.description, unit: form.unit, basePrice: form.basePrice ? Number(form.basePrice) : null }); } }
+
+  const columns: ColumnDef<Product>[] = [
     {
       accessorKey: "name",
       header: "نام محصول",
@@ -73,7 +89,19 @@ export function ProductsPage() {
       cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
       enableSorting: true,
     },
-  ], []);
+    {
+      id: "actions",
+      header: () => <div className="text-center">عملیات</div>,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center gap-0.5">
+          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => { e.stopPropagation(); openEdit(row.original); }} title="ویرایش"><Icon name="edit" size={16} /></Button>
+          <Button variant="ghost" size="icon" className="size-8 hover:text-rose-600" onClick={(e) => { e.stopPropagation(); if (confirm(`حذف "${row.original.name}"؟`)) deleteMut.mutate(row.original.id); }} title="حذف"><Icon name="trash" size={16} /></Button>
+        </div>
+      ),
+      enableSorting: false,
+      meta: { hideable: false },
+    },
+  ];
 
   return (
     <div className="space-y-5">
@@ -91,7 +119,7 @@ export function ProductsPage() {
                 <Icon name="layers" size={13} /> کارت
               </button>
             </div>
-            <Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> محصول جدید</Button>
+            <Button onClick={openNew} className="gap-2"><Icon name="plus" size={16} /> محصول جدید</Button>
           </div>
         }
       />
@@ -145,8 +173,8 @@ export function ProductsPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>محصول جدید</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); createMut.mutate({ name: form.name, description: form.description, unit: form.unit, basePrice: form.basePrice ? Number(form.basePrice) : null }); }} className="space-y-4">
+          <DialogHeader><DialogTitle>{editing ? "ویرایش محصول" : "محصول جدید"}</DialogTitle></DialogHeader>
+          <form onSubmit={submit} className="space-y-4">
             <div className="space-y-1.5"><Label>نام محصول *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>واحد</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
@@ -155,9 +183,9 @@ export function ProductsPage() {
             <div className="space-y-1.5"><Label>توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
-              <Button type="submit" disabled={createMut.isPending} className="gap-2">
-                {createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-                ذخیره
+              <Button type="submit" disabled={createMut.isPending || updateMut.isPending} className="gap-2">
+                {(createMut.isPending || updateMut.isPending) ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
+                {editing ? "ذخیره تغییرات" : "ذخیره"}
               </Button>
             </DialogFooter>
           </form>

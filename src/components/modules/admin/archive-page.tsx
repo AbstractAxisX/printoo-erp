@@ -8,6 +8,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useOrderDetail } from "@/lib/use-order-detail";
 
 type Order = {
   id: string; number: number; status: string; endDate: string | null; totalAmount: number;
@@ -16,13 +17,15 @@ type Order = {
 };
 
 export function ArchivePage() {
+  const { openOrder, modal } = useOrderDetail();
   const { data, isLoading } = useQuery({
     queryKey: ["archive"],
     queryFn: () => api<{ orders: Order[] }>("/api/orders?status=archived"),
+    refetchInterval: 30000,
   });
   const orders = data?.orders ?? [];
 
-  const columns = React.useMemo<ColumnDef<Order>[]>(() => [
+  const columns: ColumnDef<Order>[] = [
     {
       accessorKey: "number",
       header: "شماره",
@@ -65,7 +68,7 @@ export function ArchivePage() {
       cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
       enableSorting: true,
     },
-  ], []);
+  ];
 
   return (
     <div className="space-y-5">
@@ -77,6 +80,7 @@ export function ArchivePage() {
           data={orders}
           isLoading={isLoading}
           pageSize={10}
+          onRowClick={(row) => openOrder(row.id)}
           emptyState={
             <EmptyState
               icon="archive"
@@ -86,6 +90,7 @@ export function ArchivePage() {
           }
         />
       </Card>
+      {modal}
     </div>
   );
 }
