@@ -64,7 +64,16 @@ export const useAppStore = create<AppState>()(
       module: "admin",
       page: "dashboard",
       navigate: (module, page, param) => {
-        set({ module, page, param });
+        const state = get();
+        const tabId = `${module}:${page}`;
+        const existing = state.tabs.find((t) => t.id === tabId);
+        if (existing) {
+          // Switch to existing tab
+          set({ module, page, param, activeTabId: tabId });
+        } else {
+          // Will be picked up by useAutoTabs to open a new tab
+          set({ module, page, param });
+        }
       },
 
       tabs: [],

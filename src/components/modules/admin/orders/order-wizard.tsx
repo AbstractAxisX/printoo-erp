@@ -422,7 +422,6 @@ function Step1({
       <div className="space-y-3">
         {customers.map((cid, idx) => {
           const c = allCustomers.find((x) => x.id === cid);
-          const canRemove = multiMode || idx > 0; // in single mode, can't remove the only customer (idx 0) — actually allow removing to re-pick
           return (
             <div key={cid} className="flex items-center gap-2">
               <div className="size-8 rounded-lg bg-muted text-muted-foreground grid place-items-center text-xs font-bold shrink-0">{idx + 1}</div>
@@ -433,7 +432,7 @@ function Step1({
                 </div>
                 <StatusPill />
               </div>
-              <Button variant="ghost" size="icon" className="size-9 text-rose-600 hover:text-rose-700" onClick={() => canRemove && removeCustomer(cid)} disabled={!canRemove}>
+              <Button variant="ghost" size="icon" className="size-9 text-rose-600 hover:text-rose-700" onClick={() => removeCustomer(cid)} title="حذف مشتری">
                 <Icon name="trash" size={16} />
               </Button>
             </div>

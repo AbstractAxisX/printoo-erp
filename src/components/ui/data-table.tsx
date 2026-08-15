@@ -178,7 +178,10 @@ export function DataTable<TData, TValue>({
                 {hg.headers.map((header) => (
                   <TableHead key={header.id} className="h-10 text-xs font-semibold text-muted-foreground">
                     {header.isPlaceholder ? null : (
-                      <div className={cn("flex items-center gap-1", header.column.getCanSort() && "cursor-pointer select-none")}>
+                      <div
+                        className={cn("flex items-center gap-1", header.column.getCanSort() && "cursor-pointer select-none hover:text-foreground transition")}
+                        onClick={header.column.getCanSort() ? () => header.column.toggleSorting(header.column.getIsSorted() === "asc") : undefined}
+                      >
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getCanSort() && (
                           <SortIcon dir={header.column.getIsSorted()} />

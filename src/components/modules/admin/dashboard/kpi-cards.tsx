@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Area, AreaChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Icon, type IconName } from "@/lib/icons";
 import { TimeRangePicker } from "@/components/ui/time-range-picker";
@@ -11,14 +11,12 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { rangeToParams, type TimeRange } from "@/lib/time-ranges";
 
-type KpiData = {
-  value: number;
-  prev: number;
-  change: number;
-  total: number;
+type KpiData = { value: number; prev: number; change: number; total: number };
+type SeriesPoint = { date: string; value: number };
+type DashboardData = {
+  kpis: Record<string, KpiData>;
+  series: Record<string, SeriesPoint[]>;
 };
-
-type ChartPoint = { date: string; value: number };
 
 export type KpiCardConfig = {
   key: string;
@@ -33,7 +31,7 @@ export const KPI_CARDS: KpiCardConfig[] = [
   { key: "orders", label: "سفارشات جدید", icon: "orders", color: "violet" },
   { key: "avgOrderValue", label: "میانگین ارزش سفارش", icon: "chart", color: "blue", isCurrency: true },
   { key: "newCustomers", label: "مشتریان جدید", icon: "customers", color: "teal" },
-  { key: "completed", label: "سفارشات تکمیل شده", icon: "checkCircle", color: "emerald" },
+  { key: "completed", label: "تکمیل شده", icon: "checkCircle", color: "emerald" },
   { key: "urgent", label: "سفارشات فوری", icon: "alertTriangle", color: "rose" },
   { key: "payments", label: "پرداخت‌های دریافتی", icon: "creditCard", color: "amber", isCurrency: true },
   { key: "profit", label: "سود تخمینی", icon: "trending", color: "cyan", isCurrency: true },
@@ -62,21 +60,6 @@ export function KpiCardsGrid({
 }) {
   const [cardRanges, setCardRanges] = React.useState<Record<string, TimeRange>>({});
 
-  const { data } = useQuery({
-    queryKey: ["dashboard-kpi", globalRange.preset, globalRange.from.toISOString(), globalRange.to.toISOString()],
-    queryFn: () => api<{ kpis: Record<string, KpiData>; chartData: ChartPoint[] }>(
-      `/api/dashboard?${rangeToParams(globalRange)}`
-    ),
-    refetchInterval: 15000,
-  });
-
-  const kpis = data?.kpis;
-  const chartData = data?.chartData ?? [];
-
-  function getCardRange(cardKey: string): TimeRange {
-    return cardRanges[cardKey] ?? globalRange;
-  }
-
   return (
     <div className="space-y-3">
       {/* Header with global filter + chart toggle */}
@@ -92,124 +75,113 @@ export function KpiCardsGrid({
         >
           <Icon name={showChart ? "grid" : "chart"} size={16} />
         </button>
-        <div className="text-xs text-muted-foreground mr-auto">
-          {kpis ? "به‌روزرسانی خودکار هر ۱۵ ثانیه" : "در حال بارگذاری..."}
-        </div>
+        <div className="text-xs text-muted-foreground mr-auto">به‌روزرسانی خودکار هر ۱۵ ثانیه</div>
       </div>
 
       {/* KPI cards grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {KPI_CARDS.map((cfg) => {
-          const kpi = kpis?.[cfg.key];
-          const cardRange = getCardRange(cfg.key);
-          const hasOverride = cardRange.label !== globalRange.label;
-          return (
-            <KpiCard
-              key={cfg.key}
-              config={cfg}
-              data={kpi}
-              range={cardRange}
-              globalLabel={globalRange.label}
-              showChart={showChart}
-              chartData={chartData}
-              onCardRangeReset={() => {
-                setCardRanges((prev) => {
-                  const n = { ...prev };
-                  delete n[cfg.key];
-                  return n;
-                });
-              }}
-              onRangeChange={(r) => setCardRanges((prev) => ({ ...prev, [cfg.key]: r }))}
-            />
-          );
-        })}
+        {KPI_CARDS.map((cfg) => (
+          <KpiCard
+            key={cfg.key}
+            config={cfg}
+            range={cardRanges[cfg.key] ?? globalRange}
+            globalLabel={globalRange.label}
+            showChart={showChart}
+            onRangeChange={(r) => setCardRanges((prev) => ({ ...prev, [cfg.key]: r }))}
+            onCardRangeReset={() => setCardRanges((prev) => { const n = { ...prev }; delete n[cfg.key]; return n; })}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 function KpiCard({
-  config, data, range, onRangeChange, globalLabel, showChart, chartData, onCardRangeReset,
+  config, range, globalLabel, showChart, onRangeChange, onCardRangeReset,
 }: {
   config: KpiCardConfig;
-  data?: KpiData;
   range: TimeRange;
-  onRangeChange: (r: TimeRange) => void;
   globalLabel: string;
   showChart: boolean;
-  chartData: ChartPoint[];
+  onRangeChange: (r: TimeRange) => void;
   onCardRangeReset: () => void;
 }) {
+  // Each card fetches its own data based on its range (per-card filter takes priority)
+  const { data } = useQuery({
+    queryKey: ["dashboard-kpi", config.key, range.preset, range.from.toISOString(), range.to.toISOString()],
+    queryFn: () => api<DashboardData>(`/api/dashboard?${rangeToParams(range)}`),
+    refetchInterval: 15000,
+    staleTime: 0,
+  });
+
   const colors = COLOR_MAP[config.color];
+  const kpi = data?.kpis?.[config.key];
+  const chartData = data?.series?.[config.key] ?? [];
   const hasOverride = range.label !== globalLabel;
   const fmt = (v: number) => config.isCurrency ? formatCurrency(v) : formatNumber(v);
 
   return (
-    <Card className="p-3.5 relative overflow-hidden group hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className={cn("size-9 rounded-lg grid place-items-center", colors.bg)}>
-          <Icon name={config.icon} size={18} className={colors.text} />
+    <Card className="p-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+      {/* Header: icon + BIG label */}
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className={cn("size-10 rounded-xl grid place-items-center shrink-0", colors.bg)}>
+          <Icon name={config.icon} size={20} className={colors.text} />
         </div>
+        <div className="text-base font-bold leading-tight">{config.label}</div>
       </div>
 
-      {/* Flip container */}
-      <div className="relative mt-2.5" style={{ minHeight: showChart ? 64 : 32 }}>
-        <div
-          className={cn("transition-all duration-300", showChart ? "opacity-0 scale-95 pointer-events-none absolute inset-0" : "opacity-100 scale-100")}
-        >
-          <div className="text-xl font-bold tabular-nums truncate" dir="ltr">
-            {data ? fmt(data.value) : "—"}
+      {/* Flip container: number ↔ chart */}
+      <div className="relative" style={{ minHeight: showChart ? 64 : 32 }}>
+        <div className={cn("transition-all duration-300", showChart ? "opacity-0 scale-95 pointer-events-none absolute inset-0" : "opacity-100 scale-100")}>
+          <div className="text-2xl font-bold tabular-nums truncate" dir="ltr">
+            {kpi ? fmt(kpi.value) : "—"}
           </div>
         </div>
         {showChart && (
           <div className={cn("transition-all duration-300", showChart ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none absolute inset-0")}>
-            <ResponsiveContainer width="100%" height={56}>
-              <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id={`grad-${config.color}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors.stroke} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={colors.stroke} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="value" stroke={colors.stroke} strokeWidth={2} fill={`url(#grad-${config.color})`} />
-                <Tooltip
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb" }}
-                  formatter={(v: number) => [fmt(v), ""]}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={56}>
+                <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id={`grad-${config.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={colors.stroke} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={colors.stroke} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <YAxis hide domain={["dataMin", "dataMax"]} />
+                  <Area type="monotone" dataKey="value" stroke={colors.stroke} strokeWidth={2} fill={`url(#grad-${config.key})`} isAnimationActive={false} />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", padding: "4px 8px" }}
+                    formatter={(v: number) => [fmt(v), config.label]}
+                    labelFormatter={(l) => l}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-14 grid place-items-center text-xs text-muted-foreground">داده‌ای برای نمودار</div>
+            )}
           </div>
         )}
       </div>
 
-      <div className="text-xs text-muted-foreground mt-0.5">{config.label}</div>
-
       {/* Total + change */}
       <div className="flex items-center gap-2 mt-1.5 text-[11px]">
         <span className="text-muted-foreground">
-          کل: <span className="tabular-nums" dir="ltr">{data ? fmt(data.total) : "—"}</span>
+          کل: <span className="tabular-nums" dir="ltr">{kpi ? fmt(kpi.total) : "—"}</span>
         </span>
-        {data && (
-          <span className={cn("flex items-center gap-0.5 font-medium", data.change >= 0 ? "text-emerald-600" : "text-rose-600")}>
-            <Icon name={data.change >= 0 ? "arrowUp" : "arrowDown"} size={10} />
-            {Math.abs(data.change)}%
+        {kpi && (
+          <span className={cn("flex items-center gap-0.5 font-medium", kpi.change >= 0 ? "text-emerald-600" : "text-rose-600")}>
+            <Icon name={kpi.change >= 0 ? "arrowUp" : "arrowDown"} size={10} />
+            {Math.abs(kpi.change)}%
           </span>
         )}
       </div>
 
       {/* Per-card time filter */}
       <div className="mt-2 pt-2 border-t">
-        <TimeRangePicker
-          value={range}
-          onChange={onRangeChange}
-          compact
-          className="w-full justify-between text-[11px] h-7"
-        />
+        <TimeRangePicker value={range} onChange={onRangeChange} compact className="w-full justify-between text-[11px] h-7" />
         {hasOverride && (
-          <button
-            onClick={onCardRangeReset}
-            className="text-[10px] text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1"
-          >
+          <button onClick={onCardRangeReset} className="text-[10px] text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1">
             <Icon name="cancel" size={10} /> بازگشت به فیلتر اصلی ({globalLabel})
           </button>
         )}

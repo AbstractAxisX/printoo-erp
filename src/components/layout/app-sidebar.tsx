@@ -95,22 +95,23 @@ function TreeModule({
     <Collapsible open={open} onOpenChange={setOpen} asChild>
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            isActive={active}
-            tooltip={label}
-            onClick={() => {
-              onNavigate(moduleKey, groups[0]?.items[0]?.page ?? "dashboard");
-              if (!open) setOpen(true);
-            }}
-          >
-            <Icon name={icon} size={18} />
-            <span>{label}</span>
-            <Icon
-              name={open ? "chevronDown" : "chevronLeft"}
-              size={14}
-              className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden transition-transform"
-              onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-            />
+          <SidebarMenuButton asChild isActive={active} tooltip={label}>
+            <button
+              onClick={() => {
+                onNavigate(moduleKey, groups[0]?.items[0]?.page ?? "dashboard");
+                if (!open) setOpen(true);
+              }}
+              className="w-full flex items-center gap-2"
+            >
+              <Icon name={icon} size={18} />
+              <span>{label}</span>
+              <Icon
+                name={open ? "chevronDown" : "chevronLeft"}
+                size={14}
+                className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden transition-transform"
+                onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+              />
+            </button>
           </SidebarMenuButton>
         </CollapsibleTrigger>
 
@@ -147,8 +148,9 @@ function TreeGroup({
 }) {
   const isCurrentModule = currentModule === moduleKey;
   const hasActive = group.items.some((i) => i.page === currentPage);
-  const [open, setOpen] = React.useState(isCurrentModule && hasActive);
-  React.useEffect(() => { if (isCurrentModule && hasActive) setOpen(true); }, [isCurrentModule, hasActive]);
+  // Auto-expand all groups in the current module
+  const [open, setOpen] = React.useState(isCurrentModule);
+  React.useEffect(() => { if (isCurrentModule) setOpen(true); }, [isCurrentModule]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} asChild>
@@ -179,12 +181,16 @@ function TreeGroup({
               return (
                 <SidebarMenuSubButton
                   key={item.id}
+                  asChild
                   isActive={isActive}
-                  onClick={() => onNavigate(moduleKey, item.page)}
-                  className="text-xs"
                 >
-                  <Icon name={item.icon} size={13} className="shrink-0" />
-                  <span>{item.label}</span>
+                  <button
+                    onClick={() => onNavigate(moduleKey, item.page)}
+                    className="text-xs w-full flex items-center gap-1.5"
+                  >
+                    <Icon name={item.icon} size={13} className="shrink-0" />
+                    <span>{item.label}</span>
+                  </button>
                 </SidebarMenuSubButton>
               );
             })}

@@ -40,6 +40,16 @@ export function CustomersPage() {
     onSuccess: () => { invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]); toast.success("مشتری ایجاد شد"); setOpen(false); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const updateMut = useMutation({
+    mutationFn: (body: typeof form) => api(`/api/customers/${editing?.id}`, { method: "PUT", body: JSON.stringify(body) }),
+    onSuccess: () => { invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]); toast.success("مشتری ویرایش شد"); setOpen(false); setEditing(null); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api(`/api/customers/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]); toast.success("مشتری حذف شد"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   function openNew() {
     setEditing(null);
@@ -53,10 +63,14 @@ export function CustomersPage() {
   }
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    createMut.mutate(form);
+    if (editing) {
+      updateMut.mutate(form);
+    } else {
+      createMut.mutate(form);
+    }
   }
 
-  const columns = React.useMemo<ColumnDef<Customer>[]>(() => [
+  const columns: ColumnDef<Customer>[] = [
     {
       accessorKey: "name",
       header: "نام مشتری",
@@ -97,16 +111,19 @@ export function CustomersPage() {
       id: "actions",
       header: () => <div className="text-center">عملیات</div>,
       cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => { e.stopPropagation(); openEdit(row.original); }}>
+        <div className="flex items-center justify-center gap-0.5">
+          <Button variant="ghost" size="icon" className="size-8" onClick={(e) => { e.stopPropagation(); openEdit(row.original); }} title="ویرایش">
             <Icon name="edit" size={16} />
+          </Button>
+          <Button variant="ghost" size="icon" className="size-8 hover:text-rose-600" onClick={(e) => { e.stopPropagation(); if (confirm(`حذف "${row.original.name}"؟`)) deleteMut.mutate(row.original.id); }} title="حذف">
+            <Icon name="trash" size={16} />
           </Button>
         </div>
       ),
       enableSorting: false,
       meta: { hideable: false },
     },
-  ], []);
+  ];
 
   return (
     <div className="space-y-5">
@@ -160,9 +177,9 @@ export function CustomersPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
-              <Button type="submit" disabled={createMut.isPending} className="gap-2">
-                {createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-                ذخیره
+              <Button type="submit" disabled={createMut.isPending || updateMut.isPending} className="gap-2">
+                {(createMut.isPending || updateMut.isPending) ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
+                {editing ? "ذخیره تغییرات" : "ذخیره"}
               </Button>
             </DialogFooter>
           </form>
