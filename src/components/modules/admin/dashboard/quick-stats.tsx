@@ -47,7 +47,7 @@ export function QuickStatsRow() {
       {stats.map((s) => (
         <button key={s.key} onClick={() => navigate("admin", s.page)} className="text-right">
           <Card className="p-3.5 hover:shadow-md transition-shadow flex items-center gap-3">
-            <div className={cn("size-10 rounded-xl grid place-items-center shrink-0", COLOR_MAP[s.color])}>
+            <div className={cn("size-10 rounded-xl grid place-items-center shrink-0", COLOR_MAP[s.color] ?? "bg-muted text-muted-foreground")}>
               <Icon name={s.icon} size={20} />
             </div>
             <div className="min-w-0">

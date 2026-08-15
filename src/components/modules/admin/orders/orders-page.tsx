@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { DatePicker } from "@/components/ui/date-picker";
+import { useOrderDetail } from "@/lib/use-order-detail";
 import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ type Order = {
 export function OrdersPage() {
   const invalidate = useInvalidate();
   const navigate = useAppStore((s) => s.navigate);
+  const { openOrder, modal } = useOrderDetail();
 
   // Filters state
   const [customerSearch, setCustomerSearch] = React.useState("");
@@ -78,7 +80,7 @@ export function OrdersPage() {
     return allOrders.filter((o) => {
       if (statusFilters.size > 0 && !statusFilters.has(o.status)) return false;
       if (priorityFilters.size > 0 && !priorityFilters.has(o.priority)) return false;
-      if (stageFilters.size > 0 && !o.items.some((it) => stageFilters.has(it.stage))) return false;
+      if (stageFilters.size > 0 && !(o.items ?? []).some((it) => stageFilters.has(it.stage))) return false;
       if (dateFrom && o.createdAt && new Date(o.createdAt) < dateFrom) return false;
       if (dateTo && o.createdAt && new Date(o.createdAt) > dateTo) return false;
       return true;
@@ -96,7 +98,7 @@ export function OrdersPage() {
       id: "expand",
       header: () => null,
       cell: ({ row }) => {
-        const canExpand = row.original.items.length > 1;
+        const canExpand = (row.original.items?.length ?? 0) > 1;
         return canExpand ? (
           <button className="size-7 grid place-items-center rounded hover:bg-accent" onClick={(e) => { e.stopPropagation(); row.toggleExpanded(); }}>
             <Icon name={row.getIsExpanded() ? "chevronDown" : "chevronLeft"} size={14} />
@@ -114,12 +116,12 @@ export function OrdersPage() {
     },
     {
       id: "customer",
-      accessorFn: (r) => r.customer.name,
+      accessorFn: (r) => r.customer?.name ?? "",
       header: "مشتری",
       cell: ({ row }) => (
         <div>
-          <div className="font-medium">{row.original.customer.name}</div>
-          <div className="text-xs text-muted-foreground tabular-nums" dir="ltr">{row.original.customer.phone}</div>
+          <div className="font-medium">{row.original.customer?.name ?? "—"}</div>
+          <div className="text-xs text-muted-foreground tabular-nums" dir="ltr">{row.original.customer?.phone ?? "—"}</div>
         </div>
       ),
     },
@@ -127,11 +129,11 @@ export function OrdersPage() {
       id: "items",
       header: "آیتم‌ها",
       cell: ({ row }) => {
-        const items = row.original.items;
+        const items = row.original.items ?? [];
         return (
           <div className="flex flex-wrap gap-1 max-w-[200px]">
             {items.slice(0, 2).map((it) => (
-              <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate">{it.product.name}</span>
+              <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate">{it.product?.name ?? "—"}</span>
             ))}
             {items.length > 2 && <span className="text-xs text-muted-foreground">+{items.length - 2}</span>}
           </div>
@@ -344,6 +346,7 @@ export function OrdersPage() {
             isLoading={isLoading}
             pageSize={10}
             showColumnToggle
+            onRowClick={(row) => openOrder(row.id)}
             emptyState={
               <EmptyState
                 icon="orders"
@@ -352,7 +355,7 @@ export function OrdersPage() {
                 action={<Button onClick={() => navigate("admin", "orders-new")} className="gap-2"><Icon name="plus" size={16} /> ایجاد سفارش</Button>}
               />
             }
-            getRowCanExpand={(o) => o.items.length > 1}
+            getRowCanExpand={(o) => (o.items?.length ?? 0) > 1}
             renderExpandedRow={(o) => (
               <div className="p-3 bg-muted/10">
                 <div className="rounded-lg border bg-background overflow-hidden">
@@ -367,9 +370,9 @@ export function OrdersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {o.items.map((it) => (
+                      {(o.items ?? []).map((it) => (
                         <tr key={it.id}>
-                          <td className="px-3 py-2 font-medium">{it.product.name}</td>
+                          <td className="px-3 py-2 font-medium">{it.product?.name ?? "—"}</td>
                           <td className="px-3 py-2 tabular-nums" dir="ltr">{it.quantity}</td>
                           <td className="px-3 py-2"><span className="rounded bg-muted px-1.5 py-0.5">{ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE]?.label ?? it.stage}</span></td>
                           <td className="px-3 py-2 tabular-nums" dir="ltr">{formatCurrency(it.totalAmount)}</td>
@@ -399,6 +402,8 @@ export function OrdersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {modal}
       </div>
     </TooltipProvider>
   );

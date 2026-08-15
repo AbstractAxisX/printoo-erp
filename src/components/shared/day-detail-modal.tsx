@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, differenceInCalendarDays, parseISO } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, isValid } from "date-fns";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,21 @@ type DayDetailModalProps = {
   onOpenChange: (v: boolean) => void;
   onEventClick?: (event: CalendarEvent) => void;
 };
+
+function toDate(d: string | Date): Date | null {
+  try {
+    const parsed = typeof d === "string" ? parseISO(d) : new Date(d);
+    return isValid(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function diffDays(end: string | Date, ref: Date): number {
+  const e = toDate(end);
+  if (!e) return NaN;
+  return differenceInCalendarDays(e, ref);
+}
 
 export function DayDetailModal({ date, events, open, onOpenChange, onEventClick }: DayDetailModalProps) {
   const [tab, setTab] = React.useState<"overview" | "orders" | "tasks">("overview");
@@ -32,16 +47,16 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   // Overview stats
   const totalEvents = events.length;
   const overdue = events.filter((e) => {
-    const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-    return differenceInCalendarDays(end, new Date()) < 0;
+    const d = diffDays(e.endDate, new Date());
+    return !Number.isNaN(d) && d < 0;
   }).length;
   const dueToday = events.filter((e) => {
-    const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-    return differenceInCalendarDays(end, new Date()) === 0;
+    const d = diffDays(e.endDate, new Date());
+    return !Number.isNaN(d) && d === 0;
   }).length;
   const upcoming = events.filter((e) => {
-    const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-    return differenceInCalendarDays(end, new Date()) > 0;
+    const d = diffDays(e.endDate, new Date());
+    return !Number.isNaN(d) && d > 0;
   }).length;
 
   if (!date) return null;
@@ -151,15 +166,13 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
                   </div>
                   <div className="space-y-1">
                     {events.slice(0, 5).map((e) => {
-                      const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-                      const start = typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate;
-                      const daysLeft = differenceInCalendarDays(end, new Date());
+                      const daysLeft = diffDays(e.endDate, new Date());
                       return (
                         <div key={e.id} className="flex items-center gap-2 text-xs py-1">
                           <span className={cn("size-2 rounded-full shrink-0", `bg-${e.color === "yellow" ? "amber" : e.color === "blue" ? "blue" : e.color === "green" ? "emerald" : "rose"}-500`)} />
                           <span className="flex-1 truncate font-medium">{e.fullTitle}</span>
                           <span className="text-muted-foreground shrink-0">
-                            {daysLeft > 0 ? `${daysLeft}روز` : daysLeft === 0 ? "امروز" : `${Math.abs(daysLeft)}روز گذشته`}
+                            {Number.isNaN(daysLeft) ? "—" : daysLeft > 0 ? `${daysLeft}روز` : daysLeft === 0 ? "امروز" : `${Math.abs(daysLeft)}روز گذشته`}
                           </span>
                         </div>
                       );
@@ -226,8 +239,23 @@ function EventList({ events, onEventClick, emptyMessage }: { events: CalendarEve
   return (
     <div className="space-y-2">
       {events.map((e) => {
-        const start = typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate;
-        const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
+        const start = toDate(e.startDate);
+        const end = toDate(e.endDate);
+        if (!start || !end) {
+          return (
+            <button
+              key={e.id}
+              onClick={() => onEventClick?.(e)}
+              className={cn("w-full text-right rounded-lg border p-3 hover:shadow-md transition", "bg-muted/30 border-border")}
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-sm truncate">{e.fullTitle}</span>
+                </div>
+              </div>
+            </button>
+          );
+        }
         const totalDays = differenceInCalendarDays(end, start) + 1;
         const daysLeft = differenceInCalendarDays(end, new Date());
         const colorBg = {

@@ -121,7 +121,7 @@ function KpiCard({
     staleTime: 0,
   });
 
-  const colors = COLOR_MAP[config.color];
+  const colors = COLOR_MAP[config.color] ?? { bg: "bg-muted", text: "text-muted-foreground", stroke: "#94a3b8" };
   const kpi = data?.kpis?.[config.key];
   const chartData = data?.series?.[config.key] ?? [];
   const hasOverride = range.label !== globalLabel;

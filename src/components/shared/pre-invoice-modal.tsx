@@ -35,7 +35,7 @@ export function PreInvoiceModal({ orderId, customerName, open, onOpenChange }: P
   // Fetch order items when modal opens
   const { data: orderData } = useQuery({
     queryKey: ["order", orderId],
-    queryFn: () => api<{ order: { items: { id: string; product: { name: string }; quantity: number; totalAmount: number }[]; preInvoices: { id: string; number: number; items: string; paidAmount: number; totalAmount: number }[] } }>(`/api/orders/${orderId}`),
+    queryFn: () => api<{ order: { customerId?: string; items: { id: string; product: { name: string } | null; quantity: number; totalAmount: number }[]; preInvoices: { id: string; number: number; items: string; paidAmount: number; totalAmount: number }[] } }>(`/api/orders/${orderId}`),
     enabled: !!orderId && open,
   });
 
@@ -48,13 +48,13 @@ export function PreInvoiceModal({ orderId, customerName, open, onOpenChange }: P
         // Load existing items
         try {
           const parsed = JSON.parse(existingPreInvoice.items) as PreInvoiceItem[];
-          setItems(parsed);
+          setItems(Array.isArray(parsed) ? parsed : []);
         } catch {
-          setItems(orderData.order.items.map((it) => ({ name: it.product.name, quantity: it.quantity, total: it.totalAmount, paid: 0 })));
+          setItems((orderData.order.items ?? []).map((it) => ({ name: it.product?.name ?? "—", quantity: it.quantity, total: it.totalAmount, paid: 0 })));
         }
       } else {
         // New pre-invoice from order items
-        setItems(orderData.order.items.map((it) => ({ name: it.product.name, quantity: it.quantity, total: it.totalAmount, paid: 0 })));
+        setItems((orderData.order.items ?? []).map((it) => ({ name: it.product?.name ?? "—", quantity: it.quantity, total: it.totalAmount, paid: 0 })));
       }
     }
   }, [open, orderData, existingPreInvoice]);

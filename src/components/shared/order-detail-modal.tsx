@@ -52,10 +52,10 @@ export function OrderDetailModal({
   React.useEffect(() => {
     if (order) {
       setStatus(order.status);
-      setDesignStart(order.items[0]?.designStartDate ? new Date(order.items[0].designStartDate) : null);
-      setDesignEnd(order.items[0]?.designEndDate ? new Date(order.items[0].designEndDate) : null);
-      setPrintStart(order.items[0]?.printStartDate ? new Date(order.items[0].printStartDate) : null);
-      setPrintEnd(order.items[0]?.printEndDate ? new Date(order.items[0].printEndDate) : null);
+      setDesignStart(order.items?.[0]?.designStartDate ? new Date(order.items[0].designStartDate) : null);
+      setDesignEnd(order.items?.[0]?.designEndDate ? new Date(order.items[0].designEndDate) : null);
+      setPrintStart(order.items?.[0]?.printStartDate ? new Date(order.items[0].printStartDate) : null);
+      setPrintEnd(order.items?.[0]?.printEndDate ? new Date(order.items[0].printEndDate) : null);
       setNote(order.note || "");
       setActiveTab("items");
     }
@@ -98,8 +98,8 @@ export function OrderDetailModal({
   }
 
   const dr = daysRemaining(order.endDate);
-  const s = ORDER_STATUS[order.status];
-  const hasPreInvoice = order.preInvoices.length > 0;
+  const s = ORDER_STATUS[order.status] ?? { label: "—", badge: "bg-muted text-muted-foreground" };
+  const hasPreInvoice = (order.preInvoices?.length ?? 0) > 0;
 
   return (
     <>
@@ -157,10 +157,10 @@ export function OrderDetailModal({
           {/* Tabs */}
           <div className="flex border-b px-6">
           {([
-              { id: "items", label: "آیتم‌ها", icon: "orders" as const, count: order.items.length },
-              { id: "status", label: "تغییر وضعیت", icon: "route" as const },
-              { id: "note", label: "یادداشت", icon: "info" as const },
-            ] as const).map((t) => (
+              { id: "items" as const, label: "آیتم‌ها", icon: "orders" as const, count: order.items?.length ?? 0 },
+              { id: "status" as const, label: "تغییر وضعیت", icon: "route" as const, count: undefined as number | undefined },
+              { id: "note" as const, label: "یادداشت", icon: "info" as const, count: undefined as number | undefined },
+            ]).map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
@@ -182,13 +182,13 @@ export function OrderDetailModal({
           <div className="overflow-y-auto scrollbar-thin px-6 py-4" style={{ maxHeight: "45vh" }}>
             {activeTab === "items" && (
               <div className="space-y-2">
-                {order.items.map((it, i) => (
+                {(order.items ?? []).map((it, i) => (
                   <div key={it.id} className="rounded-lg border p-3 hover:bg-accent/30 transition">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="size-6 rounded-md bg-muted text-muted-foreground grid place-items-center text-xs font-bold shrink-0">{i + 1}</span>
                         <div className="min-w-0">
-                          <div className="font-medium text-sm truncate">{it.product.name}</div>
+                          <div className="font-medium text-sm truncate">{it.product?.name ?? "—"}</div>
                           {it.description && <div className="text-xs text-muted-foreground truncate">{it.description}</div>}
                         </div>
                       </div>
@@ -283,7 +283,7 @@ export function OrderDetailModal({
               <Icon name="receipt" size={14} /> {hasPreInvoice ? "ویرایش پیش‌فاکتور" : "صدور پیش‌فاکتور"}
             </Button>
             {order.invoice && (
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.info(`فاکتور #${order.invoice.number}`)}>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => toast.info(`فاکتور #${order.invoice?.number ?? "—"}`)}>
                 <Icon name="invoice" size={14} /> فاکتور
               </Button>
             )}

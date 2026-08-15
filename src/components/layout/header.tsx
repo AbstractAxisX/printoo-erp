@@ -122,8 +122,10 @@ export function Header() {
                   onClick={() => {
                     if (!n.read) markRead.mutate(n.id);
                     if (n.link) {
-                      const [m, p] = n.link.split(":");
-                      navigate(m, p);
+                      const parts = n.link.split(":");
+                      const m = parts[0];
+                      const p = parts[1];
+                      if (m && p) navigate(m, p);
                     }
                   }}
                 >

@@ -34,20 +34,20 @@ export function ArchivePage() {
     },
     {
       id: "customer",
-      accessorFn: (r) => r.customer.name,
+      accessorFn: (r) => r.customer?.name ?? "",
       header: "مشتری",
       cell: ({ row }) => (
         <div>
-          <div className="font-medium">{row.original.customer.name}</div>
-          <div className="text-xs text-muted-foreground" dir="ltr">{row.original.customer.phone}</div>
+          <div className="font-medium">{row.original.customer?.name ?? "—"}</div>
+          <div className="text-xs text-muted-foreground" dir="ltr">{row.original.customer?.phone ?? "—"}</div>
         </div>
       ),
     },
     {
       id: "items",
-      accessorFn: (r) => r.items.length,
+      accessorFn: (r) => r.items?.length ?? 0,
       header: "آیتم‌ها",
-      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.items.length} آیتم</span>,
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.items?.length ?? 0} آیتم</span>,
       enableSorting: true,
     },
     {

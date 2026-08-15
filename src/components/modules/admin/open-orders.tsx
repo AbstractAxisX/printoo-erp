@@ -238,7 +238,7 @@ export function OpenOrdersPage() {
   // Fetch order detail when row is clicked
   const { data: orderDetail, isLoading: isLoadingDetail } = useQuery({
     queryKey: ["order", selectedOrderId],
-    queryFn: () => api<OrderDetail>(`/api/orders/${selectedOrderId}`),
+    queryFn: () => api<{ order: OrderDetail }>(`/api/orders/${selectedOrderId}`),
     enabled: !!selectedOrderId,
   });
 
@@ -295,7 +295,7 @@ export function OpenOrdersPage() {
         id: "items",
         header: "آیتم‌ها",
         cell: ({ row }) => {
-          const items = row.original.items;
+          const items = row.original.items ?? [];
           return (
             <div className="flex flex-wrap gap-1 max-w-[220px]">
               {items.slice(0, 2).map((it) => (
@@ -303,7 +303,7 @@ export function OpenOrdersPage() {
                   key={it.id}
                   className="text-xs bg-muted rounded px-1.5 py-0.5 truncate max-w-[120px]"
                 >
-                  {it.product.name}
+                  {it.product?.name ?? "—"}
                 </span>
               ))}
               {items.length > 2 && (
@@ -630,7 +630,7 @@ export function OpenOrdersPage() {
 
       {/* ─── Order detail modal ────────────────────────────── */}
       <OrderDetailModal
-        order={orderDetail ?? null}
+        order={orderDetail?.order ?? null}
         open={!!selectedOrderId}
         onOpenChange={(o) => {
           if (!o) setSelectedOrderId(null);

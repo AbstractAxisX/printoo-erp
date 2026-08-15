@@ -29,11 +29,16 @@ function toOrderEvents(orders: Order[]): CalendarEvent[] {
     .filter((o) => o.endDate && !o.noEndDate)
     .map((o) => {
       // Start date: earliest of createdAt, first designStartDate, first printStartDate
+      // (guard against invalid date strings — invalid → skipped)
       const candidates: string[] = [o.createdAt];
-      const firstItem = o.items[0];
+      const firstItem = o.items?.[0];
       if (firstItem?.designStartDate) candidates.push(firstItem.designStartDate);
       if (firstItem?.printStartDate) candidates.push(firstItem.printStartDate);
-      const startDate = new Date(Math.min(...candidates.map((c) => new Date(c).getTime())));
+      const validTimes = candidates
+        .map((c) => new Date(c).getTime())
+        .filter((t) => !Number.isNaN(t));
+      const startMs = validTimes.length > 0 ? Math.min(...validTimes) : Date.now();
+      const startDate = new Date(startMs);
       return {
         id: o.id,
         title: `#${o.number}`,

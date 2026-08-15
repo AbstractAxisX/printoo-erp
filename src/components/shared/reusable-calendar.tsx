@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isWithinInterval, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isWithinInterval, parseISO, isValid } from "date-fns";
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -58,9 +58,14 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
 
   function getEventsForDay(day: Date): CalendarEvent[] {
     return events.filter((e) => {
-      const start = typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate;
-      const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-      return isWithinInterval(day, { start, end });
+      try {
+        const start = typeof e.startDate === "string" ? parseISO(e.startDate) : new Date(e.startDate);
+        const end = typeof e.endDate === "string" ? parseISO(e.endDate) : new Date(e.endDate);
+        if (!isValid(start) || !isValid(end)) return false;
+        return isWithinInterval(day, { start, end });
+      } catch {
+        return false;
+      }
     });
   }
 
@@ -132,6 +137,10 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
               <div className="flex flex-wrap gap-0.5">
                 {visibleEvents.map((e) => {
                   const colors = COLOR_CLASSES[e.color];
+                  const startD = typeof e.startDate === "string" ? parseISO(e.startDate) : new Date(e.startDate);
+                  const endD = typeof e.endDate === "string" ? parseISO(e.endDate) : new Date(e.endDate);
+                  const startStr = isValid(startD) ? format(startD, "yyyy/MM/dd") : "—";
+                  const endStr = isValid(endD) ? format(endD, "yyyy/MM/dd") : "—";
                   return (
                     <Tooltip key={e.id}>
                       <TooltipTrigger asChild>
@@ -147,7 +156,7 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs max-w-[200px]">
                         <div className="font-medium">{e.fullTitle}</div>
-                        <div className="text-muted-foreground">{format(typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate, "yyyy/MM/dd")} → {format(typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate, "yyyy/MM/dd")}</div>
+                        <div className="text-muted-foreground">{startStr} → {endStr}</div>
                       </TooltipContent>
                     </Tooltip>
                   );

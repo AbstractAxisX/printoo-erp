@@ -254,7 +254,8 @@ export function TasksPage() {
       {
         onSuccess: () => {
           invalidate(["tasks"]);
-          toast.success(`به «${TASK_STATUS[destStatus as TaskStatus].label}» منتقل شد`);
+          const label = TASK_STATUS[destStatus as TaskStatus]?.label ?? destStatus;
+          toast.success(`به «${label}» منتقل شد`);
         },
         onError: (err: Error) => {
           setStatusOverride((prev) => {

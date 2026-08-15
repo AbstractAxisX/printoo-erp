@@ -57,10 +57,10 @@ export function NearDeadlineOrders() {
                 <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">#{o.number}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{o.customer.name}</span>
+                    <span className="font-medium text-sm truncate">{o.customer?.name ?? "—"}</span>
                     {o.priority === "urgent" && <Icon name="alertTriangle" size={12} className="text-rose-500" />}
                   </div>
-                  <div className="text-xs text-muted-foreground">{o.items.length} آیتم • {formatDate(o.endDate)}</div>
+                  <div className="text-xs text-muted-foreground">{o.items?.length ?? 0} آیتم • {formatDate(o.endDate)}</div>
                 </div>
                 <div className={cn(
                   "text-xs font-medium px-2 py-0.5 rounded-full shrink-0",
@@ -122,7 +122,7 @@ export function LatestTasks() {
                 </div>
                 <div className="text-xs text-muted-foreground">{relativeTime(t.createdAt)}</div>
               </div>
-              <span className={cn("text-xs px-2 py-0.5 rounded-full shrink-0", statusColor[t.status])}>{statusLabel[t.status]}</span>
+              <span className={cn("text-xs px-2 py-0.5 rounded-full shrink-0", statusColor[t.status] ?? "bg-muted text-muted-foreground")}>{statusLabel[t.status] ?? t.status}</span>
             </button>
           ))}
         </div>
@@ -162,8 +162,8 @@ export function RecentOrders() {
             <button key={o.id} onClick={() => openOrder(o.id)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
               <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">#{o.number}</div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate">{o.customer.name}</div>
-                <div className="text-xs text-muted-foreground">{o.items.length} آیتم • {relativeTime(o.createdAt)}</div>
+                <div className="font-medium text-sm truncate">{o.customer?.name ?? "—"}</div>
+                <div className="text-xs text-muted-foreground">{o.items?.length ?? 0} آیتم • {relativeTime(o.createdAt)}</div>
               </div>
               <div className="text-sm font-semibold tabular-nums shrink-0" dir="ltr">{formatCurrency(o.totalAmount)}</div>
             </button>

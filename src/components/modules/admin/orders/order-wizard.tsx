@@ -131,7 +131,7 @@ export function OrderWizardPage() {
     setMultiMode(false);
 
     // Step 2: items
-    const items: ItemDraft[] = order.items.map((it) => ({
+    const items: ItemDraft[] = (order.items ?? []).map((it) => ({
       id: crypto.randomUUID(),
       productId: it.productId,
       productName: it.product?.name ?? "",
@@ -154,7 +154,7 @@ export function OrderWizardPage() {
     setNote(order.note ?? "");
 
     // Module dates from first item
-    const firstItem = order.items[0];
+    const firstItem = order.items?.[0];
     if (firstItem) {
       setDesignStart(firstItem.designStartDate ? firstItem.designStartDate.slice(0, 10) : "");
       setDesignEnd(firstItem.designEndDate ? firstItem.designEndDate.slice(0, 10) : "");
@@ -163,7 +163,7 @@ export function OrderWizardPage() {
     }
 
     // Step 4: review
-    setPreInvoiceEnabled(order.preInvoices?.length > 0);
+    setPreInvoiceEnabled((order.preInvoices?.length ?? 0) > 0);
     setInvoiceEnabled(!!order.invoice);
 
     setLoadedOrderId(param);
