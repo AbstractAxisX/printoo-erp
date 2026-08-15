@@ -38,6 +38,8 @@ model Customer {
   preInvoices PreInvoice[]
   invoices    Invoice[]
   payments    Payment[]
+  deals       Deal[]
+  activities  Activity[]
 }
 
 // ─── SRM: Suppliers ─────────────────────────────────────────────
@@ -212,4 +214,36 @@ model DayNote {
   color     String   @default("default") // default | rose | amber | emerald | blue
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ─── CRM: Deals (Sales Pipeline) ────────────────────────────────
+model Deal {
+  id               String      @id @default(cuid())
+  title            String
+  customerId       String
+  customer         Customer    @relation(fields: [customerId], references: [id])
+  value            Float       @default(0)
+  stage            String      @default("lead") // lead | qualified | proposal | negotiation | won | lost
+  probability      Int         @default(0) // 0-100
+  expectedCloseDate DateTime?
+  source           String?     // walk-in | phone | referral | online | other
+  description      String?
+  assignedTo       String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  activities       Activity[]
+}
+
+// ─── CRM: Activities (calls, emails, meetings, notes, visits) ──
+model Activity {
+  id          String    @id @default(cuid())
+  type        String    // call | email | meeting | note | visit
+  title       String
+  description String?
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  dealId      String?
+  deal        Deal?     @relation(fields: [dealId], references: [id])
+  date        DateTime  @default(now())
+  createdAt   DateTime  @default(now())
 }

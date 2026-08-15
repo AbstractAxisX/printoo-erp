@@ -218,9 +218,18 @@ export const NAV: ModuleNav[] = [
         label: "اصلی",
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
+          { id: "dashboard", label: "داشبورد CRM", icon: "dashboard", page: "dashboard" },
+          { id: "pipeline", label: "قیف فروش", icon: "layers", page: "pipeline" },
           { id: "customers", label: "مشتریان", icon: "customers", page: "customers" },
-          { id: "favorites", label: "مشتریان ویژه", icon: "star", page: "favorites" },
+        ],
+      },
+      {
+        id: "sales",
+        label: "فروش",
+        icon: "wallet",
+        items: [
+          { id: "deals", label: "معاملات", icon: "orders", page: "deals" },
+          { id: "activities", label: "فعالیت‌ها", icon: "task", page: "activities" },
         ],
       },
     ],
