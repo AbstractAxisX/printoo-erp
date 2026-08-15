@@ -145,9 +145,8 @@ export function TasksPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  const queryKey = React.useMemo(() => ["tasks", moduleFilter] as const, [moduleFilter]);
   const { data, isLoading } = useQuery({
-    queryKey,
+    queryKey: ["tasks", moduleFilter],
     queryFn: () =>
       api<{ tasks: Task[] }>(
         moduleFilter === "all" ? "/api/tasks" : `/api/tasks?module=${moduleFilter}`

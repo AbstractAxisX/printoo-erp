@@ -9,7 +9,7 @@ import { TimeRangePicker } from "@/components/ui/time-range-picker";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import { rangeToParams, type TimeRange } from "@/lib/time-ranges";
+import { rangeToParams, getPreset, type TimeRange } from "@/lib/time-ranges";
 
 type KpiData = { value: number; prev: number; change: number; total: number };
 type SeriesPoint = { date: string; value: number };
@@ -62,7 +62,7 @@ export function KpiCardsGrid({
 
   return (
     <div className="space-y-3">
-      {/* Header with global filter + chart toggle */}
+      {/* Header with global filter + chart toggle + reset */}
       <div className="flex flex-wrap items-center gap-2">
         <TimeRangePicker value={globalRange} onChange={onGlobalRangeChange} />
         <button
@@ -74,6 +74,13 @@ export function KpiCardsGrid({
           title={showChart ? "نمایش اعداد" : "نمایش نمودار"}
         >
           <Icon name={showChart ? "grid" : "chart"} size={16} />
+        </button>
+        <button
+          onClick={() => { onGlobalRangeChange(getPreset("this-month")); setCardRanges({}); }}
+          className="size-9 rounded-lg border grid place-items-center hover:bg-accent transition text-muted-foreground hover:text-foreground"
+          title="ریست فیلترها"
+        >
+          <Icon name="refresh" size={15} />
         </button>
         <div className="text-xs text-muted-foreground mr-auto">به‌روزرسانی خودکار هر ۱۵ ثانیه</div>
       </div>

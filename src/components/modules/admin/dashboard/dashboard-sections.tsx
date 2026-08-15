@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
 import { formatCurrency, formatDate, daysRemaining, relativeTime } from "@/lib/format";
 import { EmptyState } from "@/components/shared";
+import { useOrderDetail } from "@/lib/use-order-detail";
 
 type Order = {
   id: string; number: number; status: string; endDate: string | null; totalAmount: number;
@@ -24,6 +25,7 @@ type Task = {
 
 export function NearDeadlineOrders() {
   const navigate = useAppStore((s) => s.navigate);
+  const { openOrder, modal } = useOrderDetail();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-near-deadline"],
     queryFn: () => api<{ nearDeadlineOrders: Order[] }>(`/api/dashboard?from=${new Date(2000,0,1).toISOString()}&to=${new Date().toISOString()}`),
@@ -51,7 +53,7 @@ export function NearDeadlineOrders() {
           {orders.map((o) => {
             const dr = daysRemaining(o.endDate);
             return (
-              <button key={o.id} onClick={() => navigate("admin", "orders")} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
+              <button key={o.id} onClick={() => openOrder(o.id)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
                 <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">#{o.number}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -72,6 +74,7 @@ export function NearDeadlineOrders() {
           })}
         </div>
       )}
+      {modal}
     </Card>
   );
 }
@@ -130,6 +133,7 @@ export function LatestTasks() {
 
 export function RecentOrders() {
   const navigate = useAppStore((s) => s.navigate);
+  const { openOrder, modal } = useOrderDetail();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-recent"],
     queryFn: () => api<{ recentOrders: Order[] }>(`/api/dashboard?from=${new Date(2000,0,1).toISOString()}&to=${new Date().toISOString()}`),
@@ -155,7 +159,7 @@ export function RecentOrders() {
       ) : (
         <div className="divide-y">
           {orders.map((o) => (
-            <button key={o.id} onClick={() => navigate("admin", "orders")} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
+            <button key={o.id} onClick={() => openOrder(o.id)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
               <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">#{o.number}</div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">{o.customer.name}</div>
@@ -166,6 +170,7 @@ export function RecentOrders() {
           ))}
         </div>
       )}
+      {modal}
     </Card>
   );
 }

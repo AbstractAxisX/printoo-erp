@@ -8,7 +8,6 @@ import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker";
-import { ToggleButton } from "@/components/ui/toggle-button";
 import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
 import { ORDER_STATUS, ITEM_STAGE, type OrderStatus } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -46,6 +45,7 @@ export function OrderDetailModal({
   const [printStart, setPrintStart] = React.useState<Date | null>(null);
   const [printEnd, setPrintEnd] = React.useState<Date | null>(null);
   const [note, setNote] = React.useState("");
+  const [activeTab, setActiveTab] = React.useState<"items" | "status" | "note">("items");
 
   React.useEffect(() => {
     if (order) {
@@ -55,6 +55,7 @@ export function OrderDetailModal({
       setPrintStart(order.items[0]?.printStartDate ? new Date(order.items[0].printStartDate) : null);
       setPrintEnd(order.items[0]?.printEndDate ? new Date(order.items[0].printEndDate) : null);
       setNote(order.note || "");
+      setActiveTab("items");
     }
   }, [order]);
 
@@ -82,144 +83,206 @@ export function OrderDetailModal({
   if (!order) return null;
 
   const dr = daysRemaining(order.endDate);
+  const s = ORDER_STATUS[order.status];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto scrollbar-thin">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <span className="font-mono">#{order.number}</span>
-            <span className="text-muted-foreground">—</span>
-            <span>{order.customer.name}</span>
-            <span className="text-xs text-muted-foreground" dir="ltr">{order.customer.phone}</span>
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Quick stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <StatBox label="وضعیت" value={ORDER_STATUS[order.status]?.label} />
-            <StatBox label="اولویت" value={order.priority === "urgent" ? "فوری" : "معمولی"} valueClass={order.priority === "urgent" ? "text-rose-600" : ""} />
-            <StatBox label="مبلغ کل" value={formatCurrency(order.totalAmount)} />
-            <StatBox label="موعد تحویل" value={order.noEndDate ? "بدون زمان" : (order.endDate ? formatDate(order.endDate) : "—")} subText={dr.status !== "none" ? dr.text : undefined} subClass={dr.status === "overdue" ? "text-rose-600" : dr.status === "remaining" ? "text-emerald-600" : ""} />
-          </div>
-
-          {/* Status change */}
-          <div className="rounded-lg border p-3 space-y-3">
-            <div className="text-sm font-medium flex items-center gap-1.5"><Icon name="route" size={15} className="text-primary" /> تغییر وضعیت</div>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(ORDER_STATUS).map(([k, v]) => (
-                <button
-                  key={k}
-                  onClick={() => setStatus(k as OrderStatus)}
-                  className={cn("px-2.5 py-1.5 rounded-lg border text-xs font-medium transition", status === k ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-background text-muted-foreground border-input hover:border-foreground/30")}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Module dates */}
-            {(status === "pending_design" || status === "in_printing") && (
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                {status === "pending_design" && (
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium flex items-center gap-1"><Icon name="design" size={13} className="text-violet-500" /> طراحی</div>
-                    <div className="flex items-center gap-1.5">
-                      <DatePicker value={designStart} onChange={setDesignStart} placeholder="شروع" />
-                      <Icon name="arrowLeft" size={12} className="text-muted-foreground" />
-                      <DatePicker value={designEnd} onChange={setDesignEnd} placeholder="پایان" />
-                    </div>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <div className="text-xs font-medium flex items-center gap-1"><Icon name="print" size={13} className="text-amber-500" /> چاپ</div>
-                  <div className="flex items-center gap-1.5">
-                    <DatePicker value={printStart} onChange={setPrintStart} placeholder="شروع" />
-                    <Icon name="arrowLeft" size={12} className="text-muted-foreground" />
-                    <DatePicker value={printEnd} onChange={setPrintEnd} placeholder="پایان" />
-                  </div>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
+        {/* Header — clean, with order number + customer */}
+        <div className="px-6 pt-5 pb-4 border-b">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="size-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+                <span className="font-mono font-bold text-sm">#{order.number}</span>
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-lg font-bold truncate">{order.customer.name}</DialogTitle>
+                <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                  <span dir="ltr">{order.customer.phone}</span>
+                  <span>•</span>
+                  <span>{formatDate(order.createdAt)}</span>
                 </div>
               </div>
-            )}
-
-            <Button size="sm" onClick={() => statusMut.mutate()} disabled={statusMut.isPending} className="gap-1.5">
-              {statusMut.isPending ? <Icon name="loading" size={14} className="animate-spin" /> : <Icon name="check" size={14} />}
-              ثبت وضعیت
-            </Button>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", s.badge)}>{s.label}</span>
+              {order.priority === "urgent" && (
+                <span className="text-xs font-medium px-2 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center gap-1">
+                  <Icon name="alertTriangle" size={11} /> فوری
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Items */}
-          <div className="rounded-lg border overflow-hidden">
-            <div className="bg-muted/40 px-3 py-2 text-sm font-medium flex items-center gap-1.5"><Icon name="orders" size={15} /> آیتم‌های سفارش</div>
-            <table className="w-full text-xs">
-              <thead className="bg-muted/20 text-muted-foreground">
-                <tr>
-                  <th className="text-right font-medium px-3 py-2">محصول</th>
-                  <th className="text-right font-medium px-3 py-2">تعداد</th>
-                  <th className="text-right font-medium px-3 py-2">مرحله</th>
-                  <th className="text-right font-medium px-3 py-2">متریال</th>
-                  <th className="text-right font-medium px-3 py-2">مبلغ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {order.items.map((it) => (
-                  <tr key={it.id}>
-                    <td className="px-3 py-2 font-medium">{it.product.name}</td>
-                    <td className="px-3 py-2 tabular-nums" dir="ltr">{it.quantity}</td>
-                    <td className="px-3 py-2"><span className="rounded bg-muted px-1.5 py-0.5">{ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE]?.label ?? it.stage}</span></td>
-                    <td className="px-3 py-2">{it.needsMaterial ? <Icon name="check" size={12} className="text-emerald-600" /> : <Icon name="cancel" size={12} className="text-muted-foreground" />}</td>
-                    <td className="px-3 py-2 tabular-nums" dir="ltr">{formatCurrency(it.totalAmount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Note */}
-          <div className="rounded-lg border p-3 space-y-2">
-            <div className="text-sm font-medium flex items-center gap-1.5"><Icon name="info" size={15} className="text-primary" /> یادداشت سفارش</div>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              placeholder="یادداشت..."
+          {/* Quick stats row — clean cards */}
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            <StatBox label="مبلغ کل" value={formatCurrency(order.totalAmount)} />
+            <StatBox label="پرداختی" value={formatCurrency(order.paidAmount)} valueClass="text-emerald-600" />
+            <StatBox label="موعد تحویل" value={order.noEndDate ? "بدون زمان" : (order.endDate ? formatDate(order.endDate) : "—")} />
+            <StatBox
+              label="باقی‌مانده"
+              value={dr.status === "none" ? "—" : `${dr.days} روز`}
+              valueClass={dr.status === "overdue" ? "text-rose-600" : dr.status === "remaining" ? "text-emerald-600" : "text-amber-600"}
             />
-            <Button size="sm" variant="outline" onClick={() => noteMut.mutate()} disabled={noteMut.isPending} className="gap-1.5">
-              {noteMut.isPending ? <Icon name="loading" size={14} className="animate-spin" /> : <Icon name="check" size={14} />}
-              ذخیره یادداشت
-            </Button>
           </div>
+        </div>
 
-          {/* Invoices */}
-          <div className="flex flex-wrap gap-2">
-            {order.preInvoices.length > 0 && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(`پیش‌فاکتور #${order.preInvoices[0].number}`)}>
-                <Icon name="receipt" size={14} /> پیش‌فاکتور #{order.preInvoices[0].number}
+        {/* Tabs */}
+        <div className="flex border-b px-6">
+          {([
+            { id: "items", label: "آیتم‌ها", icon: "orders" as const, count: order.items.length },
+            { id: "status", label: "تغییر وضعیت", icon: "route" as const },
+            { id: "note", label: "یادداشت", icon: "info" as const },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition border-b-2 -mb-px",
+                activeTab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon name={t.icon} size={14} />
+              {t.label}
+              {t.count !== undefined && (
+                <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">{t.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content — scrollable */}
+        <div className="overflow-y-auto scrollbar-thin px-6 py-4" style={{ maxHeight: "50vh" }}>
+          {/* ITEMS TAB */}
+          {activeTab === "items" && (
+            <div className="space-y-2">
+              {order.items.map((it, i) => (
+                <div key={it.id} className="rounded-lg border p-3 hover:bg-accent/30 transition">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="size-6 rounded-md bg-muted text-muted-foreground grid place-items-center text-xs font-bold shrink-0">{i + 1}</span>
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{it.product.name}</div>
+                        {it.description && <div className="text-xs text-muted-foreground truncate">{it.description}</div>}
+                      </div>
+                    </div>
+                    <div className="text-left shrink-0">
+                      <div className="text-sm font-semibold tabular-nums" dir="ltr">{formatCurrency(it.totalAmount)}</div>
+                      <div className="text-[11px] text-muted-foreground tabular-nums" dir="ltr">{it.quantity} × {formatCurrency(it.pricePerUnit)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted">{ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE]?.label ?? it.stage}</span>
+                    {it.needsMaterial && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 flex items-center gap-0.5">
+                        <Icon name="check" size={10} /> متریال
+                      </span>
+                    )}
+                    {it.note && (
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                        <Icon name="info" size={10} /> {it.note}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* STATUS TAB */}
+          {activeTab === "status" && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">وضعیت جدید را انتخاب کنید</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(ORDER_STATUS).map(([k, v]) => (
+                    <button
+                      key={k}
+                      onClick={() => setStatus(k as OrderStatus)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg border text-xs font-medium transition",
+                        status === k ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-background text-muted-foreground border-input hover:border-foreground/30"
+                      )}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(status === "pending_design" || status === "in_printing") && (
+                <div className="grid grid-cols-2 gap-3">
+                  {status === "pending_design" && (
+                    <div className="rounded-lg border p-3 space-y-2">
+                      <div className="text-xs font-medium flex items-center gap-1"><Icon name="design" size={13} className="text-violet-500" /> بازه طراحی</div>
+                      <div className="flex items-center gap-1.5">
+                        <DatePicker value={designStart} onChange={setDesignStart} placeholder="شروع" />
+                        <Icon name="arrowLeft" size={12} className="text-muted-foreground" />
+                        <DatePicker value={designEnd} onChange={setDesignEnd} placeholder="پایان" />
+                      </div>
+                    </div>
+                  )}
+                  <div className="rounded-lg border p-3 space-y-2">
+                    <div className="text-xs font-medium flex items-center gap-1"><Icon name="print" size={13} className="text-amber-500" /> بازه چاپ</div>
+                    <div className="flex items-center gap-1.5">
+                      <DatePicker value={printStart} onChange={setPrintStart} placeholder="شروع" />
+                      <Icon name="arrowLeft" size={12} className="text-muted-foreground" />
+                      <DatePicker value={printEnd} onChange={setPrintEnd} placeholder="پایان" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <Button size="sm" onClick={() => statusMut.mutate()} disabled={statusMut.isPending} className="gap-1.5">
+                {statusMut.isPending ? <Icon name="loading" size={14} className="animate-spin" /> : <Icon name="check" size={14} />}
+                ثبت تغییرات وضعیت
               </Button>
-            )}
-            {order.invoice && (
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(`فاکتور #${order.invoice.number}`)}>
-                <Icon name="invoice" size={14} /> فاکتور #{order.invoice.number}
+            </div>
+          )}
+
+          {/* NOTE TAB */}
+          {activeTab === "note" && (
+            <div className="space-y-3">
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={5}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring resize-none"
+                placeholder="یادداشت سفارش..."
+              />
+              <Button size="sm" variant="outline" onClick={() => noteMut.mutate()} disabled={noteMut.isPending} className="gap-1.5">
+                {noteMut.isPending ? <Icon name="loading" size={14} className="animate-spin" /> : <Icon name="check" size={14} />}
+                ذخیره یادداشت
               </Button>
-            )}
-            <Button variant="outline" size="sm" className="gap-1.5 mr-auto" onClick={() => { onOpenChange(false); navigate("admin", "orders-new"); }}>
-              <Icon name="edit" size={14} /> ویرایش سفارش
+            </div>
+          )}
+        </div>
+
+        {/* Footer — actions */}
+        <div className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2">
+          {order.preInvoices.length > 0 && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(`پیش‌فاکتور #${order.preInvoices[0].number}`)}>
+              <Icon name="receipt" size={14} /> پیش‌فاکتور
             </Button>
-          </div>
+          )}
+          {order.invoice && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(`فاکتور #${order.invoice.number}`)}>
+              <Icon name="invoice" size={14} /> فاکتور
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-1.5 mr-auto" onClick={() => { onOpenChange(false); navigate("admin", "orders-new"); }}>
+            <Icon name="edit" size={14} /> ویرایش کامل
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function StatBox({ label, value, subText, subClass, valueClass }: { label: string; value: string; subText?: string; subClass?: string; valueClass?: string }) {
+function StatBox({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
-    <div className="rounded-lg border bg-muted/20 p-2.5">
-      <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={cn("text-sm font-semibold mt-0.5", valueClass)}>{value}</div>
-      {subText && <div className={cn("text-[10px] mt-0.5", subClass)}>{subText}</div>}
+    <div className="rounded-lg bg-muted/40 p-2.5">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className={cn("text-sm font-semibold mt-0.5 truncate", valueClass)}>{value}</div>
     </div>
   );
 }

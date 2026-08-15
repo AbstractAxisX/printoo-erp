@@ -12,6 +12,12 @@ import { COMPANY } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export function AppSidebar() {
   const moduleKey = useAppStore((s) => s.module) as ModuleKey;
@@ -60,17 +66,54 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="تنظیمات">
-              <Icon name="settings" size={18} />
-              <span>تنظیمات</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <UserFooter />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+// ─── User account in sidebar footer ────────────────────────
+function UserFooter() {
+  const { user, logout } = useAppStore();
+  const [open, setOpen] = React.useState(false);
+
+  async function handleLogout() {
+    try { await api("/api/auth/logout", { method: "POST" }); } catch {}
+    logout();
+    toast.success("خروج موفقیت‌آمیز بود");
+    window.location.reload();
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2.5 w-full rounded-lg p-2 hover:bg-accent transition group-data-[collapsible=icon]:justify-center">
+          <Avatar className="size-8 shrink-0">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              {user?.name?.charAt(0) ?? "A"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1 text-right group-data-[collapsible=icon]:hidden">
+            <div className="text-xs font-medium truncate">{user?.name ?? "کاربر"}</div>
+            <div className="text-[10px] text-muted-foreground truncate">{user?.role === "master" ? "مدیر کل" : user?.email}</div>
+          </div>
+          <Icon name="chevronUp" size={14} className="text-muted-foreground shrink-0 group-data-[collapsible=icon]:hidden" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="end" className="w-56">
+        <DropdownMenuLabel>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium">{user?.name}</span>
+            <span className="text-xs text-muted-foreground font-normal" dir="ltr">{user?.email}</span>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleLogout}>
+          <Icon name="logout" size={16} /> خروج
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
