@@ -42,31 +42,41 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
     return () => ro.disconnect();
   }, []);
 
-  // Convert events to Gantt tasks
+  // Convert events to Gantt tasks — filter out events with invalid dates
   const ganttTasks: GanttTask[] = React.useMemo(() => {
-    return events.map((e) => {
-      const start = typeof e.startDate === "string" ? parseISO(e.startDate) : e.startDate;
-      const end = typeof e.endDate === "string" ? parseISO(e.endDate) : e.endDate;
-      // Ensure end is at least same day as start
-      const safeEnd = end < start ? addDays(start, 1) : end;
-      const styles = COLOR_STYLES[e.color];
-      return {
-        id: e.id,
-        type: "task" as const,
-        name: e.title,
-        start,
-        end: safeEnd,
-        progress: 0,
-        styles: {
-          backgroundColor: styles.bg,
-          backgroundSelectedColor: styles.bgSelected,
-          progressColor: styles.progress,
-          progressSelectedColor: styles.progress,
-        },
-        isDisabled: false,
-        displayOrder: events.indexOf(e),
-      };
-    });
+    return events
+      .map((e) => {
+        let start: Date;
+        let end: Date;
+        try {
+          start = typeof e.startDate === "string" ? parseISO(e.startDate) : new Date(e.startDate);
+          end = typeof e.endDate === "string" ? parseISO(e.endDate) : new Date(e.endDate);
+        } catch {
+          return null;
+        }
+        // Validate dates
+        if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) return null;
+        // Ensure end is at least same day as start
+        const safeEnd = end < start ? addDays(start, 1) : end;
+        const styles = COLOR_STYLES[e.color];
+        return {
+          id: e.id,
+          type: "task" as const,
+          name: e.title,
+          start,
+          end: safeEnd,
+          progress: 0,
+          styles: {
+            backgroundColor: styles.bg,
+            backgroundSelectedColor: styles.bgSelected,
+            progressColor: styles.progress,
+            progressSelectedColor: styles.progress,
+          },
+          isDisabled: false,
+          displayOrder: events.indexOf(e),
+        } as GanttTask;
+      })
+      .filter((t): t is GanttTask => t !== null);
   }, [events]);
 
   // Event → meta map for click handling
@@ -88,7 +98,7 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
     setViewDate((d) => addDays(d, direction === "next" ? days : -days));
   }
 
-  if (events.length === 0) {
+  if (ganttTasks.length === 0) {
     return (
       <div className={cn("flex flex-col items-center justify-center py-16 text-muted-foreground", className)}>
         <Icon name="chart" size={32} className="opacity-30 mb-2" />
