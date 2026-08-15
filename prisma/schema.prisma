@@ -81,6 +81,7 @@ model Order {
   totalAmount Float        @default(0)
   paidAmount  Float        @default(0)
   note        String?
+  designerNote String? // note from designer, visible to all modules
   createdBy   String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -88,6 +89,19 @@ model Order {
   preInvoices PreInvoice[]
   invoice     Invoice?
   tasks       Task[]
+  qcReports   QcReport[]
+}
+
+// ─── QC Reports (quality control) ──────────────────────────────
+model QcReport {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromModule  String   // designer | print | warehouse
+  description String
+  status      String   @default("pending") // pending | approved | rejected
+  reportedBy  String?
+  createdAt   DateTime @default(now())
 }
 
 // ─── Order Items (the core unit that flows between modules) ─────

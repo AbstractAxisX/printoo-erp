@@ -26,6 +26,12 @@ import { CRMCustomers } from "@/components/modules/crm/crm-customers";
 import { CRMDeals } from "@/components/modules/crm/crm-deals";
 import { CRMActivities } from "@/components/modules/crm/crm-activities";
 
+// Designer pages
+import { DesignerDashboard } from "@/components/modules/designer/designer-dashboard";
+import { DesignerOrders } from "@/components/modules/designer/designer-orders";
+import { DesignerCalendar } from "@/components/modules/designer/designer-calendar";
+import { DesignerTasks } from "@/components/modules/designer/designer-tasks";
+
 // Generic module page for designer/print/warehouse/finance/qc/crm/srm
 import { GenericModulePage } from "@/components/modules/generic-module-page";
 
@@ -56,6 +62,15 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "customers": return CRMCustomers;
       case "deals": return CRMDeals;
       case "activities": return CRMActivities;
+      default: return null;
+    }
+  }
+  if (moduleKey === "designer") {
+    switch (page) {
+      case "dashboard": return DesignerDashboard;
+      case "orders": return DesignerOrders;
+      case "calendar": return DesignerCalendar;
+      case "tasks": return DesignerTasks;
       default: return null;
     }
   }

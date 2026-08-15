@@ -82,17 +82,9 @@ export const NAV: ModuleNav[] = [
         icon: "home",
         items: [
           { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "tasks", label: "تسک‌های طراحی", icon: "task", page: "tasks" },
-          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
-        ],
-      },
-      {
-        id: "orders-group",
-        label: "سفارشات",
-        icon: "orders",
-        items: [
           { id: "orders", label: "سفارشات طراحی", icon: "orders", page: "orders" },
-          { id: "queue", label: "صف طراحی", icon: "layers", page: "queue" },
+          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
+          { id: "tasks", label: "تسک‌ها", icon: "task", page: "tasks" },
         ],
       },
     ],
