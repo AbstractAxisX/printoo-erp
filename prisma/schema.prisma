@@ -203,3 +203,13 @@ model AuditLog {
   status   Int
   date     DateTime @default(now())
 }
+
+// ─── Day Notes (calendar) ───────────────────────────────────────
+model DayNote {
+  id        String   @id @default(cuid())
+  date      String   @unique // yyyy-MM-dd
+  content   String
+  color     String   @default("default") // default | rose | amber | emerald | blue
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
