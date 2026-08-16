@@ -18,6 +18,7 @@ import { CustomersPage } from "@/components/modules/admin/customers-page";
 import { SuppliersPage } from "@/components/modules/admin/suppliers-page";
 import { ProductsPage } from "@/components/modules/admin/products-page";
 import { ArchivePage } from "@/components/modules/admin/archive-page";
+import { ExpenseTypesPage } from "@/components/modules/admin/expense-types-page";
 
 // CRM pages
 import { CRMDashboard } from "@/components/modules/crm/crm-dashboard";
@@ -31,6 +32,21 @@ import { DesignerDashboard } from "@/components/modules/designer/designer-dashbo
 import { DesignerOrders } from "@/components/modules/designer/designer-orders";
 import { DesignerCalendar } from "@/components/modules/designer/designer-calendar";
 import { DesignerTasks } from "@/components/modules/designer/designer-tasks";
+
+// Print pages
+import { PrintDashboard } from "@/components/modules/print/print-dashboard";
+import { PrintOrders } from "@/components/modules/print/print-orders";
+import { PrintCalendar } from "@/components/modules/print/print-calendar";
+import { PrintTasks } from "@/components/modules/print/print-tasks";
+
+// QC pages
+import { QcDashboard } from "@/components/modules/qc/qc-dashboard";
+import { QcReports } from "@/components/modules/qc/qc-reports";
+import { QcCalendar } from "@/components/modules/qc/qc-calendar";
+
+// Finance pages
+import { FinanceDashboard } from "@/components/modules/finance/finance-dashboard";
+import { FinanceCosts } from "@/components/modules/finance/finance-costs";
 
 // Generic module page for designer/print/warehouse/finance/qc/crm/srm
 import { GenericModulePage } from "@/components/modules/generic-module-page";
@@ -51,6 +67,7 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "customers": return CustomersPage;
       case "suppliers": return SuppliersPage;
       case "products": return ProductsPage;
+      case "expense-types": return ExpenseTypesPage;
       case "archive": return ArchivePage;
       default: return null;
     }
@@ -71,6 +88,30 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "orders": return DesignerOrders;
       case "calendar": return DesignerCalendar;
       case "tasks": return DesignerTasks;
+      default: return null;
+    }
+  }
+  if (moduleKey === "print") {
+    switch (page) {
+      case "dashboard": return PrintDashboard;
+      case "orders": return PrintOrders;
+      case "calendar": return PrintCalendar;
+      case "tasks": return PrintTasks;
+      default: return null;
+    }
+  }
+  if (moduleKey === "qc") {
+    switch (page) {
+      case "dashboard": return QcDashboard;
+      case "reports": return QcReports;
+      case "calendar": return QcCalendar;
+      default: return null;
+    }
+  }
+  if (moduleKey === "finance") {
+    switch (page) {
+      case "dashboard": return FinanceDashboard;
+      case "costs": return FinanceCosts;
       default: return null;
     }
   }

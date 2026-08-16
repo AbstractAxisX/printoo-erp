@@ -53,6 +53,7 @@ model Supplier {
   note          String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  materialCosts MaterialCost[]
 }
 
 // ─── Products / Services ────────────────────────────────────────
@@ -88,20 +89,52 @@ model Order {
   items       OrderItem[]
   preInvoices PreInvoice[]
   invoice     Invoice?
-  tasks       Task[]
-  qcReports   QcReport[]
+  tasks         Task[]
+  qcReports     QcReport[]
+  materialCosts MaterialCost[]
 }
 
 // ─── QC Reports (quality control) ──────────────────────────────
 model QcReport {
-  id          String   @id @default(cuid())
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  fromModule  String   // designer | print | warehouse
-  description String
-  status      String   @default("pending") // pending | approved | rejected
-  reportedBy  String?
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromModule    String   // designer | print | warehouse
+  description   String
+  status        String   @default("pending") // pending | reviewing | approved | rejected
+  returnStage   String?  // which stage to return to after QC (design | print | warehouse)
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  reportedBy    String?
+  createdAt     DateTime @default(now())
+}
+
+// ─── Expense Types (managed by admin) ──────────────────────────
+model ExpenseType {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  isDefault     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  materialCosts MaterialCost[]
+}
+
+// ─── Material / Print Costs ────────────────────────────────────
+model MaterialCost {
+  id           String       @id @default(cuid())
+  orderId      String
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplier     Supplier?    @relation(fields: [supplierId], references: [id])
+  expenseTypeId String?
+  expenseType  ExpenseType? @relation(fields: [expenseTypeId], references: [id])
+  description  String?
+  amount       Float
+  fileUrl1     String?
+  fileUrl2     String?
+  status       String       @default("pending") // pending | approved | rejected
+  module       String       @default("print") // print | warehouse
+  createdBy    String?
+  createdAt    DateTime     @default(now())
 }
 
 // ─── Order Items (the core unit that flows between modules) ─────
@@ -117,7 +150,8 @@ model OrderItem {
   note           String?
   description    String?
   stage          String   @default("design") // design | print | warehouse | completed | archive
-  needsMaterial  Boolean  @default(false)
+  needsMaterial    Boolean  @default(false)
+  materialConfirmed Boolean @default(false) // print module: material procured?
   designStartDate DateTime?
   designEndDate   DateTime?
   printStartDate  DateTime?

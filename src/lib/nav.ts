@@ -64,6 +64,7 @@ export const NAV: ModuleNav[] = [
           { id: "customers", label: "مشتریان (CRM)", icon: "customers", page: "customers" },
           { id: "suppliers", label: "تامین‌کنندگان (SRM)", icon: "suppliers", page: "suppliers" },
           { id: "products", label: "محصولات", icon: "package", page: "products" },
+          { id: "expense-types", label: "انواع هزینه", icon: "tag", page: "expense-types" },
         ],
       },
     ],
@@ -103,17 +104,9 @@ export const NAV: ModuleNav[] = [
         icon: "home",
         items: [
           { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
+          { id: "orders", label: "سفارشات چاپ", icon: "orders", page: "orders" },
           { id: "tasks", label: "تسک‌های چاپ", icon: "task", page: "tasks" },
           { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
-        ],
-      },
-      {
-        id: "orders-group",
-        label: "سفارشات",
-        icon: "orders",
-        items: [
-          { id: "orders", label: "سفارشات چاپ", icon: "orders", page: "orders" },
-          { id: "queue", label: "صف چاپ", icon: "layers", page: "queue" },
         ],
       },
     ],
@@ -162,7 +155,7 @@ export const NAV: ModuleNav[] = [
         icon: "home",
         items: [
           { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "tasks", label: "تسک‌ها", icon: "task", page: "tasks" },
+          { id: "costs", label: "هزینه‌ها", icon: "money", page: "costs" },
         ],
       },
       {
@@ -172,7 +165,7 @@ export const NAV: ModuleNav[] = [
         items: [
           { id: "invoices", label: "فاکتورها", icon: "invoice", page: "invoices" },
           { id: "payments", label: "پرداخت‌ها", icon: "creditCard", page: "payments" },
-          { id: "expenses", label: "هزینه‌ها", icon: "money", page: "expenses" },
+          { id: "expenses", label: "هزینه‌های عمومی", icon: "coins", page: "expenses" },
         ],
       },
     ],
@@ -191,8 +184,8 @@ export const NAV: ModuleNav[] = [
         icon: "home",
         items: [
           { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "tasks", label: "تسک‌ها", icon: "task", page: "tasks" },
-          { id: "checks", label: "بررسی‌های کیفی", icon: "checkCircle", page: "checks" },
+          { id: "reports", label: "گزارشات", icon: "checkList", page: "reports" },
+          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
         ],
       },
     ],
