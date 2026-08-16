@@ -234,7 +234,17 @@ export const NAV: ModuleNav[] = [
         items: [
           { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
           { id: "suppliers", label: "تامین‌کنندگان", icon: "suppliers", page: "suppliers" },
-          { id: "debts", label: "بدهی‌ها", icon: "wallet", page: "debts" },
+          { id: "costs", label: "هزینه‌ها", icon: "coins", page: "costs" },
+        ],
+      },
+      {
+        id: "manage",
+        label: "مدیریت",
+        icon: "grid",
+        items: [
+          { id: "categories", label: "دسته‌بندی‌ها", icon: "grid", page: "categories" },
+          { id: "services", label: "خدمات", icon: "task", page: "services" },
+          { id: "compare", label: "مقایسه قیمت", icon: "analytics", page: "compare" },
         ],
       },
     ],

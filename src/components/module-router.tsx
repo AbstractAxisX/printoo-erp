@@ -48,6 +48,14 @@ import { QcCalendar } from "@/components/modules/qc/qc-calendar";
 import { FinanceDashboard } from "@/components/modules/finance/finance-dashboard";
 import { FinanceCosts } from "@/components/modules/finance/finance-costs";
 
+// SRM pages
+import { SRMDashboard } from "@/components/modules/srm/srm-dashboard";
+import { SRMSuppliers } from "@/components/modules/srm/srm-suppliers";
+import { SRMCategories } from "@/components/modules/srm/srm-categories";
+import { SRMServices } from "@/components/modules/srm/srm-services";
+import { SRMPriceComparison } from "@/components/modules/srm/srm-price-comparison";
+import { SRMCosts } from "@/components/modules/srm/srm-costs";
+
 // Generic module page for designer/print/warehouse/finance/qc/crm/srm
 import { GenericModulePage } from "@/components/modules/generic-module-page";
 
@@ -112,6 +120,17 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
     switch (page) {
       case "dashboard": return FinanceDashboard;
       case "costs": return FinanceCosts;
+      default: return null;
+    }
+  }
+  if (moduleKey === "srm") {
+    switch (page) {
+      case "dashboard": return SRMDashboard;
+      case "suppliers": return SRMSuppliers;
+      case "categories": return SRMCategories;
+      case "services": return SRMServices;
+      case "compare": return SRMPriceComparison;
+      case "costs": return SRMCosts;
       default: return null;
     }
   }

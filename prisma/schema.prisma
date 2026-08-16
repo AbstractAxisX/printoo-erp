@@ -51,9 +51,57 @@ model Supplier {
   address       String?
   balanceDue    Float    @default(0)
   note          String?
+  subcategoryId String?
+  subcategory   SupplierSubcategory? @relation(fields: [subcategoryId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   materialCosts MaterialCost[]
+  services      SupplierService[]
+}
+
+// ─── SRM: Supplier Categories ───────────────────────────────────
+model SupplierCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  createdAt DateTime @default(now())
+  subcategories SupplierSubcategory[]
+}
+
+model SupplierSubcategory {
+  id         String   @id @default(cuid())
+  name       String
+  categoryId String
+  category   SupplierCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  suppliers  Supplier[]
+  services   SupplierService[]
+}
+
+// ─── SRM: Supplier Services + Price Lists ───────────────────────
+model SupplierService {
+  id            String   @id @default(cuid())
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  subcategoryId String?
+  subcategory   SupplierSubcategory? @relation(fields: [subcategoryId], references: [id])
+  name          String
+  description   String?
+  unit          String   @default("عدد")
+  createdAt     DateTime @default(now())
+  priceLists    PriceList[]
+}
+
+model PriceList {
+  id            String   @id @default(cuid())
+  serviceId     String
+  service       SupplierService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  price         Float
+  minQuantity   Int      @default(1)
+  note          String?
+  validFrom     DateTime @default(now())
+  validTo       DateTime?
+  createdAt     DateTime @default(now())
 }
 
 // ─── Products / Services ────────────────────────────────────────
