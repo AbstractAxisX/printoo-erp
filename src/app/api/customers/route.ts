@@ -10,7 +10,11 @@ export async function GET(req: NextRequest) {
   const customers = await db.customer.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { orders: true } } },
+    include: {
+      _count: {
+        select: { orders: true, deals: true, activities: true },
+      },
+    },
   });
   return NextResponse.json({ customers });
 }

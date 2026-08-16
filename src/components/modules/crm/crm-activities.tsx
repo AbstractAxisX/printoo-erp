@@ -120,7 +120,10 @@ export function CRMActivities() {
   // Stats by type
   const statsByType = React.useMemo(() => {
     const m: Record<ActivityType, number> = { call: 0, email: 0, meeting: 0, note: 0, visit: 0 };
-    for (const a of activities) m[a.type] = (m[a.type] || 0) + 1;
+    for (const a of activities) {
+      // Only count known activity types; ignore any legacy/unknown values.
+      if (a.type in m) m[a.type]++;
+    }
     return m;
   }, [activities]);
 
@@ -140,8 +143,8 @@ export function CRMActivities() {
       {/* Quick stats by type */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         {ACTIVITY_TYPES.map((t) => {
-          const meta = ACTIVITY_META[t];
-          const count = statsByType[t] || 0;
+          const meta = ACTIVITY_META[t] ?? ACTIVITY_META.note;
+          const count = statsByType[t] ?? 0;
           const active = typeFilter === t;
           return (
             <button
@@ -237,7 +240,7 @@ export function CRMActivities() {
                 <div className="absolute right-[31px] top-3 bottom-3 w-px bg-border" />
                 <div className="divide-y">
                   {items.map((a) => {
-                    const meta = ACTIVITY_META[a.type];
+                    const meta = ACTIVITY_META[a.type] ?? ACTIVITY_META.note;
                     return (
                       <div
                         key={a.id}
@@ -254,7 +257,7 @@ export function CRMActivities() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium">{a.title}</div>
+                              <div className="text-sm font-medium">{a.title ?? "—"}</div>
                               {a.description && (
                                 <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                                   {a.description}
@@ -264,13 +267,13 @@ export function CRMActivities() {
                                 <span className={cn("px-1.5 py-0.5 rounded-full", meta.bg, meta.color)}>
                                   {meta.label}
                                 </span>
-                                {a.customer && (
+                                {a.customer?.name && (
                                   <span className="flex items-center gap-0.5">
                                     <Icon name="customers" size={10} />
                                     {a.customer.name}
                                   </span>
                                 )}
-                                {a.deal && (
+                                {a.deal?.title && (
                                   <span className="flex items-center gap-0.5">
                                     <Icon name="orders" size={10} />
                                     {a.deal.title}

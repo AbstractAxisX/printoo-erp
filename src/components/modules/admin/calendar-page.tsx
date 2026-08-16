@@ -131,6 +131,7 @@ export function CalendarPage() {
             }}
             title="گانت چارت سفارشات و تسک‌ها"
             emptyMessage="رویدادی برای نمایش در گانت نیست"
+            filters={filterButtons}
           />
         </TabsContent>
       </Tabs>

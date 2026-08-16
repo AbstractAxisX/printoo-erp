@@ -57,12 +57,19 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
   }, [notes]);
 
   function getEventsForDay(day: Date): CalendarEvent[] {
+    // Normalize day to midnight for comparison
+    const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, 0, 0, 0);
+    const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999);
     return events.filter((e) => {
       try {
         const start = typeof e.startDate === "string" ? parseISO(e.startDate) : new Date(e.startDate);
         const end = typeof e.endDate === "string" ? parseISO(e.endDate) : new Date(e.endDate);
         if (!isValid(start) || !isValid(end)) return false;
-        return isWithinInterval(day, { start, end });
+        // Normalize start/end to date-only for comparison
+        const startNorm = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const endNorm = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+        // Event spans this day if start <= dayEnd AND end >= dayStart
+        return startNorm <= dayEnd && endNorm >= dayStart;
       } catch {
         return false;
       }
@@ -100,6 +107,15 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
             ))}
           </div>
         )}
+      </div>
+
+      {/* Color legend */}
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground px-1">
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-blue-500" /> سفارش عادی</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-amber-500" /> سفارش فوری</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-500" /> تسک عادی</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-rose-500" /> تسک فوری</span>
+        <span className="flex items-center gap-1"><Icon name="bookmark" size={11} className="text-amber-500" /> یادداشت روز</span>
       </div>
 
       {/* Calendar grid */}

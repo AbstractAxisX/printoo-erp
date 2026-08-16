@@ -183,6 +183,7 @@ export function DesignerCalendar() {
             onEventClick={handleEventClick}
             title="گانت چارت سفارشات و تسک‌های طراحی"
             emptyMessage="رویدادی برای نمایش در گانت نیست"
+            filters={filterButtons}
           />
         </TabsContent>
       </Tabs>

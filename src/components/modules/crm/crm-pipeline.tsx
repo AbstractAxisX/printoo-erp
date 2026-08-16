@@ -36,6 +36,19 @@ import {
   DEFAULT_PROBABILITY,
 } from "./crm-types";
 
+// Fallback for unknown stages (defensive — should not happen, but guards against
+// corrupted/legacy data and keeps the UI from crashing).
+const SAFE_STAGE_COLORS = STAGE_COLORS;
+function stageColors(stage: DealStage | string) {
+  return (
+    SAFE_STAGE_COLORS[stage as DealStage] ??
+    SAFE_STAGE_COLORS.lead
+  );
+}
+function stageLabel(stage: DealStage | string) {
+  return STAGE_LABELS[stage as DealStage] ?? stage;
+}
+
 type CustomerOption = { id: string; name: string; phone: string };
 
 export function CRMPipeline() {
@@ -75,7 +88,9 @@ export function CRMPipeline() {
       lost: [],
     };
     for (const d of deals) {
-      if (DEAL_STAGES.includes(d.stage)) m[d.stage].push(d);
+      // Place unknown/legacy stages into "lead" as a safe fallback.
+      const stage: DealStage = DEAL_STAGES.includes(d.stage) ? d.stage : "lead";
+      m[stage].push(d);
     }
     return m;
   }, [deals]);
@@ -224,14 +239,14 @@ function PipelineColumn({
   onCardClick: (d: Deal) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
-  const colors = STAGE_COLORS[stage];
+  const colors = stageColors(stage);
   return (
     <div className="flex flex-col w-[280px] shrink-0">
       <div className={cn("rounded-t-lg border-b", colors.bg, colors.border)}>
         <div className="px-3 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className={cn("size-2 rounded-full", colors.dot)} />
-            <span className={cn("text-sm font-semibold", colors.text)}>{STAGE_LABELS[stage]}</span>
+            <span className={cn("text-sm font-semibold", colors.text)}>{stageLabel(stage)}</span>
             <span className="text-xs text-muted-foreground tabular-nums">({items.length})</span>
           </div>
           <Button
@@ -275,13 +290,27 @@ function DraggableDealCard({ deal, onClick }: { deal: Deal; onClick: () => void 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
   });
+  // Suppress the click that fires right after a drag ends (dnd-kit doesn't
+  // automatically prevent it). We track "didDrag" via a ref + small timeout.
+  const didDragRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isDragging) didDragRef.current = true;
+  }, [isDragging]);
+  React.useEffect(() => {
+    if (!isDragging && didDragRef.current) {
+      const t = setTimeout(() => {
+        didDragRef.current = false;
+      }, 60);
+      return () => clearTimeout(t);
+    }
+  }, [isDragging]);
   const style: React.CSSProperties = {
     transform: transform ? CSS.Translate.toString(transform) : undefined,
     opacity: isDragging ? 0.4 : 1,
   };
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
-      <DealCard deal={deal} onClick={onClick} />
+      <DealCard deal={deal} onClick={() => { if (!didDragRef.current) onClick(); }} />
     </div>
   );
 }
@@ -296,7 +325,7 @@ function DealCard({
   onClick: () => void;
 }) {
   const dr = daysRemaining(deal.expectedCloseDate);
-  const colors = STAGE_COLORS[deal.stage];
+  const colors = stageColors(deal.stage);
   return (
     <div
       onClick={(e) => {
@@ -319,7 +348,7 @@ function DealCard({
       </div>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
         <Icon name="customers" size={12} />
-        <span className="truncate">{deal.customer.name}</span>
+        <span className="truncate">{deal.customer?.name ?? "—"}</span>
       </div>
       <div className="flex items-center justify-between">
         <div className="text-sm font-bold tabular-nums" dir="ltr">

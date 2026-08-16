@@ -13,6 +13,7 @@ type ReusableGanttProps = {
   className?: string;
   title?: string;
   emptyMessage?: string;
+  filters?: { id: string; label: string; active: boolean; onToggle: () => void }[];
 };
 
 // Vibrant color palette matching the reference image
@@ -35,7 +36,7 @@ function safeDate(d: string | Date): Date | null {
 
 type ValidEvent = CalendarEvent & { _start: Date; _end: Date; _duration: number };
 
-export function ReusableGantt({ events, onEventClick, className, title, emptyMessage = "رویدادی برای نمایش نیست" }: ReusableGanttProps) {
+export function ReusableGantt({ events, onEventClick, className, title, emptyMessage = "رویدادی برای نمایش نیست", filters }: ReusableGanttProps) {
   const [viewMode, setViewMode] = React.useState<"day" | "week" | "month">("day");
   const [viewStart, setViewStart] = React.useState(() => {
     const now = new Date();
@@ -118,6 +119,25 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
               </button>
             ))}
           </div>
+
+          {/* Filters */}
+          {filters && filters.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              {filters.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={f.onToggle}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg border text-xs font-medium transition flex items-center gap-1",
+                    f.active ? "bg-primary text-primary-foreground border-primary" : "bg-background text-muted-foreground border-input hover:border-foreground/30"
+                  )}
+                >
+                  <Icon name={f.active ? "check" : "plus"} size={11} strokeWidth={2.5} />
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Legend */}
           <div className="flex items-center gap-3 mr-auto text-[11px] text-muted-foreground flex-wrap">

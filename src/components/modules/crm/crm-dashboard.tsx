@@ -45,8 +45,8 @@ type DashboardData = {
     id: string;
     title: string;
     value: number;
-    expectedCloseDate: string;
-    customer: { id: string; name: string };
+    expectedCloseDate: string | null;
+    customer: { id: string; name: string } | null;
   }[];
 };
 
@@ -112,7 +112,7 @@ export function CRMDashboard() {
     },
   ];
 
-  const maxPipelineCount = Math.max(1, ...(d?.pipeline.map((p) => p.count) || [1]));
+  const maxPipelineCount = Math.max(1, ...(d?.pipeline?.map((p) => p.count ?? 0) || [1]));
 
   return (
     <div className="space-y-5">
@@ -166,19 +166,19 @@ export function CRMDashboard() {
             </button>
           </div>
           <div className="space-y-3">
-            {d?.pipeline.map((p) => {
-              const colors = STAGE_COLORS[p.stage];
-              const pct = Math.round((p.count / maxPipelineCount) * 100);
+            {(d?.pipeline ?? []).map((p) => {
+              const colors = STAGE_COLORS[p.stage] ?? STAGE_COLORS.lead;
+              const pct = Math.round(((p.count ?? 0) / maxPipelineCount) * 100);
               return (
                 <div key={p.stage} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
                       <span className={cn("size-1.5 rounded-full", colors.dot)} />
-                      <span className="font-medium">{STAGE_LABELS[p.stage]}</span>
-                      <span className="text-muted-foreground">({p.count})</span>
+                      <span className="font-medium">{STAGE_LABELS[p.stage] ?? p.stage}</span>
+                      <span className="text-muted-foreground">({p.count ?? 0})</span>
                     </div>
                     <span className="tabular-nums text-muted-foreground" dir="ltr">
-                      {formatCurrency(p.value)}
+                      {formatCurrency(p.value ?? 0)}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -257,19 +257,19 @@ export function CRMDashboard() {
               مشاهده همه <Icon name="arrowLeft" size={12} />
             </button>
           </div>
-          {d?.recentActivities && d.recentActivities.length > 0 ? (
+          {(d?.recentActivities ?? []).length > 0 ? (
             <div className="divide-y max-h-96 overflow-y-auto">
-              {d.recentActivities.map((a) => {
-                const meta = ACTIVITY_META[a.type];
+              {(d?.recentActivities ?? []).map((a) => {
+                const meta = ACTIVITY_META[a.type] ?? ACTIVITY_META.note;
                 return (
                   <div key={a.id} className="flex items-start gap-3 px-5 py-3 hover:bg-accent/40 transition">
                     <div className={cn("size-8 rounded-lg grid place-items-center shrink-0", meta.bg)}>
                       <Icon name={meta.icon} size={14} className={meta.color} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{a.title}</div>
+                      <div className="text-sm font-medium truncate">{a.title ?? "—"}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        {a.customer && <span>{a.customer.name}</span>}
+                        {a.customer?.name && <span>{a.customer.name}</span>}
                         <span>•</span>
                         <span>{relativeTime(a.date)}</span>
                       </div>
@@ -299,9 +299,9 @@ export function CRMDashboard() {
               همه معاملات <Icon name="arrowLeft" size={12} />
             </button>
           </div>
-          {d?.closingSoonDeals && d.closingSoonDeals.length > 0 ? (
+          {(d?.closingSoonDeals ?? []).length > 0 ? (
             <div className="divide-y">
-              {d.closingSoonDeals.map((deal) => {
+              {(d?.closingSoonDeals ?? []).map((deal) => {
                 const dr = daysRemaining(deal.expectedCloseDate);
                 return (
                   <button
@@ -313,14 +313,14 @@ export function CRMDashboard() {
                       <Icon name="orders" size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{deal.title}</div>
+                      <div className="font-medium text-sm truncate">{deal.title ?? "—"}</div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {deal.customer.name} • {formatDate(deal.expectedCloseDate)}
+                        {deal.customer?.name ?? "—"} • {formatDate(deal.expectedCloseDate)}
                       </div>
                     </div>
                     <div className="text-left shrink-0">
                       <div className="text-xs font-semibold tabular-nums" dir="ltr">
-                        {formatCurrency(deal.value)}
+                        {formatCurrency(deal.value ?? 0)}
                       </div>
                       <div
                         className={cn(
@@ -358,7 +358,7 @@ export function CRMDashboard() {
             همه مشتریان <Icon name="arrowLeft" size={12} />
           </button>
         </div>
-        {d?.topCustomers && d.topCustomers.length > 0 ? (
+        {(d?.topCustomers ?? []).length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/40">
@@ -370,21 +370,21 @@ export function CRMDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {d.topCustomers.map((c, idx) => (
+                {(d?.topCustomers ?? []).map((c, idx) => (
                   <tr key={c.id} className="hover:bg-accent/40 transition">
                     <td className="px-5 py-2.5">
                       <div className="flex items-center gap-2">
                         <span className="size-5 rounded-full bg-primary/10 text-primary grid place-items-center text-[10px] font-bold">
                           {idx + 1}
                         </span>
-                        <span className="font-medium">{c.name}</span>
+                        <span className="font-medium">{c.name ?? "—"}</span>
                         {c.isFavorite && <Icon name="star" size={12} className="text-amber-500" />}
                       </div>
                     </td>
-                    <td className="text-center tabular-nums">{c.ordersCount}</td>
-                    <td className="text-center tabular-nums">{c.dealsCount}</td>
+                    <td className="text-center tabular-nums">{c.ordersCount ?? 0}</td>
+                    <td className="text-center tabular-nums">{c.dealsCount ?? 0}</td>
                     <td className="px-5 py-2.5 text-left font-medium tabular-nums" dir="ltr">
-                      {formatCurrency(c.totalSpent)}
+                      {formatCurrency(c.totalSpent ?? 0)}
                     </td>
                   </tr>
                 ))}

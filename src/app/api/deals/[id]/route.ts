@@ -78,16 +78,22 @@ export async function DELETE(
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  // Lightweight stage update for drag-and-drop
+  // Lightweight stage update for drag-and-drop. Also accepts probability.
   try {
     const { id } = await params;
-    const { stage } = await req.json();
+    const body = await req.json();
+    const { stage, probability } = body;
     if (!stage) {
       return NextResponse.json({ error: "stage الزامی است" }, { status: 400 });
     }
+    const data: Record<string, unknown> = { stage };
+    if (probability !== undefined && probability !== null) {
+      const p = Number(probability);
+      if (!Number.isNaN(p)) data.probability = Math.max(0, Math.min(100, p));
+    }
     const deal = await db.deal.update({
       where: { id },
-      data: { stage },
+      data,
       include: { customer: true },
     });
     return NextResponse.json({ deal });

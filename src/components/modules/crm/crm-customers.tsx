@@ -444,29 +444,34 @@ function CustomerDetailDrawer({
   const [dealOpen, setDealOpen] = React.useState(false);
   const open = !!customerId;
 
-  const { data, isLoading } = useQuery({
+  // Track loading/error/not-found explicitly so the UI doesn't show an infinite
+  // spinner when the customer is missing.
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["customer-detail", customerId],
     queryFn: async () => {
       if (!customerId) return null;
       const [custRes, ordersRes, dealsRes, actsRes] = await Promise.all([
-        api<{ customers: Customer[] }>(`/api/customers`),
+        api<{ customer: Customer | null }>(`/api/customers/${customerId}`),
         api<{ orders: Order[] }>(`/api/orders?customerId=${customerId}`),
         api<{ deals: Deal[] }>(`/api/deals?customerId=${customerId}`),
         api<{ activities: Activity[] }>(`/api/activities?customerId=${customerId}&limit=50`),
       ]);
-      const customer = custRes.customers.find((c) => c.id === customerId);
+      const customer = custRes?.customer ?? null;
       if (!customer) return null;
-      const totalSpent = ordersRes.orders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+      const totalSpent = (ordersRes?.orders ?? []).reduce(
+        (s, o) => s + (o.totalAmount || 0),
+        0
+      );
       return {
         customer,
-        orders: ordersRes.orders,
-        deals: dealsRes.deals,
-        activities: actsRes.activities,
+        orders: ordersRes?.orders ?? [],
+        deals: dealsRes?.deals ?? [],
+        activities: actsRes?.activities ?? [],
         totalSpent,
       } as CustomerDetail;
     },
     enabled: !!customerId,
-    refetchInterval: 30000,
+    refetchInterval: open ? 30000 : false,
   });
 
   // Reset internal dialogs when closing drawer
@@ -478,6 +483,7 @@ function CustomerDetailDrawer({
   }, [open]);
 
   const detail = data;
+  const notFound = !isLoading && !isError && !detail;
 
   return (
     <>
@@ -491,12 +497,32 @@ function CustomerDetailDrawer({
             <SheetDescription>اطلاعات کامل، سفارش‌ها، معاملات و فعالیت‌ها</SheetDescription>
           </SheetHeader>
 
-          {isLoading || !detail ? (
+          {isLoading ? (
             <div className="py-20 flex flex-col items-center gap-2">
               <Icon name="loading" size={28} className="animate-spin text-primary" />
               <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
             </div>
-          ) : (
+          ) : isError ? (
+            <div className="py-20 flex flex-col items-center gap-2">
+              <Icon name="alertTriangle" size={28} className="text-rose-500" />
+              <span className="text-sm text-muted-foreground">
+                {error instanceof Error ? error.message : "خطا در بارگذاری مشتری"}
+              </span>
+              <Button variant="outline" size="sm" onClick={onClose} className="mt-2">
+                بستن
+              </Button>
+            </div>
+          ) : notFound ? (
+            <div className="py-20 flex flex-col items-center gap-2">
+              <Icon name="alertTriangle" size={28} className="text-amber-500" />
+              <span className="text-sm text-muted-foreground">
+                مشتری یافت نشد. ممکن است حذف شده باشد.
+              </span>
+              <Button variant="outline" size="sm" onClick={onClose} className="mt-2">
+                بستن
+              </Button>
+            </div>
+          ) : detail ? (
             <div className="flex flex-col">
               {/* Profile header */}
               <div className="px-5 py-4 border-b bg-muted/30">
@@ -722,7 +748,7 @@ function CustomerDetailDrawer({
                 </TabsContent>
               </Tabs>
             </div>
-          )}
+          ) : null}
         </SheetContent>
       </Sheet>
 
