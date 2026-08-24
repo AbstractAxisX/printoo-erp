@@ -1,15 +1,15 @@
-// Printoo24 ERP — sidebar navigation config
-// Each module has grouped menus; groups can have sub-items (collapsible).
-// Icon names refer to keys in src/lib/icons.ts
+// Printoo24 ERP — پیکربندی ناوبری سایدبار
+// هر ماژول دارای گروه‌های منو است؛ گروه‌ها می‌توانند آیتم‌های فرعی (کشویی) داشته باشند.
+// نام آیکون‌ها به کلیدهای src/lib/icons.tsx ارجاع می‌دهد.
 
 import type { IconName } from "@/lib/icons";
 
 export type NavItem = {
-  id: string; // page id, unique within module
+  id: string; // شناسهٔ صفحه، یکتا درون ماژول
   label: string;
   icon: IconName;
   page: string;
-  badge?: string; // dynamic badge key
+  badge?: string; // کلید badge پویا
 };
 
 export type NavGroup = {
@@ -26,6 +26,10 @@ export type ModuleNav = {
   icon: IconName;
   groups: NavGroup[];
 };
+
+// کلید ماژول (admin, designer, print, warehouse, finance, qc, crm, srm)
+// نوع string برای سازگاری با Zustand store که module را به‌صورت string نگه می‌دارد.
+export type ModuleKey = string;
 
 export const NAV: ModuleNav[] = [
   // ─────────── ADMIN (Internal operator) ───────────
