@@ -1,6 +1,6 @@
 // Seed demo data for Printoo24 ERP
 import { db } from "../src/lib/db";
-import { hashPassword } from "../src/lib/auth";
+import { hashPassword } from "../src/lib/password";
 
 async function main() {
   // ensure user (password hashed — Phase 1.5 baseline security)

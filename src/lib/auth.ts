@@ -11,8 +11,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import bcrypt from "bcryptjs";
 import { createHmac, timingSafeEqual } from "crypto";
+import { hashPassword, verifyPassword } from "@/lib/password";
+
+// Re-export password primitives so existing imports
+// `import { hashPassword } from "@/lib/auth"` keep working.
+export { hashPassword, verifyPassword } from "@/lib/password";
 
 export const SESSION_COOKIE = "printoo24_session";
 
@@ -22,33 +26,12 @@ const SESSION_SECRET =
   process.env.SESSION_SECRET ||
   "printoo24-dev-secret-change-in-prod-7f3a9c1e8b2d4a6f";
 
-const BCRYPT_ROUNDS = 10;
-
 export type SessionUser = {
   id: string;
   name: string;
   email: string;
   role: string;
 };
-
-// ─── Password hashing ──────────────────────────────────────────
-export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, BCRYPT_ROUNDS);
-}
-
-export async function verifyPassword(
-  plain: string,
-  hash: string
-): Promise<boolean> {
-  // Backward-compat: if an old plaintext row exists, do a timing-unsafe
-  // fallback compare + auto-migrate on next login. New rows are always hashed.
-  if (!hash) return false;
-  if (hash.startsWith("$2")) {
-    return bcrypt.compare(plain, hash);
-  }
-  // Legacy plaintext (pre-Phase-1.5) — compare then mark for migration.
-  return plain === hash;
-}
 
 // ─── Signed session (HMAC) ─────────────────────────────────────
 function b64encode(str: string): string {
