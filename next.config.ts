@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
+  // ریشهٔ صریح turbopack برای جلوگیری از هشدار multi-lockfile
+  // و اطمینان از پیدا کردن صحیح مسیر پروژه
+  turbopack: {
+    root: __dirname,
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
