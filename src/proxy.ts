@@ -1,12 +1,12 @@
-// Printoo24 ERP — Edge middleware (Phase 1.5 baseline security)
+// Printoo24 ERP — Edge proxy (Phase 1.5 baseline security)
 // Gates /api/* (except /api/auth/login) by session-cookie presence.
 // Full HMAC verification happens server-side in getSession()/requireUser().
 // Keeping this edge-safe (cookie presence only) so it stays fast and
 // runs without Node crypto bindings.
 //
-// IMPORTANT: Next.js auto-invokes the file at src/middleware.ts exporting
-// `middleware` (named) — this is the conventional entrypoint. Naming it
-// proxy.ts / `export function proxy` would silently never run.
+// Next.js 16 convention: the edge entrypoint is `src/proxy.ts` exporting
+// `proxy` (the `middleware` filename/export is DEPRECATED in v16 and emits
+// a build warning — see nextjs.org/docs/messages/middleware-to-proxy).
 //
 // When full RBAC lands, this stays as the coarse gate; fine-grained
 // permission checks happen in-route via requirePermission().
@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 const SESSION_COOKIE = "printoo24_session";
 const PUBLIC_API = ["/api/auth/login"];
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Only guard API routes (the app shell is a single SPA route "/" and
