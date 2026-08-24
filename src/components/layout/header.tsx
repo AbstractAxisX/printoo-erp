@@ -1,8 +1,23 @@
 "use client";
 
+/**
+ * هدر ERP (Header)
+ * ─────────────────────────────────────────────────────────────
+ * هدر چسبان بالای محتوای اصلی: همبرگر + breadcrumb + اکشن‌سریع
+ * (سفارش جدید) + سوییچ تم + دراپ‌داون اعلان‌ها.
+ *
+ * فاز ۴ — پالایش:
+ *   - badge اعلان: افزودن z-10 + ring-2 ring-background برای جدایی
+ *     بصری واضح از آیکون زنگ در صفحه‌های کوچک.
+ *   - refactoring DRY: نقشهٔ نوع→(آیکون، رنگ) به‌جای شرط‌های زنجیره‌ای
+ *     inline className. یک منبع حقیقت برای هماهنگی آیکون و رنگ.
+ *   - دسترسی‌پذیری: افزودن aria-label به دکمه‌های فقط-آیکون.
+ *   - حذف جاوااسکریپت اینلاین (تغییرات مربوط به app-shell.tsx).
+ */
+
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { Icon } from "@/lib/icons";
+import { Icon, type IconName } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -12,7 +27,6 @@ import { Badge } from "@/components/ui/badge";
 import { useAppStore } from "@/stores/app-store";
 import { api } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
-import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { findModule } from "@/lib/nav";
 
@@ -21,9 +35,21 @@ type Notification = {
   read: boolean; link: string | null; createdAt: string;
 };
 
-const typeIcon: Record<string, "info" | "checkCircle" | "alert" | "alertTriangle"> = {
-  info: "info", success: "checkCircle", warning: "alertTriangle", error: "alert",
+// نوع‌های معتبر اعلان (API در زمان اجرا ممکن است رشته‌های ناشناخته هم بفرستد)
+type NotificationType = "info" | "success" | "warning" | "error";
+
+// نقشهٔ نوع اعلان → (آیکون، کلاس رنگی) — یک منبع حقیقت (اصل DRY).
+// از این نقشه هم برای آیکون و هم برای className رنگی استفاده می‌شود
+// تا همیشه هماهنگ بمانند (اگر یک نوع اضافه شد، فقط همین‌جا تغییر کند).
+const TYPE_VISUALS: Record<NotificationType, { icon: IconName; tint: string }> = {
+  info:    { icon: "info",          tint: "bg-primary/10 text-primary" },
+  success: { icon: "checkCircle",  tint: "bg-emerald-100 text-emerald-600 dark:bg-emerald-950" },
+  warning: { icon: "alertTriangle", tint: "bg-amber-100 text-amber-600 dark:bg-amber-950" },
+  error:   { icon: "alert",        tint: "bg-rose-100 text-rose-600 dark:bg-rose-950" },
 };
+
+// fallback دفاعی برای انواع ناشناخته از API
+const FALLBACK_VISUAL = TYPE_VISUALS.info;
 
 export function Header() {
   const { theme, setTheme } = useTheme();
@@ -56,7 +82,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/80 backdrop-blur px-3">
-      <Button variant="ghost" size="icon" className="size-9" onClick={toggleSidebar}>
+      <Button variant="ghost" size="icon" className="size-9" onClick={toggleSidebar} aria-label="باز/بسته کردن سایدبار">
         <Icon name="menu" size={20} />
       </Button>
 
@@ -74,30 +100,32 @@ export function Header() {
 
       <div className="flex-1" />
 
-      {/* Quick action: New Order */}
-      <Button size="sm" className="gap-1.5" onClick={() => navigate("admin", "orders-new")}>
+      {/* اکشن سریع: سفارش جدید — روی موبایل فقط آیکون، روی دسکتاپ آیکون+متن */}
+      <Button size="sm" className="gap-1.5" onClick={() => navigate("admin", "orders-new")} aria-label="سفارش جدید">
         <Icon name="plus" size={16} />
         <span className="hidden sm:inline">سفارش جدید</span>
       </Button>
 
-      {/* Theme toggle — direct, no popup */}
+      {/* سوییچ تم — مستقیم، بدون پاپ‌آپ. mounted-guard برای جلوگیری از mismatch hydration */}
       <Button
         variant="ghost"
         size="icon"
         className="size-9"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         title={theme === "dark" ? "حالت روشن" : "حالت تاریک"}
+        aria-label={theme === "dark" ? "حالت روشن" : "حالت تاریک"}
       >
         <Icon name={mounted && theme === "dark" ? "moon" : "sun"} size={20} />
       </Button>
 
-      {/* Notifications */}
+      {/* اعلان‌ها — badge فشرده با z-10 + ring-2 ring-background برای جدایی بصری واضح
+          از آیکون زنگ در صفحه‌های کوچک (پالایش فاز ۴). */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-9 relative">
+          <Button variant="ghost" size="icon" className="size-9 relative" aria-label="اعلان‌ها">
             <Icon name="bell" size={20} />
             {unread > 0 && (
-              <span className="absolute -top-0.5 -left-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center">
+              <span className="absolute -top-0.5 -left-0.5 z-10 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center ring-2 ring-background">
                 {unread > 9 ? "9+" : unread}
               </span>
             )}
@@ -115,7 +143,10 @@ export function Header() {
                 <span className="text-sm">اعلانی وجود ندارد</span>
               </div>
             ) : (
-              notifications.map((n) => (
+              notifications.map((n) => {
+                // یک منبع حقیقت برای آیکون و رنگ (DRY — فاز ۴)
+                const visuals = TYPE_VISUALS[n.type as NotificationType] ?? FALLBACK_VISUAL;
+                return (
                 <DropdownMenuItem
                   key={n.id}
                   className="flex flex-col items-start gap-1 px-3 py-2.5 cursor-pointer focus:bg-accent"
@@ -130,13 +161,8 @@ export function Header() {
                   }}
                 >
                   <div className="flex items-start gap-2.5 w-full">
-                    <div className={`mt-0.5 size-7 rounded-lg grid place-items-center shrink-0 ${
-                      n.type === "success" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-950" :
-                      n.type === "warning" ? "bg-amber-100 text-amber-600 dark:bg-amber-950" :
-                      n.type === "error" ? "bg-rose-100 text-rose-600 dark:bg-rose-950" :
-                      "bg-primary/10 text-primary"
-                    }`}>
-                      <Icon name={typeIcon[n.type] ?? "info"} size={16} />
+                    <div className={`mt-0.5 size-7 rounded-lg grid place-items-center shrink-0 ${visuals.tint}`}>
+                      <Icon name={visuals.icon} size={16} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -148,7 +174,8 @@ export function Header() {
                     </div>
                   </div>
                 </DropdownMenuItem>
-              ))
+                );
+              })
             )}
           </div>
         </DropdownMenuContent>

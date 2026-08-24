@@ -23,16 +23,20 @@ export function AppShell() {
       <SidebarInset>
         {!headerCollapsed && <Header />}
         <TabBar />
-        {/* Collapse/expand floating button (bookmark-style) */}
+        {/* دکمهٔ bookmark: جمع/نمایش هدر — فقط با CSS (بدون جاوااسکریپت اینلاین)
+            فاز ۴: حذف style={{ opacity }} + onMouseEnter/Leave که رفتار ناهماهنگ
+            داشت (inline style بر Tailwind غلبه می‌کرد). حالا با کلاس‌های Tailwind
+            مدیریت می‌شود: ۲۰٪ پیش‌فرض (محو)، ۱۰۰٪ هنگام hover/focus-visible. */}
         <button
           onClick={toggleHeader}
-          className="fixed top-0 left-1/2 -translate-x-1/2 z-50 h-5 px-3 rounded-b-md bg-primary text-primary-foreground text-[10px] flex items-center gap-1 shadow-md hover:bg-primary/90 transition opacity-0 hover:opacity-100 focus:opacity-100"
+          aria-label={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}
           title={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}
-          style={{ opacity: 0.15 }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.15")}
+          className="fixed top-0 left-1/2 -translate-x-1/2 z-50 h-5 px-3 rounded-b-md bg-primary text-primary-foreground text-[10px] flex items-center gap-1 shadow-md hover:bg-primary/90 transition-opacity duration-200 opacity-20 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="text-[10px]">{headerCollapsed ? "▼" : "▲"}</span>
+          {/* پیکان فقط تزئینی است — معنا از aria-label دکمه می‌آید */}
+          <span className="text-[10px]" aria-hidden="true">
+            {headerCollapsed ? "▼" : "▲"}
+          </span>
         </button>
         <main className="flex-1 p-4 sm:p-6 min-w-0">
           <ModuleRouter />
