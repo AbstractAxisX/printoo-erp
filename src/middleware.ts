@@ -4,6 +4,10 @@
 // Keeping this edge-safe (cookie presence only) so it stays fast and
 // runs without Node crypto bindings.
 //
+// IMPORTANT: Next.js auto-invokes the file at src/middleware.ts exporting
+// `middleware` (named) — this is the conventional entrypoint. Naming it
+// proxy.ts / `export function proxy` would silently never run.
+//
 // When full RBAC lands, this stays as the coarse gate; fine-grained
 // permission checks happen in-route via requirePermission().
 
@@ -12,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 const SESSION_COOKIE = "printoo24_session";
 const PUBLIC_API = ["/api/auth/login"];
 
-export function proxy(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Only guard API routes (the app shell is a single SPA route "/" and
