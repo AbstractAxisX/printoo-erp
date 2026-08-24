@@ -16,121 +16,21 @@ import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 
-// ─── Types ────────────────────────────────────────────────────
-type Order = {
-  id: string;
-  number: number;
-  status: string;
-  endDate: string | null;
-  noEndDate: boolean;
-  totalAmount: number;
-  priority: string;
-  createdAt: string;
-  customer: { id: string; name: string; phone: string };
-  items: {
-    id: string;
-    productId: string;
-    product: { name: string };
-    quantity: number;
-    totalAmount: number;
-    stage: string;
-    designEndDate: string | null;
-    printEndDate: string | null;
-  }[];
-};
+// ─── Types / stage config / deadline helpers (extracted) ─────
+// Pure logic lives in ./open-orders-helpers so the page stays lean and the
+// rules are reusable by the Phase 5 calendar.
+import {
+  type OpenOrder,
+  type Stage,
+  type CardFilter,
+  STAGES,
+  NEAR_THRESHOLD,
+  getStageDeadline,
+  categorize,
+} from "./open-orders-helpers";
 
-type Stage = "all" | "pending_design" | "in_printing" | "warehouse_logistics";
-
-type CardFilter = "total" | "overdue" | "near" | "urgent";
-
-// ─── Stage config ─────────────────────────────────────────────
-const STAGES: {
-  key: Stage;
-  label: string;
-  icon: IconName;
-  color: string;
-  activeCls: string;
-}[] = [
-  {
-    key: "all",
-    label: "همه سفارشات باز",
-    icon: "layers",
-    color: "slate",
-    activeCls: "bg-slate-600 text-white border-slate-600 shadow-sm",
-  },
-  {
-    key: "pending_design",
-    label: "در حال طراحی",
-    icon: "design",
-    color: "violet",
-    activeCls: "bg-violet-600 text-white border-violet-600 shadow-sm",
-  },
-  {
-    key: "in_printing",
-    label: "در حال چاپ",
-    icon: "print",
-    color: "amber",
-    activeCls: "bg-amber-600 text-white border-amber-600 shadow-sm",
-  },
-  {
-    key: "warehouse_logistics",
-    label: "انبار و لجستیک",
-    icon: "warehouse",
-    color: "cyan",
-    activeCls: "bg-cyan-600 text-white border-cyan-600 shadow-sm",
-  },
-];
-
-// Near-deadline thresholds per stage (in days)
-const NEAR_THRESHOLD: Record<Stage, number> = {
-  all: 5,
-  pending_design: 2,
-  in_printing: 5,
-  warehouse_logistics: 3,
-};
-
-// ─── Deadline helpers ─────────────────────────────────────────
-function getOrderOwnStageDeadline(order: Order): string | null {
-  if (order.status === "pending_design") {
-    return order.items[0]?.designEndDate || order.endDate;
-  }
-  if (order.status === "in_printing") {
-    return order.items[0]?.printEndDate || order.endDate;
-  }
-  return order.endDate;
-}
-
-function getStageDeadline(order: Order, stage: Stage): string | null {
-  if (stage === "all") return getOrderOwnStageDeadline(order);
-  if (stage === "pending_design") {
-    return order.items[0]?.designEndDate || order.endDate;
-  }
-  if (stage === "in_printing") {
-    return order.items[0]?.printEndDate || order.endDate;
-  }
-  return order.endDate; // warehouse_logistics
-}
-
-function getNearThreshold(order: Order, stage: Stage): number {
-  if (stage === "all") {
-    if (order.status === "pending_design") return NEAR_THRESHOLD.pending_design;
-    if (order.status === "in_printing") return NEAR_THRESHOLD.in_printing;
-    if (order.status === "warehouse_logistics") return NEAR_THRESHOLD.warehouse_logistics;
-    return NEAR_THRESHOLD.all;
-  }
-  return NEAR_THRESHOLD[stage];
-}
-
-function categorize(order: Order, stage: Stage) {
-  const deadline = getStageDeadline(order, stage);
-  const dr = daysRemaining(deadline);
-  const threshold = getNearThreshold(order, stage);
-  const isOverdue = dr.status === "overdue";
-  const isNearDeadline = dr.status === "remaining" && dr.days <= threshold;
-  const isToday = dr.status === "today";
-  const isUrgent = order.priority === "urgent";
-  return { deadline, dr, isOverdue, isNearDeadline, isToday, isUrgent };
-}
+// Local alias keeps the rest of this file unchanged (minimal diff).
+type Order = OpenOrder;
 
 // ─── Main component ───────────────────────────────────────────
 export function OpenOrdersPage() {
