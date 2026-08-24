@@ -16,30 +16,31 @@ import { Icon, type IconName } from "@/lib/icons";
 import type { NavGroup, ModuleKey } from "@/lib/nav";
 import { useDrawerSync } from "@/lib/use-drawer-sync";
 import { TreeGroup } from "./sidebar-tree-group";
+import { cn } from "@/lib/utils";
 
 /**
- * ماژول سایدبار (TreeModule)
+ * ماژول سایدبار (TreeModule) — نسخهٔ زیباسازی‌شدهٔ فاز ۶
  * ─────────────────────────────────────────────────────────────
- * کشوی سطح بالا — والد چند گروه است. این المان محل رفع باگ اصلی است.
+ * کشوی سطح بالا — والد چند گروه است.
  *
- * ⚠️ باگ قبلی (تا قبل از فاز ۳b):
- *   والد دارای onClick بود که onNavigate(moduleKey, "dashboard")
- *   را فراخوانی می‌کرد → کلیک روی نام ماژول، داشبورد را لود می‌کرد
- *   به‌جای باز شدن زیرمنوها. همچنین چرون یک onClick جداگانه داشت که
- *   با toggle خودکار Radix تداخل می‌کرد → رفتار غیرقابل پیش‌بینی.
- *
- * راه‌حل (AC1, AC2, AC3):
- *   - حذف کامل onClick از دکمهٔ والد.
- *   - استفادهٔ خالص از CollapsibleTrigger ریشه‌ای (auto-toggle).
- *   - چرخش چرون از data-state ریشه‌ای با CSS (group-data-[state=open]).
- *   - مدیریت وضعیت با هوک useDrawerSync (باز شدن خودکار وقتی فعال).
- *
- * قرارداد نهایی:
+ * قرارداد رفتاری (حفظ‌شده از فاز ۳، AC1/AC2/AC3):
  *   کلیک روی سرِ ماژول (آیکون/برچسب/چرون/فضای خالی) → فقط toggle کشو.
- *   هیچ ناوبری در این سطح انجام نمی‌شود.
+ *   هیچ ناوبری در این سطح انجام نمی‌شود (حذف onClick navigate از فاز ۳).
  *   ناوبری فقط در سطح برگه (TreeLeaf) رخ می‌دهد.
  *
- * React.memo: props شامل moduleKey/label/icon/groups (همگی ثابت از NAV)،
+ * همگام‌سازی با ماژول فعال (AC5 + AC6 از فاز ۳):
+ *   وقتی ماژول فعال می‌شود، کشو خودکار باز می‌شود. اگر کاربر
+ *   دستی ببندد، تا انتهای دورهٔ فعال بسته می‌ماند (useDrawerSync).
+ *
+ * طراحی بصری (فاز ۶ — زیباسازی):
+ *   - ردیف بزرگ‌تر (h-11) با gap و padding سخاوتمندانه.
+ *   - حالت فعال: پس‌زمینهٔ emerald ملایم (bg-primary/10) + متن primary
+ *     + font-semibold برای تأکید.
+ *   - hover (غیرفعال): پس‌زمینهٔ accent نیمه‌شفاف.
+ *   - چرون با چرخش نرم ۲۰۰ms روی باز شدن (data-state-driven، بدون JS).
+ *   - انیمیشن transition-all برای همهٔ تغییرات.
+ *
+ * React.memo: props شامل moduleKey/label/icon/groups (ثابت از NAV)،
  * active (boolean — فقط برای ۲ ماژول در هر ناوبری تغییر می‌کند)،
  * currentModule/currentPage (برای ارسال به TreeGroup)، onNavigate (پایدار).
  * memo از ریرندر ۵ ماژول غیرفعال جلوگیری می‌کند.
@@ -76,11 +77,23 @@ function TreeModuleImpl({
       className="group/collapsible"
     >
       <SidebarMenuItem>
-        {/* والد: فقط trigger ریشه‌ای — هیچ onClick ناوبری ندارد */}
+        {/* والد: فقط trigger ریشه‌ای — هیچ onClick ناوبری ندارد (AC1/AC2) */}
         <CollapsibleTrigger asChild>
-          <SidebarMenuButton isActive={active} tooltip={label}>
-            <Icon name={icon} size={18} />
-            <span>{label}</span>
+          <SidebarMenuButton
+            isActive={active}
+            tooltip={label}
+            size="lg"
+            className={cn(
+              "h-11 gap-3 px-3 rounded-xl font-medium transition-all duration-200 ease-out",
+              "hover:bg-sidebar-accent/50",
+              // بازنویسی حالت فعال پیش‌فرض با emerald (به‌جای sidebar-accent)
+              "data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold data-[active=true]:hover:bg-primary/15",
+            )}
+          >
+            <Icon name={icon} size={18} className="shrink-0 transition-colors" />
+            <span className="text-sm truncate group-data-[collapsible=icon]:hidden">
+              {label}
+            </span>
             {/* چرخش چرون از data-state ریشه‌ای (بدون جاوااسکریپت) */}
             <Icon
               name="chevronLeft"

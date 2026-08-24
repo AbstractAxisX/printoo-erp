@@ -18,7 +18,7 @@ import { TreeModule } from "./sidebar-tree-module";
 import { SidebarUserFooter } from "./sidebar-user-footer";
 
 /**
- * پوستهٔ سایدبار (AppSidebar)
+ * پوستهٔ سایدبار (AppSidebar) — نسخهٔ زیباسازی‌شدهٔ فاز ۶
  * ─────────────────────────────────────────────────────────────
  * اسکلت اصلی سایدبار ERP: هدر (لوگو + نام ماژول فعّال) + محتوای
  * ناوبری (TreeModule برای هر ماژول) + پاص (SidebarUserFooter).
@@ -28,16 +28,17 @@ import { SidebarUserFooter } from "./sidebar-user-footer";
  * TreeModule/TreeGroup کپسوله شده است (اصل اتمیک: هر کامپوننت
  * یک دغدغه).
  *
+ * طراحی بصری (فاز ۶):
+ *   - هدر با لوگوی گرادیانت emerald + سایهٔ ظریف.
+ *   - مرز پایین هدر برای جداسازی بصری از محتوا.
+ *   - پاص با کامپوننت SidebarUserFooter زیباسازی‌شده.
+ *
  * وابستگی یک‌جهته: ui → logic → state
  *   - این کامپوننت از Zustand (state) مقدار module/page/navigate را
  *     می‌خواند و به TreeModule پاس می‌دهد.
  *   - TreeModule از useDrawerSync (logic) برای مدیریت وضعیت کشو استفاده
  *     می‌کند.
  *   - هیچ وارونگی وجود ندارد.
- *
- * نکتهٔ پرفورمنس: active = (m.key === moduleKey) فقط برای ۲ ماژول
- * در هر ناوبری تغییر می‌کند (ماژول قبلی و ماژول جدید). چون TreeModule
- * با React.memo پوشش داده شده، ۵ ماژول دیگر ریرندر نمی‌شوند.
  */
 export function AppSidebar() {
   const moduleKey = useAppStore((s) => s.module) as ModuleKey;
@@ -47,9 +48,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" side="right" className="border-l">
-      <SidebarHeader>
-        <div className="flex items-center gap-2.5 px-2 py-2">
-          <div className="size-9 rounded-xl bg-primary text-primary-foreground grid place-items-center shrink-0">
+      <SidebarHeader className="border-b border-sidebar-border/60 px-3 py-3">
+        <div className="flex items-center gap-2.5">
+          {/* لوگو با گرادیانت emerald + سایهٔ ظریف */}
+          <div className="size-9 rounded-xl bg-gradient-to-br from-primary to-emerald-700 text-primary-foreground grid place-items-center shrink-0 shadow-sm shadow-primary/20">
             <Icon name="print" size={20} />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">

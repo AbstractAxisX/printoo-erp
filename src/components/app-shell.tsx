@@ -26,12 +26,13 @@ export function AppShell() {
         {/* دکمهٔ bookmark: جمع/نمایش هدر — فقط با CSS (بدون جاوااسکریپت اینلاین)
             فاز ۴: حذف style={{ opacity }} + onMouseEnter/Leave که رفتار ناهماهنگ
             داشت (inline style بر Tailwind غلبه می‌کرد). حالا با کلاس‌های Tailwind
-            مدیریت می‌شود: ۲۰٪ پیش‌فرض (محو)، ۱۰۰٪ هنگام hover/focus-visible. */}
+            مدیریت می‌شود: ۳۰٪ پیش‌فرض (محو)، ۱۰۰٪ هنگام hover/focus-visible.
+            فاز ۶: گرادیانت emerald + شکل bookmark ظریف‌تر (rounded-b-xl). */}
         <button
           onClick={toggleHeader}
           aria-label={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}
           title={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}
-          className="fixed top-0 left-1/2 -translate-x-1/2 z-50 h-5 px-3 rounded-b-md bg-primary text-primary-foreground text-[10px] flex items-center gap-1 shadow-md hover:bg-primary/90 transition-opacity duration-200 opacity-20 hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="fixed top-0 left-1/2 -translate-x-1/2 z-50 h-6 px-4 rounded-b-xl bg-gradient-to-r from-primary to-emerald-700 text-primary-foreground text-[10px] font-medium flex items-center gap-1 shadow-md shadow-primary/20 transition-all duration-200 opacity-30 hover:opacity-100 hover:shadow-lg hover:shadow-primary/30 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {/* پیکان فقط تزئینی است — معنا از aria-label دکمه می‌آید */}
           <span className="text-[10px]" aria-hidden="true">

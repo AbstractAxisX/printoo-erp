@@ -15,26 +15,30 @@ import { TreeLeaf } from "./sidebar-tree-leaf";
 import { cn } from "@/lib/utils";
 
 /**
- * گروه سایدبار (TreeGroup)
+ * گروه سایدبار (TreeGroup) — نسخهٔ زیباسازی‌شدهٔ فاز ۶
  * ─────────────────────────────────────────────────────────────
  * کشوی سطح میانی — والد چند برگه است.
  *
- * قرارداد رفتاری:
+ * قرارداد رفتاری (حفظ‌شده از فاز ۳):
  *   کلیک روی سرِ گروه → فقط toggle کشو (هیچ ناوبری نمی‌کند).
  *   کلیک روی برگه‌های زیرین → onNavigate (در TreeLeaf).
  *
- * همگام‌سازی با ماژول فعال (AC5 + AC6):
- *   وقتی ماژولِ این گروه فعال می‌شود، کشو خودکار باز می‌شود
- *   تا کاربر ببیند کجاست. اگر کاربر دستی ببندد، تا انتهای دورهٔ
- *   فعال بسته می‌ماند. این رفتار را هوک useDrawerSync تأمین می‌کند.
+ * همگام‌سازی با ماژول فعال (AC5 + AC6 از فاز ۳):
+ *   وقتی ماژول فعال می‌شود، کشو خودکار باز می‌شود. اگر کاربر
+ *   دستی ببندد، تا انتهای دورهٔ فعال بسته می‌ماند (useDrawerSync).
  *
- * چرخش چرون: از data-state ریشه‌ای (Radix) با CSS — بدون جاوااسکریپت،
- * بدون دوقطعی. گروه نام‌گذاری‌شده (group/collapsible-sub) برای
- * تمرکزگردانی CSS روی این نمونهٔ خاص.
+ * طراحی بصری (فاز ۶):
+ *   - سبک section-header: متن کوچک‌تر (text-[11px])، نیمه‌پر
+ *     (font-semibold)، muted color.
+ *   - چرون کوچک‌تر (size-12) با چرخش نرم روی باز شدن.
+ *   - خط راهنمای عمودی ظریف‌تر (border-sidebar-border/60) برای
+ *     نشانه‌گذاری سلسله‌مراتب.
+ *   - hover فقط رنگ را تغییر می‌دهد (بدون پس‌زمینه) تا سبک
+ *     section-header حفظ شود.
+ *   - وقتی گروه حاوی برگهٔ فعال است، رنگ آن پررنگ‌تر می‌شود.
  *
- * React.memo: props شامل group (ثابت از NAV)، currentModule/currentPage
- * (تغییر فقط هنگام ناوبری به ماژول دیگر)، moduleKey (ثابت)،
- * onNavigate (پایدار از Zustand). memo از ریرندر غیرضروری جلوگیری می‌کند.
+ * React.memo: props پایدارند (گروه از NAV ثابت، currentModule/currentPage
+ * فقط هنگام ناوبری تغییر می‌کند، onNavigate از Zustand پایدار است).
  */
 type TreeGroupProps = {
   group: NavGroup;
@@ -65,30 +69,39 @@ function TreeGroupImpl({
       className="group/collapsible-sub"
     >
       <SidebarMenuSubItem>
-        {/* سرِ گروه: فقط trigger ریشه‌ای — هیچ onClick ناوبری ندارد */}
+        {/* سرِ گروه — سبک section-header */}
         <CollapsibleTrigger asChild>
           <button
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition",
+              "group/sub flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors duration-200",
               hasActive && isCurrentModule
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                ? "text-sidebar-foreground"
+                : "text-muted-foreground/70 hover:text-sidebar-foreground"
             )}
           >
-            <Icon name={group.icon} size={14} className="shrink-0" />
+            <Icon
+              name={group.icon}
+              size={13}
+              className={cn(
+                "shrink-0 transition-colors",
+                hasActive && isCurrentModule
+                  ? "text-primary"
+                  : "text-muted-foreground/60 group-hover/sub:text-sidebar-foreground"
+              )}
+            />
             <span className="flex-1 text-right">{group.label}</span>
             {/* چرخش چرون از data-state ریشه‌ای (بدون جاوااسکریپت) */}
             <Icon
               name="chevronLeft"
               size={12}
-              className="text-muted-foreground transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90"
+              className="text-muted-foreground/50 transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90"
             />
           </button>
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          {/* خط عمودی راست برای نشانه‌گذاری بصری سلسله‌مراتبی زیرمنوها */}
-          <div className="mt-0.5 space-y-0.5 pr-2 border-r border-sidebar-border mr-2">
+          {/* خط راهنمای عمودی ظریف برای نشانه‌گذاری سلسله‌مراتب زیرمنوها */}
+          <div className="mt-1 space-y-0.5 pr-3 border-r border-sidebar-border/60 mr-1.5">
             {group.items.map((item) => (
               <TreeLeaf
                 key={item.id}

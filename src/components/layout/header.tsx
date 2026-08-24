@@ -1,18 +1,28 @@
 "use client";
 
 /**
- * هدر ERP (Header)
+ * هدر ERP (Header) — نسخهٔ زیباسازی‌شدهٔ فاز ۶
  * ─────────────────────────────────────────────────────────────
  * هدر چسبان بالای محتوای اصلی: همبرگر + breadcrumb + اکشن‌سریع
  * (سفارش جدید) + سوییچ تم + دراپ‌داون اعلان‌ها.
  *
- * فاز ۴ — پالایش:
- *   - badge اعلان: افزودن z-10 + ring-2 ring-background برای جدایی
- *     بصری واضح از آیکون زنگ در صفحه‌های کوچک.
- *   - refactoring DRY: نقشهٔ نوع→(آیکون، رنگ) به‌جای شرط‌های زنجیره‌ای
- *     inline className. یک منبع حقیقت برای هماهنگی آیکون و رنگ.
- *   - دسترسی‌پذیری: افزودن aria-label به دکمه‌های فقط-آیکون.
- *   - حذف جاوااسکریپت اینلاین (تغییرات مربوط به app-shell.tsx).
+ * طراحی بصری (فاز ۶ — زیباسازی):
+ *   - ارتفاع بیشتر (h-16) برای فضای تنفس.
+ *   - glass-morphism قوی‌تر: bg-background/70 backdrop-blur-md.
+ *   - خط پایین گرادیانتی emerald (via-primary/30) برای عمق.
+ *   - دکمهٔ «سفارش جدید» به‌عنوان CTA hero با گرادیانت emerald
+ *     و سایهٔ نورانی + فیدبک لمسی (active:scale-95).
+ *   - breadcrumb با چرون‌های ظریف‌تر.
+ *   - همهٔ دکمه‌ها با rounded-lg و انیمیشن نرم.
+ *
+ * حفظ‌شده از فاز ۴:
+ *   - badge اعلان: z-10 + ring-2 ring-background.
+ *   - refactoring DRY: TYPE_VISUALS برای type→(icon, color).
+ *   - aria-label روی همهٔ دکمه‌های فقط-آیکون.
+ *
+ * حفظ‌شده از فاز ۳:
+ *   - هیچ ناوبری در سایدبار از هدر انجام نمی‌شود (به‌جز از CTA).
+ *   - navigate از Zustand store می‌آید (useAppStore).
  */
 
 import * as React from "react";
@@ -81,17 +91,40 @@ export function Header() {
   if (curItem) crumbs.push({ label: curItem.label });
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b bg-background/80 backdrop-blur px-3">
-      <Button variant="ghost" size="icon" className="size-9" onClick={toggleSidebar} aria-label="باز/بسته کردن سایدبار">
-        <Icon name="menu" size={20} />
+    <header className="sticky top-0 z-40 relative flex h-16 items-center gap-2.5 border-b border-border/60 bg-background/70 backdrop-blur-md px-4">
+      {/* خط پایین گرادیانتی emerald برای عمق بصری */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-l from-transparent via-primary/30 to-transparent" aria-hidden="true" />
+
+      {/* همبرگر — toggle سایدبار */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-9 rounded-lg hover:bg-accent transition-all duration-200"
+        onClick={toggleSidebar}
+        aria-label="باز/بسته کردن سایدبار"
+      >
+        <Icon name="menu" size={20} className="transition-transform duration-200" />
       </Button>
 
-      {/* Breadcrumb */}
+      {/* Breadcrumb — مسیر فعّال */}
       <div className="hidden md:flex items-center gap-1.5 text-sm min-w-0">
         {crumbs.map((c, i) => (
           <React.Fragment key={i}>
-            {i > 0 && <Icon name="chevronLeft" size={14} className="text-muted-foreground shrink-0" />}
-            <span className={`truncate ${i === crumbs.length - 1 ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+            {i > 0 && (
+              <Icon
+                name="chevronLeft"
+                size={14}
+                className="text-muted-foreground/50 shrink-0"
+                aria-hidden="true"
+              />
+            )}
+            <span
+              className={`truncate transition-colors ${
+                i === crumbs.length - 1
+                  ? "font-semibold text-foreground"
+                  : "text-muted-foreground"
+              }`}
+            >
               {c.label}
             </span>
           </React.Fragment>
@@ -100,9 +133,14 @@ export function Header() {
 
       <div className="flex-1" />
 
-      {/* اکشن سریع: سفارش جدید — روی موبایل فقط آیکون، روی دسکتاپ آیکون+متن */}
-      <Button size="sm" className="gap-1.5" onClick={() => navigate("admin", "orders-new")} aria-label="سفارش جدید">
-        <Icon name="plus" size={16} />
+      {/* اکشن سریع: سفارش جدید — CTA hero با گرادیانت emerald */}
+      <Button
+        size="sm"
+        className="gap-1.5 rounded-lg bg-gradient-to-r from-primary to-emerald-700 px-3.5 shadow-md shadow-primary/25 transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 hover:brightness-105 active:scale-95 border border-primary/30"
+        onClick={() => navigate("admin", "orders-new")}
+        aria-label="سفارش جدید"
+      >
+        <Icon name="plus" size={16} className="shrink-0" />
         <span className="hidden sm:inline">سفارش جدید</span>
       </Button>
 
@@ -110,29 +148,37 @@ export function Header() {
       <Button
         variant="ghost"
         size="icon"
-        className="size-9"
+        className="size-9 rounded-lg hover:bg-accent transition-all duration-200"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         title={theme === "dark" ? "حالت روشن" : "حالت تاریک"}
         aria-label={theme === "dark" ? "حالت روشن" : "حالت تاریک"}
       >
-        <Icon name={mounted && theme === "dark" ? "moon" : "sun"} size={20} />
+        <Icon
+          name={mounted && theme === "dark" ? "moon" : "sun"}
+          size={20}
+          className="transition-transform duration-300 hover:scale-110"
+        />
       </Button>
 
-      {/* اعلان‌ها — badge فشرده با z-10 + ring-2 ring-background برای جدایی بصری واضح
-          از آیکون زنگ در صفحه‌های کوچک (پالایش فاز ۴). */}
+      {/* اعلان‌ها — badge با z-10 + ring-2 ring-background (فاز ۴) */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-9 relative" aria-label="اعلان‌ها">
-            <Icon name="bell" size={20} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 rounded-lg relative hover:bg-accent transition-all duration-200"
+            aria-label="اعلان‌ها"
+          >
+            <Icon name="bell" size={20} className="transition-transform duration-200" />
             {unread > 0 && (
-              <span className="absolute -top-0.5 -left-0.5 z-10 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center ring-2 ring-background">
+              <span className="absolute -top-0.5 -left-0.5 z-10 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center ring-2 ring-background shadow-sm shadow-destructive/30">
                 {unread > 9 ? "9+" : unread}
               </span>
             )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80 p-0">
-          <div className="flex items-center justify-between px-3 py-2.5 border-b">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/60">
             <div className="font-semibold text-sm">اعلان‌ها</div>
             {unread > 0 && <Badge variant="secondary" className="text-[10px]">{unread} خوانده‌نشده</Badge>}
           </div>
@@ -149,7 +195,7 @@ export function Header() {
                 return (
                 <DropdownMenuItem
                   key={n.id}
-                  className="flex flex-col items-start gap-1 px-3 py-2.5 cursor-pointer focus:bg-accent"
+                  className="flex flex-col items-start gap-1 px-3 py-2.5 cursor-pointer focus:bg-accent transition-colors"
                   onClick={() => {
                     if (!n.read) markRead.mutate(n.id);
                     if (n.link) {
