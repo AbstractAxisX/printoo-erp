@@ -1,13 +1,29 @@
 // Seed demo data for Printoo24 ERP
 import { db } from "../src/lib/db";
+import { hashPassword } from "../src/lib/auth";
 
 async function main() {
-  // ensure user
-  const user = await db.user.upsert({
-    where: { email: "admin@printoo24.com" },
-    update: {},
-    create: { name: "مدیر سیستم", email: "admin@printoo24.com", password: "admin123", role: "master" },
-  });
+  // ensure user (password hashed — Phase 1.5 baseline security)
+  const existing = await db.user.findUnique({ where: { email: "admin@printoo24.com" } });
+  let user;
+  if (existing) {
+    // Auto-migrate legacy plaintext if present.
+    if (existing.password && !existing.password.startsWith("$2")) {
+      const hashed = await hashPassword(existing.password);
+      user = await db.user.update({ where: { id: existing.id }, data: { password: hashed } });
+    } else {
+      user = existing;
+    }
+  } else {
+    user = await db.user.create({
+      data: {
+        name: "مدیر سیستم",
+        email: "admin@printoo24.com",
+        password: await hashPassword("admin123"),
+        role: "master",
+      },
+    });
+  }
   console.log("user:", user.email);
 
   // customers
