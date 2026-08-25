@@ -36,7 +36,7 @@ import { orderMatchesFilters, type Order } from "./types";
 
 export function OrdersPage() {
   const navigate = useAppStore((s) => s.navigate);
-  const { openOrder, modal } = useOrderDetail();
+  const { openOrder, prefetchOrder, modal } = useOrderDetail();
   const filters = useOrdersFilters();
 
   const { orders, customers, products, isLoading, isError, refetch } =
@@ -52,23 +52,22 @@ export function OrdersPage() {
     [orders, filters.filters]
   );
 
-  // Columns: rebuilt only when action callbacks change identity (stable).
-  const columns = React.useMemo(
-    () =>
-      getOrderColumns({
-        onOpenDetail: (o) => openOrder(o.id),
-        onOpenNote: (o) => setNoteOrder(o),
-        onOpenStatus: (o) => setStatusOrder(o),
-        onOpenDelete: (o) => setDeleteOrder(o),
-        onEdit: (o) => navigate("admin", "orders-new", o.id),
-      }),
-    [openOrder, navigate]
-  );
-
-  // Modal targets (null = closed).
+  // Modal targets (null = closed) — declared before columns so the
+  // React Compiler can preserve memoization (manual useMemo was removed:
+  // it captured the setters below its declaration and got skipped).
   const [noteOrder, setNoteOrder] = React.useState<Order | null>(null);
   const [statusOrder, setStatusOrder] = React.useState<Order | null>(null);
   const [deleteOrder, setDeleteOrder] = React.useState<Order | null>(null);
+
+  // Columns: action callbacks are stable (setState setters + useCallback'd
+  // openOrder/navigate), so identity churns only when they do.
+  const columns = getOrderColumns({
+    onOpenDetail: (o) => openOrder(o.id),
+    onOpenNote: (o) => setNoteOrder(o),
+    onOpenStatus: (o) => setStatusOrder(o),
+    onOpenDelete: (o) => setDeleteOrder(o),
+    onEdit: (o) => navigate("admin", "orders-new", o.id),
+  });
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -107,6 +106,7 @@ export function OrdersPage() {
             data={visibleOrders}
             isLoading={isLoading}
             onRowClick={(o) => openOrder(o.id)}
+            onRowHover={(o) => prefetchOrder(o.id)}
             ariaLabel="جدول همه سفارشات"
             emptyState={
               <EmptyState

@@ -167,6 +167,56 @@ function ModalSkeleton() {
   );
 }
 
+// ─── Metric tile (header quick-stats) ─────────────────────────────
+// Visual-hierarchy unit: icon chip + label + value + optional hint,
+// with semantic tone (emerald=good, rose=risk, amber=attention).
+function MetricTile({
+  icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: Parameters<typeof Icon>[0]["name"];
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "emerald" | "rose" | "amber";
+}) {
+  const toneText =
+    tone === "emerald"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "rose"
+      ? "text-rose-600 dark:text-rose-400"
+      : tone === "amber"
+      ? "text-amber-600 dark:text-amber-400"
+      : "text-foreground";
+  const toneChip =
+    tone === "emerald"
+      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+      : tone === "rose"
+      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+      : tone === "amber"
+      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+      : "bg-muted text-muted-foreground";
+  return (
+    <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
+      <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+        <span className={cn("size-5 rounded-md grid place-items-center", toneChip)}>
+          <Icon name={icon} size={11} />
+        </span>
+        {label}
+      </div>
+      <div className={cn("text-sm font-bold mt-1.5 tabular-nums flex items-baseline gap-1", toneText)}>
+        <span dir="ltr">{value}</span>
+        {hint && (
+          <span className="text-[10px] font-normal text-muted-foreground">({hint})</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Status dropdown (action-forward, in header) ────────────────
 function StatusDropdown({
   current,
@@ -242,7 +292,7 @@ export function OrderDetailModal({
       setNote(order.note || "");
       setActiveTab("overview");
     }
-  }, [order?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [order?.id]);
 
   // ── Status mutation (action-forward) ──
   const statusMut = useMutation({
@@ -277,7 +327,7 @@ export function OrderDetailModal({
   if (!order) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl p-0 gap-0">
+        <DialogContent className="sm:max-w-5xl w-[calc(100%-2rem)] max-h-[90vh] overflow-hidden p-0 gap-0">
           <DialogTitle className="sr-only">جزئیات سفارش</DialogTitle>
           <DialogDescription className="sr-only">
             در حال بارگذاری اطلاعات سفارش
@@ -289,10 +339,6 @@ export function OrderDetailModal({
   }
 
   const dr = daysRemaining(order.endDate);
-  const s = ORDER_STATUS[order.status] ?? {
-    label: "—",
-    badge: "bg-muted text-muted-foreground",
-  };
   const unpaid = Math.max(0, order.totalAmount - order.paidAmount);
   const hasPreInvoice = (order.preInvoices?.length ?? 0) > 0;
   const tasksCount = order.tasks?.length ?? 0;
@@ -308,7 +354,7 @@ export function OrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0 gap-0">
+        <DialogContent className="sm:max-w-5xl w-[calc(100%-2rem)] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
           <DialogTitle className="sr-only">
             سفارش #{order.number} — {order.customer?.name}
           </DialogTitle>
@@ -317,17 +363,17 @@ export function OrderDetailModal({
           </DialogDescription>
 
           {/* ── Header ── */}
-          <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-primary/5 to-transparent">
+          <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-primary/8 via-primary/3 to-transparent">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="size-12 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                  <span className="font-mono font-bold text-sm">#{order.number}</span>
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="size-14 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 text-primary grid place-items-center shrink-0 border border-primary/10">
+                  <span className="font-mono font-bold text-base">#{order.number}</span>
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-lg font-bold truncate">
+                  <h2 className="text-xl font-bold truncate">
                     {order.customer?.name ?? "—"}
                   </h2>
-                  <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
+                  <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1 flex-wrap">
                     {order.customer?.phone && (
                       <span dir="ltr" className="tabular-nums">
                         {order.customer.phone}
@@ -356,70 +402,48 @@ export function OrderDetailModal({
               </div>
             </div>
 
-            {/* Quick metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
-              <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Icon name="money" size={10} /> مبلغ کل
-                </div>
-                <div
-                  className="text-sm font-bold mt-0.5 tabular-nums"
-                  dir="ltr"
-                >
-                  {formatCurrency(order.totalAmount)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Icon name="checkCircle" size={10} /> پرداختی
-                </div>
-                <div
-                  className="text-sm font-bold mt-0.5 text-emerald-600 tabular-nums"
-                  dir="ltr"
-                >
-                  {formatCurrency(order.paidAmount)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Icon name="alert" size={10} /> باقی‌مانده
-                </div>
-                <div
-                  className={cn(
-                    "text-sm font-bold mt-0.5 tabular-nums",
-                    unpaid > 0 ? "text-rose-600" : "text-emerald-600"
-                  )}
-                  dir="ltr"
-                >
-                  {formatCurrency(unpaid)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Icon name="clock" size={10} /> موعد تحویل
-                </div>
-                <div
-                  className={cn(
-                    "text-sm font-bold mt-0.5 tabular-nums",
-                    dr.status === "overdue"
-                      ? "text-rose-600"
-                      : dr.status === "remaining"
-                      ? "text-emerald-600"
-                      : "text-amber-600"
-                  )}
-                >
-                  {order.noEndDate
+            {/* Quick metrics — 4-up strip with icon chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+              <MetricTile
+                icon="money"
+                label="مبلغ کل"
+                value={formatCurrency(order.totalAmount)}
+            />
+              <MetricTile
+                icon="checkCircle"
+                label="پرداختی"
+                value={formatCurrency(order.paidAmount)}
+                tone="emerald"
+              />
+              <MetricTile
+                icon="alert"
+                label="باقی‌مانده"
+                value={formatCurrency(unpaid)}
+                tone={unpaid > 0 ? "rose" : "emerald"}
+              />
+              <MetricTile
+                icon="clock"
+                label="موعد تحویل"
+                value={
+                  order.noEndDate
                     ? "بدون زمان"
                     : order.endDate
                     ? formatDate(order.endDate)
-                    : "—"}
-                  {!order.noEndDate && dr.status !== "none" && (
-                    <span className="text-[10px] font-normal text-muted-foreground mr-1">
-                      ({dr.days} روز)
-                    </span>
-                  )}
-                </div>
-              </div>
+                    : "—"
+                }
+                hint={
+                  !order.noEndDate && dr.status !== "none"
+                    ? `${dr.days} روز`
+                    : undefined
+                }
+                tone={
+                  dr.status === "overdue"
+                    ? "rose"
+                    : dr.status === "remaining"
+                    ? "emerald"
+                    : "amber"
+                }
+              />
             </div>
 
             {/* Alert chips — blocking items / overdue tasks */}
@@ -449,7 +473,7 @@ export function OrderDetailModal({
           <div
             role="tablist"
             aria-label="بخش‌های سفارش"
-            className="flex border-b px-3 overflow-x-auto scrollbar-thin"
+            className="flex border-b px-4 overflow-x-auto scrollbar-thin bg-muted/20"
           >
             {TABS.map((t) => {
               const isActive = activeTab === t.id;
@@ -462,21 +486,35 @@ export function OrderDetailModal({
                   tabIndex={isActive ? 0 : -1}
                   onClick={() => setActiveTab(t.id)}
                   className={cn(
-                    "relative flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition border-b-2 -mb-px whitespace-nowrap",
+                    "relative flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-medium transition border-b-2 -mb-px whitespace-nowrap rounded-t-lg",
                     isActive
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      ? "border-primary text-primary bg-primary/5"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40"
                   )}
                 >
                   <Icon name={t.icon} size={14} />
                   {t.label}
                   {t.id === "items" && order.items?.length > 0 && (
-                    <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
+                    <span
+                      className={cn(
+                        "text-[10px] rounded-full px-1.5 py-0.5 tabular-nums",
+                        isActive
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
                       {order.items.length}
                     </span>
                   )}
                   {t.id === "tasks" && tasksCount > 0 && (
-                    <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
+                    <span
+                      className={cn(
+                        "text-[10px] rounded-full px-1.5 py-0.5 tabular-nums",
+                        isActive
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
                       {tasksCount}
                     </span>
                   )}
@@ -493,7 +531,7 @@ export function OrderDetailModal({
             id={`order-tab-${activeTab}`}
             role="tabpanel"
             className="overflow-y-auto scrollbar-thin px-6 py-4"
-            style={{ maxHeight: "42vh" }}
+            style={{ maxHeight: "min(62vh, 560px)" }}
           >
             <AnimatePresence mode="wait">
               <motion.div

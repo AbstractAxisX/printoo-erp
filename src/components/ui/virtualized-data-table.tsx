@@ -63,6 +63,7 @@ export type VirtualizedDataTableProps<TData, TValue = unknown> = {
   isLoading?: boolean;
   onRowClick?: (row: TData) => void;
   onRowDoubleClick?: (row: TData) => void;
+  onRowHover?: (row: TData) => void; // warm-up hook (e.g. prefetch detail on hover)
   emptyState?: React.ReactNode;
   loadingRowCount?: number; // skeleton rows while loading (default 8)
   estimateRowHeight?: number; // px (default 44 — dense admin rows)
@@ -78,6 +79,7 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
   isLoading = false,
   onRowClick,
   onRowDoubleClick,
+  onRowHover,
   emptyState,
   loadingRowCount = 8,
   estimateRowHeight = 44,
@@ -230,6 +232,7 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
                       measureRef={virtualizer.measureElement}
                       onRowClick={onRowClick}
                       onRowDoubleClick={onRowDoubleClick}
+                      onRowHover={onRowHover}
                     />
                   );
                 })}
@@ -282,13 +285,16 @@ function VirtualRow<TData>({
   measureRef,
   onRowClick,
   onRowDoubleClick,
+  onRowHover,
 }: {
   row: Row<TData>;
   virtualRow: { index: number };
   measureRef: (el: HTMLElement | null) => void;
   onRowClick?: (row: TData) => void;
   onRowDoubleClick?: (row: TData) => void;
+  onRowHover?: (row: TData) => void;
 }) {
+  const hoverRef = React.useRef(false);
   return (
     <TableRow
       data-index={virtualRow.index}
@@ -299,6 +305,11 @@ function VirtualRow<TData>({
       )}
       onClick={() => onRowClick?.(row.original)}
       onDoubleClick={() => onRowDoubleClick?.(row.original)}
+      onMouseEnter={() => {
+        if (hoverRef.current) return;
+        hoverRef.current = true;
+        onRowHover?.(row.original);
+      }}
     >
       {row.getVisibleCells().map((cell) => (
         <TableCell
