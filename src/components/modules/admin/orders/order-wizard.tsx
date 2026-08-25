@@ -61,7 +61,7 @@ type OrderEditData = {
     printStartDate: string | null;
     printEndDate: string | null;
   }[];
-  preInvoices: { id: string }[];
+  preInvoices: { id: string; paidAmount: number; items: string | null }[];
   invoice: { id: string } | null;
 };
 
@@ -102,6 +102,7 @@ export function OrderWizardPage() {
 
   const [preInvoiceEnabled, setPreInvoiceEnabled] = React.useState(false);
   const [preInvoicePaid, setPreInvoicePaid] = React.useState<Record<string, string>>({});
+  const [existingPreInvoiceId, setExistingPreInvoiceId] = React.useState<string | null>(null);
   const [invoiceEnabled, setInvoiceEnabled] = React.useState(false);
 
   // Edit mode: read param from store, fetch existing order
@@ -162,9 +163,30 @@ export function OrderWizardPage() {
       setPrintEnd(firstItem.printEndDate ? firstItem.printEndDate.slice(0, 10) : "");
     }
 
-    // Step 4: review
-    setPreInvoiceEnabled((order.preInvoices?.length ?? 0) > 0);
+    // Step 4: review — R2: hydrate preInvoice paid amounts from existing preInvoice
+    const existingPI = order.preInvoices?.[0];
+    setExistingPreInvoiceId(existingPI?.id ?? null);
+    setPreInvoiceEnabled(!!existingPI);
     setInvoiceEnabled(!!order.invoice);
+    if (existingPI) {
+      // Restore per-item paid amounts by matching product name (preInvoice items are
+      // a snapshot with { name, quantity, total, paid } — match by name to order items)
+      try {
+        const piItems: { name?: string; paid?: number }[] = existingPI.items
+          ? JSON.parse(existingPI.items)
+          : [];
+        const restored: Record<string, string> = {};
+        for (const it of items) {
+          const match = piItems.find((p) => p.name === it.productName);
+          if (match && Number(match.paid) > 0) {
+            restored[it.id] = String(match.paid);
+          }
+        }
+        setPreInvoicePaid(restored);
+      } catch {
+        // JSON parse failure — leave preInvoicePaid empty (user re-enters)
+      }
+    }
 
     setLoadedOrderId(param);
   }, [param, editData, loadedOrderId]);
@@ -239,9 +261,10 @@ export function OrderWizardPage() {
     setItemsByCustomer((s) => ({ ...s, [cid]: (s[cid] ?? []).filter((i) => i.id !== itemId) }));
   }
 
-  // determine if any item across customers needs design
-  const needsDesign = Object.values(itemsByCustomer).flat().some((i) => i.stage === "design");
-  const anyCompleted = Object.values(itemsByCustomer).flat().some((i) => i.stage === "completed");
+  // determine if any item across customers needs design (R20: useMemo — was recomputed every render)
+  const allItemsFlat = React.useMemo(() => Object.values(itemsByCustomer).flat(), [itemsByCustomer]);
+  const needsDesign = React.useMemo(() => allItemsFlat.some((i) => i.stage === "design"), [allItemsFlat]);
+  const anyCompleted = React.useMemo(() => allItemsFlat.some((i) => i.stage === "completed"), [allItemsFlat]);
 
   function canGoNext(): boolean {
     if (step === 1) return customers.length > 0;
@@ -311,12 +334,22 @@ export function OrderWizardPage() {
         moduleDates,
         markCompleted: anyCompleted,
       };
-      // pre-invoice (per customer in review)
+      // pre-invoice — R1: was hardcoded { items:[], totalAmount:0, paidAmount:0 } so
+      // per-item paid amounts entered in PreInvoiceTable were SILENTLY DROPPED on submit.
+      // Now built from the first customer's items + the preInvoicePaid map.
       if (preInvoiceEnabled) {
+        const piItems = (itemsByCustomer[cid] ?? []).map((i) => ({
+          name: i.productName,
+          quantity: i.quantity,
+          total: i.quantity * i.pricePerUnit,
+          paid: Number(preInvoicePaid[i.id] ?? 0) || 0,
+        }));
+        const piTotal = piItems.reduce((s, i) => s + i.total, 0);
+        const piPaid = piItems.reduce((s, i) => s + i.paid, 0);
         body.preInvoice = {
-          items: [],
-          totalAmount: 0,
-          paidAmount: 0,
+          items: piItems,
+          totalAmount: piTotal,
+          paidAmount: piPaid,
         };
       }
       if (invoiceEnabled && anyCompleted) {
@@ -324,11 +357,49 @@ export function OrderWizardPage() {
       }
       return api("/api/orders", { method: "POST", body: JSON.stringify(body) });
     },
-    onSuccess: (data: { count?: number }) => {
+    onSuccess: async (data: { count?: number; order?: { id: string } }) => {
       invalidate(["orders"]);
       invalidate(["dashboard"]);
       invalidate(["notifications"]);
       invalidate(["order"]);
+
+      // R2: edit-mode preInvoice tri-state — was completely missing before (PUT /api/orders/[id]
+      // does NOT accept preInvoice per §5.1; must call /api/pre-invoices separately).
+      //   had-PI + still enabled → PUT /api/pre-invoices/[id] (update items + paid)
+      //   had-PI + disabled      → DELETE /api/pre-invoices/[id]
+      //   no-PI  + enabled        → POST /api/pre-invoices (create new)
+      //   no-PI  + disabled       → no-op
+      if (isEditing && param) {
+        const cidEdit = customers[0] ?? "";
+        const piItems = (itemsByCustomer[cidEdit] ?? []).map((i) => ({
+          name: i.productName,
+          quantity: i.quantity,
+          total: i.quantity * i.pricePerUnit,
+          paid: Number(preInvoicePaid[i.id] ?? 0) || 0,
+        }));
+        const piPaid = piItems.reduce((s, i) => s + i.paid, 0);
+        try {
+          if (preInvoiceEnabled && existingPreInvoiceId) {
+            await api(`/api/pre-invoices/${existingPreInvoiceId}`, {
+              method: "PUT",
+              body: JSON.stringify({ items: piItems, paidAmount: piPaid }),
+            });
+          } else if (!preInvoiceEnabled && existingPreInvoiceId) {
+            await api(`/api/pre-invoices/${existingPreInvoiceId}`, { method: "DELETE" });
+            setExistingPreInvoiceId(null);
+          } else if (preInvoiceEnabled && !existingPreInvoiceId && param) {
+            const res = await api<{ preInvoice: { id: string } }>("/api/pre-invoices", {
+              method: "POST",
+              body: JSON.stringify({ orderId: param, customerId: cidEdit, items: piItems, paidAmount: piPaid }),
+            });
+            setExistingPreInvoiceId(res.preInvoice.id);
+          }
+        } catch {
+          // preInvoice mutation failed but order saved — toast warning, don't block
+          toast.error(" سفارش ذخیره شد ولی خطا در ثبت/به‌روزرسانی پیش‌فاکتور");
+        }
+      }
+
       if (isEditing) {
         toast.success("تغییرات سفارش ذخیره شد");
       } else {
@@ -537,6 +608,9 @@ function Step1({
     onSuccess: (data) => {
       invalidate(["customers"]);
       invalidate(["customers-wizard"]);
+      // R7: orders-page + open-orders use ["customers-list"] — was missing, so newly
+      // created customer didn't appear in those dropdowns without a manual refetch.
+      invalidate(["customers-list"]);
       addCustomer(data.customer.id);
       toast.success("مشتری ایجاد و انتخاب شد");
       setNewCust({ name: "", phone: "" });
@@ -696,6 +770,8 @@ function Step2({
     onSuccess: (data) => {
       invalidate(["products"]);
       invalidate(["products-wizard"]);
+      // R7: orders-page + open-orders use ["products-list"] — was missing.
+      invalidate(["products-list"]);
       toast.success("محصول ایجاد شد");
       setProductModal(false);
       setNewProduct("");
