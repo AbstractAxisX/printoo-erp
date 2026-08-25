@@ -2837,3 +2837,460 @@ Stage Summary:
 - New infrastructure: `CalendarEvent` is now a type-safe discriminated union — future calendar features (e.g. drag-to-reschedule) can rely on `e.meta` being correctly typed per `e.type`.
 - Bugs fixed this phase: R8 (orphan task click), R11 cross-ref (calendar query-key prefix), R15 (gantt virtualization), R16 (dead SyncScroll), R17 (dynamic Tailwind purge), R23 (loose meta type), R24 (dead DayNote feature) + R26 leftover (day-notes routes were unauthenticated — moot since deleted).
 - Remaining phase: 6 (Dashboard + wizard: R1, R2, R6, R7, R11-dashboard-side, R18-20, R25, R3 nextNumber race).
+
+
+---
+Task ID: Phase6-Wizard-Plan
+Agent: Plan subagent (research + design only — no code written, no files edited)
+Task: Design the implementation plan for Phase 6 — Order Wizard rebuild (R1, R2, R7, R18, R19, R20). Skip R3 (handled separately via Counter model).
+
+Work Log:
+- Read `worklog.md` (Phase 1 → Phase 5 history) and `ARCHITECTURE-NOTES-MUST-READ.md` §5.1 (API body shapes), §5.3 (query-key prefixes), §6 (R-catalog).
+- Read `src/components/modules/admin/orders/order-wizard.tsx` (1188 LOC) in full — mapped all 25 useState calls, 4 Step components, all prop-drilling sites, submit + edit-mode handlers, inline create handlers, and the 4 unmemoized computations.
+- Read `src/app/api/orders/route.ts` (POST contract; createPreInvoice/createInvoice helpers store `items` as JSON string + bump `order.paidAmount`).
+- Read `src/app/api/orders/[id]/route.ts` (PUT contract — does NOT accept preInvoice/invoice/markCompleted; GET returns full `preInvoices` + `invoice` records but the wizard's `OrderEditData` type truncates them to `{id}`).
+- Read `src/app/api/pre-invoices/route.ts` + `[id]/route.ts` — POST accepts `{orderId, customerId, items, paidAmount}`; PUT accepts `{items, paidAmount}`; DELETE exists. No `/api/invoices` route exists today.
+- Confirmed `react-hook-form@^7.60.0`, `@hookform/resolvers@^5.1.1`, `zod@^4.0.2` all installed. `src/components/ui/form.tsx` (shadcn RHF integration: Form, FormField, FormItem, FormLabel, FormControl, FormMessage) is present and exported.
+- Mapped wizard consumers: only `module-router.tsx:72 → case "orders-new": return OrderWizardPage;` via `order-wizard-page.tsx` re-export. Wizard takes ZERO props (it's a page; reads `param` from `app-store` for edit-mode). All 4 Step components + 4 helper sub-components (ItemRow, PreInvoiceTable, CustomerReviewTable, CreateCustomerDialog, NoteItemModal) are file-local — NOT exported. Free to refactor without breaking any external consumer.
+- Edit-mode entry points: `orders-page.tsx:72` (table "edit" row action → `navigate("admin","orders-new", o.id)`) and `order-detail-modal.tsx:588` (modal "ویرایش کامل" button → same). Both pass `param=order.id`. The wizard reads `useAppStore(s => s.param)` to detect edit-mode.
+- Confirmed R7 query-key gap: `use-orders-query.ts:42,48` and `open-orders.tsx:67,71` use `["customers-list"]` / `["products-list"]`. The wizard only invalidates `["customers"]` + `["customers-wizard"]` (Step1 L538-539) and `["products"]` + `["products-wizard"]` (Step2 L697-698) → newly created customer/product do not appear in orders-page/open-orders dropdowns without a manual refetch.
+
+## A. Wizard anatomy (current state — 1188 LOC, 1 file)
+
+### A.1 The 25 useState calls (categorized)
+
+**Wizard-level form state (14 — migrate to RHF):**
+| # | Line | Variable | Type | Notes |
+|---|------|----------|------|-------|
+| 1 | 88 | `multiMode` | boolean | toggle for multi-customer mode |
+| 2 | 89 | `customers` | string[] | selected customer ids |
+| 3 | 91 | `itemsByCustomer` | Record<cid, ItemDraft[]> | the items matrix |
+| 4 | 93 | `splitMode` | "grouped" \| "separated" | |
+| 5 | 94 | `priority` | "normal" \| "urgent" | |
+| 6 | 95 | `endDate` | string | ISO date or "" |
+| 7 | 96 | `noEndDate` | boolean | |
+| 8 | 97 | `note` | string | |
+| 9 | 98 | `designStart` | string | moduleDate |
+| 10 | 99 | `designEnd` | string | |
+| 11 | 100 | `printStart` | string | |
+| 12 | 101 | `printEnd` | string | |
+| 13 | 103 | `preInvoiceEnabled` | boolean | |
+| 14 | 104 | `preInvoicePaid` | Record<itemId, string> | the dropped-on-submit map (R1) |
+| 15 | 105 | `invoiceEnabled` | boolean | |
+
+**Wizard-level UI state (3 — keep as useState, NOT form):**
+| # | Line | Variable | Type |
+|---|------|----------|------|
+| 16 | 87 | `step` | 1\|2\|3\|4 |
+| 17 | 90 | `activeCustomer` | string (Step2 tab selection) |
+| 18 | 110 | `loadedOrderId` | string\|null (edit-mode idempotency guard) |
+
+**Step1 local state (2 — keep as useState, modal-only):**
+| # | Line | Variable | Type |
+|---|------|----------|------|
+| 19 | 531 | `newCust` | {name,phone} |
+| 20 | 532 | `createOpen` | boolean |
+
+**Step2 local state (3 — keep as useState, modal-only):**
+| # | Line | Variable | Type |
+|---|------|----------|------|
+| 21 | 689 | `noteModal` | {itemId}\|null |
+| 22 | 690 | `productModal` | boolean |
+| 23 | 691 | `newProduct` | string |
+
+**NoteItemModal local state (1):**
+| # | Line | Variable | Type |
+|---|------|----------|------|
+| 24 | 885 | `val` | string |
+
+**Step4 local state (1):**
+| # | Line | Variable | Type |
+|---|------|----------|------|
+| 25 | 1027 | `tab` | string (Step4 customer tabs) |
+
+**Net: 14 form-states → RHF. 7 local dialog/modal states stay. 3 wizard UI states stay.**
+
+### A.2 Step components + prop-drilling inventory
+
+| Step | Line | # Props | Prop list (verbatim) |
+|------|------|---------|----------------------|
+| Step1 | 520 | 7 | `multiMode, setMultiMode, customers, addCustomer, removeCustomer, customerOptions, allCustomers` |
+| Step2 | 672 | 9 | `customers, activeCustomer, setActiveCustomer, itemsByCustomer, addItem, updateItem, copyItem, deleteItem, productOptions, allCustomers` |
+| Step3 | 902 | 17 | `splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate, note, setNote, needsDesign, designStart, setDesignStart, designEnd, setDesignEnd, printStart, setPrintStart, printEnd, setPrintEnd, itemsByCustomer` |
+| Step4 | 1009 | 16 | `customers, itemsByCustomer, allCustomers, splitMode, priority, endDate, noEndDate, needsDesign, anyCompleted, preInvoiceEnabled, setPreInvoiceEnabled, preInvoicePaid, setPreInvoicePaid, invoiceEnabled, setInvoiceEnabled` |
+| **Total** | | **49** | (R19 says 52 — close enough; includes `customerOptions`/`productOptions`/`allCustomers` which are query-derived, not pure form) |
+
+After RHF context migration, only **non-form query-derived props** need to remain: `allCustomers`, `customerOptions`, `productOptions`. The action helpers (addCustomer, removeCustomer, addItem, updateItem, copyItem, deleteItem) become `form.setValue` calls inside the Step (or a small `WizardActionsContext` provider).
+
+### A.3 Submit handler (create-mode POST, lines 254-340) — R1 ROOT CAUSE
+
+The `createMut.mutationFn` builds the POST body (lines 289-325). At L314-321:
+```ts
+if (preInvoiceEnabled) {
+  body.preInvoice = { items: [], totalAmount: 0, paidAmount: 0 };  // ← R1: preInvoicePaid map NEVER read
+}
+if (invoiceEnabled && anyCompleted) {
+  body.invoice = { items: [], totalAmount: 0, paidAmount: 0, discountAmount: 0 };
+}
+```
+**The `preInvoicePaid` map (state variable #14) is NEVER sent to the server.** All per-item paid amounts entered in Step4's `PreInvoiceTable` (lines 1136-1188) are silently dropped. The server's `createPreInvoice` then stores `items: JSON.stringify([])` and bumps `order.paidAmount = 0`. **Data loss.**
+
+**R1 fix** — replace the hardcoded preInvoice shape with a properly-built one per active customer:
+```ts
+if (preInvoiceEnabled) {
+  // one preInvoice per customer (server creates one per order)
+  body.preInvoice = buildPreInvoicePayload(customers[0], itemsByCustomer[customers[0]], preInvoicePaid);
+  // OR refactor POST /api/orders to accept Record<cid, preInvoicePayload> for multi-customer
+}
+```
+where
+```ts
+function buildPreInvoicePayload(cid, items, paid): PreInvoicePayload {
+  return {
+    items: items.map(i => ({
+      name: i.productName,
+      quantity: i.quantity,
+      total: i.quantity * i.pricePerUnit,
+      paid: Number(paid[i.id] ?? 0) || 0,
+    })),
+    totalAmount: items.reduce((s,i) => s + i.quantity * i.pricePerUnit, 0),
+    paidAmount: items.reduce((s,i) => s + Number(paid[i.id] ?? 0), 0),
+  };
+}
+```
+**No server-side change needed** — `createPreInvoice` already stores `items` (JSON) + `paidAmount` and bumps `order.paidAmount` (api/orders/route.ts:304-326). The wizard just never sent the data.
+
+### A.4 Edit-mode PUT handler (lines 273-285) — R2 ROOT CAUSE
+
+```ts
+if (isEditing && param) {
+  const body = {
+    customerId: cid, items, splitMode, priority,
+    endDate: noEndDate ? null : endDate || null,
+    noEndDate, note: note || null, moduleDates,
+  };
+  return api(`/api/orders/${param}`, { method: "PUT", body: JSON.stringify(body) });
+}
+```
+**Missing:** `preInvoice`, `invoice`, `markCompleted` are not sent. The PUT /api/orders/[id] route (correctly) doesn't accept these per §5.1 — they belong on separate `/api/pre-invoices` and `/api/invoices` routes. But the wizard doesn't call those routes in edit-mode at all → editing an order with a preInvoice/invoice ORPHANS the existing record (it stays as-is; user can't edit paid amounts) and silently drops the "markCompleted" intent.
+
+**R2 fix** — in edit-mode, after the PUT /api/orders/[id] succeeds, run a tri-state diff against the loaded preInvoice/invoice records and call the appropriate endpoint:
+
+```ts
+// tri-state for preInvoice
+const hadPreInvoice = loadedOrder.preInvoices.length > 0;
+const preInvoiceId = loadedOrder.preInvoices[0]?.id;
+if (preInvoiceEnabled && !hadPreInvoice) {
+  // CREATE: POST /api/pre-invoices
+  await api("/api/pre-invoices", { method: "POST", body: JSON.stringify({
+    orderId: param, customerId: cid, items: piPayload.items, paidAmount: piPayload.paidAmount,
+  })});
+} else if (preInvoiceEnabled && hadPreInvoice && preInvoiceId) {
+  // UPDATE: PUT /api/pre-invoices/[id]
+  await api(`/api/pre-invoices/${preInvoiceId}`, { method: "PUT", body: JSON.stringify({
+    items: piPayload.items, paidAmount: piPayload.paidAmount,
+  })});
+} else if (!preInvoiceEnabled && hadPreInvoice && preInvoiceId) {
+  // DELETE: DELETE /api/pre-invoices/[id]
+  await api(`/api/pre-invoices/${preInvoiceId}`, { method: "DELETE" });
+}
+// same tri-state for invoice — but /api/invoices route doesn't exist yet (see File 2 below)
+```
+Plus: include `status: anyCompleted ? "completed" : undefined` in the PUT /api/orders body (since the PUT route accepts `status` and the wizard's create-mode sends `markCompleted: anyCompleted` — the edit-mode equivalent is to set status). Or rely on the PUT route's auto-derivation from `items[0].stage` (route L130-132).
+
+**To make R2 work, the edit-mode loader must hydrate `preInvoicePaid` from the existing preInvoice's `items` JSON (currently it only sets the boolean `preInvoiceEnabled`).** This is the other half of R2.
+
+### A.5 Edit-mode loader gap (lines 119-170)
+
+Currently:
+- L166: `setPreInvoiceEnabled((order.preInvoices?.length ?? 0) > 0)` — boolean only
+- L167: `setInvoiceEnabled(!!order.invoice)` — boolean only
+
+**The preInvoicePaid map and the existing preInvoice/invoice IDs are never hydrated.** Even if the submit handler is fixed, the user opens edit-mode and sees an empty PreInvoiceTable (no paid amounts filled in), then on save the PUT would write `paidAmount: 0` — destroying the previously-entered amounts.
+
+**Fix:** widen the `OrderEditData` type (lines 39-66) to type the real preInvoice/invoice shape returned by GET /api/orders/[id] (the route already returns full records via `preInvoices: true` / `invoice: true` at L53-54):
+```ts
+preInvoices: { id: string; items: string; paidAmount: number; totalAmount: number }[];
+invoice: { id: string; items: string; paidAmount: number; totalAmount: number; discountAmount: number } | null;
+```
+Then in the loader:
+```ts
+const pi = order.preInvoices[0];
+if (pi) {
+  const parsedItems = JSON.parse(pi.items) as {name,quantity,total,paid}[];
+  // rebuild preInvoicePaid map keyed by CURRENT item ids (the items may have changed since the
+  // preInvoice was created, so match by index or by name+quantity)
+  const paid: Record<string,string> = {};
+  parsedItems.forEach((piItem, idx) => {
+    const matchItem = items[idx]; // best-effort: same positional index
+    if (matchItem) paid[matchItem.id] = String(piItem.paid);
+  });
+  setPreInvoicePaid(paid);
+  setLoadedPreInvoiceId(pi.id);
+}
+// same for invoice
+```
+
+### A.6 Inline-create handlers — R7 ROOT CAUSE
+
+Step1 (L535-546) — `createCust` mutation onSuccess:
+```ts
+invalidate(["customers"]); invalidate(["customers-wizard"]);  // ← missing ["customers-list"]
+```
+Step2 (L694-704) — `createProduct` mutation onSuccess:
+```ts
+invalidate(["products"]); invalidate(["products-wizard"]);  // ← missing ["products-list"]
+```
+
+**R7 fix** — add the two missing query keys (1-line each):
+- Step1 L539: → `invalidate(["customers", "customers-wizard", "customers-list", "dashboard"]);`
+- Step2 L698: → `invalidate(["products", "products-wizard", "products-list", "dashboard"]);`
+(Mirror the pattern already in `customers-page.tsx:40` and `products-page.tsx:39` which correctly invalidate all 4 keys.)
+
+### A.7 The 4 unmemoized computations — R20 ROOT CAUSE
+
+| Site | Line | Code | Why it matters |
+|------|------|------|----------------|
+| needsDesign | 243 | `Object.values(itemsByCustomer).flat().some(i => i.stage === "design")` | re-runs every keystroke in any item field |
+| anyCompleted | 244 | `Object.values(itemsByCustomer).flat().some(i => i.stage === "completed")` | same |
+| Step2 total | 706 | `items.reduce((s,i) => s + i.quantity * i.pricePerUnit, 0)` | recomputed every render in Step2 (active customer tab + every field edit) |
+| CustomerReviewTable total | 1100 | same `.reduce` | recomputed every Step4 render |
+| PreInvoiceTable total/paid/unpaid | 1144-1146 | 3 reduces | recomputed every paid-amount keystroke |
+
+**R20 fix** — wrap each in `useMemo` with the appropriate deps. Post-RHF migration, use `useWatch({ control, name: "itemsByCustomer" })` + `useMemo`:
+```ts
+const itemsByCustomer = useWatch({ control, name: "itemsByCustomer" });
+const needsDesign = useMemo(
+  () => Object.values(itemsByCustomer).flat().some(i => i.stage === "design"),
+  [itemsByCustomer]
+);
+```
+
+## B. Proposed Zod schema (FOR REVIEW ONLY — NOT applied)
+
+Mirrors the POST /api/orders contract exactly (§5.1):
+
+```ts
+import { z } from "zod";
+
+const stageEnum = z.enum(["design","print","warehouse","completed","archive"]);
+
+export const itemSchema = z.object({
+  id: z.string(),                    // client-side uuid for keying; not sent to server
+  productId: z.string().min(1, "محصول الزامی است"),
+  productName: z.string(),          // derived; not sent
+  quantity: z.coerce.number().int().positive("تعداد باید ≥ ۱ باشد"),
+  pricePerUnit: z.coerce.number().nonnegative("قیمت واحد نامعتبر است"),
+  note: z.string(),
+  description: z.string(),
+  stage: stageEnum,
+  needsMaterial: z.boolean(),
+});
+
+export const wizardSchema = z.object({
+  multiMode: z.boolean(),
+  customers: z.array(z.string()).min(1, "حداقل یک مشتری انتخاب کنید"),
+  itemsByCustomer: z.record(z.string(), z.array(itemSchema)),
+  splitMode: z.enum(["grouped", "separated"]),
+  priority: z.enum(["normal", "urgent"]),
+  endDate: z.string().nullable(),     // "" or ISO date
+  noEndDate: z.boolean(),
+  note: z.string(),
+  designStart: z.string().nullable(),
+  designEnd: z.string().nullable(),
+  printStart: z.string().nullable(),
+  printEnd: z.string().nullable(),
+  preInvoiceEnabled: z.boolean(),
+  preInvoicePaid: z.record(z.string(), z.string()),  // keyed by item.id
+  invoiceEnabled: z.boolean(),
+}).superRefine((data, ctx) => {
+  // Cross-field rule: each customer must have ≥1 item
+  for (const cid of data.customers) {
+    const items = data.itemsByCustomer[cid];
+    if (!items || items.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `مشتری ${cid.slice(-4)} باید حداقل یک آیتم داشته باشد`,
+        path: ["itemsByCustomer", cid],
+      });
+    }
+    // Every item must have a productId
+    items?.forEach((it, idx) => {
+      if (!it.productId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "محصول هر آیتم الزامی است",
+          path: ["itemsByCustomer", cid, idx, "productId"],
+        });
+      }
+    });
+  }
+  // Cross-field rule: endDate required unless noEndDate
+  if (!data.noEndDate && !data.endDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "تاریخ پایان الزامی است (یا گزینه «بدون زمان پایان» را فعال کنید)",
+      path: ["endDate"],
+    });
+  }
+});
+
+export type WizardValues = z.infer<typeof wizardSchema>;
+```
+
+Default values for `useForm`:
+```ts
+defaultValues: {
+  multiMode: false,
+  customers: [],
+  itemsByCustomer: {},
+  splitMode: "grouped",
+  priority: "normal",
+  endDate: "",
+  noEndDate: false,
+  note: "",
+  designStart: "",
+  designEnd: "",
+  printStart: "",
+  printEnd: "",
+  preInvoiceEnabled: false,
+  preInvoicePaid: {},
+  invoiceEnabled: false,
+}
+```
+
+## C. New context-architecture (post-RHF migration)
+
+```
+OrderWizardPage (default export)
+│  ├── useForm<WizardValues>({ resolver: zodResolver(wizardSchema), defaultValues })
+│  ├── useQuery(["order", param])  ← edit-mode data fetch
+│  ├── useQuery(["customers-wizard"]) + useQuery(["products-wizard"])  ← dropdowns
+│  ├── useEffect: on editData arrival → form.reset(hydratedValues)  ← single reset, not 14 setStates
+│  ├── step/activeCustomer/loadedOrderId/loadedPreInvoiceId/loadedInvoiceId  ← useState (UI)
+│  ├── const needsDesign  = useMemo(... useWatch({control,name:"itemsByCustomer"}))
+│  ├── const anyCompleted = useMemo(... same)
+│  └── <Form {...form}>                                  ← RHF FormProvider
+│       └── <WizardActionsContext.Provider value={{ addItem, copyItem, deleteItem, addCustomer, removeCustomer, updateItem }}>
+│            ├── {step === 1 && <Step1 allCustomers={allCustomers} customerOptions={customerOptions} />}
+│            │     └── uses useFormContext() for multiMode/customers; WizardActions for addCustomer/removeCustomer
+│            ├── {step === 2 && <Step2 allCustomers={allCustomers} productOptions={allProducts} activeCustomer={activeCustomer} setActiveCustomer={...} />}
+│            │     └── uses useFormContext() for itemsByCustomer; WizardActions for item CRUD
+│            ├── {step === 3 && <Step3 needsDesign={needsDesign} />}
+│            │     └── uses useFormContext() for splitMode/priority/endDate/noEndDate/note/designStart/End/printStart/End
+│            └── {step === 4 && <Step4 allCustomers={allCustomers} needsDesign={needsDesign} anyCompleted={anyCompleted} />}
+│                  └── uses useFormContext() for preInvoiceEnabled/preInvoicePaid/invoiceEnabled + itemsByCustomer
+└── onSubmit (form.handleSubmit): builds POST/PUT body (with R1 fix), calls /api/orders (+ /api/pre-invoices + /api/invoices for edit-mode R2 fix)
+```
+
+**Prop-drilling after migration:** Step1: 2 props (allCustomers, customerOptions). Step2: 3 props (allCustomers, productOptions, activeCustomer+setActiveCustomer). Step3: 1 prop (needsDesign). Step4: 3 props (allCustomers, needsDesign, anyCompleted). **Total ~9 props (down from 49).** All `set*` props eliminated — replaced by `useFormContext().setValue` + `WizardActionsContext` for array CRUD.
+
+## D. File-by-file edit list
+
+### File 1 (PRIMARY): `src/components/modules/admin/orders/order-wizard.tsx` (~1188 LOC → ~1100 LOC after rebuild)
+- **Top of file (after imports):** add `import { useForm, useWatch, useFormContext } from "react-hook-form";`, `import { zodResolver } from "@hookform/resolvers/zod";`, `import { z } from "zod";`, `import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";`.
+- **After ItemDraft type (L25-35):** add the Zod schema + `WizardValues` type + `buildPreInvoicePayload()` helper (§A.3 above). Widen the `OrderEditData` type's `preInvoices`/`invoice` fields to include `items`, `paidAmount`, `totalAmount`, `discountAmount` (§A.5).
+- **Replace L87-105 (14 wizard-level useStates)** with:
+  ```ts
+  const form = useForm<WizardValues>({
+    resolver: zodResolver(wizardSchema),
+    defaultValues: WIZARD_DEFAULTS,
+    mode: "onSubmit",
+  });
+  const { control, handleSubmit, reset, setValue: fSet, watch } = form;
+  ```
+  Keep `step` (L87), `activeCustomer` (L90), `loadedOrderId` (L110) as `useState`. Add `loadedPreInvoiceId`/`loadedInvoiceId` useState for edit-mode tri-state (R2).
+- **Replace the edit-mode useEffect (L119-170)** with a single `form.reset()` call that hydrates ALL fields from `editData.order`, including the parsed preInvoice `items` → `preInvoicePaid` map + the `loadedPreInvoiceId` (§A.5).
+- **Replace needsDesign/anyCompleted (L243-244)** with `useWatch` + `useMemo` (§A.7). Move them ABOVE the JSX return so Steps can receive them as props OR have Step4 use `useWatch` itself (preferred — eliminates the prop).
+- **Replace `createMut` (L254-340):**
+  - Create-mode body: include the R1 fix (call `buildPreInvoicePayload` per customer, not hardcoded `{items:[],totalAmount:0,paidAmount:0}`).
+  - Edit-mode body (L273-285): after the PUT /api/orders/[param] resolves, run the tri-state diff for preInvoice (and invoice, once File 2 lands) — call POST/PUT/DELETE /api/pre-invoices/[id] (§A.4).
+  - Use `handleSubmit(onSubmit)` instead of `createMut.mutate()` (RHF integration).
+- **Replace the Step render block (L417-487):** wrap in `<Form {...form}><WizardActionsContext.Provider value={actions}>...steps...</WizardActionsContext.Provider></Form>`. Each Step gets only non-form props.
+- **Step1 (L520-639):** drop all set* props. Use `useFormContext()` for `multiMode`/`customers`. `WizardActionsContext` for `addCustomer`/`removeCustomer`. Keep `allCustomers`/`customerOptions` props. **R7 fix at L539:** add `"customers-list"`, `"dashboard"` to the invalidate list.
+- **Step2 (L672-798):** drop all set* props. `useFormContext()` for `itemsByCustomer`. `WizardActionsContext` for `addItem`/`copyItem`/`deleteItem`/`updateItem` (these become `fSet("itemsByCustomer", ...)` calls inside the provider's value). Keep `allCustomers`/`productOptions`/`activeCustomer`/`setActiveCustomer` props. **R7 fix at L698:** add `"products-list"`, `"dashboard"`. **R20 fix at L706:** wrap `total` in `useMemo([items])`.
+- **ItemRow (L800-882):** keep mostly as-is (it takes `item` + `onUpdate` callback — the callback now calls `WizardActionsContext.updateItem`). The `onUpdate` pattern stays; only the source of the callback changes. **R20 fix at L811:** wrap `total` in `useMemo([item.quantity, item.pricePerUnit])`.
+- **Step3 (L902-1006):** drop all set* props. `useFormContext()` for everything. Use `<FormField>` + `<FormControl>` wrappers around the existing `<Input>`/`<DatePicker>`/`<ToggleButton>`/`<Textarea>` elements (shadcn RHF integration). Keep `needsDesign` prop (or compute locally via `useWatch`). **R20 fix:** wrap `allItems` (L916) in `useMemo`.
+- **Step4 (L1009-1088):** drop all set* props. `useFormContext()` for everything. Keep `allCustomers`/`needsDesign`/`anyCompleted` props (or compute via `useWatch`).
+- **CustomerReviewTable (L1099-1134):** **R20 fix at L1100:** wrap `total` in `useMemo([items])`.
+- **PreInvoiceTable (L1136-1188):** **R20 fix at L1144-1146:** wrap `total`/`paid`/`unpaid` in `useMemo([items, preInvoicePaid])`.
+- **NoteItemModal (L884-899):** unchanged (local state, modal-only — stays as useState).
+
+### File 2 (NEW, optional but recommended): `src/app/api/invoices/route.ts` + `src/app/api/invoices/[id]/route.ts` (~120 LOC total)
+- Mirror `pre-invoices/route.ts` + `pre-invoices/[id]/route.ts` exactly: POST `{orderId, customerId, items, paidAmount, discountAmount}`, PUT `{items, paidAmount, discountAmount}`, DELETE, GET (with `?orderId=` filter).
+- Add `requireUser()` to both GET/POST/PUT/DELETE (R26 — Phase 6 incremental auth fence).
+- Wrap POST/PUT/DELETE in `db.$transaction` (R4 — atomic invoice + order.paidAmount bump).
+- This unlocks the invoice half of the R2 tri-state diff (otherwise invoice editing in wizard stays create-only — Phase 6 partial).
+
+### File 3 (SMALL ADDITIVE EDIT): `src/app/api/orders/[id]/route.ts` (NO contract break)
+- GET handler (L46-60) already returns full `preInvoices` + `invoice` records via `include: { ..., preInvoices: true, invoice: true }`. **No change needed.** The wizard's `OrderEditData` type just needs widening (done in File 1) — not a server-side change.
+- (Optional, future-proofing) Add `requireUser()` to PUT/DELETE — currently missing (R26 leftover from Phase 3, which only added it to orders GET/POST). Low effort, big correctness win.
+
+### File 4 (NO EDIT): `src/components/modules/admin/orders/order-wizard-page.tsx`
+- Re-exports `OrderWizardPage` — unchanged. Zero-prop page; no consumer breakage.
+
+## E. Risk assessment
+
+| # | Risk | Severity | Mitigation |
+|---|------|----------|------------|
+| R-1 | RHF migration introduces subtle state-sync bugs (e.g. `itemsByCustomer` Record field not re-rendering when nested items change) | 🟠 medium | RHF `register` doesn't deep-watch nested Record fields. Use `useWatch({control, name:"itemsByCustomer"})` (returns fresh ref on each change) + `useMemo`. The existing `setItemsByCustomer` pattern (immutable replace) translates 1:1 to `fSet("itemsByCustomer", nextImmutable)`. Test: open edit-mode, edit qty, copy item, delete item, save → verify POST body contains the right items. |
+| R-2 | Edit-mode preInvoice hydration mismatches items by positional index (if user added/removed items since the preInvoice was created, paid amounts map to wrong items) | 🟠 medium | Best-effort match by `name + quantity`; if no match, leave paid as 0 and surface a toast "برخی پرداختی‌ها قابل تطبیق نبودند". Document the limitation in the wizard's helper text. Long-term fix: store `itemId` in the preInvoice items JSON (server-side schema change — out of Phase 6 scope). |
+| R-3 | Tri-state diff for preInvoice/invoice in edit-mode runs 3 sequential API calls (PUT order, then POST/PUT/DELETE pre-invoice, then optionally POST/PUT/DELETE invoice) → not atomic; if the 2nd call fails, the order is updated but the preInvoice isn't | 🟠 medium | Phase 3 already wrapped POST /api/orders in `$transaction`; the edit-mode tri-state can't be atomic without server-side changes (the PUT /api/orders/[id] route doesn't accept preInvoice/invoice per §5.1). Acceptable: surface toast "سفارش ذخیره شد ولی پیش‌فاکتور به‌روز نشد" on partial failure; let user retry. Long-term: a single PUT /api/orders/[id] endpoint orchestrating all 3 (deferred — contract says NO). |
+| R-4 | RHF `useWatch` on `itemsByCustomer` causes re-render of every Step on every keystroke (perf regression) | 🟡 low | `useWatch` is scoped — only components calling it re-render. Step1 (which doesn't watch itemsByCustomer) won't re-render. Step2/Step4 will, but the existing code re-renders them anyway (state-driven). Net: no regression. |
+| R-5 | `form.reset()` in edit-mode useEffect fires on every `editData` re-fetch (every 0-staleTime refetch invalidates `["order", param]`) → resets in-progress edits | 🔴 high | Guard with `loadedOrderId === param` (existing pattern L125). Only call `reset()` when transitioning from "not loaded" → "loaded". After first load, user edits stay. |
+| R-6 | `markCompleted` semantics in edit-mode: create-mode uses `markCompleted: anyCompleted`; edit-mode PUT route doesn't accept it → wizard's edit-mode behavior diverges | 🟡 low | In edit-mode, send `status: anyCompleted ? "completed" : undefined` in the PUT body. The route already accepts `status` (L85) and auto-derives from `items[0].stage` when not provided (L130-132) — same outcome. |
+| R-7 | Adding `["customers-list"]`/`["products-list"]` invalidations triggers refetches on orders-page/open-orders if they're mounted in another tab | 🟡 low (intended) | That's the point. TanQuery dedupes; no perf concern. |
+| R-8 | Wizard currently has pre-existing TS errors (per Phase 5 stage summary) | 🟡 low | The full RHF+Zod rebuild will incidentally fix most of them (the `ItemDraft` type + new schema will catch any drift). Run `tsc --noEmit` before declaring done. |
+| R-9 | `/api/invoices` route doesn't exist — if we skip File 2, the R2 fix only covers preInvoice editing, leaving invoice editing create-only | 🟠 medium | Recommended: add File 2 (mirror of pre-invoices, ~120 LOC). If time-boxed, skip and document as Phase 6.5. |
+| R-10 | Consumer of `<OrderWizardPage>`: only `module-router.tsx:72` (zero-prop page). Internal Step1-4 components not exported. No external breakage. | 🟢 none | No mitigations needed. |
+
+## F. Recommended implementation order (within the wizard)
+
+Sequence chosen to minimize regression surface — each step is independently testable:
+
+1. **R7 first (smallest, lowest-risk, 2-line fix)** — add `["customers-list"]`/`["products-list"]` to Step1 L539 and Step2 L698 invalidate lists. Test: create a customer in the wizard → switch to orders-page → new customer appears in the customer filter dropdown without refresh. Same for product. ~5 minutes.
+
+2. **R1 second (critical data-loss fix, no schema change)** — replace the hardcoded `body.preInvoice = {items:[],totalAmount:0,paidAmount:0}` (L314-321) with `buildPreInvoicePayload(cid, itemsByCustomer[cid], preInvoicePaid)`. Test: enter paid amounts in Step4, submit, inspect DB row for the new PreInvoice → `items` JSON contains the paid values; `order.paidAmount` is non-zero. ~30 minutes.
+
+3. **R2 third (critical, larger)** — split into two sub-steps:
+   - **R2a: edit-mode preInvoice tri-state** — widen `OrderEditData` type, hydrate `preInvoicePaid` + `loadedPreInvoiceId` in the loader useEffect, add the POST/PUT/DELETE /api/pre-invoices calls after the PUT /api/orders/[param]. Test: edit an order with an existing preInvoice → change a paid amount → save → DB row updated; toggle preInvoiceEnabled off → save → DB row deleted; create preInvoice from scratch in edit-mode → save → DB row created. ~1.5 hours.
+   - **R2b: edit-mode invoice tri-state** — depends on File 2 (/api/invoices route). If File 2 is built, mirror R2a. If not, leave invoice editing create-only and surface a disabled toggle in Step4 when `isEditing && !loadedInvoiceId && anyCompleted`. ~1 hour.
+
+4. **R20 fourth (performance, mechanical)** — wrap the 5 computations in `useMemo`. Pre-RHF (still useState): wrap with appropriate deps. Post-RHF: use `useWatch` + `useMemo`. Test: no functional change; verify with React DevTools Profiler that re-renders drop on unrelated keystrokes. ~30 minutes.
+
+5. **R18 + R19 last (largest refactor — do once R1/R2/R7/R20 are stable on the existing useState architecture)** — migrate the 14 wizard-level useStates to RHF+Zod, wrap Step components in `<Form>`, replace 49 props with `useFormContext()` + `WizardActionsContext`. Test: full E2E walkthrough (create simple order, create multi-customer order, create order with preInvoice, edit existing order, edit preInvoice paid amounts, copy/delete items, inline create customer, inline create product). Run `tsc --noEmit`. ~3 hours.
+
+**Total estimated effort: ~6 hours.** File 2 (new /api/invoices route) adds ~1 hour if done.
+
+## G. Things explicitly OUT of scope (per task description)
+
+- **R3 (nextNumber race)** — handled separately via Counter model. The current `_max+1` inside `$transaction` (Phase 3 wrap) is good enough until the Counter model lands; not touched here.
+- **Server-side preInvoice/invoice contract changes** — the existing POST /api/orders `createPreInvoice`/`createInvoice` helpers are CORRECT (they accept the right shape); only the wizard's call-site is broken. No server edits to orders/route.ts.
+- **Multi-customer preInvoice UX** — Step4's `preInvoicePaid` is keyed by `itemId` only, so multi-customer mode currently only shows paid inputs for the active customer tab. This is a pre-existing UX gap, NOT in the R-catalog. Phase 6 will keep this behavior (document it) — true multi-customer preInvoice support is a Phase 7+ feature.
+- **PreInvoice items keyed by `itemId`** — current schema stores `items` as JSON `{name,quantity,total,paid}` (no itemId). Edit-mode hydration matches by positional index. Fixing this requires a schema migration — deferred.
+
+## H. Verification plan (post-implementation, not part of this plan task)
+
+1. `tsc --noEmit` — 0 NEW errors (pre-existing wizard errors must be GONE).
+2. `bun run lint` — 0 NEW warnings.
+3. Browser E2E via agent-browser:
+   - Create simple single-customer order with 1 item → submit → DB row exists, no preInvoice.
+   - Create order with preInvoice + per-item paid amounts → submit → DB row exists, PreInvoice.items JSON contains paid amounts, order.paidAmount = sum of paid. **(R1 ✓)**
+   - Edit existing order with preInvoice → change paid amount → save → DB row updated. **(R2 ✓)**
+   - Edit existing order → toggle preInvoiceEnabled off → save → PreInvoice row deleted.
+   - Inline create customer in Step1 → switch to orders-page → new customer in dropdown without refresh. **(R7 ✓)**
+   - Same for product. **(R7 ✓)**
+   - Open React DevTools Profiler → edit item qty → only Step2 + ItemRow re-render (not Step1/Step3/Step4). **(R20 ✓)**
+   - Inspect any Step component in React DevTools → props count ≤ 3 (not 7-17). **(R19 ✓)**
+   - Form validation: try to submit Step2 with 0 items → Zod error renders inline. **(R18 ✓)**
+
+Stage Summary:
+- Phase 6 wizard rebuild PLAN DELIVERED (research + design only, no code written, no files edited).
+- Mapped all 6 in-scope bugs to root cause + exact line + minimal fix: R1 (preInvoicePaid map dropped — L314-321 hardcoded shape, fix = buildPreInvoicePayload helper, no server change); R2 (edit-mode PUT drops preInvoice/invoice/markCompleted — L273-285, fix = widen OrderEditData type + hydrate preInvoicePaid+loadedPreInvoiceId in loader + tri-state POST/PUT/DELETE /api/pre-invoices after PUT /api/orders, optional /api/invoices new route); R7 (missing query-key invalidation — Step1 L539 + Step2 L698, 2-line fix add ["customers-list"]/["products-list"]); R18 (25 useState → RHF+Zod, 14 form-states migrate, 7 modal-local + 3 wizard-UI stay); R19 (49 prop-drill sites → ~9 via useFormContext + WizardActionsContext); R20 (5 unmemoized computations → useMemo + useWatch).
+- Confirmed all required deps present: `react-hook-form@^7.60.0`, `@hookform/resolvers@^5.1.1`, `zod@4.0.2`, `src/components/ui/form.tsx` (shadcn RHF integration exported).
+- Confirmed zero external consumer breakage: only `module-router.tsx:72` consumes `OrderWizardPage` as a zero-prop page; all 4 Step components + 4 helper sub-components are file-local (not exported).
+- Confirmed contract preservation: POST /api/orders body shape unchanged (only the `preInvoice.items`/`paidAmount` content changes from hardcoded-zero to actual values — server helpers already accept these); PUT /api/orders/[id] body shape unchanged (preInvoice/invoice go to separate /api/pre-invoices and /api/invoices routes, NOT bloat the orders route per §5.1).
+- New file proposed: `src/app/api/invoices/route.ts` + `[id]/route.ts` (~120 LOC, mirrors pre-invoices) — required for full R2 invoice editing; can be deferred to Phase 6.5 if time-boxed.
+- Recommended impl order: R7 (5 min) → R1 (30 min) → R2a preInvoice tri-state (90 min) → R2b invoice tri-state (60 min, optional) → R20 (30 min) → R18+R19 RHF migration (3 hr). Total ~6 hr + 1 hr for /api/invoices route.
+- 10 risks cataloged (R-1 to R-10); highest = R-5 (form.reset on every refetch — mitigated by existing `loadedOrderId` guard pattern); lowest = R-10 (no external consumer breakage).
+- Phase 6 implementation can now proceed with a builder/coder subagent using this plan as the spec.

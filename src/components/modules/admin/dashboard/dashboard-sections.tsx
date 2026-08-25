@@ -1,37 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
 import { formatCurrency, formatDate, daysRemaining, relativeTime } from "@/lib/format";
 import { EmptyState } from "@/components/shared";
 import { useOrderDetail } from "@/lib/use-order-detail";
-
-type Order = {
-  id: string; number: number; status: string; endDate: string | null; totalAmount: number;
-  priority: string; createdAt: string;
-  customer: { name: string };
-  items: { id: string; product: { name: string } }[];
-};
-
-type Task = {
-  id: string; title: string; description: string | null; status: string; priority: string;
-  dueDate: string | null; module: string; createdAt: string;
-};
+import {
+  useDashboardSections,
+  DASHBOARD_PAGES,
+  type DashboardOrder,
+  type DashboardTask,
+} from "./use-dashboard-data";
 
 export function NearDeadlineOrders() {
   const navigate = useAppStore((s) => s.navigate);
   const { openOrder, modal } = useOrderDetail();
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-near-deadline"],
-    queryFn: () => api<{ nearDeadlineOrders: Order[] }>(`/api/dashboard?from=${new Date(2000,0,1).toISOString()}&to=${new Date().toISOString()}`),
-    refetchInterval: 30000,
-  });
-  const orders = data?.nearDeadlineOrders ?? [];
+  // R6: shares ONE fetch with RecentOrders + LatestTasks + QuickStatsRow via
+  // useDashboardSections() (was: own useQuery with staleTime-less all-time range).
+  const { data, isLoading } = useDashboardSections();
+  const orders: DashboardOrder[] = data?.nearDeadlineOrders ?? [];
 
   return (
     <Card className="p-0 overflow-hidden">
@@ -40,7 +30,7 @@ export function NearDeadlineOrders() {
           <Icon name="clock" size={18} className="text-amber-500" />
           <h3 className="font-semibold text-sm">سفارشات نزدیک به سررسید (۵ روز)</h3>
         </div>
-        <button onClick={() => navigate("admin", "open-orders")} className="text-xs text-primary hover:underline flex items-center gap-1">
+        <button onClick={() => navigate("admin", DASHBOARD_PAGES.openOrders)} className="text-xs text-primary hover:underline flex items-center gap-1">
           مشاهده همه <Icon name="arrowLeft" size={12} />
         </button>
       </div>
@@ -81,12 +71,8 @@ export function NearDeadlineOrders() {
 
 export function LatestTasks() {
   const navigate = useAppStore((s) => s.navigate);
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-tasks"],
-    queryFn: () => api<{ latestTasks: Task[] }>(`/api/dashboard?from=${new Date(2000,0,1).toISOString()}&to=${new Date().toISOString()}`),
-    refetchInterval: 30000,
-  });
-  const tasks = data?.latestTasks ?? [];
+  const { data, isLoading } = useDashboardSections();
+  const tasks: DashboardTask[] = data?.latestTasks ?? [];
 
   const statusColor: Record<string, string> = {
     todo: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
@@ -102,7 +88,7 @@ export function LatestTasks() {
           <Icon name="task" size={18} className="text-primary" />
           <h3 className="font-semibold text-sm">آخرین تسک‌ها</h3>
         </div>
-        <button onClick={() => navigate("admin", "tasks")} className="text-xs text-primary hover:underline flex items-center gap-1">
+        <button onClick={() => navigate("admin", DASHBOARD_PAGES.tasks)} className="text-xs text-primary hover:underline flex items-center gap-1">
           مشاهده همه <Icon name="arrowLeft" size={12} />
         </button>
       </div>
@@ -113,7 +99,7 @@ export function LatestTasks() {
       ) : (
         <div className="divide-y">
           {tasks.map((t) => (
-            <button key={t.id} onClick={() => navigate("admin", "tasks")} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
+            <button key={t.id} onClick={() => navigate("admin", DASHBOARD_PAGES.tasks)} className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-accent/40 transition text-right">
               <div className={cn("size-2 rounded-full shrink-0", t.status === "todo" ? "bg-slate-400" : t.status === "in_progress" ? "bg-amber-500" : "bg-emerald-500")} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -134,12 +120,8 @@ export function LatestTasks() {
 export function RecentOrders() {
   const navigate = useAppStore((s) => s.navigate);
   const { openOrder, modal } = useOrderDetail();
-  const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-recent"],
-    queryFn: () => api<{ recentOrders: Order[] }>(`/api/dashboard?from=${new Date(2000,0,1).toISOString()}&to=${new Date().toISOString()}`),
-    refetchInterval: 30000,
-  });
-  const orders = data?.recentOrders ?? [];
+  const { data, isLoading } = useDashboardSections();
+  const orders: DashboardOrder[] = data?.recentOrders ?? [];
 
   return (
     <Card className="p-0 overflow-hidden">
@@ -148,7 +130,7 @@ export function RecentOrders() {
           <Icon name="orders" size={18} className="text-primary" />
           <h3 className="font-semibold text-sm">آخرین سفارشات</h3>
         </div>
-        <button onClick={() => navigate("admin", "orders")} className="text-xs text-primary hover:underline flex items-center gap-1">
+        <button onClick={() => navigate("admin", DASHBOARD_PAGES.allOrders)} className="text-xs text-primary hover:underline flex items-center gap-1">
           مشاهده همه <Icon name="arrowLeft" size={12} />
         </button>
       </div>

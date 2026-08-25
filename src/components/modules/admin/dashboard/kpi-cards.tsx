@@ -1,22 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Icon, type IconName } from "@/lib/icons";
 import { TimeRangePicker } from "@/components/ui/time-range-picker";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
-import { rangeToParams, getPreset, type TimeRange } from "@/lib/time-ranges";
-
-type KpiData = { value: number; prev: number; change: number; total: number };
-type SeriesPoint = { date: string; value: number };
-type DashboardData = {
-  kpis: Record<string, KpiData>;
-  series: Record<string, SeriesPoint[]>;
-};
+import { getPreset, type TimeRange } from "@/lib/time-ranges";
+import { useDashboardKpis } from "./use-dashboard-data";
 
 export type KpiCardConfig = {
   key: string;
@@ -113,13 +105,10 @@ function KpiCard({
   onRangeChange: (r: TimeRange) => void;
   onCardRangeReset: () => void;
 }) {
-  // Each card fetches its own data based on its range (per-card filter takes priority)
-  const { data } = useQuery({
-    queryKey: ["dashboard-kpi", config.key, range.preset, range.from.toISOString(), range.to.toISOString()],
-    queryFn: () => api<DashboardData>(`/api/dashboard?${rangeToParams(range)}`),
-    refetchInterval: 15000,
-    staleTime: 0,
-  });
+  // R6: all 8 cards with the same range share ONE fetch via TanStack queryKey dedupe
+  // (was: 8 independent queries with staleTime:0 → 8 calls on mount + 8 every 15s).
+  // R11: queryKey now under ["dashboard","kpi",...] prefix → invalidations land.
+  const { data } = useDashboardKpis(range);
 
   const colors = COLOR_MAP[config.color] ?? { bg: "bg-muted", text: "text-muted-foreground", stroke: "#94a3b8" };
   const kpi = data?.kpis?.[config.key];

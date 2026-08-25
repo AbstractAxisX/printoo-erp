@@ -27,6 +27,7 @@ import {
   NearDeadlineOrders,
   RecentOrders,
 } from "./dashboard-sections";
+import { DASHBOARD_PAGES } from "./use-dashboard-data";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -276,7 +277,7 @@ export function AdminDashboard() {
         description="نمای کلی سامانه مدیریت چاپ Printoo24"
         icon="dashboard"
         actions={
-          <Button onClick={() => navigate("admin", "orders-new")} className="gap-2">
+          <Button onClick={() => navigate("admin", DASHBOARD_PAGES.newOrder)} className="gap-2">
             <Icon name="plus" size={16} /> سفارش جدید
           </Button>
         }
@@ -312,7 +313,7 @@ export function AdminDashboard() {
         icon="orders"
         title="آخرین سفارشات"
         bodyClassName="!p-0"
-        action={<ViewAllLink onClick={() => navigate("admin", "orders")} />}
+        action={<ViewAllLink onClick={() => navigate("admin", DASHBOARD_PAGES.allOrders)} />}
       >
         <div className={MERGE_INNER_CARD}>
           <RecentOrders />
@@ -325,7 +326,7 @@ export function AdminDashboard() {
           icon="clock"
           title="سفارشات نزدیک سررسید"
           bodyClassName="!p-0"
-          action={<ViewAllLink onClick={() => navigate("admin", "open-orders")} />}
+          action={<ViewAllLink onClick={() => navigate("admin", DASHBOARD_PAGES.openOrders)} />}
         >
           <div className={MERGE_INNER_CARD}>
             <NearDeadlineOrders />
@@ -336,7 +337,7 @@ export function AdminDashboard() {
           icon="task"
           title="آخرین تسک‌ها"
           bodyClassName="!p-0"
-          action={<ViewAllLink onClick={() => navigate("admin", "tasks")} />}
+          action={<ViewAllLink onClick={() => navigate("admin", DASHBOARD_PAGES.tasks)} />}
         >
           <div className={MERGE_INNER_CARD}>
             <LatestTasks />
