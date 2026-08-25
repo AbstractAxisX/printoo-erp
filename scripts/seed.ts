@@ -26,6 +26,23 @@ async function main() {
   }
   console.log("user:", user.email);
 
+  // Phase 4: demo employees — so cross-panel task assignment is exercisable.
+  // Roles map 1:1 to ModuleKey so the assignee picker can be module-scoped later.
+  const employees = [
+    { name: "سارا احمدی", email: "sara@printoo24.com", role: "designer", phone: "09120000001" },
+    { name: "رضا کریمی", email: "reza@printoo24.com", role: "print", phone: "09120000002" },
+    { name: "مهدی موسوی", email: "mehdi@printoo24.com", role: "warehouse", phone: "09120000003" },
+    { name: "نگار رستمی", email: "negar@printoo24.com", role: "finance", phone: "09120000004" },
+  ];
+  for (const e of employees) {
+    const existing = await db.user.findUnique({ where: { email: e.email } });
+    if (!existing) {
+      await db.user.create({
+        data: { ...e, password: await hashPassword("employee123"), status: "active" },
+      });
+    }
+  }
+
   // customers
   const custNames = [
     { name: "شرکت آفتاب", phone: "09123334455", isFavorite: true },
@@ -66,7 +83,12 @@ async function main() {
     products.push(existing ?? await db.product.create({ data: p }));
   }
 
-  // orders (a few)
+  // orders (idempotent — only seeded when the table is empty, so re-running
+  // the seed for new employees never duplicates demo orders)
+  const orderCount = await db.order.count();
+  if (orderCount > 0) {
+    console.log("orders: already seeded, skipping");
+  }
   const now = Date.now();
   const day = 86400000;
   const orderDefs = [
@@ -77,8 +99,9 @@ async function main() {
     { cust: 4, items: [{ p: 0, q: 3, price: 25000, stage: "archive" }], status: "archived", endDate: null, priority: "normal" },
   ];
 
-  let num = (await db.order.aggregate({ _max: { number: true } }))._max.number ?? 0;
-  for (const od of orderDefs) {
+  if (orderCount === 0) {
+    let num = 0;
+    for (const od of orderDefs) {
     const cust = customers[od.cust];
     const total = od.items.reduce((s, i) => s + i.q * i.price, 0);
     num += 1;
@@ -109,16 +132,20 @@ async function main() {
         },
       },
     });
+    }
   }
 
-  // notifications
-  const notifs = [
-    { title: "سفارش جدید ثبت شد", message: "سفارش #1 توسط مدیر سیستم ایجاد شد.", type: "success", link: "admin:orders" },
-    { title: "موعد تحویل نزدیک است", message: "سفارش #2 کمتر از ۲ روز تا موعد تحویل.", type: "warning", link: "admin:calendar" },
-    { title: "وضعیت سفارش به‌روزرسانی شد", message: "سفارش #3 به مرحله انبار و لجستیک منتقل شد.", type: "info", link: "admin:orders" },
-  ];
-  for (const n of notifs) {
-    await db.notification.create({ data: n });
+  // notifications (idempotent — only when table empty)
+  const notifCount = await db.notification.count();
+  if (notifCount === 0) {
+    const notifs = [
+      { title: "سفارش جدید ثبت شد", message: "سفارش #1 توسط مدیر سیستم ایجاد شد.", type: "success", link: "admin:orders" },
+      { title: "موعد تحویل نزدیک است", message: "سفارش #2 کمتر از ۲ روز تا موعد تحویل.", type: "warning", link: "admin:calendar" },
+      { title: "وضعیت سفارش به‌روزرسانی شد", message: "سفارش #3 به مرحله انبار و لجستیک منتقل شد.", type: "info", link: "admin:orders" },
+    ];
+    for (const n of notifs) {
+      await db.notification.create({ data: n });
+    }
   }
 
   console.log("seed done");
