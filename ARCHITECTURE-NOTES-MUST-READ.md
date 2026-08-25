@@ -35,8 +35,8 @@
 | Phase | Target | Files (≤3) | Bug IDs fixed | Status |
 |---|---|---|---|---|
 | **1.5 (baseline)** | Run setup + baseline security | middleware.ts, auth.ts, login/route.ts, seed.ts, .env | R26 (partial) | ✅ done |
-| **2** | Rebuild Order Detail Modal (tabbed, lazy, skeleton) | order-detail-modal.tsx, order-detail-tabs.tsx, use-order-detail.tsx | R5, R22, scenario-2 | 🔄 in progress |
-| **3** | All Orders + Open Orders (virtualization, pro filters) | data-table.tsx, orders-page.tsx, search-combobox.tsx | R13, R14, R21 | ⏳ pending |
+| **2** | Rebuild Order Detail Modal (tabbed, lazy, skeleton) | order-detail-modal.tsx, order-detail-tabs.tsx, use-order-detail.tsx | R5, R22, scenario-2 | ✅ done |
+| **3** | All Orders + Open Orders (virtualization, pro filters) | data-table.tsx, orders-page.tsx, open-orders.tsx, shared/search-combobox.tsx, shared/filter-toggle.tsx, api/orders/route.ts, api/orders/[id]/route.ts | R13, R14, R21, R4 (orders), R26 (orders) | ✅ done |
 | **4** | Tasks + cross-panel assignment logic | tasks-page.tsx, api/tasks/route.ts, api/tasks/[id]/route.ts | R9, R10, R12, R3(n/a), scenario-3 | ⏳ pending |
 | **5** | Rebuild shared Calendar + Gantt | reusable-gantt.tsx, reusable-calendar.tsx, day-detail-modal.tsx | R8, R15, R16, R17, R23, R24 | ⏳ pending |
 | **6** | Dashboard optimization + New Order wizard fixes | kpi-cards.tsx, dashboard-sections.tsx, order-wizard.tsx | R1, R2, R6, R7, R11, R18-20, R25, R3, R4 | ⏳ pending |
@@ -216,8 +216,8 @@ model Attendance {
 |---|---|---|---|---|
 | R1 | 🔴 | `preInvoicePaid` map silently dropped on wizard submit | order-wizard.tsx:315-320 | 6 |
 | R2 | 🔴 | Edit-mode PUT drops preInvoice/invoice/markCompleted, only customers[0] | order-wizard.tsx:257,273-285 | 6 |
-| R3 | 🔴 | `nextNumber` race (read-then-write, non-atomic) | api/orders/route.ts:45-56 | 6 (atomic Counter model) |
-| R4 | 🔴 | Zero `db.$transaction` — multi-writes non-atomic | all multi-write routes | 2,4,6 (per-route) |
+| R3 | 🔴 | `nextNumber` race (read-then-write, non-atomic) | api/orders/route.ts:45-56 | 6 (atomic Counter model) — Phase 3 wraps it inside `$transaction` so concurrent writers serialize on the SQLite write lock; full atomicity (Counter model) lands in Phase 6 |
+| R4 | 🔴 | Zero `db.$transaction` — multi-writes non-atomic | all multi-write routes | 2,4,6 (per-route) — Phase 3: `api/orders` POST + `api/orders/[id]` PUT/DELETE wrapped in `$transaction` |
 | R5 | 🟠 | "فاکتور" button no-op in modal | order-detail-modal.tsx:286 | **2** |
 | R6 | 🟠 | Dashboard 12× redundant /api/dashboard calls on mount + staleTime:0 | kpi-cards.tsx:117-122 | 6 |
 | R7 | 🟠 | `["customers-list"]`/`["products-list"]` not invalidated after inline create | order-wizard.tsx:538-539,697-698 | 6 |
@@ -226,20 +226,20 @@ model Attendance {
 | R10 | 🟠 | Admin tasks-page missing `["dashboard"]` invalidation | tasks-page.tsx:196,256,267,297,309 | **4** |
 | R11 | 🟠 | Wrong query-key shape `["tasks-calendar"]`/`["dashboard-tasks"]` | calendar-page.tsx:81; dashboard-sections.tsx:85 | 5,6 |
 | R12 | 🟠 | No server-side enum validation on module/status/priority/assignedTo | api/tasks/route.ts:21-33; [id]:21-23 | **4** |
-| R13 | 🟠 | DataTable: single click fires BOTH expand AND onRowClick | data-table.tsx:108,216-221 | **3** |
-| R14 | 🟠 | DataTable `totalCount` prop silently dropped | data-table.tsx:63,256 | **3** |
+| R13 | 🟠 | DataTable: single click fires BOTH expand AND onRowClick | data-table.tsx:108,216-221 | **3** ✅ |
+| R14 | 🟠 | DataTable `totalCount` prop silently dropped | data-table.tsx:63,256 | **3** ✅ |
 | R15 | 🟡 | Gantt no virtualization (100+ bars rendered) | reusable-gantt.tsx:158-163,206-261 | 5 |
 | R16 | 🟡 | Gantt SyncScroll queries a class no element has | reusable-gantt.tsx:276 | 5 |
 | R17 | 🟡 | DayDetailModal dynamic `bg-${color}-500` purged in prod | day-detail-modal.tsx:172 | 5 |
 | R18 | 🟡 | Wizard 25 useState, no RHF+Zod (both in deps) | order-wizard.tsx:87-110 | 6 |
 | R19 | 🟡 | Wizard prop-drilling 52 props across Steps | order-wizard.tsx:520,672,902,1009 | 6 |
 | R20 | 🟡 | Wizard no useMemo on needsDesign/anyCompleted/totals | order-wizard.tsx:243,244,706,916 | 6 |
-| R21 | 🟡 | Duplicated SearchCombobox/FilterToggle in 2 files | orders-page.tsx:413-499; open-orders.tsx:723-845 | 3 |
+| R21 | 🟡 | Duplicated SearchCombobox/FilterToggle in 2 files | orders-page.tsx:413-499; open-orders.tsx:723-845 | **3** ✅ |
 | R22 | 🟡 | PreInvoiceModal JSON.parse silent fallback (paid lost) | pre-invoice-modal.tsx:49-54 | **2** |
 | R23 | 🟡 | CalendarEvent.meta loose `Record<string,unknown>` | reusable-calendar.tsx:17 | 5 |
 | R24 | 🟡 | Dead `/api/day-notes` + DayNote + notes prop (zero consumers) | grep-confirmed | 5 |
 | R25 | 🟡 | 8 hardcoded navigate() strings in dashboard (drift risk) | admin-dashboard.tsx; dashboard-sections.tsx | 6 |
-| R26 | 🔴 | No auth on 44/45 routes + plaintext password + unsigned cookie | all routes; auth.ts | 1.5 (baseline done) + per-phase (requireUser per route) |
+| R26 | 🔴 | No auth on 44/45 routes + plaintext password + unsigned cookie | all routes; auth.ts | 1.5 (baseline done) + per-phase (requireUser per route) — Phase 3 added requireUser to `api/orders` GET/POST + `api/orders/[id]` GET/PUT/DELETE (4 routes) |
 
 ---
 
@@ -287,6 +287,7 @@ model Attendance {
 
 ## 10. Change log
 
-- **Phase 1.5**: baseline security (bcrypt + HMAC session + middleware route-guard) + run setup synced printoo-erp into sandbox. Markdown created.
+- **Phase 3**: ✅ DONE — All Orders + Open Orders rebuild. 7 files touched (data-table.tsx, orders-page.tsx, open-orders.tsx, shared/search-combobox.tsx [new], shared/filter-toggle.tsx [new], api/orders/route.ts, api/orders/[id]/route.ts). Fixed R13 (row click no longer double-fires expand), R14 (totalCount wired), R21 (SearchCombobox/FilterToggle extracted to shared), R4 (orders POST/PUT/DELETE wrapped in `$transaction`), R26 partial (requireUser on 4 order routes). Server-side filters: status[], priority[], stage[], dateFrom, dateTo, q — previously client-side. Virtualization opt-in via `enableVirtualization` (threshold 200 rows) — backward-compatible (all 18 call-sites untouched).
+- **Phase 1.5**: ✅ DONE — baseline security (bcrypt + HMAC-signed session + proxy.ts route-guard) + run setup (printoo-erp synced to sandbox, seeded, dev server persistent on :3000).
 - **Phase 1**: full ecosystem analysis delivered; 26 bugs catalogued; contracts documented.
 - **Phase 0**: project cloned, deeply analyzed (4 parallel Explore agents).
