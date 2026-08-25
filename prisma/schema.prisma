@@ -337,3 +337,18 @@ model Activity {
   date        DateTime  @default(now())
   createdAt   DateTime  @default(now())
 }
+
+// ─── R3: Atomic sequential counter (replaces aggregate _max + 1) ────────────
+// Pre-R3: nextNumber did `db.order.aggregate({ _max: { number: true } })` + 1.
+// Two concurrent writers could both read the same max before either writes
+// (race condition → duplicate order numbers). Even inside $transaction, the
+// _max approach scans the full table (O(n)) and depends on write-lock
+// serialization for correctness. The Counter model uses an atomic upsert +
+// increment (single SQL UPDATE, O(1), inherently race-free even WITHOUT a
+// transaction wrapper). Seeds: order→current max order number, preInvoice→
+// current max preInvoice number, invoice→current max invoice number.
+// Gaps (deleted records) don't reuse numbers — counter only moves forward.
+model Counter {
+  id    String  @id           // "order" | "preInvoice" | "invoice"
+  next  Int    @default(1)    // next number to assign
+}

@@ -44,26 +44,77 @@ type CreateBody = {
   createdBy?: string | null;
 };
 
-// ─── R3 fix: nextNumber inside the caller's transaction ───────────────────
-// Pre-Phase-3 this read `_max(number)` then created with `+1` OUTSIDE any
-// transaction → two concurrent POSTs could read the same max and both create
-// the same number (race). Now it takes the tx client so the read+create are
-// inside one serializable SQLite write transaction (writers serialize on the
-// DB file lock). Callers MUST pass the tx from db.$transaction().
+// ─── R3 fix: atomic Counter upsert (replaces aggregate _max + 1) ───────────
+// Pre-Phase-6: nextNumber did `tx.order.aggregate({ _max: { number: true } })`
+// + 1. Even inside $transaction that approach (a) scans the full table O(n),
+// (b) depends on write-lock serialization for correctness, (c) reuses numbers
+// if rows are deleted. The Counter model uses an atomic upsert + increment:
+// a single SQL UPDATE that returns the new value — inherently race-free, O(1),
+// and never reuses numbers. Callers pass the tx from db.$transaction() so the
+// counter increment is composable with the rest of the create cascade.
 async function nextNumber(
   tx: Prisma.TransactionClient,
   model: "order" | "preInvoice" | "invoice"
 ): Promise<number> {
-  if (model === "order") {
-    const last = await tx.order.aggregate({ _max: { number: true } });
-    return (last._max.number ?? 0) + 1;
+  // upsert: if the counter row exists, atomically increment + return the NEW
+  // value; if it doesn't exist yet (first-ever create for this model), create
+  // it with next=1 and return 1. Prisma's `increment` maps to `SET next = next + 1`
+  // in a single UPDATE — the database handles the atomicity, no read-then-write
+  // gap exists.
+  const counter = await tx.counter.upsert({
+    where: { id: model },
+    update: { next: { increment: 1 } },
+    create: { id: model, next: 1 },
+  });
+  return counter.next;
+}
+
+// ─── One-time seed: initialize counters from existing max numbers ─────────
+// Called lazily on first nextNumber() if the counter row is missing (the
+// upsert's `create` branch handles it with next=1, but if the table already
+// has rows with higher numbers, we'd get a collision). This seed runs on
+// server startup (or first request) to backfill the counter to the current
+// max so the first new order gets max+1, not 1.
+//
+// IMPORTANT: the seed sets `next = currentMax` (NOT currentMax+1). This is
+// because nextNumber() does `update: { next: { increment: 1 } }` which
+// increments FIRST then returns the new value. So if max=12 and seed sets
+// next=12, the first nextNumber call increments 12→13 and returns 13 (correct:
+// max+1). If we seeded with next=13 (max+1), the first call would increment
+// 13→14 and return 14, skipping number 13 (off-by-one gap).
+let counterSeeded = false;
+async function seedCounters() {
+  if (counterSeeded) return;
+  counterSeeded = true;
+  try {
+    const [maxOrder, maxPre, maxInv] = await Promise.all([
+      db.order.aggregate({ _max: { number: true } }),
+      db.preInvoice.aggregate({ _max: { number: true } }),
+      db.invoice.aggregate({ _max: { number: true } }),
+    ]);
+    // upsert: if row missing → create with next=currentMax (so first increment
+    // yields currentMax+1). If row exists → no-op (update:{} keeps current value;
+    // a prior seed or nextNumber already set it correctly).
+    await db.counter.upsert({
+      where: { id: "order" },
+      update: {},
+      create: { id: "order", next: maxOrder._max.number ?? 0 },
+    });
+    await db.counter.upsert({
+      where: { id: "preInvoice" },
+      update: {},
+      create: { id: "preInvoice", next: maxPre._max.number ?? 0 },
+    });
+    await db.counter.upsert({
+      where: { id: "invoice" },
+      update: {},
+      create: { id: "invoice", next: maxInv._max.number ?? 0 },
+    });
+  } catch {
+    // Counter table not created yet (db:push not run) — upsert will retry on
+    // first nextNumber() call; the create branch there handles first-run.
+    counterSeeded = false;
   }
-  if (model === "preInvoice") {
-    const last = await tx.preInvoice.aggregate({ _max: { number: true } });
-    return (last._max.number ?? 0) + 1;
-  }
-  const last = await tx.invoice.aggregate({ _max: { number: true } });
-  return (last._max.number ?? 0) + 1;
 }
 
 export async function GET(req: NextRequest) {
@@ -124,6 +175,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
+
+  // R3: ensure Counter rows are seeded from existing max numbers before the
+  // first nextNumber() call (idempotent — skips if already seeded).
+  await seedCounters();
 
   try {
     const body = (await req.json()) as CreateBody;

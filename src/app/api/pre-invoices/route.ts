@@ -36,9 +36,15 @@ export async function POST(req: NextRequest) {
     const totalAmount = itemsData.reduce((s: number, i: { total: number }) => s + i.total, 0);
     const paid = paidAmount ?? itemsData.reduce((s: number, i: { paid: number }) => s + (Number(i.paid) || 0), 0);
 
-    // Get next number
-    const lastNum = await db.preInvoice.aggregate({ _max: { number: true } });
-    const number = (lastNum._max.number ?? 0) + 1;
+    // R3: atomic Counter upsert (replaces aggregate _max + 1 — race-free, O(1)).
+    // Single SQL UPDATE with increment; no read-then-write gap even without a
+    // transaction wrapper. Was: `db.preInvoice.aggregate({ _max: ... }) + 1`.
+    const counter = await db.counter.upsert({
+      where: { id: "preInvoice" },
+      update: { next: { increment: 1 } },
+      create: { id: "preInvoice", next: 1 },
+    });
+    const number = counter.next;
 
     const preInvoice = await db.preInvoice.create({
       data: {
