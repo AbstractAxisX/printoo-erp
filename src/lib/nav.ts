@@ -71,6 +71,14 @@ export const NAV: ModuleNav[] = [
           { id: "expense-types", label: "انواع هزینه", icon: "tag", page: "expense-types" },
         ],
       },
+      {
+        id: "settings",
+        label: "تنظیمات",
+        icon: "grid",
+        items: [
+          { id: "users", label: "کاربران و نقش‌ها", icon: "user", page: "users" },
+        ],
+      },
     ],
   },
 
