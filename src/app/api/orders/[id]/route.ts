@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
+import { TASK_INCLUDE } from "@/lib/task-validation";
 
 type ItemDraft = {
   productId: string;
@@ -51,7 +52,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       items: { include: { product: true } },
       preInvoices: true,
       invoice: true,
-      tasks: true,
+      tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
     },
   });
   if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
