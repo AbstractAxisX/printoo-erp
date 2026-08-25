@@ -1,5 +1,22 @@
 "use client";
 
+// Printoo24 ERP — Admin Tasks page (Phase 4 rebuild)
+//
+// Kanban board + cross-panel assignment logic:
+// - Assignee picker (SearchSelect over /api/users — active users only)
+// - Assignee chip on every card (who owns the work)
+// - Assignee header filter ("who is drowning?")
+// - Linked order chip opens the Order Detail Modal in place
+//   (cross-panel referral: task → order context in one click)
+// - R10 fixed: mutations invalidate ["tasks", "dashboard", "order"]
+//   (dashboard shows latest tasks; an open order modal refreshes too)
+//
+// Preserved from the previous build (no regression, per roadmap law):
+// - DnD status flow with optimistic local override + rollback on error
+// - Module filter (?module= contract feeds designer/print panels too)
+// - Create/Edit dialogs, delete with confirm-free single click on card
+//   (undo lives in the API's 404 fence, board refetches)
+
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -21,7 +38,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/api";
 import { useInvalidate } from "@/lib/use-invalidate";
+import { useOrderDetail } from "@/lib/use-order-detail";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared";
+import { SearchSelect } from "@/components/shared/search-select";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +67,7 @@ import {
   TASK_STATUS,
   PRIORITY,
   MODULES,
+  USER_ROLE,
   type ModuleKey,
   type TaskStatus,
 } from "@/lib/constants";
@@ -55,6 +75,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────
+type Assignee = {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string | null;
+};
+
 type Task = {
   id: string;
   title: string;
@@ -63,6 +90,8 @@ type Task = {
   priority: string;
   dueDate: string | null;
   module: string;
+  assignedTo: string | null;
+  assignedUser: Assignee | null;
   createdAt: string;
   order: { id: string; number: number; customer: { name: string } } | null;
 };
@@ -74,6 +103,7 @@ type FormState = {
   dueDate: string; // yyyy-mm-dd or ""
   module: ModuleKey;
   status: TaskStatus;
+  assignedTo: string | null; // user id | null
 };
 
 // ─── Static column config ─────────────────────────────────────────
@@ -127,12 +157,22 @@ const EMPTY_FORM: FormState = {
   dueDate: "",
   module: "admin",
   status: "todo",
+  assignedTo: null,
 };
+
+// Avatar initials for the assignee chip (e.g. "سارا احمدی" → "سا").
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2);
+  return parts[0].slice(0, 1) + parts[1].slice(0, 1);
+}
 
 // ─── Main page ────────────────────────────────────────────────────
 export function TasksPage() {
   const invalidate = useInvalidate();
+  const { openOrder, modal: orderModal } = useOrderDetail();
   const [moduleFilter, setModuleFilter] = React.useState<"all" | ModuleKey>("all");
+  const [assigneeFilter, setAssigneeFilter] = React.useState<string | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createForm, setCreateForm] = React.useState<FormState>(EMPTY_FORM);
   const [editTask, setEditTask] = React.useState<Task | null>(null);
@@ -145,12 +185,23 @@ export function TasksPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  // Active users — powers both the assignee picker and the header filter.
+  const { data: usersData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api<{ users: Assignee[] }>("/api/users"),
+    staleTime: 60_000, // roster rarely changes mid-session
+  });
+  const users = usersData?.users ?? [];
+
   const { data, isLoading } = useQuery({
-    queryKey: ["tasks", moduleFilter],
-    queryFn: () =>
-      api<{ tasks: Task[] }>(
-        moduleFilter === "all" ? "/api/tasks" : `/api/tasks?module=${moduleFilter}`
-      ),
+    queryKey: ["tasks", moduleFilter, assigneeFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (moduleFilter !== "all") params.set("module", moduleFilter);
+      if (assigneeFilter) params.set("assignedTo", assigneeFilter);
+      const qs = params.toString();
+      return api<{ tasks: Task[] }>(qs ? `/api/tasks?${qs}` : "/api/tasks");
+    },
     refetchInterval: 30000,
   });
 
@@ -179,7 +230,24 @@ export function TasksPage() {
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) ?? null : null;
 
+  // ── Board stats (scannable summary — same pattern as Open Orders) ──
+  const stats = React.useMemo(() => {
+    const open = tasks.filter((t) => t.status !== "done");
+    return {
+      total: tasks.length,
+      open: open.length,
+      overdue: open.filter(
+        (t) => t.dueDate && new Date(t.dueDate) < new Date()
+      ).length,
+      urgent: open.filter((t) => t.priority === "urgent").length,
+      unassigned: open.filter((t) => !t.assignedUser).length,
+    };
+  }, [tasks]);
+
   // ── Mutations ──────────────────────────────────────────────────
+  // R10: every success ALSO invalidates ["dashboard"] (dashboard's
+  // LatestTasks/NearDeadlineOrders tiles were silently stale before)
+  // and ["order"] (an open Order Detail Modal's Tasks tab stays live).
   const createMut = useMutation({
     mutationFn: (body: FormState) =>
       api("/api/tasks", {
@@ -190,10 +258,11 @@ export function TasksPage() {
           priority: body.priority,
           dueDate: body.dueDate || null,
           module: body.module,
+          assignedTo: body.assignedTo,
         }),
       }),
     onSuccess: () => {
-      invalidate(["tasks"]);
+      invalidate(["tasks", "dashboard", "order"]);
       toast.success("تسک ایجاد شد");
       setCreateOpen(false);
       setCreateForm(EMPTY_FORM);
@@ -210,6 +279,7 @@ export function TasksPage() {
       if (patch.dueDate !== undefined) payload.dueDate = patch.dueDate || null;
       if (patch.module !== undefined) payload.module = patch.module;
       if (patch.status !== undefined) payload.status = patch.status;
+      if (patch.assignedTo !== undefined) payload.assignedTo = patch.assignedTo;
       return api(`/api/tasks/${id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
@@ -253,7 +323,7 @@ export function TasksPage() {
       { id: activeIdStr, status: destStatus },
       {
         onSuccess: () => {
-          invalidate(["tasks"]);
+          invalidate(["tasks", "dashboard", "order"]);
           const label = TASK_STATUS[destStatus as TaskStatus]?.label ?? destStatus;
           toast.success(`به «${label}» منتقل شد`);
         },
@@ -280,6 +350,7 @@ export function TasksPage() {
       dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
       module: (MODULE_OPTIONS.includes(task.module as ModuleKey) ? task.module : "admin") as ModuleKey,
       status: (Object.keys(TASK_STATUS).includes(task.status) ? task.status : "todo") as TaskStatus,
+      assignedTo: task.assignedTo ?? null,
     });
   }
 
@@ -294,7 +365,7 @@ export function TasksPage() {
       { id: editTask.id, ...editForm },
       {
         onSuccess: () => {
-          invalidate(["tasks"]);
+          invalidate(["tasks", "dashboard", "order"]);
           toast.success("تسک به‌روزرسانی شد");
           setEditTask(null);
         },
@@ -306,13 +377,20 @@ export function TasksPage() {
   function handleDelete(id: string, onClose?: () => void) {
     deleteMut.mutate(id, {
       onSuccess: () => {
-        invalidate(["tasks"]);
+        invalidate(["tasks", "dashboard", "order"]);
         toast.success("تسک حذف شد");
         onClose?.();
       },
       onError: (err: Error) => toast.error(err.message),
     });
   }
+
+  // ── Assignee options for SearchSelect ──────────────────────────
+  const assigneeOptions = users.map((u) => ({
+    value: u.id,
+    label: u.name,
+    sub: USER_ROLE[u.role]?.label ?? u.role,
+  }));
 
   // ── Render ─────────────────────────────────────────────────────
   return (
@@ -339,6 +417,14 @@ export function TasksPage() {
                 ))}
               </SelectContent>
             </Select>
+            <SearchSelect
+              value={assigneeFilter}
+              onChange={(v) => setAssigneeFilter(v)}
+              placeholder="همه مسئول‌ها"
+              searchPlaceholder="جستجوی نام مسئول..."
+              options={assigneeOptions}
+              className="w-[170px] h-9"
+            />
             <Button
               onClick={() => {
                 setCreateForm(EMPTY_FORM);
@@ -352,6 +438,30 @@ export function TasksPage() {
         }
       />
 
+      {/* ── Board summary chips ─────────────────────────────────── */}
+      {tasks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground tabular-nums">
+            {stats.open} باز از {stats.total}
+          </span>
+          {stats.overdue > 0 && (
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 tabular-nums flex items-center gap-1">
+              <Icon name="clock" size={11} /> {stats.overdue} معوق
+            </span>
+          )}
+          {stats.urgent > 0 && (
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 tabular-nums flex items-center gap-1">
+              <Icon name="alertTriangle" size={11} /> {stats.urgent} فوری
+            </span>
+          )}
+          {stats.unassigned > 0 && (
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 tabular-nums flex items-center gap-1">
+              <Icon name="user" size={11} /> {stats.unassigned} بدون مسئول
+            </span>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <LoadingState />
       ) : tasks.length === 0 && !createOpen ? (
@@ -359,7 +469,11 @@ export function TasksPage() {
           <EmptyState
             icon="task"
             title="تسکی وجود ندارد"
-            description="اولین تسک را ایجاد کنید و آن را روی بورد بکشید."
+            description={
+              assigneeFilter
+                ? "برای این مسئول تسکی در این فیلتر نیست."
+                : "اولین تسک را ایجاد کنید و آن را روی بورد بکشید."
+            }
             action={
               <Button onClick={() => setCreateOpen(true)} className="gap-2">
                 <Icon name="plus" size={16} /> افزودن تسک
@@ -383,6 +497,7 @@ export function TasksPage() {
                 tasks={tasks.filter((t) => t.status === col.key)}
                 onEdit={openEdit}
                 onDelete={(id) => handleDelete(id)}
+                onOpenOrder={(orderId) => openOrder(orderId)}
               />
             ))}
           </div>
@@ -392,6 +507,9 @@ export function TasksPage() {
           </DragOverlay>
         </DndContext>
       )}
+
+      {/* Order Detail Modal — opened from a task's linked-order chip */}
+      {orderModal}
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -410,7 +528,11 @@ export function TasksPage() {
             }}
             className="space-y-4"
           >
-            <TaskFormFields form={createForm} setForm={setCreateForm} />
+            <TaskFormFields
+              form={createForm}
+              setForm={setCreateForm}
+              assigneeOptions={assigneeOptions}
+            />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
                 انصراف
@@ -435,7 +557,12 @@ export function TasksPage() {
             <DialogTitle>ویرایش تسک</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-4">
-            <TaskFormFields form={editForm} setForm={setEditForm} withStatus />
+            <TaskFormFields
+              form={editForm}
+              setForm={setEditForm}
+              assigneeOptions={assigneeOptions}
+              withStatus
+            />
             <div className="flex items-center justify-between gap-2 pt-2">
               <Button
                 type="button"
@@ -478,11 +605,13 @@ function Column({
   tasks,
   onEdit,
   onDelete,
+  onOpenOrder,
 }: {
   col: (typeof COLUMNS)[number];
   tasks: Task[];
   onEdit: (t: Task) => void;
   onDelete: (id: string) => void;
+  onOpenOrder: (orderId: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.key });
   return (
@@ -509,7 +638,13 @@ function Column({
           strategy={verticalListSortingStrategy}
         >
           {tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onEdit={onEdit} onDelete={onDelete} />
+            <TaskCard
+              key={t.id}
+              task={t}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onOpenOrder={onOpenOrder}
+            />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
@@ -527,10 +662,12 @@ function TaskCard({
   task,
   onEdit,
   onDelete,
+  onOpenOrder,
 }: {
   task: Task;
   onEdit: (t: Task) => void;
   onDelete: (id: string) => void;
+  onOpenOrder: (orderId: string) => void;
 }) {
   const {
     attributes,
@@ -613,6 +750,22 @@ function TaskCard({
         </span>
       </div>
 
+      {/* Assignee chip — WHO owns this work (Phase 4) */}
+      {task.assignedUser ? (
+        <span className="inline-flex items-center gap-1.5 mt-2 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-[11px] font-medium">
+          <span className="size-4 rounded-full bg-primary text-primary-foreground grid place-items-center text-[9px] font-bold leading-none">
+            {initials(task.assignedUser.name)}
+          </span>
+          {task.assignedUser.name}
+        </span>
+      ) : (
+        task.status !== "done" && (
+          <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-muted/70 text-muted-foreground px-1.5 py-0.5 text-[10px]">
+            <Icon name="user" size={10} /> بدون مسئول
+          </span>
+        )
+      )}
+
       {/* Due date */}
       {task.dueDate && (
         <div
@@ -631,15 +784,24 @@ function TaskCard({
         </div>
       )}
 
-      {/* Linked order */}
+      {/* Linked order — click opens the order detail modal in place */}
       {task.order && (
-        <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenOrder(task.order!.id);
+          }}
+          title="مشاهده جزئیات سفارش"
+          className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 hover:text-primary transition-colors"
+        >
           <Icon name="orders" size={11} />
           <span>
             سفارش #{task.order.number}
             {task.order.customer?.name ? ` · ${task.order.customer.name}` : ""}
           </span>
-        </div>
+          <Icon name="arrowLeft" size={10} className="opacity-50" />
+        </button>
       )}
 
       {/* Delete button (on hover) */}
@@ -692,6 +854,11 @@ function TaskCardOverlay({ task }: { task: Task }) {
         >
           {moduleLabel}
         </span>
+        {task.assignedUser && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-medium">
+            <Icon name="user" size={10} /> {task.assignedUser.name}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -701,10 +868,12 @@ function TaskCardOverlay({ task }: { task: Task }) {
 function TaskFormFields({
   form,
   setForm,
+  assigneeOptions,
   withStatus,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  assigneeOptions: { value: string; label: string; sub?: string }[];
   withStatus?: boolean;
 }) {
   return (
@@ -727,6 +896,20 @@ function TaskFormFields({
           rows={2}
           placeholder="توضیحات اختیاری..."
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>مسئول انجام</Label>
+        <SearchSelect
+          value={form.assignedTo}
+          onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
+          placeholder="به کسی ارجاع نشده"
+          searchPlaceholder="جستجوی نام کارمند..."
+          options={assigneeOptions}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          تسک علاوه بر این پنل، در پنل «{MODULES[form.module]?.faLabel}» هم دیده می‌شود.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

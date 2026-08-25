@@ -250,6 +250,8 @@ export const icons = {
   gift: GiftIcon,
   giftCard: GiftCardIcon,
   store3: Store02Icon,
+  search: Search01Icon,
+  searchList: Search02Icon,
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

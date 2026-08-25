@@ -96,6 +96,20 @@ export type ModuleKey =
   | "crm"
   | "srm";
 
+// Phase 4 — Persian labels for User.role (task assignee pickers, user menus).
+// Values mirror ModuleKey + master/admin (User.role comment in schema.prisma).
+export const USER_ROLE: Record<string, { label: string }> = {
+  master: { label: "مدیر ارشد" },
+  admin: { label: "ادمین" },
+  designer: { label: "طراح" },
+  print: { label: "اپراتور چاپ" },
+  warehouse: { label: "انبار و لجستیک" },
+  finance: { label: "مالی" },
+  qc: { label: "کنترل کیفی" },
+  crm: { label: "ارتباط با مشتری" },
+  srm: { label: "ارتباط با تامین‌کننده" },
+};
+
 export const MODULES: Record<
   ModuleKey,
   { label: string; faLabel: string; color: string }
