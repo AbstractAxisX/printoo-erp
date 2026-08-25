@@ -7,11 +7,14 @@
 // existing DataTable so column definitions stay portable between the two.
 //
 // Design:
-// - Sticky <thead>, scrollable <tbody> with absolutely-positioned virtual rows.
+// - Sticky <thead>, scrollable <tbody> using the spacer-row pattern: virtual
+//   rows stay IN the table flow (normal <tr>) so table-layout:fixed keeps
+//   header and body columns perfectly aligned — absolutely-positioned rows
+//   get blockified out of the table grid and misalign (the Phase-3 bug).
 // - useVirtualizer measures the scroll container and renders only visible rows
-//   + an overscan buffer. Row height is uniform by default (estimateSize) but
-//   can be overridden per-row via `measureElement` for variable heights.
-// - RTL-aware: the app is Persian; the scroll container inherits dir="rtl".
+//   + an overscan buffer. Rows auto-size via measureElement (variable heights
+//   supported — two-line cells etc.), estimateSize is only the initial guess.
+// - RTL-safe: no transforms/absolute offsets involved.
 // - No pagination — virtual scroll is the scaling primitive. For multi-page
 //   server fetches, feed a windowed `data` slice and re-trigger on end-reached
 //   via `onRangeEnd` (optional). For client-side thousands of rows, just pass
@@ -105,14 +108,19 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
     estimateSize: () => estimateRowHeight,
     overscan,
     getScrollElement: () => scrollRef.current,
-    measureElement:
-      typeof window !== "undefined" && navigator.userAgent.includes("Firefox")
-        ? (el) => el?.getBoundingClientRect().height ?? estimateRowHeight
-        : undefined,
+    // Auto-measure every rendered row (variable heights: two-line cells).
+    measureElement: (el) => el?.getBoundingClientRect().height ?? estimateRowHeight,
   });
 
   const virtualItems = virtualizer.getVirtualItems();
   const totalHeight = virtualizer.getTotalSize();
+
+  // Spacer heights keep the scrollbar honest while only visible rows mount.
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom =
+    virtualItems.length > 0
+      ? totalHeight - virtualItems[virtualItems.length - 1].end
+      : 0;
 
   // Header <-> body sync: column widths. The header shares the same column
   // model; we render flexRender in both. Table-layout: fixed keeps widths
@@ -194,10 +202,7 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
             ))}
           </TableHeader>
 
-          <TableBody
-            className={bodyClassName}
-            style={{ position: "relative", height: `${totalHeight}px` }}
-          >
+          <TableBody className={bodyClassName}>
             {isLoading ? (
               <SkeletonRows count={loadingRowCount} colCount={columns.length} rowHeight={estimateRowHeight} />
             ) : virtualItems.length === 0 ? (
@@ -207,20 +212,34 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
                 </td>
               </tr>
             ) : (
-              virtualItems.map((virtualRow) => {
-                const row = rows[virtualRow.index];
-                if (!row) return null;
-                return (
-                  <VirtualRow
-                    key={row.id}
-                    row={row}
-                    virtualRow={virtualRow}
-                    rowHeight={virtualRow.size}
-                    onRowClick={onRowClick}
-                    onRowDoubleClick={onRowDoubleClick}
-                  />
-                );
-              })
+              <>
+                {/* Top spacer — replaces all unmounted rows above the viewport */}
+                {paddingTop > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={columns.length} style={{ height: `${paddingTop}px` }} />
+                  </tr>
+                )}
+                {virtualItems.map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  if (!row) return null;
+                  return (
+                    <VirtualRow
+                      key={row.id}
+                      row={row}
+                      virtualRow={virtualRow}
+                      measureRef={virtualizer.measureElement}
+                      onRowClick={onRowClick}
+                      onRowDoubleClick={onRowDoubleClick}
+                    />
+                  );
+                })}
+                {/* Bottom spacer — replaces all unmounted rows below the viewport */}
+                {paddingBottom > 0 && (
+                  <tr aria-hidden="true">
+                    <td colSpan={columns.length} style={{ height: `${paddingBottom}px` }} />
+                  </tr>
+                )}
+              </>
             )}
           </TableBody>
         </Table>
@@ -254,30 +273,26 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
 }
 
 // ─── Virtual row (rendered only for visible indices by the virtualizer) ──
+// In-flow <tr> (NOT position:absolute — that blockifies the row out of the
+// table grid and breaks column alignment with <thead>). Sizing is handled by
+// the spacer rows above/below; height comes from measureElement via ref.
 function VirtualRow<TData>({
   row,
   virtualRow,
-  rowHeight,
+  measureRef,
   onRowClick,
   onRowDoubleClick,
 }: {
   row: Row<TData>;
-  virtualRow: { start: number };
-  rowHeight: number;
+  virtualRow: { index: number };
+  measureRef: (el: HTMLElement | null) => void;
   onRowClick?: (row: TData) => void;
   onRowDoubleClick?: (row: TData) => void;
 }) {
   return (
     <TableRow
-      data-index={virtualRow.start}
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        transform: `translateY(${virtualRow.start}px)`,
-        height: `${rowHeight}px`,
-      }}
+      data-index={virtualRow.index}
+      ref={measureRef}
       className={cn(
         "group transition-colors",
         onRowClick && "cursor-pointer hover:bg-accent/50"
