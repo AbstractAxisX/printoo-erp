@@ -98,6 +98,13 @@ export async function clearSession() {
 //   const user = await requireUser();
 //   if (user instanceof NextResponse) return user; // 401
 // When RBAC lands, this becomes requirePermission(action, moduleKey).
+//
+// Hotfix (ghost sessions): the HMAC cookie is self-contained, so a signature
+// stays valid for 7 days even if the user row was deleted or deactivated
+// (DB reset, employee offboarding…). Every guarded route then ran with a
+// "ghost" identity — the stale-tab 500s. Now the user row is re-verified
+// against the DB on every guarded call: deleted/inactive → cookie cleared
+// + 401, so the client bounces to a clean re-login with fresh data.
 export async function requireUser(): Promise<SessionUser | NextResponse> {
   const user = await getSession();
   if (!user) {
@@ -106,7 +113,36 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
       { status: 401 }
     );
   }
-  return user;
+
+  // Re-verify against DB: exists AND active. Stale-but-valid-signature
+  // cookies (user deleted / DB reset / deactivated) must NOT pass.
+  try {
+    const fresh = await db.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, name: true, email: true, role: true, status: true },
+    });
+    if (!fresh || fresh.status !== "active") {
+      await clearSession();
+      return NextResponse.json(
+        { error: "نشست شما منقضی شده — دوباره وارد شوید" },
+        { status: 401 }
+      );
+    }
+    // Return the FRESH row — role/name changes apply immediately,
+    // not 7 days later when the cookie expires.
+    return {
+      id: fresh.id,
+      name: fresh.name,
+      email: fresh.email,
+      role: fresh.role,
+    };
+  } catch {
+    // DB unreachable — fail closed.
+    return NextResponse.json(
+      { error: "خطا در اعتبارسنجی نشست" },
+      { status: 500 }
+    );
+  }
 }
 
 // Convenience: boolean form for inline checks.

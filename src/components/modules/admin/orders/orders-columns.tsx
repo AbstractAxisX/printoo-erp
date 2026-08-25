@@ -3,14 +3,12 @@
 // Printoo24 ERP — All-Orders table column definitions (Phase 3)
 //
 // Pure presentational column factory: receives action callbacks, returns
-// ColumnDef<Order>[]. Cells are intentionally tiny (memoization is the
-// VirtualizedDataTable's job — it only renders visible rows).
+// ColumnDef<Order>[]. Cells are intentionally tiny.
 //
 // Cognitive-UX change vs. legacy: no inline expand row. The All-Orders view
 // is a high-density scannable list; the detail modal (rebuilt in Phase 2)
 // is where item-level lives. This lowers cognitive load on the admin's
-// primary surface and keeps virtual-row heights uniform (required for
-// performant virtualization).
+// primary surface.
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Icon } from "@/lib/icons";

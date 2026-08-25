@@ -205,7 +205,7 @@ export function UsersPage() {
     <div className="space-y-5">
       <PageHeader
         title="کاربران و نقش‌ها"
-        description="مدیریت دسترسی کاربران تیم چاپخانه"
+        description="تنظیمات سیستم — مدیریت کاربران، نقش‌ها و دسترسی‌ها (ادمین سراسری)"
         icon="user"
         actions={
           <Button

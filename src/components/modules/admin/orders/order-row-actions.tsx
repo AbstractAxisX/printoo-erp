@@ -38,13 +38,13 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-7"
             onClick={(e) => {
               e.stopPropagation();
               onNote();
             }}
           >
-            <Icon name="info" size={15} />
+            <Icon name="info" size={14} />
           </Button>
         </TooltipTrigger>
         <TooltipContent>یادداشت</TooltipContent>
@@ -55,13 +55,13 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-7"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
             }}
           >
-            <Icon name="edit" size={15} />
+            <Icon name="edit" size={14} />
           </Button>
         </TooltipTrigger>
         <TooltipContent>ویرایش</TooltipContent>
@@ -72,13 +72,13 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 hover:text-emerald-600"
+            className="size-7 hover:text-emerald-600"
             onClick={(e) => {
               e.stopPropagation();
               toast.info("پیش‌فاکتور به‌زودی");
             }}
           >
-            <Icon name="receipt" size={15} />
+            <Icon name="receipt" size={14} />
           </Button>
         </TooltipTrigger>
         <TooltipContent>پیش‌فاکتور</TooltipContent>
@@ -89,7 +89,7 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 hover:text-blue-600"
+            className="size-7 hover:text-blue-600"
             onClick={(e) => {
               e.stopPropagation();
               toast.info(
@@ -97,7 +97,7 @@ export function OrderRowActions({
               );
             }}
           >
-            <Icon name="invoice" size={15} />
+            <Icon name="invoice" size={14} />
           </Button>
         </TooltipTrigger>
         <TooltipContent>فاکتور</TooltipContent>
@@ -108,13 +108,13 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 hover:text-rose-600"
+            className="size-7 hover:text-rose-600"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
           >
-            <Icon name="trash" size={15} />
+            <Icon name="trash" size={14} />
           </Button>
         </TooltipTrigger>
         <TooltipContent>حذف</TooltipContent>

@@ -25,6 +25,8 @@ export type ModuleNav = {
   faLabel: string;
   icon: IconName;
   groups: NavGroup[];
+  /** فقط «ادمین سراسری» (master) این ماژول را می‌بیند — تنظیمات سیستم. */
+  masterOnly?: boolean;
 };
 
 // کلید ماژول (admin, designer, print, warehouse, finance, qc, crm, srm)
@@ -69,14 +71,6 @@ export const NAV: ModuleNav[] = [
           { id: "suppliers", label: "تامین‌کنندگان (SRM)", icon: "suppliers", page: "suppliers" },
           { id: "products", label: "محصولات", icon: "package", page: "products" },
           { id: "expense-types", label: "انواع هزینه", icon: "tag", page: "expense-types" },
-        ],
-      },
-      {
-        id: "settings",
-        label: "تنظیمات",
-        icon: "grid",
-        items: [
-          { id: "users", label: "کاربران و نقش‌ها", icon: "user", page: "users" },
         ],
       },
     ],
@@ -261,7 +255,32 @@ export const NAV: ModuleNav[] = [
       },
     ],
   },
+  // ─────────── SETTINGS (System-wide — master only) ───────────
+  // «کاربران و نقش‌ها» مال کل سیستم است، نه پنل ادمین داخلی:
+  // ساخت/حذف کاربر و تغییر نقش = اختیارات ادمین سراسری (master).
+  {
+    key: "settings",
+    label: "Settings",
+    faLabel: "تنظیمات سیستم",
+    icon: "settings",
+    masterOnly: true,
+    groups: [
+      {
+        id: "main",
+        label: "مدیریت سیستم",
+        icon: "gear",
+        items: [
+          { id: "users", label: "کاربران و نقش‌ها", icon: "user", page: "users" },
+        ],
+      },
+    ],
+  },
 ];
+
+/** ماژول‌های قابل مشاهده برای نقش فعلی (تنظیمات سیستم فقط برای master). */
+export function visibleModules(role?: string | null): ModuleNav[] {
+  return NAV.filter((m) => !m.masterOnly || role === "master");
+}
 
 export function findModule(key: string) {
   return NAV.find((m) => m.key === key) ?? NAV[0];

@@ -1,21 +1,24 @@
 "use client";
 
-// Printoo24 ERP — All Orders page (Phase 3 rebuild)
+// Printoo24 ERP — All Orders page
 //
 // Thin container — the heavy lifting lives in atomic siblings:
 //   useOrdersFilters  → filter state + predicate
 //   useOrdersQuery    → server data (orders/customers/products)
 //   OrdersFilterBar   → the search + filter card
-//   getOrderColumns   → virtualized-table column factory
-//   VirtualizedDataTable → thousands of rows, no perf loss
+//   getOrderColumns   → column factory
+//   DataTable         → the SAME table the Open-Orders page uses
 //   Order*Modal       → note/status/delete dialogs
 //
-// Cognitive-UX: this page is the admin's primary surface. High data density,
-// instant filters, skeleton loading (not spinners), click-to-detail-modal.
+// Hotfix round-3: VirtualizedDataTable replaced with the plain DataTable
+// (open-orders pattern) — no horizontal scroll, real pagination, and the
+// flushSync-inside-lifecycle warning from the virtualizer is gone with it.
+// 11–100s of orders don't need windowing; simplicity wins.
 
 import * as React from "react";
 import { PageHeader, EmptyState } from "@/components/shared";
-import { VirtualizedDataTable } from "@/components/ui/virtualized-data-table";
+import { DataTable } from "@/components/ui/data-table";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/lib/icons";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,7 +39,7 @@ import { orderMatchesFilters, type Order } from "./types";
 
 export function OrdersPage() {
   const navigate = useAppStore((s) => s.navigate);
-  const { openOrder, prefetchOrder, modal } = useOrderDetail();
+  const { openOrder, modal } = useOrderDetail();
   const filters = useOrdersFilters();
 
   const { orders, customers, products, isLoading, isError, refetch } =
@@ -101,29 +104,34 @@ export function OrdersPage() {
             </Button>
           </div>
         ) : (
-          <VirtualizedDataTable
-            columns={columns}
-            data={visibleOrders}
-            isLoading={isLoading}
-            onRowClick={(o) => openOrder(o.id)}
-            onRowHover={(o) => prefetchOrder(o.id)}
-            ariaLabel="جدول همه سفارشات"
-            emptyState={
-              <EmptyState
-                icon="orders"
-                title="سفارشی یافت نشد"
-                description="با فیلترهای فعلی سفارشی وجود ندارد."
-                action={
-                  <Button
-                    onClick={() => navigate("admin", "orders-new")}
-                    className="gap-2"
-                  >
-                    <Icon name="plus" size={16} /> ایجاد سفارش
-                  </Button>
-                }
-              />
-            }
-          />
+          <Card className="p-4">
+            <DataTable
+              columns={columns}
+              data={visibleOrders}
+              isLoading={isLoading}
+              pageSize={10}
+              showColumnToggle
+              // مرحله/تاریخ ساخت به‌طور پیش‌فرض مخفی — جدول در عرض صفحه جا
+              // می‌شود (بدون اسکرول افقی). از منوی «ستون‌ها» قابل بازگشتن‌اند.
+              defaultHidden={["stage", "createdAt"]}
+              onRowClick={(o) => openOrder(o.id)}
+              emptyState={
+                <EmptyState
+                  icon="orders"
+                  title="سفارشی یافت نشد"
+                  description="با فیلترهای فعلی سفارشی وجود ندارد."
+                  action={
+                    <Button
+                      onClick={() => navigate("admin", "orders-new")}
+                      className="gap-2"
+                    >
+                      <Icon name="plus" size={16} /> ایجاد سفارش
+                    </Button>
+                  }
+                />
+              }
+            />
+          </Card>
         )}
 
         <OrderNoteModal order={noteOrder} onClose={() => setNoteOrder(null)} />

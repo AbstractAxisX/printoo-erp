@@ -19,7 +19,7 @@ import { SuppliersPage } from "@/components/modules/admin/suppliers-page";
 import { ProductsPage } from "@/components/modules/admin/products-page";
 import { ArchivePage } from "@/components/modules/admin/archive-page";
 import { ExpenseTypesPage } from "@/components/modules/admin/expense-types-page";
-import { UsersPage } from "@/components/modules/admin/users-page";
+import { SettingsUsersGuard } from "@/components/modules/settings/settings-users-guard";
 
 // CRM pages
 import { CRMDashboard } from "@/components/modules/crm/crm-dashboard";
@@ -78,7 +78,13 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "products": return ProductsPage;
       case "expense-types": return ExpenseTypesPage;
       case "archive": return ArchivePage;
-      case "users": return UsersPage;
+      default: return null;
+    }
+  }
+  // ── تنظیمات سیستم (ادمین سراسری) — کاربران و نقش‌ها ──
+  if (moduleKey === "settings") {
+    switch (page) {
+      case "users": return SettingsUsersGuard;
       default: return null;
     }
   }

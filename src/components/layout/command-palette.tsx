@@ -2,15 +2,16 @@
 
 import * as React from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@/lib/icons";
-import { NAV } from "@/lib/nav";
+import { NAV, visibleModules } from "@/lib/nav";
 import { useAppStore } from "@/stores/app-store";
 
 export function CommandPalette() {
   const open = useAppStore((s) => s.commandOpen);
   const setOpen = useAppStore((s) => s.setCommandOpen);
   const navigate = useAppStore((s) => s.navigate);
+  const role = useAppStore((s) => s.user?.role);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -26,11 +27,13 @@ export function CommandPalette() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="overflow-hidden p-0 max-w-xl" showCloseButton={false}>
+        {/* عنوان برداشتن‌پذیر برای صفحه‌خوان‌ها — رفع هشدار a11yِ DialogContent بدون DialogTitle */}
+        <DialogTitle className="sr-only">پالت فرمان — جستجوی سریع صفحه‌ها</DialogTitle>
         <Command className="rounded-lg">
           <CommandInput placeholder="جستجوی صفحه یا ماژول..." />
           <CommandList className="max-h-[400px] scrollbar-thin">
             <CommandEmpty>نتیجه‌ای یافت نشد.</CommandEmpty>
-            {NAV.map((mod) => (
+            {visibleModules(role).map((mod) => (
               <CommandGroup key={mod.key} heading={mod.faLabel}>
                 {mod.groups.map((g) =>
                   g.items.map((item) => (

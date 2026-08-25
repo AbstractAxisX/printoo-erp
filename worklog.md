@@ -2510,3 +2510,26 @@ Work Log:
 Stage Summary:
 - هر ۴ شکایت کاربر عملیاتی رفع و در مرورگر verify شد + ۴ کامیت جداگانه push شد
 - برای تست keep-alive: جدول virtualized هنگام hidden→visible درست re-measure می‌کند (ResizeObserver)
+
+---
+Task ID: hotfix-round-3
+Agent: main (Z.ai Code)
+Task: رفع شکایات راند ۳ — اسکرول افقی جدول سفارشات + حذف پیجینیشن + flushSync + خطاهای ۵۰۰ API + انتقال کاربران/نقش‌ها به ماژول تنظیمات
+
+Work Log:
+- ریشه‌یابی خطاهای ۵۰۰: کوکی HMAC خودکفاست؛ بعد از ریست DB، کوکیِ امضاشده ولی کاربرِ حذف‌شده (cmss...) از auth رد می‌شد → تب stale کاربر با آی‌دی‌های مرده کار می‌کرد (assignedTo ناموجود → خطا). بازتولید با جعل کوکی ghost تأیید شد.
+- Fix 1 — auth.ts: requireUser() حالا ردیف user را در DB بازبینی می‌کند (وجود + status=active)؛ ghost → پاک‌سازی کوکی + 401 فارسی. پاسخ همیشه data تازه (تغییر نقش فوری اعمال می‌شود، نه ۷ روز بعد). /api/auth/me همین بازبینی را دارد.
+- Fix 2 — api.ts: در 401 غیر-auth با نشست فعال → logout + reload تمیز (رفع دیتای stale مرورگر؛ login-form استثنا تا ریدایرکت لوپ نشود).
+- Fix 3 — جدول همه سفارشات: VirtualizedDataTable حذف و DataTable عادی (همان الگوی سفارشات باز) + Card + pageSize=10 → پیجینیشن برگشت؛ هشدار flushSync (TanStack Virtual measureElement) با حذف virtualizer رفت.
+- Fix 4 — SidebarInset lacked min-w-0 (باگ شل، همه صفحات): آیتم flex با min-width:auto با جدول ۱۰ستونه به ۱۴۴px بزرگ می‌شد → کل صفحه اسکرول افقی RTL. min-w-0 اضافه شد (۱۴۰۰→۱۲۸۰). ستون‌های «مرحله/تاریخ ساخت» با prop جدید defaultHidden DataTable مخفی پیش‌فرض (بازگشت از منوی ستون‌ها) + دکمه‌های عملیات size-8→size-7 → جدول کامل در ۹۴۰px جا می‌شود، بدون هیچ اسکرولی.
+- Fix 5 — ماژول «تنظیمات سیستم» جدید (masterOnly) در NAV؛ گروه تنظیمات از ادمین داخلی حذف؛ visibleModules(role) در سایدبار + پالت فرمان؛ SettingsUsersGuard در module-router (لایه ۲)؛ API از قبل requireMaster دارد (لایه ۳).
+- Fix 6 — a11y: DialogTitle sr-only به پالت فرمان (رفع هشدار Radix).
+- augmentations: align به ColumnMeta در data-table.tsx منتقل شد (بعد از حذف virtualized-data-table.tsx).
+- راستی‌آزمایی curl: ghost cookie → 401 «نشست منقضی» + user:null؛ لاگین سالم → 200؛ POST task با assignee → 201.
+- راستی‌آزمایی مرورگر (agent-browser): صفحه سفارشات pageHScroll=false، tableOverflow=false، ۱۰ ردیف + «ردیف در صفحه» پیجینیشن، صفر خطای کنسول (flushSync و DialogTitle هر دو رفع)؛ ساخت تسک «تست نهایی مرورگر» با مسئول سارا → موفق؛ مودال سفارش #11 با ۶ تب و API 200؛ طراح (سارا) ماژول تنظیمات را در سایدبار و پالت نمی‌بیند؛ موبایل 375px و دسکتاپ 1920px بدون اسکرول افقی. سرور وسط کار توسط sandbox کشته شد → daemon دوباره بالا آمد با dev.log.
+- پاک‌سازی: تسک‌های تستی حذف شدند؛ lint: 0 error/1 warning قبلی؛ tsc: فقط خطاهای pre-existing.
+
+Stage Summary:
+- ۴ شکایت کاربر ریشه‌یابی و رفع شد: (۱) اسکرول افقی = باگ min-w-0 شل + عرض جدول — هر دو رفع؛ (۲) پیجینیشن برگشت (الگوی سفارشات باز)؛ (۳) flushSync رفت؛ (۴) خطاهای ۵۰۰ = نشست ghost — requireUser DB-verify + بونس فرانت‌اند؛ کاربر با هاردرفرش/لاگین مجدد دیتای تازه می‌گیرد.
+- «کاربران و نقش‌ها» اکنون ماژول «تنظیمات سیستم» مخصوص master است (سه لایه گارد: NAV filter + router guard + API).
+- VirtualizedDataTable حذف شد (مصرف‌کننده‌ای نبود)؛ DataTable با defaultHidden اختیاری.

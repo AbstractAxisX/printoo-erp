@@ -38,6 +38,7 @@ declare module "@tanstack/react-table" {
   interface ColumnMeta<TData, TValue> {
     hideable?: boolean;
     className?: string;
+    align?: "start" | "center" | "end";
   }
 }
 
@@ -54,6 +55,8 @@ type DataTableProps<TData, TValue> = {
   pageSizeOptions?: number[];
   showColumnToggle?: boolean;
   showPagination?: boolean;
+  /** شناسه ستون‌هایی که به‌صورت پیش‌فرض مخفی‌اند (با منوی «ستون‌ها» قابل بازگشتن) — برای جا شدن جدول در عرض صفحه بدون اسکرول افقی. */
+  defaultHidden?: string[];
   emptyState?: React.ReactNode;
   getRowCanExpand?: (row: TData) => boolean;
   renderExpandedRow?: (row: TData) => React.ReactNode;
@@ -76,6 +79,7 @@ export function DataTable<TData, TValue>({
   pageSizeOptions = [10, 20, 30, 50, 100],
   showColumnToggle = true,
   showPagination = true,
+  defaultHidden,
   emptyState,
   getRowCanExpand,
   renderExpandedRow,
@@ -85,7 +89,9 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+    () => Object.fromEntries((defaultHidden ?? []).map((id) => [id, false]))
+  );
   const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
@@ -175,11 +181,17 @@ export function DataTable<TData, TValue>({
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="bg-muted/40 hover:bg-muted/40">
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="h-10 text-xs font-semibold text-muted-foreground">
+                {hg.headers.map((header) => {
+                  const align = header.column.columnDef.meta?.align ?? "start";
+                  return (
+                  <TableHead key={header.id} className={cn(
+                    "h-10 text-xs font-semibold text-muted-foreground",
+                    align === "center" && "text-center",
+                    align === "end" && "text-end"
+                  )}>
                     {header.isPlaceholder ? null : (
                       <div
-                        className={cn("flex items-center gap-1", header.column.getCanSort() && "cursor-pointer select-none hover:text-foreground transition")}
+                        className={cn("flex items-center gap-1", align === "center" && "justify-center", align === "end" && "justify-end", header.column.getCanSort() && "cursor-pointer select-none hover:text-foreground transition")}
                         onClick={header.column.getCanSort() ? () => header.column.toggleSorting(header.column.getIsSorted() === "asc") : undefined}
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
@@ -189,7 +201,8 @@ export function DataTable<TData, TValue>({
                       </div>
                     )}
                   </TableHead>
-                ))}
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>

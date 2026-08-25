@@ -11,7 +11,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { Icon } from "@/lib/icons";
-import { NAV, findModule, type ModuleKey } from "@/lib/nav";
+import { NAV, findModule, visibleModules, type ModuleKey } from "@/lib/nav";
 import { COMPANY } from "@/lib/constants";
 import { useAppStore } from "@/stores/app-store";
 import { TreeModule } from "./sidebar-tree-module";
@@ -44,6 +44,7 @@ export function AppSidebar() {
   const moduleKey = useAppStore((s) => s.module) as ModuleKey;
   const page = useAppStore((s) => s.page);
   const navigate = useAppStore((s) => s.navigate);
+  const user = useAppStore((s) => s.user);
   const mod = findModule(moduleKey);
 
   return (
@@ -66,10 +67,11 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-thin">
-        {/* درخت ناوبری: هر ماژول یک TreeModule (کشوی سطح بالا) */}
+        {/* درخت ناوبری: هر ماژول یک TreeModule (کشوی سطح بالا) —
+            ماژول‌های masterOnly (تنظیمات سیستم) فقط برای ادمین سراسری */}
         <SidebarGroup className="px-1">
           <SidebarMenu>
-            {NAV.map((m) => {
+            {visibleModules(user?.role).map((m) => {
               const isActiveModule = m.key === moduleKey;
               return (
                 <TreeModule
