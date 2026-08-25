@@ -37,7 +37,7 @@
 | **1.5 (baseline)** | Run setup + baseline security | middleware.ts, auth.ts, login/route.ts, seed.ts, .env | R26 (partial) | ✅ done |
 | **2** | Rebuild Order Detail Modal (tabbed, lazy, skeleton) | order-detail-modal.tsx, order-detail-tabs.tsx, use-order-detail.tsx | R5, R22, scenario-2 | ✅ done |
 | **3** | All Orders + Open Orders (virtualization, pro filters) | data-table.tsx, orders-page.tsx, open-orders.tsx, shared/search-combobox.tsx, shared/filter-toggle.tsx, api/orders/route.ts, api/orders/[id]/route.ts | R13, R14, R21, R4 (orders), R26 (orders) | ✅ done |
-| **4** | Tasks + cross-panel assignment logic | tasks-page.tsx, api/tasks/route.ts, api/tasks/[id]/route.ts | R9, R10, R12, R3(n/a), scenario-3 | ⏳ pending |
+| **4** | Tasks + cross-panel assignment logic | tasks-page.tsx, api/tasks/route.ts, api/tasks/[id]/route.ts, lib/task-validation.ts [new], api/users/route.ts [new], order-detail-tabs.tsx (TasksTab), schema.prisma (FK), lib/constants.ts (USER_ROLE), lib/icons.tsx (search) | R9, R10, R12, R26 (tasks), scenario-3 | ✅ done |
 | **5** | Rebuild shared Calendar + Gantt | reusable-gantt.tsx, reusable-calendar.tsx, day-detail-modal.tsx | R8, R15, R16, R17, R23, R24 | ⏳ pending |
 | **6** | Dashboard optimization + New Order wizard fixes | kpi-cards.tsx, dashboard-sections.tsx, order-wizard.tsx | R1, R2, R6, R7, R11, R18-20, R25, R3, R4 | ⏳ pending |
 
@@ -179,7 +179,7 @@ model Attendance {
 - `POST /api/orders`: `{customers[], itemsByCustomer{}, splitMode, priority, endDate?, noEndDate?, note?, moduleDates?, preInvoice?, invoice?, markCompleted?}`
 - `PUT /api/orders/[id]`: `{note?, endDate?, noEndDate?, priority?, totalAmount?, status?, customerId?, splitMode?, items?, moduleDates?}` ← Phase 6 must ADD preInvoice/invoice editing (via separate `/api/pre-invoices` POST/PUT, NOT by bloating this route).
 - `POST /api/tasks`: `{title, description?, priority?, dueDate?, module?, orderId?, customerId?, assignedTo?}`
-- `PUT /api/tasks/[id]`: `{title?, description?, status?, priority?, module?, dueDate?}` ← Phase 4 must ADD `assignedTo` handling (currently dropped — R9).
+- `PUT /api/tasks/[id]`: `{title?, description?, status?, priority?, module?, dueDate?, assignedTo?}` ← Phase 4 ADDED `assignedTo` (R9 fixed: null=unassign, userId=validated-against-active-users).
 - `GET /api/tasks?module=X`: the `module` filter contract — designer-tasks:36, print-tasks:50 depend on it.
 
 ### 5.2 Enums (do NOT change values)
@@ -222,10 +222,10 @@ model Attendance {
 | R6 | 🟠 | Dashboard 12× redundant /api/dashboard calls on mount + staleTime:0 | kpi-cards.tsx:117-122 | 6 |
 | R7 | 🟠 | `["customers-list"]`/`["products-list"]` not invalidated after inline create | order-wizard.tsx:538-539,697-698 | 6 |
 | R8 | 🟠 | Task click in calendar orphan (only order handled) | calendar-page.tsx:119-121 | 5 |
-| R9 | 🟠 | `assignedTo` dead column (no FK, no UI, no validation) | schema:253; api/tasks/[id]:11-26 | **4** |
-| R10 | 🟠 | Admin tasks-page missing `["dashboard"]` invalidation | tasks-page.tsx:196,256,267,297,309 | **4** |
+| R9 | 🟠 | `assignedTo` dead column (no FK, no UI, no validation) | schema:253; api/tasks/[id]:11-26 | **4** ✅ FK wired (TaskAssignee relation) + assignee UI (picker/chip/filter) + server validation (active users only) |
+| R10 | 🟠 | Admin tasks-page missing `["dashboard"]` invalidation | tasks-page.tsx:196,256,267,297,309 | **4** ✅ all mutations now invalidate [tasks, dashboard, order] |
 | R11 | 🟠 | Wrong query-key shape `["tasks-calendar"]`/`["dashboard-tasks"]` | calendar-page.tsx:81; dashboard-sections.tsx:85 | 5,6 |
-| R12 | 🟠 | No server-side enum validation on module/status/priority/assignedTo | api/tasks/route.ts:21-33; [id]:21-23 | **4** |
+| R12 | 🟠 | No server-side enum validation on module/status/priority/assignedTo | api/tasks/route.ts:21-33; [id]:21-23 | **4** ✅ lib/task-validation.ts — Persian 400s; typoed module can no longer orphan a task |
 | R13 | 🟠 | DataTable: single click fires BOTH expand AND onRowClick | data-table.tsx:108,216-221 | **3** ✅ |
 | R14 | 🟠 | DataTable `totalCount` prop silently dropped | data-table.tsx:63,256 | **3** ✅ |
 | R15 | 🟡 | Gantt no virtualization (100+ bars rendered) | reusable-gantt.tsx:158-163,206-261 | 5 |
@@ -287,6 +287,7 @@ model Attendance {
 
 ## 10. Change log
 
+- **Phase 4**: ✅ DONE — Tasks + cross-panel assignment. 8 files (schema.prisma, api/users/route.ts [new], lib/task-validation.ts [new], api/tasks/route.ts, api/tasks/[id]/route.ts, tasks-page.tsx, order-detail-tabs.tsx TasksTab, lib/constants.ts + icons.tsx). Fixed R9 (assignedTo FK → User + full assignment UI: picker/chip/header-filter + PUT handling + active-user validation), R10 (mutations invalidate [tasks, dashboard, order]), R12 (server enum fences in lib/task-validation.ts — Persian 400s, no more orphaned tasks), R26 partial (requireUser on tasks + users routes, 404 fences). Scenario-3 delivered: order-modal TasksTab quick-create (orderId pre-linked + smart module default by order status + assignee) — ارجاع زیر ۵ ثانیه بدون خروج از مودال. NEW /api/users (active-only, password never selected). Seed: 4 demo employees + idempotency fix (orders/notifications no longer duplicated on re-run). icons: "search" registered (was imported but unmapped — invisible icon + 7 TS errors). API GET /api/tasks gains ?assignedTo= & ?orderId= filters; responses now include task.assignedUser (additive).
 - **Phase 3**: ✅ DONE — All Orders + Open Orders rebuild. 7 files touched (data-table.tsx, orders-page.tsx, open-orders.tsx, shared/search-combobox.tsx [new], shared/filter-toggle.tsx [new], api/orders/route.ts, api/orders/[id]/route.ts). Fixed R13 (row click no longer double-fires expand), R14 (totalCount wired), R21 (SearchCombobox/FilterToggle extracted to shared), R4 (orders POST/PUT/DELETE wrapped in `$transaction`), R26 partial (requireUser on 4 order routes). Server-side filters: status[], priority[], stage[], dateFrom, dateTo, q — previously client-side. Virtualization opt-in via `enableVirtualization` (threshold 200 rows) — backward-compatible (all 18 call-sites untouched).
 - **Phase 1.5**: ✅ DONE — baseline security (bcrypt + HMAC-signed session + proxy.ts route-guard) + run setup (printoo-erp synced to sandbox, seeded, dev server persistent on :3000).
 - **Phase 1**: full ecosystem analysis delivered; 26 bugs catalogued; contracts documented.
