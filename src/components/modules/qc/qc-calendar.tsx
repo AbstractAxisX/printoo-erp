@@ -57,7 +57,10 @@ function toReportEvents(reports: QcReport[]): CalendarEvent[] {
       startDate: r.createdAt,
       endDate: r.createdAt,
       color,
-      type: "order",
+      // R23: was `type: "order"` with `meta: { reportId }` — a mismatch
+      // that surfaced as a type error under the discriminated union.
+      // Now correctly typed as a ReportEvent.
+      type: "report",
       meta: { reportId: r.id },
     };
   });
@@ -115,8 +118,9 @@ export function QcCalendar() {
   ];
 
   function handleEventClick(e: CalendarEvent) {
-    if (e.meta?.reportId) {
-      openReport(e.meta.reportId as string);
+    // R23: discriminated union narrows meta safely — no more `as string`.
+    if (e.type === "report") {
+      openReport(e.meta.reportId);
     }
   }
 
@@ -215,9 +219,9 @@ export function QcCalendar() {
         open={!!dayModal}
         onOpenChange={(v) => !v && setDayModal(null)}
         onEventClick={(e) => {
-          if (e.meta?.reportId) {
+          if (e.type === "report") {
             setDayModal(null);
-            openReport(e.meta.reportId as string);
+            openReport(e.meta.reportId);
           }
         }}
       />

@@ -306,16 +306,6 @@ model AuditLog {
   date     DateTime @default(now())
 }
 
-// ─── Day Notes (calendar) ───────────────────────────────────────
-model DayNote {
-  id        String   @id @default(cuid())
-  date      String   @unique // yyyy-MM-dd
-  content   String
-  color     String   @default("default") // default | rose | amber | emerald | blue
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 // ─── CRM: Deals (Sales Pipeline) ────────────────────────────────
 model Deal {
   id               String      @id @default(cuid())

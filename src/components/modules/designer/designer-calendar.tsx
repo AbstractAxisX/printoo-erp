@@ -10,6 +10,7 @@ import { DayDetailModal } from "@/components/shared/day-detail-modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Icon } from "@/lib/icons";
 import { useDesignerOrderDetail } from "@/lib/use-designer-order-detail";
+import { useAppStore } from "@/stores/app-store";
 
 // ─── Types ────────────────────────────────────────────────────────────
 type DesignerOrder = {
@@ -69,13 +70,14 @@ function toTaskEvents(tasks: Task[]): CalendarEvent[] {
       endDate: t.dueDate!,
       color: (t.priority === "urgent" ? "red" : "green") as CalendarEvent["color"],
       type: "task" as const,
-      meta: { taskId: t.id },
+      meta: { taskId: t.id, module: t.module },
     }));
 }
 
 // ─── Component ────────────────────────────────────────────────────────
 export function DesignerCalendar() {
   const { openOrder, modal } = useDesignerOrderDetail();
+  const navigate = useAppStore((s) => s.navigate);
   const [dayModal, setDayModal] = React.useState<{
     date: Date;
     events: CalendarEvent[];
@@ -141,10 +143,14 @@ export function DesignerCalendar() {
     },
   ];
 
-  // Click handler: if it's an order, open the designer modal
+  // Click handler: if it's an order, open the designer modal;
+  // R8: if it's a task, route to the owning panel's tasks board
+  // (the task's `module` field tells us which panel owns it).
   function handleEventClick(e: CalendarEvent) {
-    if (e.type === "order" && e.meta?.orderId) {
-      openOrder(e.meta.orderId as string);
+    if (e.type === "order") {
+      openOrder(e.meta.orderId);
+    } else if (e.type === "task") {
+      navigate(e.meta.module, "tasks");
     }
   }
 
@@ -195,9 +201,12 @@ export function DesignerCalendar() {
         open={!!dayModal}
         onOpenChange={(v) => !v && setDayModal(null)}
         onEventClick={(e) => {
-          if (e.type === "order" && e.meta?.orderId) {
+          if (e.type === "order") {
             setDayModal(null);
-            openOrder(e.meta.orderId as string);
+            openOrder(e.meta.orderId);
+          } else if (e.type === "task") {
+            setDayModal(null);
+            navigate(e.meta.module, "tasks");
           }
         }}
       />

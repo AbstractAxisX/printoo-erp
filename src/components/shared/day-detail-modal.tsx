@@ -32,13 +32,18 @@ function diffDays(end: string | Date, ref: Date): number {
 }
 
 export function DayDetailModal({ date, events, open, onOpenChange, onEventClick }: DayDetailModalProps) {
-  const [tab, setTab] = React.useState<"overview" | "orders" | "tasks">("overview");
+  const [tab, setTab] = React.useState<"overview" | "orders" | "tasks" | "reports">("overview");
 
   // Reset to overview when opening
   React.useEffect(() => { if (open) setTab("overview"); }, [open, date]);
 
   const orders = events.filter((e) => e.type === "order");
   const tasks = events.filter((e) => e.type === "task");
+  // R23: reports are now a first-class event type (previously QC reports
+  // were mislabeled `type: "order"` with a `reportId` meta — that broke
+  // under the discriminated union). The reports tab is conditionally
+  // shown only when this day actually has report events (e.g. QC calendar).
+  const reports = events.filter((e) => e.type === "report");
   const urgentOrders = orders.filter((e) => e.color === "yellow");
   const urgentTasks = tasks.filter((e) => e.color === "red");
   const normalOrders = orders.filter((e) => e.color === "blue");
@@ -91,6 +96,8 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
               { id: "overview", label: "نمای کلی", icon: "dashboard" as const },
               { id: "orders", label: `سفارشات (${orders.length})`, icon: "orders" as const },
               { id: "tasks", label: `تسک‌ها (${tasks.length})`, icon: "task" as const },
+              // R23: reports tab — only shown when this day has report events.
+              ...(reports.length > 0 ? [{ id: "reports" as const, label: `گزارش‌ها (${reports.length})`, icon: "shield" as const }] : []),
             ] as const).map((t) => (
               <button
                 key={t.id}
@@ -162,14 +169,14 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
               {events.length > 0 && (
                 <div className="rounded-lg border p-3">
                   <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <Icon name="list" size={13} /> رویدادهای این روز
+                    <Icon name="checkList" size={13} /> رویدادهای این روز
                   </div>
                   <div className="space-y-1">
                     {events.slice(0, 5).map((e) => {
                       const daysLeft = diffDays(e.endDate, new Date());
                       return (
                         <div key={e.id} className="flex items-center gap-2 text-xs py-1">
-                          <span className={cn("size-2 rounded-full shrink-0", `bg-${e.color === "yellow" ? "amber" : e.color === "blue" ? "blue" : e.color === "green" ? "emerald" : "rose"}-500`)} />
+                          <span className={cn("size-2 rounded-full shrink-0", DOT_BG[e.color])} />
                           <span className="flex-1 truncate font-medium">{e.fullTitle}</span>
                           <span className="text-muted-foreground shrink-0">
                             {Number.isNaN(daysLeft) ? "—" : daysLeft > 0 ? `${daysLeft}روز` : daysLeft === 0 ? "امروز" : `${Math.abs(daysLeft)}روز گذشته`}
@@ -200,6 +207,11 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
           {tab === "tasks" && (
             <EventList events={tasks} onEventClick={onEventClick} emptyMessage="تسکی در این روز نیست" />
           )}
+
+          {/* REPORTS TAB — R23: shown only when this day has report events */}
+          {tab === "reports" && (
+            <EventList events={reports} onEventClick={onEventClick} emptyMessage="گزارشی در این روز نیست" />
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -226,6 +238,20 @@ function MiniStat({ label, value, color }: { label: string; value: number; color
     </div>
   );
 }
+
+// ─── R17: static color-dot map ────────────────────────────────────
+// The previous `bg-${e.color === "yellow" ? "amber" : ...}-500` was a
+// runtime-constructed Tailwind class — Tailwind's content scanner can't
+// see template-literal-built class names, so `bg-amber-500` etc. were
+// missing from the production CSS bundle and the dot rendered with no
+// background. A static lookup (same pattern as the existing `colorBg`
+// and `colorText` maps below) is the fix.
+const DOT_BG: Record<CalendarEvent["color"], string> = {
+  blue: "bg-blue-500",
+  yellow: "bg-amber-500",
+  green: "bg-emerald-500",
+  red: "bg-rose-500",
+};
 
 function EventList({ events, onEventClick, emptyMessage }: { events: CalendarEvent[]; onEventClick?: (e: CalendarEvent) => void; emptyMessage: string }) {
   if (events.length === 0) {

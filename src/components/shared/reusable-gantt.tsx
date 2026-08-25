@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { addDays, differenceInCalendarDays, format, parseISO, isSameDay, startOfWeek, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
+import { addDays, differenceInCalendarDays, format, parseISO, isSameDay } from "date-fns";
 import type { CalendarEvent } from "./reusable-calendar";
 
 type ReusableGanttProps = {
@@ -36,12 +37,23 @@ function safeDate(d: string | Date): Date | null {
 
 type ValidEvent = CalendarEvent & { _start: Date; _end: Date; _duration: number };
 
+const ROW_HEIGHT = 48; // h-12 — both left label row and right bar row
+const HEADER_HEIGHT = 56; // h-14 sticky date header
+
 export function ReusableGantt({ events, onEventClick, className, title, emptyMessage = "رویدادی برای نمایش نیست", filters }: ReusableGanttProps) {
   const [viewMode, setViewMode] = React.useState<"day" | "week" | "month">("day");
   const [viewStart, setViewStart] = React.useState(() => {
     const now = new Date();
     return addDays(now, -7); // start 7 days ago
   });
+
+  // R15+R16: refs drive the virtualizer AND the bidirectional scroll-sync.
+  // The previous SyncScroll component queried a CSS class NOTHING had —
+  // it was a complete no-op. Now both panels carry refs, the left panel
+  // is the virtualizer's scroll parent, and a single scroll listener
+  // mirrors scrollTop to the right panel (and vice-versa).
+  const leftRef = React.useRef<HTMLDivElement>(null);
+  const rightRef = React.useRef<HTMLDivElement>(null);
 
   // Filter and validate events
   const validEvents: ValidEvent[] = React.useMemo(() => {
@@ -57,11 +69,16 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
       .sort((a, b) => a._start.getTime() - b._start.getTime());
   }, [events]);
 
-  const eventMap = React.useMemo(() => {
-    const m = new Map<string, CalendarEvent>();
-    for (const e of events) m.set(e.id, e);
-    return m;
-  }, [events]);
+  // ─── R15: virtualize the rows ──────────────────────────────────────
+  // The left panel is the scroll parent; the virtualizer windows rows
+  // so 100+ events only render ~10-15 DOM nodes (overscan=8 each side).
+  // The right panel mirrors the same virtual window via scroll-sync.
+  const rowVirtualizer = useVirtualizer({
+    count: validEvents.length,
+    getScrollElement: () => leftRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 8,
+  });
 
   if (validEvents.length === 0) {
     return (
@@ -90,6 +107,23 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
     const step = viewMode === "day" ? 7 : viewMode === "week" ? 14 : 30;
     setViewStart((d) => addDays(d, dir === "next" ? step : -step));
   }
+
+  // R16: bidirectional scroll-sync. When left scrolls, mirror to right;
+  // when right scrolls, mirror to left. Plain function (not useCallback)
+  // because it reads stable refs only — and it's used as a DOM onScroll
+  // handler, so React doesn't need a stable identity for effect deps.
+  function onScrollSync(source: "left" | "right") {
+    const left = leftRef.current;
+    const right = rightRef.current;
+    if (!left || !right) return;
+    const from = source === "left" ? left : right;
+    const to = source === "left" ? right : left;
+    if (from.scrollTop === to.scrollTop) return;
+    to.scrollTop = from.scrollTop;
+  }
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const totalHeight = rowVirtualizer.getTotalSize();
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -148,25 +182,44 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
           </div>
         </div>
 
-        {/* Gantt body */}
-        <div className="flex overflow-hidden" style={{ maxHeight: "500px" }}>
-          {/* Left panel — task names */}
-          <div className="shrink-0 border-l bg-muted/20 overflow-y-auto scrollbar-thin" style={{ width: leftPanelWidth }}>
-            <div className="h-14 border-b px-3 flex items-center text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/30 z-10">
-              نام رویداد
+        {/* Gantt body — single outer row, two scroll panels synced */}
+        <div className="flex overflow-hidden" style={{ maxHeight: 500 }}>
+          {/* Left panel — task names (virtualized; drives the virtualizer) */}
+          <div
+            ref={leftRef}
+            onScroll={() => onScrollSync("left")}
+            className="shrink-0 border-l bg-muted/20 overflow-y-auto scrollbar-thin"
+            style={{ width: leftPanelWidth }}
+          >
+            {/* Sticky date-header spacer to align with the right panel's header */}
+            <div className="border-b bg-muted/30 sticky top-0 z-10" style={{ height: HEADER_HEIGHT }} />
+            {/* Virtualized rows container */}
+            <div style={{ height: totalHeight, position: "relative" }}>
+              {virtualItems.map((vi) => {
+                const e = validEvents[vi.index];
+                return (
+                  <div
+                    key={e.id}
+                    className="absolute left-0 right-0 border-b px-3 flex items-center gap-2 hover:bg-accent/40 transition cursor-pointer"
+                    style={{ top: vi.start, height: vi.size }}
+                    onClick={() => onEventClick?.(e)}
+                  >
+                    <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: BAR_COLORS[e.color].bg }} />
+                    <span className="text-xs truncate flex-1">{e.fullTitle}</span>
+                  </div>
+                );
+              })}
             </div>
-            {validEvents.map((e) => (
-              <div key={e.id} className="h-12 border-b px-3 flex items-center gap-2 hover:bg-accent/40 transition cursor-pointer" onClick={() => onEventClick?.(eventMap.get(e.id) ?? e)}>
-                <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: BAR_COLORS[e.color].bg }} />
-                <span className="text-xs truncate flex-1">{e.fullTitle}</span>
-              </div>
-            ))}
           </div>
 
-          {/* Right panel — timeline */}
-          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-thin">
-            {/* Date header */}
-            <div className="flex h-14 border-b bg-muted/30 sticky top-0 z-10" style={{ width: timelineWidth, minWidth: "100%" }}>
+          {/* Right panel — timeline (virtualized; mirrors left scroll) */}
+          <div
+            ref={rightRef}
+            onScroll={() => onScrollSync("right")}
+            className="flex-1 min-w-0 overflow-x-auto scrollbar-thin"
+          >
+            {/* Date header — horizontally scrollable with the bars; sticky top */}
+            <div className="flex border-b bg-muted/30 sticky top-0 z-10" style={{ width: timelineWidth, minWidth: "100%", height: HEADER_HEIGHT }}>
               {days.map((d, i) => {
                 const isToday = isSameDay(d, new Date());
                 const isFriday = d.getDay() === 5;
@@ -184,9 +237,9 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
               })}
             </div>
 
-            {/* Bars area */}
-            <div className="relative" style={{ width: timelineWidth, minWidth: "100%" }}>
-              {/* Vertical gridlines */}
+            {/* Bars area — also horizontally scrollable; virtualized vertically */}
+            <div className="relative" style={{ width: timelineWidth, minWidth: "100%", height: totalHeight }}>
+              {/* Vertical gridlines (one per day column) */}
               {days.map((d, i) => (
                 <div
                   key={i}
@@ -202,12 +255,13 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
                 </div>
               )}
 
-              {/* Bars */}
-              {validEvents.map((e, idx) => {
+              {/* Virtualized bars (same window as left panel) */}
+              {virtualItems.map((vi) => {
+                const e = validEvents[vi.index];
                 const startOffset = differenceInCalendarDays(e._start, viewStart);
-                // Skip if completely out of view
+                // Skip rendering the bar if completely out of view (still reserve the row space)
                 if (startOffset + e._duration < 0 || startOffset > daysToShow) {
-                  return <div key={e.id} className="h-12 border-b" />;
+                  return null; // R15: was an empty <div> — now skipped entirely (virtualizer already reserves the space)
                 }
                 const clampedStart = Math.max(0, startOffset);
                 const clampedEnd = Math.min(daysToShow, startOffset + e._duration);
@@ -217,11 +271,11 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
                 const daysLeft = differenceInCalendarDays(e._end, new Date());
 
                 return (
-                  <div key={e.id} className="h-12 border-b relative">
+                  <div key={e.id} className="absolute left-0 right-0 border-b" style={{ top: vi.start, height: vi.size }}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
-                          onClick={() => onEventClick?.(eventMap.get(e.id) ?? e)}
+                          onClick={() => onEventClick?.(e)}
                           className="absolute top-1.5 h-9 rounded-full flex items-center justify-between px-3 cursor-pointer transition-all hover:shadow-md group"
                           style={{
                             left: left + 2,
@@ -235,6 +289,7 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
                           <span className="text-xs font-bold truncate flex items-center gap-1.5">
                             {e.type === "order" && <Icon name="orders" size={11} />}
                             {e.type === "task" && <Icon name="task" size={11} />}
+                            {e.type === "report" && <Icon name="alertTriangle" size={11} />}
                             <span className="truncate">{e.title}</span>
                           </span>
                           {/* Right: days remaining or duration */}
@@ -262,26 +317,7 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
             </div>
           </div>
         </div>
-
-        {/* Sync scroll: left panel + timeline scroll together */}
-        <SyncScroll />
       </div>
     </TooltipProvider>
   );
-}
-
-// Helper to sync scroll between left panel and timeline
-function SyncScroll() {
-  React.useEffect(() => {
-    const containers = document.querySelectorAll(".gantt-scroll-sync");
-    const handler = (e: Event) => {
-      const target = e.currentTarget as HTMLElement;
-      containers.forEach((c) => {
-        if (c !== target) c.scrollTop = target.scrollTop;
-      });
-    };
-    containers.forEach((c) => c.addEventListener("scroll", handler));
-    return () => containers.forEach((c) => c.removeEventListener("scroll", handler));
-  }, []);
-  return null;
 }

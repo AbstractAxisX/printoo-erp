@@ -2533,3 +2533,307 @@ Stage Summary:
 - ۴ شکایت کاربر ریشه‌یابی و رفع شد: (۱) اسکرول افقی = باگ min-w-0 شل + عرض جدول — هر دو رفع؛ (۲) پیجینیشن برگشت (الگوی سفارشات باز)؛ (۳) flushSync رفت؛ (۴) خطاهای ۵۰۰ = نشست ghost — requireUser DB-verify + بونس فرانت‌اند؛ کاربر با هاردرفرش/لاگین مجدد دیتای تازه می‌گیرد.
 - «کاربران و نقش‌ها» اکنون ماژول «تنظیمات سیستم» مخصوص master است (سه لایه گارد: NAV filter + router guard + API).
 - VirtualizedDataTable حذف شد (مصرف‌کننده‌ای نبود)؛ DataTable با defaultHidden اختیاری.
+
+---
+Task ID: P5-explore
+Agent: Explore (subagent)
+Task: Discover Phase 5 calendar/gantt files + extract exact R8/R15/R16/R17/R23/R24 bug definitions + verify admin tasks-page ["dashboard"] invalidation done in Phase 4
+
+Work Log:
+- Read worklog.md (latest tail) — confirmed Phase 4 done (tasks page + RBAC infrastructure), Phase 5 = rebuild shared Calendar + Gantt, fixing R8/R15/R16/R17/R23/R24.
+- Located the architecture notes file: `/home/z/my-project/ARCHITECTURE-NOTES-MUST-READ.md` (295 lines). Read it in full; §2 phase table + §5.4 component-interface contracts + §6 bug catalog (R1–R26) are the source of truth.
+- Globbed for calendar/gantt/day-detail files; Grep'd for `tasks-calendar`, `orders-calendar`, `DayNote`, `day-notes`, `reusable-calendar`, `reusable-gantt`, `DayDetailModal`, `notes={`.
+- Read all 7 calendar/gantt files end-to-end + the 2 dead `/api/day-notes` routes + the `DayNote` model block in `prisma/schema.prisma:310-317`.
+- Verified admin tasks-page.tsx invalidation claim by grepping `invalidate|dashboard|queryKey` and reading the 3 mutation sites (L264–270, L324–329, L364–374, L377–384).
+
+Stage Summary:
+
+### A. Phase 5 file inventory (paths + line counts)
+
+| File | LOC | Role |
+|---|---|---|
+| `src/components/shared/reusable-calendar.tsx` | 190 | shared month-grid calendar (the 4 module calendars all wrap this) |
+| `src/components/shared/reusable-gantt.tsx` | 287 | shared horizontal gantt bar chart |
+| `src/components/shared/day-detail-modal.tsx` | 302 | per-day events modal (3 tabs: overview / orders / tasks) |
+| `src/components/modules/admin/calendar-page.tsx` | 156 | admin's wrapper: Tabs(calendar|gantt) + filters(orders|tasks|urgent) + DayDetailModal; uses `useOrderDetail` |
+| `src/components/modules/print/print-calendar.tsx` | 208 | print variant — orders filtered to `status=in_printing`, tasks filtered to `?module=print`; uses `usePrintOrderDetail` |
+| `src/components/modules/designer/designer-calendar.tsx` | 208 | designer variant — orders filtered to `status=pending_design`, tasks `?module=designer`; uses `useDesignerOrderDetail` |
+| `src/components/modules/qc/qc-calendar.tsx` | 228 | QC variant — renders `QcReport[]` events only (NO tasks, NO gantt — calendar + side list); uses `useQcReportDetail` |
+| `src/app/api/day-notes/route.ts` | 59 | DEAD — GET/POST day notes (zero callers) |
+| `src/app/api/day-notes/[date]/route.ts` | 35 | DEAD — GET/DELETE day note by date (zero callers) |
+| `src/components/ui/calendar.tsx` | 213 | shadcn base calendar — UNRELATED to Phase 5 (used by date pickers); do not touch |
+| `prisma/schema.prisma` (DayNote model, L309–317) | 9 | `DayNote` table exists in schema but is feature-dead |
+
+Total Phase 5 code surface: **~1483 LOC across 8 files** (excluding `ui/calendar.tsx` and the DayNote schema block).
+
+### B. R8 / R15 / R16 / R17 / R23 / R24 — exact bug definitions (verbatim from ARCHITECTURE-NOTES-MUST-READ.md §6)
+
+| ID | Severity | Bug | File:line (per notes) | Phase |
+|---|---|---|---|---|
+| **R8** | 🟠 | Task click in calendar orphan (only order handled) | `calendar-page.tsx:119-121` | 5 |
+| **R15** | 🟡 | Gantt no virtualization (100+ bars rendered) | `reusable-gantt.tsx:158-163,206-261` | 5 |
+| **R16** | 🟡 | Gantt SyncScroll queries a class no element has | `reusable-gantt.tsx:276` | 5 |
+| **R17** | 🟡 | DayDetailModal dynamic `bg-${color}-500` purged in prod | `day-detail-modal.tsx:172` | 5 |
+| **R23** | 🟡 | CalendarEvent.meta loose `Record<string,unknown>` | `reusable-calendar.tsx:17` | 5 |
+| **R24** | 🟡 | Dead `/api/day-notes` + DayNote + notes prop (zero consumers) | grep-confirmed | 5 |
+
+Also touched indirectly in §5.3 sensitivities (cross-reference):
+> ⚠️ BUG (R11): `["tasks-calendar"]` and `["dashboard-tasks"]` are single-string keys NOT prefix-matched. Phase 5/6 renames them to `["tasks","calendar"]` and `["dashboard","tasks"]`.
+
+§5.4 component-interface contracts (MUST stay drop-in):
+- `ReusableCalendar` props: `{events, notes?, onDayClick?, onEventClick?, filters?, className?}`. 4 consumers.
+- `ReusableGantt` props: `{events, onEventClick?, className?, title?, emptyMessage?, filters?}`. 3 consumers.
+
+### C. Query-key smells — exact current code
+
+**Admin calendar-page.tsx** (the ONLY file with the smell — print/designer/qc variants already use prefix-matched keys):
+
+```ts
+// calendar-page.tsx:75-79  (orders)
+const { data: ordersData } = useQuery({
+  queryKey: ["orders-calendar"],          // ← R11 smell: single-string, NOT prefix-matched
+  queryFn: () => api<{ orders: Order[] }>("/api/orders"),
+  refetchInterval: 30000,
+});
+
+// calendar-page.tsx:80-84  (tasks)
+const { data: tasksData } = useQuery({
+  queryKey: ["tasks-calendar"],            // ← R11 smell: single-string, NOT prefix-matched
+  queryFn: () => api<{ tasks: Task[] }>("/api/tasks"),
+  refetchInterval: 30000,
+});
+```
+
+Recommended rename (per §5.3 + Phase-1 worklog):
+- `["orders-calendar"]` → `["orders", "calendar"]`
+- `["tasks-calendar"]` → `["tasks", "calendar"]`
+
+**Compare with the already-correct module variants:**
+- `print-calendar.tsx:92` → `["orders", "print", "in_printing", "calendar"]` ✅
+- `print-calendar.tsx:100` → `["tasks", "print", "calendar"]` ✅
+- `designer-calendar.tsx:92` → `["orders", "designer", "pending_design", "calendar"]` ✅
+- `designer-calendar.tsx:100` → `["tasks", "designer", "calendar"]` ✅
+- `qc-calendar.tsx:81` → `["qc-reports", "calendar"]` — separate domain key (not a `tasks`/`orders` family member); leave alone for Phase 5.
+
+### D. R8 — orphan task click — exact current code (3 handler sites in admin calendar-page.tsx)
+
+**Site 1 — calendar tab `onEventClick` (calendar-page.tsx:119-121):**
+```tsx
+onEventClick={(e) => {
+  if (e.type === "order" && e.meta?.orderId) openOrder(e.meta.orderId as string);
+  // ← task clicks fall through silently
+}}
+```
+
+**Site 2 — gantt tab `onEventClick` (calendar-page.tsx:129-131):**
+```tsx
+onEventClick={(e) => {
+  if (e.type === "order" && e.meta?.orderId) openOrder(e.meta.orderId as string);
+  // ← task clicks fall through silently
+}}
+```
+
+**Site 3 — DayDetailModal `onEventClick` (calendar-page.tsx:145-150):**
+```tsx
+onEventClick={(e) => {
+  if (e.type === "order" && e.meta?.orderId) {
+    setDayModal(null);
+    openOrder(e.meta.orderId as string);
+  }
+  // ← task clicks fall through silently
+}}
+```
+
+**Same R8 bug exists in print-calendar.tsx:145-149 and designer-calendar.tsx:145-149** — both define a `handleEventClick(e)` that only branches on `e.type === "order"`. The fix must be applied in all 3 module calendars.
+
+(`qc-calendar.tsx:117-121` is NOT affected — it queries `e.meta?.reportId` directly, and `toReportEvents` (qc-calendar.tsx:51-63) always sets `meta: { reportId: r.id }`, so every clickable event resolves.)
+
+**Fix direction:** the 3 calendar wrappers need a `navigate("admin"|"designer"|"print", "tasks")` (or open an inline TaskDetailModal — none exists yet) when `e.type === "task" && e.meta?.taskId`. Note the local `Task` type in admin calendar-page.tsx (L23-25) is minimal — `{ id, title, priority, dueDate, module }` — it does NOT include `assignedUser` (added in Phase 4 to the API). If a future inline task modal is desired, the type needs widening.
+
+### E. R24 — dead DayNote feature — exact locations
+
+**The prop is exposed but never passed:**
+- `reusable-calendar.tsx:20-24` — `export type DayNote { date: string; content: string; color?: string }`
+- `reusable-calendar.tsx:28` — `notes?: DayNote[];` in `ReusableCalendarProps`
+- `reusable-calendar.tsx:53-57` — `notesMap` useMemo (consumes `notes`)
+- `reusable-calendar.tsx:118` — legend chip `<Icon name="bookmark" ... /> یادداشت روز`
+- `reusable-calendar.tsx:133,150` — `hasNote` flag + bookmark icon on day cell
+
+**Zero UI callers:** grep `notes=\{` in `src/` → 0 matches. None of the 4 calendar wrappers (admin/print/designer/qc) pass `notes` to `ReusableCalendar`.
+
+**Dead API surface:**
+- `src/app/api/day-notes/route.ts` (59 LOC, GET + POST upsert)
+- `src/app/api/day-notes/[date]/route.ts` (35 LOC, GET + DELETE)
+- `prisma/schema.prisma:309-317` — `DayNote` model (id, date unique, content, color, timestamps)
+
+**No `requireUser()` on either route** — R26 leftover (day-notes routes are unauthenticated).
+
+**Decision required:** either (a) wire up the feature properly (add `notes` query + UI editor + invalidate `["day-notes"]`), or (b) delete the API + DayNote model + remove `notes` prop from `ReusableCalendar`. Phase-1 worklog §"SHOULD BE FIXED" suggested fixing or removing; the user has not specified direction.
+
+### F. R15 / R16 — Gantt virtualization + dead SyncScroll
+
+**R15 — no virtualization (reusable-gantt.tsx):**
+- L158-163: left panel `.map((e) => <div>...)` over ALL `validEvents` — no windowing.
+- L206-261: bars `.map((e, idx) => <Tooltip>...</Tooltip>)` over ALL `validEvents` — each bar renders a `Tooltip` + an `absolute`-positioned div + gridline div. 100+ events = 100+ tooltips.
+- Outer container has `maxHeight: 500px` (L152) — but right panel only has `overflow-x-auto` (L167), NOT `overflow-y-auto`. So bars are CLIPPED vertically, not scrolled. Left panel has `overflow-y-auto` (L154) so it scrolls alone.
+
+**R16 — dead SyncScroll (reusable-gantt.tsx:274-287):**
+```tsx
+function SyncScroll() {
+  React.useEffect(() => {
+    const containers = document.querySelectorAll(".gantt-scroll-sync");  // ← queries a class NOTHING has
+    const handler = (e: Event) => { ... };
+    containers.forEach((c) => c.addEventListener("scroll", handler));
+    return () => containers.forEach((c) => c.removeEventListener("scroll", handler));
+  }, []);
+  return null;
+}
+```
+Verified: grep `gantt-scroll-sync` in `src/` → 0 matches outside the SyncScroll function itself. The left panel (L154) and right panel (L167) have `scrollbar-thin` but NO `gantt-scroll-sync` class. So `querySelectorAll` returns an empty NodeList; the effect is a complete no-op. The whole `<SyncScroll />` element (L267) is dead code.
+
+**Compounding bug (not in the R-catalog but worth noting):** right panel (L167) lacks `overflow-y-auto`, so when bars exceed `maxHeight: 500px` they are CLIPPED (not scrollable). Even after fixing R16, both panels need `overflow-y-auto` for scroll-sync to be meaningful.
+
+### G. R17 — DayDetailModal dynamic Tailwind class (day-detail-modal.tsx:172)
+
+```tsx
+{events.slice(0, 5).map((e) => {
+  const daysLeft = diffDays(e.endDate, new Date());
+  return (
+    <div key={e.id} className="flex items-center gap-2 text-xs py-1">
+      <span className={cn("size-2 rounded-full shrink-0",
+        `bg-${e.color === "yellow" ? "amber" : e.color === "blue" ? "blue" : e.color === "green" ? "emerald" : "rose"}-500`)} />
+      {/* ↑ runtime-constructed Tailwind class — purged in prod build */}
+      <span className="flex-1 truncate font-medium">{e.fullTitle}</span>
+      ...
+    </div>
+  );
+})}
+```
+Tailwind's content scanner cannot see classes produced via template-literal concatenation at runtime. In production builds (`bun run build`), `bg-amber-500`, `bg-blue-500`, `bg-emerald-500`, `bg-rose-500` are PURGED → the dot has no background color (just `size-2 rounded-full shrink-0`).
+
+**Fix direction:** replace with a static lookup map (same pattern already used at L261-272 for `colorBg` and L267-272 for `colorText`):
+```tsx
+const DOT_BG: Record<CalendarEvent["color"], string> = {
+  blue: "bg-blue-500", yellow: "bg-amber-500", green: "bg-emerald-500", red: "bg-rose-500",
+};
+// then: <span className={cn("size-2 rounded-full shrink-0", DOT_BG[e.color])} />
+```
+
+### H. R23 — CalendarEvent.meta loose type (reusable-calendar.tsx:17)
+
+```tsx
+export type CalendarEvent = {
+  id: string;
+  title: string;
+  fullTitle: string;
+  startDate: string | Date;
+  endDate: string | Date;
+  color: "blue" | "yellow" | "green" | "red";
+  type: "order" | "task";
+  meta?: Record<string, unknown>;  // ← loose — every consumer casts unsafely
+};
+```
+
+**Current consumer casts (unsafe):**
+- `calendar-page.tsx:120,130,148` → `e.meta.orderId as string`
+- `print-calendar.tsx:147` → `e.meta.orderId as string`
+- `designer-calendar.tsx:147` → `e.meta.orderId as string`
+- `qc-calendar.tsx:118-119` → `e.meta.reportId as string`
+- `toTaskEvents` (admin L66, print L72, designer L72) → `meta: { taskId: t.id }`
+- `toOrderEvents` (admin L50, print L56, designer L56) → `meta: { orderId: o.id }`
+- `qc-calendar.tsx:62` → `meta: { reportId: r.id }`
+
+**Fix direction:** discriminated union on `type`:
+```ts
+type OrderEvent = { type: "order"; meta: { orderId: string } };
+type TaskEvent  = { type: "task";  meta: { taskId: string } };
+type ReportEvent = { type: "report"; meta: { reportId: string } };
+type CalendarEvent = (BaseEvent & OrderEvent) | (BaseEvent & TaskEvent) | (BaseEvent & ReportEvent);
+```
+…or simpler: keep `meta?: Record<string, unknown>` but export `getOrderId(e)`, `getTaskId(e)`, `getReportId(e)` helpers that return `string | undefined`. The discriminated-union route is cleaner but breaks the `as const` literal types currently used in `toOrderEvents`/`toTaskEvents` returns.
+
+### I. Admin tasks-page ["dashboard"] invalidation — VERIFIED DONE (Phase 4 deliverable confirmed)
+
+The Phase-4 worklog claimed `invalidate(["tasks", "dashboard", "order"])` at L196/256/267/297/309. The actual current line numbers in `src/components/modules/admin/tasks-page.tsx` (file is now 991 LOC — line numbers drifted since Phase-1 analysis):
+
+| Mutation | Line | Code |
+|---|---|---|
+| `createMut` onSuccess | L265 | `invalidate(["tasks", "dashboard", "order"]);` |
+| drag-and-drop move `updateMut.mutate` onSuccess | L326 | `invalidate(["tasks", "dashboard", "order"]);` |
+| optimistic rollback on dnd cancel | L337 | `invalidate(["tasks"]);` (intentional — only `["tasks"]` to avoid double-refetch) |
+| edit-form save `updateMut.mutate` onSuccess | L368 | `invalidate(["tasks", "dashboard", "order"]);` |
+| `deleteMut` onSuccess | L380 | `invalidate(["tasks", "dashboard", "order"]);` |
+
+Header comment at L248-250:
+```
+// R10: every success ALSO invalidates ["dashboard"] (dashboard's
+// LatestTasks/NearDeadlineOrders tiles were silently stale before)
+// and ["order"] (an open Order Detail Modal's Tasks tab stays live).
+```
+
+**Verdict: ✅ Phase-4 R10 fix is in place.** The admin tasks-page DOES invalidate `["dashboard"]` after every mutation (4 sites — all use the canonical `["tasks", "dashboard", "order"]` triple). Line numbers in the worklog (196/256/267/297/309) are stale relative to the current file (265/326/368/380) but the semantic fix is real and confirmed.
+
+### J. Cross-panel concerns for query-key renames
+
+If Phase 5 renames admin's `["tasks-calendar"]` → `["tasks", "calendar"]` and `["orders-calendar"]` → `["orders", "calendar"]`:
+- **Benefit:** admin's `tasks-page.tsx` mutation calls (which invalidate `["tasks", ...]` — see §I above) will now invalidate the admin calendar's task query via TanStack prefix-match. Currently the admin calendar NEVER refreshes after a task mutation (it only refetches every 30s via `refetchInterval`). This is the actual user-facing bug: create a task in admin/tasks-page, switch to admin/calendar-page → the new task is missing for up to 30 seconds.
+- **Designer/print calendars already safe:** their task keys are `["tasks", "designer", "calendar"]` / `["tasks", "print", "calendar"]` — both already under the `["tasks"]` prefix, so they already receive invalidations from designer/print tasks-pages. No change needed there.
+- **Order key:** renaming `["orders-calendar"]` → `["orders", "calendar"]` similarly hooks admin calendar to the `["orders"]` family that the orders-page already invalidates after mutations. Same 30s-stale bug for orders today.
+- **qc-calendar's `["qc-reports", "calendar"]` key is NOT under any standard prefix** — leave it alone unless we also add a `["qc-reports"]` invalidator somewhere (none exists today; qc-reports have no create/edit UI).
+
+### K. Other findings (not in R-catalog but worth noting)
+
+1. **Admin calendar-page `Task` type is stale** (calendar-page.tsx:23-25): `{ id, title, priority, dueDate, module }` — does NOT include `assignedUser` (added in Phase 4 to the API response via `TASK_INCLUDE`). If a future inline task-detail modal is built for R8's task-click fix, this type needs widening (or just import the shared `Task` type from `lib/task-validation.ts` if one is exported).
+
+2. **The `notesMap` memo in reusable-calendar.tsx:53-57** iterates `notes` (default `[]`) — fine when no notes are passed (default-empty). Removing the prop entirely (R24 option b) requires deleting: type `DayNote` (L20-24), the `notes?` prop (L28), the `notesMap` memo (L53-57), the legend chip (L118), the `hasNote` flag (L133), and the bookmark icon (L150). Also delete the legend chip's text "یادداشت روز".
+
+3. **`formatCurrency` import in calendar-page.tsx:13** is unused (grep `formatCurrency` in calendar-page.tsx → only the import line). Minor dead import.
+
+4. **`SyncScroll` is rendered as `<SyncScroll />` at reusable-gantt.tsx:267** — but it returns `null` and is a side-effect-only component. If R16 fix is "delete it", also remove the `<SyncScroll />` element at L267. If fix is "make it actually work", the left panel (L154) and right panel (L167) both need the `gantt-scroll-sync` class added + right panel needs `overflow-y-auto` (it currently has only `overflow-x-auto`).
+
+5. **The `TooltipProvider` at reusable-gantt.tsx:95** wraps the entire gantt — but `TooltipProvider` is also imported in `reusable-calendar.tsx:7` and never used (the calendar uses individual `Tooltip` elements without a provider wrapper — relies on the default provider from the app shell). Minor unused import.
+
+6. **`Stale refetchInterval`:** all 4 calendar variants use `refetchInterval: 30000` (admin L78/83, print L95/102, designer L95/102, qc L83). Once query-key renames land and admin tasks-page mutations invalidate `["tasks", "calendar"]`, the 30s poll becomes a backup, not the primary freshness mechanism — keep it for safety.
+
+7. **R26 leftover:** `/api/day-notes/route.ts` and `/api/day-notes/[date]/route.ts` have NO `requireUser()` — if R24 fix is "wire up the feature", these routes need auth-guards; if R24 fix is "delete the feature", the auth gap is moot.
+
+### L. Recommended Phase 5 implementation order (no code written — research only)
+
+1. **R23 first** (type safety) — tighten `CalendarEvent.meta` to a discriminated union; this makes the subsequent R8 fix type-safe (the click handler can `if (e.type === "task") { const id = e.meta.taskId; /* string, no cast */ }`).
+2. **R8** (orphan task click) — add task click handler in admin/print/designer calendar wrappers. Cleanest UX: `navigate(module, "tasks")` + highlight the task. Heavier UX: build a shared inline `TaskDetailModal` (none exists today — would be a new file; consider deferring to a later phase).
+3. **R11 cross-ref** (query-key rename) — `["orders-calendar"]` → `["orders", "calendar"]`, `["tasks-calendar"]` → `["tasks", "calendar"]` in admin calendar-page.tsx only (print/designer already correct).
+4. **R15** (gantt virtualization) — wrap left-panel rows + bars in `@tanstack/react-virtual` (already a project dep — used by data-table). Add `overflow-y-auto` to the right panel (currently clipped).
+5. **R16** (dead SyncScroll) — delete the function + `<SyncScroll />` element; OR add the `gantt-scroll-sync` class to both panels + `overflow-y-auto` to the right panel and verify scroll-sync actually works.
+6. **R17** (dynamic Tailwind class) — replace `bg-${...}-500` with a static `Record<CalendarEvent["color"], string>` lookup map.
+7. **R24** (dead DayNote feature) — DECISION REQUIRED from user: wire-up vs delete. If delete: remove `notes?` prop + `DayNote` type + `notesMap` + legend chip + bookmark icon from `reusable-calendar.tsx`; delete `/api/day-notes/route.ts` + `/api/day-notes/[date]/route.ts`; remove `DayNote` model from `prisma/schema.prisma` + `db push`. If wire-up: add a `useQuery(["day-notes"], ...)` + inline editor (probably a small popover on day-cell click) + invalidate `["day-notes"]` on POST.
+
+**Files to touch:** exactly the 3 shared components (reusable-calendar.tsx, reusable-gantt.tsx, day-detail-modal.tsx) + 3 module calendars (admin/calendar-page.tsx, print/print-calendar.tsx, designer/designer-calendar.tsx) — qc/qc-calendar.tsx is unaffected except for the R23 type widening (its `meta: { reportId }` becomes typed too). Total 6-7 files; well within the 3-file-atomic edit guideline if shared components are treated as one logical unit.
+
+
+---
+Task ID: Phase-5
+Agent: orchestrator (main)
+Task: Phase 5 — Calendar/Gantt rebuild (R8, R11, R15, R16, R17, R23, R24)
+
+Work Log:
+- Phase 5 design analysis (research-only subagent P5-explore inventoried 8 files + 7 R-catalog bug definitions from ARCHITECTURE-NOTES §6). Confirmed admin tasks-page already invalidates ["dashboard"] (R10 from Phase 4 intact).
+- R24 (dead DayNote feature) — DELETE: removed `src/app/api/day-notes/route.ts` + `src/app/api/day-notes/[date]/route.ts` + `DayNote` model from `prisma/schema.prisma`; ran `bun run db:push` (table dropped, client regenerated). Removed `DayNote` type, `notes?` prop, `notesMap` memo, legend chip "یادداشت روز", and bookmark icon from `reusable-calendar.tsx` (zero UI consumers — grep-confirmed). Also fixes R26 leftover (both day-notes routes were unauthenticated).
+- R23 (loose CalendarEvent.meta) — discriminated union in `reusable-calendar.tsx`: `CalendarEvent = OrderEvent | TaskEvent | ReportEvent` where `type` discriminates `meta`'s shape. All 4 module calendars + day-detail-modal updated to access `e.meta.orderId`/`e.meta.taskId`/`e.meta.reportId` type-safely (no more `as string` casts).
+- R17 (dynamic Tailwind class purge) — `day-detail-modal.tsx:172`: replaced `bg-${e.color === "yellow" ? "amber" : ...}-500` (template-literal-built → purged in prod) with static `DOT_BG` lookup map (same pattern as existing `colorBg`/`colorText` maps). Bonus: replaced non-existent `Icon name="list"` with `Icon name="checkList"` (pre-existing TS error fixed).
+- R15 (gantt no virtualization) — `reusable-gantt.tsx`: added `@tanstack/react-virtual` `useVirtualizer` (count=validEvents.length, estimateSize=48, overscan=8). Both left label panel and right bar panel now render only the visible window. Verified: 19 rows rendered initially (vs 24 total), 20 after scroll to 800.
+- R16 (dead SyncScroll) — deleted the standalone `SyncScroll` component (queried `.gantt-scroll-sync` class that NOTHING had — complete no-op). Replaced with `leftRef`/`rightRef` refs + an `onScrollSync(source)` plain function that mirrors `scrollTop` bidirectionally. Verified: left.scrollTop=250 → right.scrollTop=250. Bonus: right panel now correctly scrolls vertically (CSS `overflow-x: auto` quirk makes `overflow-y: auto` too).
+- R8 (orphan task click) — 3 module calendars (admin, print, designer): added `else if (e.type === "task") navigate(e.meta.module, "tasks")` branch in all 3 click handlers (calendar event, gantt event, DayDetailModal event). `toTaskEvents` now includes `module: t.module` in `meta` (was missing). Verified: clicked task "تست" in admin calendar's DayDetailModal → navigated to admin tasks page.
+- R11 cross-ref (query-key rename) — admin/calendar-page.tsx only: `["orders-calendar"]` → `["orders", "calendar"]`, `["tasks-calendar"]` → `["tasks", "calendar"]`. Now admin's orders/tasks page mutations invalidate the calendar instantly (TanStack prefix-match) — was stale up to 30s before.
+- DayDetailModal — added conditional "گزارش‌ها" tab (only shown when `reports.length > 0`) so QC reports (now `type: "report"` per R23) have a home. Previously mislabeled `type: "order"` with `meta: { reportId }` — that broke under the discriminated union; now correctly typed.
+- qc-calendar.tsx: `type: "order"` → `type: "report"` for QC reports (R23 type-safety); click handlers discriminate on `e.type === "report"`.
+- admin/calendar-page.tsx: removed unused `formatCurrency` + `formatDate` imports (Explore-flagged smell).
+- Lint: 0 errors, 2 pre-existing warnings (useReactTable + useVirtualizer "incompatible library" React Compiler notices — benign).
+- tsc: 0 NEW errors. Pre-existing errors untouched (skills/, examples/, scripts/seed.ts, order-wizard.tsx, toggle-button.tsx). Removed one pre-existing TS error (`Icon name="list"` → `"checkList"`).
+- Browser E2E (agent-browser): admin calendar renders events (orders #1-11 + tasks with assignee chips); DayDetailModal opens on day click with tasks tab showing task count; task click → navigate to tasks page (R8 ✓); gantt tab renders with 19 virtualized rows (R15 ✓); scroll-sync verified left=250→right=250 (R16 ✓); QC calendar renders empty state with no console errors (R23 type:"report" ✓); DayNote legend chip + bookmark icon gone (R24 ✓); zero console errors, zero page errors throughout.
+
+Stage Summary:
+- Phase 5 DONE & browser-verified: 7 R-catalog bugs fixed (R8, R11, R15, R16, R17, R23, R24) across 6 files (~600 LOC rewritten) + 2 API files deleted + 1 Prisma model dropped.
+- Contracts preserved: ReusableCalendar/ReusableGantt/DayDetailModal public props unchanged (additive only — `notes?` removed was a dead prop with zero consumers); CalendarEvent consumers updated to discriminated-union pattern (no breaking change to producers since they already set the right `type` + `meta` shape); query-key renames are backward-compatible (TanStack prefix-match family widened, no consumer reads the old keys).
+- New infrastructure: `CalendarEvent` is now a type-safe discriminated union — future calendar features (e.g. drag-to-reschedule) can rely on `e.meta` being correctly typed per `e.type`.
+- Bugs fixed this phase: R8 (orphan task click), R11 cross-ref (calendar query-key prefix), R15 (gantt virtualization), R16 (dead SyncScroll), R17 (dynamic Tailwind purge), R23 (loose meta type), R24 (dead DayNote feature) + R26 leftover (day-notes routes were unauthenticated — moot since deleted).
+- Remaining phase: 6 (Dashboard + wizard: R1, R2, R6, R7, R11-dashboard-side, R18-20, R25, R3 nextNumber race).

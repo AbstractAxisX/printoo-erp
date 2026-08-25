@@ -1,31 +1,44 @@
 "use client";
 
 import * as React from "react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isWithinInterval, parseISO, isValid } from "date-fns";
-import { Icon, type IconName } from "@/lib/icons";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isValid } from "date-fns";
+import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export type CalendarEvent = {
+// ─── R23: Discriminated union for CalendarEvent.meta ──────────────
+// Previously `meta?: Record<string, unknown>` forced every consumer to
+// `as string` cast unsafely. Now `type` discriminates `meta`'s shape —
+// TypeScript narrows on `e.type === "order"` etc. and `e.meta.orderId`
+// is fully typed. R24 also drops the dead `notes`/DayNote feature.
+type BaseEvent = {
   id: string;
   title: string; // short label (e.g. "#123")
   fullTitle: string; // full title for tooltip/modal
   startDate: string | Date;
   endDate: string | Date;
   color: "blue" | "yellow" | "green" | "red"; // blue=normal order, yellow=urgent order, green=normal task, red=urgent task
-  type: "order" | "task";
-  meta?: Record<string, unknown>; // extra data for modal
 };
 
-export type DayNote = {
-  date: string;
-  content: string;
-  color?: string;
+export type OrderEvent = BaseEvent & {
+  type: "order";
+  meta: { orderId: string };
 };
+
+export type TaskEvent = BaseEvent & {
+  type: "task";
+  meta: { taskId: string; module: string };
+};
+
+export type ReportEvent = BaseEvent & {
+  type: "report";
+  meta: { reportId: string };
+};
+
+export type CalendarEvent = OrderEvent | TaskEvent | ReportEvent;
 
 type ReusableCalendarProps = {
   events: CalendarEvent[];
-  notes?: DayNote[];
   onDayClick?: (date: Date, events: CalendarEvent[]) => void;
   onEventClick?: (event: CalendarEvent) => void;
   filters?: { id: string; label: string; active: boolean; onToggle: () => void }[];
@@ -41,7 +54,7 @@ const COLOR_CLASSES: Record<CalendarEvent["color"], { bg: string; text: string; 
 
 const MAX_VISIBLE_EVENTS = 10;
 
-export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick, filters, className }: ReusableCalendarProps) {
+export function ReusableCalendar({ events, onDayClick, onEventClick, filters, className }: ReusableCalendarProps) {
   const [cursor, setCursor] = React.useState(new Date());
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
@@ -49,12 +62,6 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 6 });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
   const weekDays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
-
-  const notesMap = React.useMemo(() => {
-    const m = new Map<string, DayNote>();
-    for (const n of notes) m.set(n.date, n);
-    return m;
-  }, [notes]);
 
   function getEventsForDay(day: Date): CalendarEvent[] {
     // Normalize day to midnight for comparison
@@ -115,7 +122,6 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
         <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-amber-500" /> سفارش فوری</span>
         <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-500" /> تسک عادی</span>
         <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-rose-500" /> تسک فوری</span>
-        <span className="flex items-center gap-1"><Icon name="bookmark" size={11} className="text-amber-500" /> یادداشت روز</span>
       </div>
 
       {/* Calendar grid */}
@@ -129,8 +135,6 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
           const inMonth = isSameMonth(day, cursor);
           const isToday = isSameDay(day, new Date());
           const dayEvents = getEventsForDay(day);
-          const dayKey = format(day, "yyyy-MM-dd");
-          const hasNote = notesMap.has(dayKey);
           const visibleEvents = dayEvents.slice(0, MAX_VISIBLE_EVENTS);
           const overflow = dayEvents.length - visibleEvents.length;
 
@@ -147,7 +151,6 @@ export function ReusableCalendar({ events, notes = [], onDayClick, onEventClick,
             >
               <div className="flex items-center justify-between mb-1">
                 <span className={cn("text-xs font-medium", isToday && "text-primary")}>{format(day, "d")}</span>
-                {hasNote && <Icon name="bookmark" size={11} className="text-amber-500" />}
               </div>
               {/* Small event squares with ID */}
               <div className="flex flex-wrap gap-0.5">
