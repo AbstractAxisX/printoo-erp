@@ -12,16 +12,17 @@ datasource db {
 
 // ─── Users / Auth ───────────────────────────────────────────────
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("master") // master | admin | designer | print | warehouse | finance | qc | crm | srm
-  phone     String?
-  avatar    String?
-  status    String   @default("active") // active | inactive
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  role           String   @default("master") // master | admin | designer | print | warehouse | finance | qc | crm | srm
+  phone          String?
+  avatar         String?
+  status         String   @default("active") // active | inactive
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assignedTasks  Task[]   @relation("TaskAssignee")
 }
 
 // ─── CRM: Customers ─────────────────────────────────────────────
@@ -247,12 +248,15 @@ model Task {
   priority    String   @default("normal") // normal | urgent
   dueDate     DateTime?
   module      String   @default("admin") // admin | designer | print | warehouse | finance | qc | crm | srm
-  orderId     String?
-  order       Order?   @relation(fields: [orderId], references: [id])
-  customerId  String?
-  assignedTo  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  customerId    String?
+  // Phase 4 (R9): assignedTo is now a real FK to User — referential
+  // integrity is enforced by SQLite; API validates the user exists + active.
+  assignedTo    String?
+  assignedUser  User?    @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ─── Notifications (real) ───────────────────────────────────────
