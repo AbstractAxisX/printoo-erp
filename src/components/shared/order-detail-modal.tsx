@@ -115,6 +115,7 @@ export type OrderDetail = {
     dueDate?: string | null;
     module: string;
     assignedTo?: string | null;
+    assignedUser?: { id: string; name: string; role: string } | null;
     createdAt: string;
   }[];
 };

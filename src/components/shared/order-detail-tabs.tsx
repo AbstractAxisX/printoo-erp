@@ -8,19 +8,34 @@
 // their own data — only mounted when active (natural code-splitting).
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { DatePicker } from "@/components/ui/date-picker";
+import { SearchSelect } from "@/components/shared/search-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
 import {
   ORDER_STATUS,
   ITEM_STAGE,
   TASK_STATUS,
   PRIORITY,
+  MODULES,
+  USER_ROLE,
   type OrderStatus,
+  type ModuleKey,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
@@ -301,92 +316,239 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
   );
 }
 
-// ─── 3. Tasks tab (read-only; assignment logic lands in Phase 4) ──
+// ─── 3. Tasks tab (Phase 4: inline quick-create — ارجاع در <۵ ثانیه) ──
+//
+// Scenario-3 (cross-panel referral): from an open order, the admin creates
+// a task ALREADY linked to this order (orderId pre-filled), routes it to the
+// right panel (module), and hands it to a person (assignee) — without ever
+// leaving the modal. Zero-Learning-Curve: one compact form, one click.
 export function TasksTab({ order }: { order: OrderDetail }) {
   const navigate = useAppStore((s) => s.navigate);
+  const invalidate = useInvalidate();
   const tasks = order.tasks ?? [];
-  if (tasks.length === 0) {
-    return (
-      <div className="py-8 text-center space-y-2">
-        <Icon name="task" size={28} className="mx-auto text-muted-foreground/50" />
-        <p className="text-sm text-muted-foreground">
-          این سفارش هنوز تسکی ندارد.
-        </p>
+
+  // Active users for the assignee picker.
+  const { data: usersData } = useQuery({
+    queryKey: ["users"],
+    queryFn: () =>
+      api<{ users: { id: string; name: string; role: string }[] }>("/api/users"),
+    staleTime: 60_000,
+  });
+  const assigneeOptions = (usersData?.users ?? []).map((u) => ({
+    value: u.id,
+    label: u.name,
+    sub: USER_ROLE[u.role]?.label ?? u.role,
+  }));
+
+  // Quick-create state — deliberately minimal (title + module + assignee).
+  const [qcOpen, setQcOpen] = React.useState(false);
+  const [qcTitle, setQcTitle] = React.useState("");
+  const [qcModule, setQcModule] = React.useState<ModuleKey>(
+    order.status === "pending_design"
+      ? "designer"
+      : order.status === "in_printing"
+      ? "print"
+      : order.status === "warehouse_logistics"
+      ? "warehouse"
+      : "admin"
+  );
+  const [qcAssignee, setQcAssignee] = React.useState<string | null>(null);
+  const [qcDueDate, setQcDueDate] = React.useState("");
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      api("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: qcTitle,
+          module: qcModule,
+          orderId: order.id,
+          customerId: order.customer?.id ?? null,
+          assignedTo: qcAssignee,
+          dueDate: qcDueDate || null,
+        }),
+      }),
+    onSuccess: () => {
+      invalidate(["tasks", "dashboard", "order"]);
+      toast.success("تسک ایجاد و به سفارش متصل شد");
+      setQcOpen(false);
+      setQcTitle("");
+      setQcAssignee(null);
+      setQcDueDate("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-3">
+      {/* Quick-create — the <5-second referral path */}
+      {qcOpen ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!qcTitle.trim()) {
+              toast.error("عنوان الزامی است");
+              return;
+            }
+            createMut.mutate();
+          }}
+          className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2.5"
+        >
+          <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Icon name="taskAdd" size={13} />
+            تسک جدید برای سفارش #{order.number}
+          </div>
+          <Input
+            value={qcTitle}
+            onChange={(e) => setQcTitle(e.target.value)}
+            placeholder="مثلاً: طراحی فایل لگو — نسخه ۲"
+            autoFocus
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Select
+              value={qcModule}
+              onValueChange={(v) => setQcModule(v as ModuleKey)}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(MODULES) as ModuleKey[]).map((m) => (
+                  <SelectItem key={m} value={m} className="text-xs">
+                    {MODULES[m].faLabel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <SearchSelect
+              value={qcAssignee}
+              onChange={setQcAssignee}
+              placeholder="مسئول انجام"
+              searchPlaceholder="جستجوی نام کارمند..."
+              options={assigneeOptions}
+              className="h-9 text-xs"
+            />
+            <DatePicker
+              value={qcDueDate ? new Date(qcDueDate) : null}
+              onChange={(d) => setQcDueDate(d ? d.toISOString().slice(0, 10) : "")}
+              placeholder="سررسید (اختیاری)"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button type="submit" size="sm" disabled={createMut.isPending} className="gap-1.5">
+              {createMut.isPending ? (
+                <Icon name="loading" size={14} className="animate-spin" />
+              ) : (
+                <Icon name="check" size={14} />
+              )}
+              ایجاد و ارجاع
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setQcOpen(false)}
+            >
+              انصراف
+            </Button>
+          </div>
+        </form>
+      ) : (
         <Button
           size="sm"
-          variant="outline"
-          onClick={() => navigate("admin", "tasks")}
-          className="gap-1.5"
+          variant={tasks.length === 0 ? "default" : "outline"}
+          onClick={() => setQcOpen(true)}
+          className="gap-1.5 w-full sm:w-auto"
         >
-          <Icon name="plus" size={14} /> ایجاد تسک در صفحه تسک‌ها
+          <Icon name="plus" size={14} /> تسک جدید برای این سفارش
         </Button>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-2">
-      {tasks.map((t) => {
-        const ts = TASK_STATUS[t.status as keyof typeof TASK_STATUS];
-        const isOverdue =
-          t.dueDate && t.status !== "done" && new Date(t.dueDate) < new Date();
-        return (
-          <div
-            key={t.id}
-            className="rounded-lg border p-3 flex items-start gap-2.5"
-          >
-            <span
-              className={cn(
-                "size-2 rounded-full mt-1.5 shrink-0",
-                t.status === "done"
-                  ? "bg-emerald-500"
-                  : t.status === "in_progress"
-                  ? "bg-amber-500"
-                  : "bg-slate-400"
-              )}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{t.title}</div>
-              {t.description && (
-                <div className="text-xs text-muted-foreground truncate">
-                  {t.description}
-                </div>
-              )}
-              <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
-                <span className="px-1.5 py-0.5 rounded bg-muted">
-                  {ts?.label ?? t.status}
-                </span>
-                <span>
-                  {PRIORITY[t.priority as keyof typeof PRIORITY]?.label ?? t.priority}
-                </span>
-                {t.dueDate && (
-                  <span
-                    className={cn(
-                      "flex items-center gap-0.5",
-                      isOverdue && "text-rose-600"
+      )}
+
+      {/* Task list */}
+      {tasks.length === 0 ? (
+        <div className="py-6 text-center space-y-1">
+          <Icon name="task" size={28} className="mx-auto text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">
+            این سفارش هنوز تسکی ندارد — با فرم بالا در چند ثانیه ارجاع دهید.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tasks.map((t) => {
+            const ts = TASK_STATUS[t.status as keyof typeof TASK_STATUS];
+            const dr = daysRemaining(t.dueDate ?? null);
+            const isOverdue = t.dueDate && t.status !== "done" && new Date(t.dueDate) < new Date();
+            return (
+              <div
+                key={t.id}
+                className="rounded-lg border p-3 flex items-start gap-2.5"
+              >
+                <span
+                  className={cn(
+                    "size-2 rounded-full mt-1.5 shrink-0",
+                    t.status === "done"
+                      ? "bg-emerald-500"
+                      : t.status === "in_progress"
+                      ? "bg-amber-500"
+                      : "bg-slate-400"
+                  )}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{t.title}</div>
+                  {t.description && (
+                    <div className="text-xs text-muted-foreground truncate">
+                      {t.description}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded bg-muted">
+                      {ts?.label ?? t.status}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-muted">
+                      {MODULES[t.module as ModuleKey]?.faLabel ?? t.module}
+                    </span>
+                    <span>
+                      {PRIORITY[t.priority as keyof typeof PRIORITY]?.label ?? t.priority}
+                    </span>
+                    {t.dueDate && (
+                      <span
+                        className={cn(
+                          "flex items-center gap-0.5",
+                          isOverdue && "text-rose-600"
+                        )}
+                      >
+                        <Icon name="clock" size={10} />
+                        {formatDate(t.dueDate)}
+                        {isOverdue && " (معوق)"}
+                        {!isOverdue && dr.status !== "none" && ` (${dr.text})`}
+                      </span>
                     )}
-                  >
-                    <Icon name="clock" size={10} />
-                    {formatDate(t.dueDate)}
-                    {isOverdue && " (معوق)"}
-                  </span>
-                )}
-                {t.assignedTo && (
-                  <span className="flex items-center gap-0.5">
-                    <Icon name="user" size={10} /> {t.assignedTo}
-                  </span>
-                )}
+                    {t.assignedUser ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-1.5 py-0.5 font-medium">
+                        <Icon name="user" size={10} /> {t.assignedUser.name}
+                      </span>
+                    ) : (
+                      t.status !== "done" && (
+                        <span className="inline-flex items-center gap-0.5 text-muted-foreground/70">
+                          <Icon name="user" size={10} /> بدون مسئول
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
+
       <Button
         size="sm"
         variant="ghost"
         onClick={() => navigate("admin", "tasks")}
         className="gap-1.5 text-xs"
       >
-        <Icon name="arrowLeft" size={12} /> مدیریت همه تسک‌ها
+        <Icon name="arrowLeft" size={12} /> مدیریت همه تسک‌ها در بورد کانبان
       </Button>
     </div>
   );
