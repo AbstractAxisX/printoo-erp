@@ -2474,3 +2474,39 @@ Stage Summary:
 - Contracts preserved: POST/PUT body shapes additive only; ?module= filter intact (designer/print panels verified); query-key prefixes extended ([tasks, dashboard, order]); OrderDetailModal props unchanged.
 - New infrastructure for RBAC: User rows are now referenceable from tasks (first concrete step per §3.2); /api/users is the assignee source of truth.
 - Remaining phases: 5 (Calendar/Gantt: R8, R15-17, R23-24), 6 (Dashboard + wizard: R1, R2, R6, R7, R11, R18-20, R25, R3).
+
+---
+Task ID: hotfix-round-2
+Agent: main (Z.ai Code)
+Task: دیباگ و رفع شکایات کاربر — جدول سفارشات خراب، مودال زشت/کند، عدم امکان ساخت نقش، دیتای تستی
+
+Work Log:
+- محیط بررسی شد: printoo-erp از بین رفته (sandbox reset)، my-project تنها workspace است و git remote سالم
+- POST /api/tasks با curl تست شد: 201 OK با دیتای معتبر؛ resolveAssignee با ایمیل 400 می‌دهد ولی فرانت‌اند ID می‌فرستد — سالم
+- باگ جدول همه سفارشات ریشه‌یابی شد: VirtualRow با position:absolute از جدول خارج می‌شود (rowDisplay:block، عرض سلول‌ها auto=38..98px در برابر هدر 72..200px) → ستون‌ها ناهم‌تراز
+- باگ عرض مودال سفارش: DialogContent پایه sm:max-w-lg (512px) بر max-w-3xl غلبه می‌کند (ترتیب cascade) → مودال باریک
+- صفحه مدیریت کاربران/نقش‌ها اصلاً وجود ندارد (nav.ts فاقد آیتم) → «نمی‌توانم نقش بسازم»
+- ایجاد تسک در مرورگر تست شد (ساده + مسئول + تاریخ): هر دو 201 — مشکل کاربر از stale HMR بوده
+
+Stage Summary:
+- سه ریشه مشکل شناسایی شد: (1) virtualized rows خارج از جدول، (2) max-width override در مودال، (3) فیچر Users/Roles غایب
+- پلن: فیکس spacer-rows، بازطراحی مودال عریض + prefetch، ساخت صفحه Users & Roles کامل + API، دیتای تستی
+
+---
+Task ID: hotfix-round-2-done
+Agent: main (Z.ai Code)
+Task: تکمیل رفع شکایات کاربر + دیتای تستی + راستی‌آزمایی مرورگری
+
+Work Log:
+- Fix 1 (61d2e0e): جدول سفارشات — الگوی spacer-row جایگزین position:absolute شد؛ هم‌ترازی headX===bodyX و headW===bodyW برای ۱۰ ستون verify شد
+- Fix 2 (ecc164c): مودال سفارش — sm:max-w-5xl (512→1024px)، بدنه min(62vh,560px)، MetricTile با tone معنایی، تب‌های polish؛ سرعت: preloadModal روی idle + prefetchOrder روی hover ردیف + staleTime 60s
+- Fix 3 (59b2b3d): کاربران و نقش‌ها — POST/PUT /api/users + /api/users/[id] با گاردهای master/self-lockout؛ صفحه جدید با کاتالوگ نقش‌ها، سوییچ فعال/غیرفعال، دیالوگ ایجاد/ویرایش؛ آیتم nav در گروه «تنظیمات»
+- Fix 4 (f9aa589): scripts/test-data.ts — ۶ سفارش + ۱۷ تسک + ۳ مشتری + ۳ محصول؛ اجرا شد: 11 orders, 24 tasks
+- راستی‌آزمایی مرورگری: ایجاد تسک (ساده + مسئول + تاریخ) ✓، ایجاد کاربر QC «نیما رادمهر» ✓، تغییر نقش رضا→ادمین→برگشت ✓، مودال #11 با تب تسک‌های متصل ✓، همه سفارشات ۱۱ ردیف هم‌تراز ✓، سفارشات باز ۸ سفارش ✓
+- lint: 0 error (۲ هشدار pre-existing مربوط به react-table/React-Compiler)
+- dev.log: صفر خطای 4xx/5xx اخیر
+- نکته: dev server با double-fork daemon دوباره بالا آمد (سرور قبلی توسط sandbox کشته شده بود)
+
+Stage Summary:
+- هر ۴ شکایت کاربر عملیاتی رفع و در مرورگر verify شد + ۴ کامیت جداگانه push شد
+- برای تست keep-alive: جدول virtualized هنگام hidden→visible درست re-measure می‌کند (ResizeObserver)
