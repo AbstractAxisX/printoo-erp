@@ -80,6 +80,17 @@ export function CalendarPage() {
   // instantly (TanStack prefix-match). Was: ["orders-calendar"]/["tasks-calendar"]
   // — single-string keys that no mutation ever touched (calendar was stale
   // for up to 30s until refetchInterval fired).
+  // یادداشت روزها — پین مداد روی سلول‌های تقویم (Phase 6)
+  const { data: notesData } = useQuery({
+    queryKey: ["day-notes"],
+    queryFn: () => api<{ notes: { id: string; date: string; content: string; color: string }[] }>("/api/day-notes"),
+    staleTime: 60_000,
+  });
+  const noteDays = React.useMemo(
+    () => (notesData?.notes ?? []).filter((n) => n.content?.trim()).map((n) => n.date),
+    [notesData]
+  );
+
   const { data: ordersData } = useQuery({
     queryKey: ["orders", "calendar"],
     queryFn: () => api<{ orders: Order[] }>("/api/orders"),
@@ -122,6 +133,7 @@ export function CalendarPage() {
 
         <TabsContent value="calendar">
           <ReusableCalendar
+            noteDays={noteDays}
             events={allEvents}
             onDayClick={(date, evts) => setDayModal({ date, events: evts })}
             onEventClick={(e) => {

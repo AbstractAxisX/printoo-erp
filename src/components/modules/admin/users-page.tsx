@@ -352,7 +352,7 @@ export function UsersPage() {
 
       {/* ── Create dialog ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>کاربر جدید</DialogTitle>
           </DialogHeader>
@@ -381,7 +381,7 @@ export function UsersPage() {
 
       {/* ── Edit dialog ── */}
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>ویرایش {editUser?.name}</DialogTitle>
           </DialogHeader>

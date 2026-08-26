@@ -319,7 +319,7 @@ export function SRMServices() {
 
       {/* Create service dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>خدمه جدید</DialogTitle>
           </DialogHeader>
@@ -712,7 +712,7 @@ function ServiceDetailDrawer({
 
       {/* Add price dialog (rendered as sibling) */}
       <Dialog open={addPriceOpen} onOpenChange={setAddPriceOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>ثبت قیمت جدید</DialogTitle>
           </DialogHeader>

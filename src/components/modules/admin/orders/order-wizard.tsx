@@ -724,7 +724,7 @@ function CreateCustomerDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="userAdd" size={18} className="text-primary" /> ایجاد مشتری جدید</DialogTitle></DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
           <div className="space-y-1.5"><Label>نام مشتری *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus /></div>
@@ -855,7 +855,7 @@ function Step2({
 
       {/* Product create modal */}
       <Dialog open={productModal} onOpenChange={setProductModal}>
-        <DialogContent className="max-w-sm">
+        <DialogContent aria-describedby={undefined} className="max-w-sm">
           <DialogHeader><DialogTitle>محصول جدید</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (newProduct.trim()) createProduct.mutate(newProduct.trim()); }} className="space-y-4">
             <div className="space-y-1.5"><Label>نام محصول *</Label><Input value={newProduct} onChange={(e) => setNewProduct(e.target.value)} required autoFocus /></div>
@@ -962,7 +962,7 @@ function NoteItemModal({ open, onOpenChange, note, onSave }: { open: boolean; on
   React.useEffect(() => setVal(note), [note, open]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent aria-describedby={undefined} className="max-w-sm">
         <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="info" size={18} className="text-primary" /> یادداشت آیتم</DialogTitle></DialogHeader>
         <Textarea value={val} onChange={(e) => setVal(e.target.value)} rows={4} placeholder="یادداشت اختصاصی برای این ردیف..." autoFocus />
         <DialogFooter>

@@ -169,7 +169,7 @@ export function DesignerOrderDetailModal({
   if (!order) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
           <DialogTitle className="sr-only">جزئیات سفارش طراحی</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
@@ -199,7 +199,7 @@ export function DesignerOrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
           {/* Header */}
           <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-violet-500/5 to-transparent">
             <div className="flex items-start justify-between gap-3">
@@ -371,7 +371,7 @@ export function DesignerOrderDetailModal({
 
       {/* Sub-dialog: report to QC */}
       <Dialog open={qcOpen} onOpenChange={setQcOpen}>
-        <DialogContent className="max-w-md p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="max-w-md p-0 gap-0">
           <div className="px-6 pt-5 pb-3 border-b">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 grid place-items-center shrink-0">

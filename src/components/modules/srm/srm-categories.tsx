@@ -425,7 +425,7 @@ export function SRMCategories() {
 
       {/* Create category dialog */}
       <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>دسته جدید</DialogTitle>
           </DialogHeader>
@@ -478,7 +478,7 @@ export function SRMCategories() {
 
       {/* Create subcategory dialog */}
       <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>زیردسته جدید</DialogTitle>
           </DialogHeader>

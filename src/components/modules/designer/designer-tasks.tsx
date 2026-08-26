@@ -199,7 +199,7 @@ function TaskDetailModal({ task, onClose, onUpdateStatus }: { task: Task | null;
 
   return (
     <Dialog open={!!task} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md p-0 gap-0">
+      <DialogContent aria-describedby={undefined} className="max-w-md p-0 gap-0">
         <DialogHeader className="px-5 pt-5 pb-3 border-b">
           <DialogTitle className="text-base font-bold flex items-center gap-2">
             <Icon name="task" size={18} className="text-primary" />

@@ -26,7 +26,7 @@ export function CommandPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="overflow-hidden p-0 max-w-xl" showCloseButton={false}>
+      <DialogContent aria-describedby={undefined} className="overflow-hidden p-0 max-w-xl" showCloseButton={false}>
         {/* عنوان برداشتن‌پذیر برای صفحه‌خوان‌ها — رفع هشدار a11yِ DialogContent بدون DialogTitle */}
         <DialogTitle className="sr-only">پالت فرمان — جستجوی سریع صفحه‌ها</DialogTitle>
         <Command className="rounded-lg">

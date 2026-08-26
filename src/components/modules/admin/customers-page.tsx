@@ -155,7 +155,7 @@ export function CustomersPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{editing ? "ویرایش مشتری" : "مشتری جدید"}</DialogTitle>
           </DialogHeader>

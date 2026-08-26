@@ -42,6 +42,8 @@ type ReusableCalendarProps = {
   onDayClick?: (date: Date, events: CalendarEvent[]) => void;
   onEventClick?: (event: CalendarEvent) => void;
   filters?: { id: string; label: string; active: boolean; onToggle: () => void }[];
+  /** کلیدهای yyyy-MM-dd روزهایی که یادداشت دارند → پین مداد روی سلول */
+  noteDays?: string[];
   className?: string;
 };
 
@@ -54,8 +56,9 @@ const COLOR_CLASSES: Record<CalendarEvent["color"], { bg: string; text: string; 
 
 const MAX_VISIBLE_EVENTS = 10;
 
-export function ReusableCalendar({ events, onDayClick, onEventClick, filters, className }: ReusableCalendarProps) {
+export function ReusableCalendar({ events, onDayClick, onEventClick, filters, noteDays, className }: ReusableCalendarProps) {
   const [cursor, setCursor] = React.useState(new Date());
+  const noteDaySet = React.useMemo(() => new Set(noteDays ?? []), [noteDays]);
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 6 });
@@ -137,6 +140,7 @@ export function ReusableCalendar({ events, onDayClick, onEventClick, filters, cl
           const dayEvents = getEventsForDay(day);
           const visibleEvents = dayEvents.slice(0, MAX_VISIBLE_EVENTS);
           const overflow = dayEvents.length - visibleEvents.length;
+          const hasNote = noteDaySet.has(format(day, "yyyy-MM-dd"));
 
           return (
             <button
@@ -151,6 +155,11 @@ export function ReusableCalendar({ events, onDayClick, onEventClick, filters, cl
             >
               <div className="flex items-center justify-between mb-1">
                 <span className={cn("text-xs font-medium", isToday && "text-primary")}>{format(day, "d")}</span>
+                {hasNote && (
+                  <span title="این روز یادداشت دارد" className="text-amber-500">
+                    <Icon name="pencil" size={11} />
+                  </span>
+                )}
               </div>
               {/* Small event squares with ID */}
               <div className="flex flex-wrap gap-0.5">

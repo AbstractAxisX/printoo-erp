@@ -70,7 +70,7 @@ export function ExpenseTypesPage() {
           emptyState={<EmptyState icon="tag" title="نوع هزینه‌ای یافت نشد" action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن</Button>} />} />
       </Card>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader><DialogTitle>نوع هزینه جدید</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMut.mutate(name.trim()); }} className="space-y-4">
             <div className="space-y-1.5"><Label>نام *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></div>
@@ -82,7 +82,7 @@ export function ExpenseTypesPage() {
         </DialogContent>
       </Dialog>
       <Dialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent aria-describedby={undefined} className="max-w-sm">
           <DialogHeader><DialogTitle>حذف نوع هزینه</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">آیا مطمئن هستید؟</p>
           <DialogFooter>

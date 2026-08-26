@@ -140,7 +140,7 @@ export function FinanceCostDetailModal({
   if (!cost) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
           <DialogTitle className="sr-only">جزئیات هزینه</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
@@ -182,7 +182,7 @@ export function FinanceCostDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
+      <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-rose-500/5 to-transparent">
           <div className="flex items-start justify-between gap-3">

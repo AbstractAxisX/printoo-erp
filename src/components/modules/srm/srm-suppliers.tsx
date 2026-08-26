@@ -385,7 +385,7 @@ export function SRMSuppliers() {
 
       {/* Add/Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{editing ? "ویرایش تامین‌کننده" : "تامین‌کننده جدید"}</DialogTitle>
           </DialogHeader>

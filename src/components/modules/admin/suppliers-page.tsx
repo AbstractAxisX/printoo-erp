@@ -107,7 +107,7 @@ export function SuppliersPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader><DialogTitle>تامین‌کننده جدید</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); createMut.mutate(form); }} className="space-y-4">
             <div className="space-y-1.5"><Label>نام تامین‌کننده *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>

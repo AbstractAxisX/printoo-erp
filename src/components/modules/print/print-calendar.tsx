@@ -90,6 +90,17 @@ export function PrintCalendar() {
   const [activeTab, setActiveTab] = React.useState("calendar");
 
   // Fetch print orders (status=in_printing)
+  // یادداشت روزها — پین مداد روی سلول‌های تقویم (Phase 6)
+  const { data: notesData } = useQuery({
+    queryKey: ["day-notes"],
+    queryFn: () => api<{ notes: { id: string; date: string; content: string; color: string }[] }>("/api/day-notes"),
+    staleTime: 60_000,
+  });
+  const noteDays = React.useMemo(
+    () => (notesData?.notes ?? []).filter((n) => n.content?.trim()).map((n) => n.date),
+    [notesData]
+  );
+
   const { data: ordersData } = useQuery({
     queryKey: ["orders", "print", "in_printing", "calendar"],
     queryFn: () =>
@@ -174,6 +185,7 @@ export function PrintCalendar() {
 
         <TabsContent value="calendar">
           <ReusableCalendar
+            noteDays={noteDays}
             events={allEvents}
             onDayClick={(date, evts) =>
               setDayModal({ date, events: evts })
