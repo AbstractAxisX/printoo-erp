@@ -513,7 +513,7 @@ export function TasksPage() {
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>تسک جدید</DialogTitle>
           </DialogHeader>
@@ -552,7 +552,7 @@ export function TasksPage() {
 
       {/* Edit dialog */}
       <Dialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>ویرایش تسک</DialogTitle>
           </DialogHeader>

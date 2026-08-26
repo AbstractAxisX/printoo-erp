@@ -64,7 +64,7 @@ export function OrderNoteModal({
 
   return (
     <Dialog open={!!order} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon name="info" size={18} className="text-primary" /> یادداشت سفارش #
@@ -154,7 +154,7 @@ export function OrderStatusModal({
 
   return (
     <Dialog open={!!order} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon name="route" size={18} className="text-primary" /> تغییر وضعیت
@@ -278,7 +278,7 @@ export function OrderDeleteDialog({
 
   return (
     <Dialog open={!!order} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm">
+      <DialogContent aria-describedby={undefined} className="max-w-sm">
         <DialogHeader>
           <DialogTitle>حذف سفارش</DialogTitle>
         </DialogHeader>

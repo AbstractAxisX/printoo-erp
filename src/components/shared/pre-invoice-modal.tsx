@@ -118,7 +118,7 @@ export function PreInvoiceModal({ orderId, customerName, open, onOpenChange }: P
   return (
     <>
       <Dialog open={open && !showPreview} onOpenChange={(v) => { onOpenChange(v); if (!v) setShowPreview(false); }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[85vh] overflow-hidden p-0 gap-0">
           <div className="px-6 pt-5 pb-3 border-b">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 grid place-items-center shrink-0">
@@ -203,7 +203,7 @@ export function PreInvoiceModal({ orderId, customerName, open, onOpenChange }: P
 
       {/* Preview modal */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin p-0">
+        <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin p-0">
           <DialogTitle className="sr-only">پیش‌نمایش پیش‌فاکتور</DialogTitle>
           <div id="pre-invoice-print" className="p-8">
             {/* Header */}

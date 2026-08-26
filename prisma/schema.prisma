@@ -352,3 +352,17 @@ model Counter {
   id    String  @id           // "order" | "preInvoice" | "invoice"
   next  Int    @default(1)    // next number to assign
 }
+
+// ─── Day notes (calendar) ──────────────────────────────────────────────────
+// Per-day sticky note rendered in the Day Detail Modal + a marker dot on the
+// calendar cell. `date` is a LOCAL yyyy-MM-dd string key (unique) — kept as
+// String (not DateTime) so no timezone drift can ever shift a note to the
+// adjacent day. color: default | rose | amber | emerald | blue.
+model DayNote {
+  id        String   @id @default(cuid())
+  date      String   @unique // "yyyy-MM-dd" local day key
+  content   String   @default("")
+  color     String   @default("default")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
