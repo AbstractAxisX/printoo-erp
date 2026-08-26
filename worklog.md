@@ -3317,3 +3317,26 @@ Stage Summary:
 - Files touched: +use-dashboard-data.ts (new), kpi-cards.tsx, dashboard-sections.tsx, quick-stats.tsx, admin-dashboard.tsx, order-wizard.tsx (8 edits), prisma/schema.prisma (+Counter model), src/app/api/orders/route.ts (nextNumber rewrite + seedCounters), src/app/api/pre-invoices/route.ts (counter upsert).
 - Contracts preserved: POST /api/orders body shape unchanged; PUT /api/orders/[id] unchanged (preInvoice handled via separate /api/pre-invoices route per §5.1); dashboard queryKeys now under ["dashboard"] prefix (backward-compatible — TanStack prefix-match widened); DASHBOARD_PAGES values match existing nav.ts page values.
 - ALL 26 R-catalog bugs now resolved or deferred-with-rationale. Phase 6 complete.
+
+---
+Task ID: Phase-6.5
+Agent: orchestrator (main)
+Task: فاز ۶ تکمیلی — ریشه‌یابی ۵۰۰های تسک/جزئیات سفارش + بازطراحی محسوس مودال جزئیات روز + یادداشت روز + پاکسازی کامل کنسول
+
+Work Log:
+- سرور هنگ‌کرده پیدا شد: next-server با ۹۸.۵٪ CPU و ۲.۲GB رم در لوپ بی‌نهایت (میراث VirtualizedDataTable/flushSync). kill + rm .next + ری‌استارت → همه APIهای «خراب» (GET/POST /api/tasks، GET /api/orders/[id]) بلافاصله ۲۰۰/۲۰۱ برگرداندند. ریشهٔ ۵۰۰های کاربر همین هنگ بود، نه باگ API.
+- تست صفر تا صد تسک با curl احراز هویت‌شده: GET همه ۸ ماژول‌فیلترها ۲۰۰؛ POST با بدنهٔ ساده/با مسئول/با تاریخ ۲۰۱؛ خطای ۴۰۰ «اولویت نامعتبر: high» فقط با مقدار خارج از قرارداد (normal|urgent) — فرم‌های داخلی همیشه مقدار مجاز می‌فرستند.
+- تست انسانی مرورگر (agent-browser): لاگین → پنل ادمین → «تسک جدید» → تسک «تست مرورگر فاز ۶ — برتری دمو» ساخته شد و در لیست ظاهر شد؛ صفر خطای کنسول.
+- مودال جزئیات سفارش در مرورگر: ردیف #15 کلیک → مودال با مشتری/مبالغ/۶ تب باز شد؛ همهٔ تب‌ها (آیتم‌ها/مالی/تاریخچه) بدون خطا کار کردند. مودال از ابتدا سالم بود — عامل شکست کاربر، سرورِ هنگ بود.
+- 🔴 باگ واقعی: مدل DayNote در prisma/schema.prisma وجود نداشت ولی /api/day-notes آن را صدا می‌زد → ۵۰۰ قطعی. مدل اضافه شد (date: String @unique بدون timezone-drift، content، color) + db:push + ری‌استارت dev برای Prisma Client جدید → POST ۲۰۱ تأیید شد.
+- بازطراحی کامل day-detail-modal.tsx: max-w-2xl→sm:max-w-5xl (۶۷۲→۱۰۲۴px)، چیدمان دوستونه (سایدبار تاریخ شمسی بزرگ با Intl persian + آمار رنگی + نوارهای پیشرفت زمانی / بدنهٔ تب‌دار)، اعداد فارسی fa-IR، ویرایشگر «یادداشت روز» با ۵ رنگ + ذخیره/حذف متصل به /api/day-notes (خود-fetch → هر ۳ تقویم بدون تغییر props بهره می‌برند). VLM امتیاز ۸/۱۰؛ دسکتاپ ۱۰۲۴px و موبایل ۳۵۸px استک‌شده تأیید شد.
+- پین مداد روی سلول‌های تقویم: پراپ noteDays به ReusableCalendar + useQuery مشترک ["day-notes"] در هر ۳ صفحهٔ تقویم (ادمین/طراح/چاپ)؛ روز دارای یادداشت آیکون مداد کهربایی می‌گیرد (تأیید DOM: PIN FOUND).
+- aria-describedby={undefined} به ۳۸ DialogContent بدون Description در ۲۳ فایل — کنسول مرورگر اکنون صفر warning/error.
+- تست پنل‌های طراح و چاپ: «تسک‌های طراح» (۵ تسک، ستون‌های در صف/در حال انجام/انجام شده) و «تسک‌های چاپ» هر دو سالم؛ نکتهٔ دیباگ: تب‌ها keep-alive هستند و h1 اولِ DOM همیشه تب مخفی است — باید عنصر visible خوانده شود.
+- باگ ۸ (انتقال کاربران به تنظیمات) از قبل انجام بود (settings-users-guard + visibleModules master-only).
+
+Stage Summary:
+- ریشهٔ اصلی «تسک‌ها و مودال سفارش کار نمی‌کنند»: سرور دیو در لوپ CPU (میراث virtualizer). حل: ری‌استارت + هات‌فیکس قبلی DataTable. همهٔ جریان‌ها اینک browser-verified سالم.
+- باگ جدید DayNote-missing-model رفع شد (فقط مورد ۵۰۰ قطعی باقی‌مانده).
+- تغییرات محسوس برای دمو: مودال روز عریض/دوستونه/شمسی + یادداشت روز با ۵ رنگ + پین روی تقویم (در هر ۳ ماژول) + کنسول کاملاً تمیز.
+- کامیت‌ها: 50c13ec (فایل‌های جامانده)، 61d181b (بازطراحی مودال + DayNote + aria)، d2ddc30 (پین تقویم + ۳۱ دیالوگ aria) — همه push شده.
