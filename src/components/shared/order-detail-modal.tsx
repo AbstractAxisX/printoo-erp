@@ -272,10 +272,14 @@ export function OrderDetailModal({
   order,
   open,
   onOpenChange,
+  isError,
+  onRetry,
 }: {
   order: OrderDetail | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  isError?: boolean;
+  onRetry?: () => void;
 }) {
   const invalidate = useInvalidate();
   const navigate = useAppStore((s) => s.navigate);
@@ -323,7 +327,9 @@ export function OrderDetailModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Loading state — skeleton (not spinner) for perceived performance
+  // Loading state — skeleton (not spinner) for perceived performance.
+  // Error state — explicit message + retry (previously a forever-skeleton
+  // on API failure, which looked like a blank/white modal).
   if (!order) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -332,7 +338,21 @@ export function OrderDetailModal({
           <DialogDescription className="sr-only">
             در حال بارگذاری اطلاعات سفارش
           </DialogDescription>
-          <ModalSkeleton />
+          {isError ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <Icon name="alertTriangle" size={32} className="text-rose-500" />
+              <span className="text-sm font-medium text-rose-600">
+                خطا در بارگذاری سفارش — سرور پاسخ نداد
+              </span>
+              {onRetry && (
+                <Button size="sm" variant="outline" onClick={onRetry}>
+                  تلاش دوباره
+                </Button>
+              )}
+            </div>
+          ) : (
+            <ModalSkeleton />
+          )}
         </DialogContent>
       </Dialog>
     );

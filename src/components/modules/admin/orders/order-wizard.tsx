@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchSelect } from "@/components/shared/search-select";
 import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -1039,8 +1040,8 @@ function Step3(props: {
           <div className="rounded-lg border bg-background p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium"><Icon name="design" size={16} className="text-violet-500" /> ماژول طراحی</div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={designStart || null} onChange={(d) => setDesignStart(d ? d.toISOString().slice(0,10) : "")} placeholder="شروع" /></div>
-              <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={designEnd || null} onChange={(d) => setDesignEnd(d ? d.toISOString().slice(0,10) : "")} placeholder="پایان" /></div>
+              <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={designStart || null} onChange={(d) => setDesignStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="شروع" /></div>
+              <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={designEnd || null} onChange={(d) => setDesignEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="پایان" /></div>
             </div>
           </div>
         )}
@@ -1048,8 +1049,8 @@ function Step3(props: {
         <div className="rounded-lg border bg-background p-3 space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium"><Icon name="print" size={16} className="text-amber-500" /> ماژول چاپ</div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={printStart || null} onChange={(d) => setPrintStart(d ? d.toISOString().slice(0,10) : "")} placeholder="شروع" /></div>
-            <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={printEnd || null} onChange={(d) => setPrintEnd(d ? d.toISOString().slice(0,10) : "")} placeholder="پایان" /></div>
+            <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={printStart || null} onChange={(d) => setPrintStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="شروع" /></div>
+            <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={printEnd || null} onChange={(d) => setPrintEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="پایان" /></div>
           </div>
         </div>
 
@@ -1066,7 +1067,7 @@ function Step3(props: {
         </div>
         {!noEndDate && (
           <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">تاریخ پایان</Label><DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? d.toISOString().slice(0,10) : "")} placeholder="تاریخ پایان" /></div>
+            <div className="space-y-1"><Label className="text-xs">تاریخ پایان</Label><DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? format(d, "yyyy-MM-dd") : "")} placeholder="تاریخ پایان" /></div>
           </div>
         )}
         <p className="text-[11px] text-muted-foreground">تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ می‌باشد.</p>

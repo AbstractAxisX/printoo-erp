@@ -1,15 +1,20 @@
 "use client";
 
-// Printoo24 ERP — Day Detail Modal (Phase 6 redesign)
+// Printoo24 ERP — Day Detail Modal (Phase 6.5 layout rebuild)
 //
-// عریض‌تر، دوستونه و فارسی‌تر:
-//  - sm:max-w-5xl (هم‌عرض مودال جزئیات سفارش) + چیدمان سایدبار/محتوا
-//  - سایدبار: تاریخ شمسی (Intl persian calendar)، weekday، آمار رنگی
-//  - یادداشت روز: ویرایشگر با ۵ رنگ + ذخیره/حذف → /api/day-notes
-//  - خودش note را fetch می‌کند → ۳ تقویم (ادمین/طراح/چاپ) بدون تغییر
-//    از قابلیت جدید بهره می‌برند (props همان قبلی است).
-//  - aria-describedby={undefined} → ساکت کردن هشدار Radix برای
-//    DialogContent بدون Description.
+// ساختار جدید (پس از بازخورد «بهم ریخته»):
+//   ┌────────────────────────────────────────────┐
+//   │ هدر تمام‌عرض: تاریخ شمسی بزرگ + چیپ‌ها      │ ← X در همین ردیف جا می‌گیرد
+//   ├────────────────────────────────────────────┤
+//   │ تب‌های تمام‌عرض (نمای کلی/سفارشات/تسک‌ها)   │
+//   ├──────────┬─────────────────────────────────┤
+//   │ سایدبار  │ محتوای اسکرول‌شونده              │
+//   │ آمار+نوار│                                 │
+//   ├──────────┴─────────────────────────────────┤
+//   │ ویرایشگر یادداشت روز (تمام‌عرض)            │
+//   └────────────────────────────────────────────┘
+// ارتفاع با flex مدیریت می‌شود (max-h تودرتو حذف شد) — هیچ «پله»ی
+// ناهم‌تراز بین سایدبار و محتوا باقی نمی‌ماند.
 
 import * as React from "react";
 import { format, differenceInCalendarDays, parseISO, isValid } from "date-fns";
@@ -65,7 +70,6 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   const [tab, setTab] = React.useState<"overview" | "orders" | "tasks" | "reports">("overview");
   const queryClient = useQueryClient();
 
-  // Reset to overview when opening
   React.useEffect(() => { if (open) setTab("overview"); }, [open, date]);
 
   const dateKey = date ? format(date, "yyyy-MM-dd") : "";
@@ -82,7 +86,6 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   const [noteColor, setNoteColor] = React.useState("default");
   const [noteHydrated, setNoteHydrated] = React.useState("");
 
-  // Hydrate editor once per fetched note/date
   React.useEffect(() => {
     if (!open || !dateKey) return;
     const key = `${dateKey}:${noteQuery.data?.note?.id ?? "none"}`;
@@ -126,7 +129,6 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   const urgentOrders = orders.filter((e) => e.color === "yellow");
   const urgentTasks = tasks.filter((e) => e.color === "red");
 
-  // Overview stats
   const totalEvents = events.length;
   const overdue = events.filter((e) => {
     const d = diffDays(e.endDate, new Date());
@@ -144,45 +146,83 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   if (!date) return null;
 
   const pct = (n: number) => (totalEvents > 0 ? Math.round((n / totalEvents) * 100) : 0);
+  const urgentCount = urgentOrders.length + urgentTasks.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="sm:max-w-5xl w-[calc(100%-1.5rem)] max-h-[90vh] overflow-hidden p-0 gap-0 rounded-xl"
+        className="sm:max-w-5xl w-[calc(100%-1.5rem)] max-h-[90vh] overflow-hidden p-0 gap-0 rounded-xl flex flex-col"
       >
         <DialogTitle className="sr-only">جزئیات روز {format(date, "yyyy/MM/dd")}</DialogTitle>
 
-        <div className="flex flex-col md:flex-row max-h-[90vh]">
-          {/* ─── Sidebar (RTL: راست) — تاریخ شمسی + آمار ─────────────── */}
-          <aside className="md:w-64 shrink-0 md:overflow-y-auto scrollbar-thin bg-gradient-to-b from-primary/10 via-primary/5 to-transparent dark:from-primary/15 md:border-l border-b md:border-b-0 p-5 flex md:flex-col gap-4">
-            {/* Jalali big date */}
-            <div className="text-center md:pt-2">
-              <div className="text-[11px] font-medium text-muted-foreground">{weekdayFmt.format(date)}</div>
-              <div className="text-5xl font-black tabular-nums leading-tight bg-gradient-to-b from-primary to-primary/60 bg-clip-text text-transparent">
-                {jDayFmt.format(date)}
-              </div>
-              <div className="text-sm font-bold">{jMonthYearFmt.format(date)}</div>
-              <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">{format(date, "yyyy/MM/dd")}</div>
+        {/* ─── هدر تمام‌عرض: تاریخ شمسی + اطلاعات روز ─────────────── */}
+        <div className="shrink-0 flex items-center gap-4 px-6 pt-4 pb-3.5 pr-14 border-b bg-gradient-to-l from-primary/10 via-primary/5 to-transparent">
+          {/* عدد بزرگ شمسی */}
+          <div className="text-center shrink-0 -my-1">
+            <div className="text-4xl font-black tabular-nums leading-none bg-gradient-to-b from-primary to-primary/60 bg-clip-text text-transparent">
+              {jDayFmt.format(date)}
             </div>
-
-            <div className="hidden md:block h-px bg-border" />
-
-            {/* Amusement stats list */}
-            <div className="flex-1 grid grid-cols-2 md:grid-cols-1 gap-2">
-              <SideStat label="کل رویدادها" value={totalEvents} icon="inbox" tone="text-foreground" />
-              <SideStat label="سفارشات" value={orders.length} icon="orders" tone="text-blue-600 dark:text-blue-400" />
-              <SideStat label="تسک‌ها" value={tasks.length} icon="task" tone="text-emerald-600 dark:text-emerald-400" />
-              <SideStat
-                label="فوری"
-                value={urgentOrders.length + urgentTasks.length}
-                icon="alertTriangle"
-                tone="text-rose-600 dark:text-rose-400"
-              />
+          </div>
+          <div className="h-10 w-px bg-border shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-bold flex items-baseline gap-2 flex-wrap">
+              <span>{weekdayFmt.format(date)}</span>
+              <span className="text-muted-foreground font-medium">{jMonthYearFmt.format(date)}</span>
             </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+              <span className="tabular-nums">{format(date, "yyyy/MM/dd")}</span>
+              <span>•</span>
+              <span>{faNum(totalEvents)} رویداد</span>
+            </div>
+          </div>
+          {urgentCount > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 shrink-0">
+              <Icon name="alertTriangle" size={11} /> {faNum(urgentCount)} فوری
+            </span>
+          )}
+          {hasNote && (
+            <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
+              <Icon name="pencil" size={11} /> یادداشت
+            </span>
+          )}
+        </div>
 
-            {/* Time status bars — فقط دسکتاپ */}
-            <div className="hidden md:block rounded-xl border bg-card/70 p-3 space-y-2.5">
+        {/* ─── تب‌های تمام‌عرض ─────────────────────────────────────── */}
+        <div className="shrink-0 flex items-center gap-1.5 px-6 py-2 border-b bg-card/60 flex-wrap">
+          {([
+            { id: "overview", label: "نمای کلی", icon: "dashboard" as const },
+            { id: "orders", label: `سفارشات (${faNum(orders.length)})`, icon: "orders" as const },
+            { id: "tasks", label: `تسک‌ها (${faNum(tasks.length)})`, icon: "task" as const },
+            ...(reports.length > 0 ? [{ id: "reports" as const, label: `گزارش‌ها (${faNum(reports.length)})`, icon: "shield" as const }] : []),
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition",
+                tab === t.id
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              <Icon name={t.icon} size={13} /> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ─── بدنه دوستونه: سایدبار آمار + محتوا ─────────────────── */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+
+          {/* سایدبار (در RTL سمت راست) */}
+          <aside className="md:w-56 shrink-0 md:overflow-y-auto scrollbar-thin bg-muted/20 p-3.5 flex flex-row md:flex-col gap-2.5 md:gap-2 md:border-l border-b md:border-b-0">
+            <SideStat label="کل رویدادها" value={totalEvents} icon="inbox" tone="text-foreground" />
+            <SideStat label="سفارشات" value={orders.length} icon="orders" tone="text-blue-600 dark:text-blue-400" />
+            <SideStat label="تسک‌ها" value={tasks.length} icon="task" tone="text-emerald-600 dark:text-emerald-400" />
+            <SideStat label="فوری" value={urgentCount} icon="alertTriangle" tone="text-rose-600 dark:text-rose-400" />
+
+            {/* نوارهای وضعیت زمانی — فقط دسکتاپ */}
+            <div className="hidden md:block rounded-xl border bg-card/70 p-3 space-y-2.5 mt-1">
               <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                 <Icon name="clock" size={12} /> وضعیت زمانی
               </div>
@@ -192,166 +232,130 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
             </div>
           </aside>
 
-          {/* ─── Main — تب‌ها + محتوا + یادداشت ──────────────────────── */}
-          <div className="flex-1 min-w-0 flex flex-col max-h-[90vh]">
-            {/* Tabs header */}
-            <div className="flex items-center gap-1.5 px-5 pt-4 pb-3 border-b bg-card/50 flex-wrap">
-              {([
-                { id: "overview", label: "نمای کلی", icon: "dashboard" as const },
-                { id: "orders", label: `سفارشات (${faNum(orders.length)})`, icon: "orders" as const },
-                { id: "tasks", label: `تسک‌ها (${faNum(tasks.length)})`, icon: "task" as const },
-                ...(reports.length > 0 ? [{ id: "reports" as const, label: `گزارش‌ها (${faNum(reports.length)})`, icon: "shield" as const }] : []),
-              ] as const).map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition",
-                    tab === t.id
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                  )}
-                >
-                  <Icon name={t.icon} size={13} /> {t.label}
-                </button>
-              ))}
-              {hasNote && (
-                <span className="mr-auto flex items-center gap-1 text-[11px] px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                  <Icon name="pencil" size={11} /> یادداشت دارد
-                </span>
-              )}
-            </div>
+          {/* محتوای اصلی */}
+          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin p-5">
 
-            {/* Scrollable content */}
-            <div className="overflow-y-auto scrollbar-thin px-5 py-4 flex-1">
+            {/* OVERVIEW TAB */}
+            {tab === "overview" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <StatCard label="کل رویدادها" value={totalEvents} icon="inbox" color="bg-primary/10 text-primary" />
+                  <StatCard label="سفارشات" value={orders.length} icon="orders" color="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400" />
+                  <StatCard label="تسک‌ها" value={tasks.length} icon="task" color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" />
+                  <StatCard label="فوری" value={urgentCount} icon="alertTriangle" color="bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400" />
+                </div>
 
-              {/* OVERVIEW TAB */}
-              {tab === "overview" && (
-                <div className="space-y-4">
-                  {/* Stat cards */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-                    <StatCard label="کل رویدادها" value={totalEvents} icon="inbox" color="bg-primary/10 text-primary" />
-                    <StatCard label="سفارشات" value={orders.length} icon="orders" color="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400" />
-                    <StatCard label="تسک‌ها" value={tasks.length} icon="task" color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" />
-                    <StatCard label="فوری" value={urgentOrders.length + urgentTasks.length} icon="alertTriangle" color="bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400" />
-                  </div>
-
-                  {/* Events preview — همه رویدادها با کارت رنگی */}
-                  {events.length > 0 && (
-                    <div className="rounded-xl border p-3">
-                      <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                        <Icon name="checkList" size={13} /> رویدادهای این روز
-                      </div>
-                      <div className="space-y-1">
-                        {events.slice(0, 6).map((e) => {
-                          const daysLeft = diffDays(e.endDate, new Date());
-                          return (
-                            <button
-                              key={e.id}
-                              onClick={() => onEventClick?.(e)}
-                              className="w-full flex items-center gap-2 text-xs py-1.5 px-2 rounded-lg hover:bg-accent/60 transition text-right"
-                            >
-                              <span className={cn("size-2 rounded-full shrink-0", DOT_BG[e.color])} />
-                              <span className="flex-1 truncate font-medium">{e.fullTitle}</span>
-                              <span className={cn("text-[11px] shrink-0 tabular-nums",
-                                daysLeft < 0 ? "text-rose-600 dark:text-rose-400" :
-                                daysLeft === 0 ? "text-amber-600 dark:text-amber-400" :
-                                "text-muted-foreground")}>
-                                {Number.isNaN(daysLeft) ? "—" : daysLeft > 0 ? `${faNum(daysLeft)} روز` : daysLeft === 0 ? "امروز" : `${faNum(Math.abs(daysLeft))} روز گذشته`}
-                              </span>
-                            </button>
-                          );
-                        })}
-                        {events.length > 6 && (
-                          <button onClick={() => setTab("orders")} className="w-full text-xs text-primary hover:underline text-center pt-1">
-                            نمایش {faNum(events.length - 6)} مورد دیگر…
+                {events.length > 0 && (
+                  <div className="rounded-xl border p-3">
+                    <div className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                      <Icon name="checkList" size={13} /> رویدادهای این روز
+                    </div>
+                    <div className="divide-y divide-border/60">
+                      {events.slice(0, 6).map((e) => {
+                        const daysLeft = diffDays(e.endDate, new Date());
+                        return (
+                          <button
+                            key={e.id}
+                            onClick={() => onEventClick?.(e)}
+                            className="w-full flex items-center gap-2.5 text-xs py-2 px-2 -mx-2 rounded-lg hover:bg-accent/60 transition text-right"
+                          >
+                            <span className={cn("size-2.5 rounded-full shrink-0", DOT_BG[e.color])} />
+                            <span className="flex-1 truncate font-medium">{e.fullTitle}</span>
+                            <span className={cn("text-[11px] shrink-0 tabular-nums font-medium",
+                              daysLeft < 0 ? "text-rose-600 dark:text-rose-400" :
+                              daysLeft === 0 ? "text-amber-600 dark:text-amber-400" :
+                              "text-muted-foreground")}>
+                              {Number.isNaN(daysLeft) ? "—" : daysLeft > 0 ? `${faNum(daysLeft)} روز` : daysLeft === 0 ? "امروز" : `${faNum(Math.abs(daysLeft))} روز گذشته`}
+                            </span>
                           </button>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
-                  )}
+                    {events.length > 6 && (
+                      <button onClick={() => setTab("orders")} className="w-full text-xs text-primary hover:underline text-center pt-2 mt-1 border-t border-dashed">
+                        نمایش {faNum(events.length - 6)} مورد دیگر…
+                      </button>
+                    )}
+                  </div>
+                )}
 
-                  {events.length === 0 && !hasNote && (
-                    <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
-                      <Icon name="inbox" size={36} className="opacity-30" />
-                      <span className="text-sm">رویدادی در این روز نیست — روز آزاد است</span>
-                    </div>
-                  )}
-                </div>
-              )}
+                {events.length === 0 && !hasNote && (
+                  <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
+                    <Icon name="inbox" size={36} className="opacity-30" />
+                    <span className="text-sm">رویدادی در این روز نیست — روز آزاد است</span>
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* ORDERS TAB */}
-              {tab === "orders" && (
-                <EventList events={orders} onEventClick={onEventClick} emptyMessage="سفارشی در این روز نیست" />
-              )}
+            {/* ORDERS TAB */}
+            {tab === "orders" && (
+              <EventList events={orders} onEventClick={onEventClick} emptyMessage="سفارشی در این روز نیست" />
+            )}
 
-              {/* TASKS TAB */}
-              {tab === "tasks" && (
-                <EventList events={tasks} onEventClick={onEventClick} emptyMessage="تسکی در این روز نیست" />
-              )}
+            {/* TASKS TAB */}
+            {tab === "tasks" && (
+              <EventList events={tasks} onEventClick={onEventClick} emptyMessage="تسکی در این روز نیست" />
+            )}
 
-              {/* REPORTS TAB */}
-              {tab === "reports" && (
-                <EventList events={reports} onEventClick={onEventClick} emptyMessage="گزارشی در این روز نیست" />
-              )}
+            {/* REPORTS TAB */}
+            {tab === "reports" && (
+              <EventList events={reports} onEventClick={onEventClick} emptyMessage="گزارشی در این روز نیست" />
+            )}
+          </div>
+        </div>
+
+        {/* ─── ویرایشگر یادداشت — تمام‌عرض، در همه تب‌ها ─────────────── */}
+        <div className="shrink-0 border-t bg-muted/30 px-6 py-3">
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <div className="text-xs font-semibold flex items-center gap-1.5 shrink-0">
+              <Icon name="pencil" size={13} className="text-amber-600" /> یادداشت این روز
             </div>
-
-            {/* ─── Day note editor — همیشه پایین، در همه تب‌ها ─────────── */}
-            <div className="border-t bg-muted/30 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-xs font-semibold flex items-center gap-1.5">
-                  <Icon name="pencil" size={13} className="text-amber-600" /> یادداشت این روز
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {NOTE_COLORS.map((c) => (
-                    <button
-                      key={c.id}
-                      title={c.label}
-                      aria-label={`رنگ ${c.label}`}
-                      onClick={() => setNoteColor(c.id)}
-                      className={cn(
-                        "size-5 rounded-full transition hover:scale-110",
-                        c.dot,
-                        noteColor === c.id && cn("ring-2 ring-offset-2 ring-offset-background scale-110", c.ring)
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-              <textarea
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                placeholder="مثلاً: تحویل بنر باشگاه ورشی، تماس با چاپخانه…"
-                rows={2}
-                className="w-full rounded-lg border bg-card px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-              />
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {noteQuery.isLoading ? "در حال بارگذاری…" : hasNote ? "این روز یادداشت ثبت‌شده دارد" : "یادداشتی ثبت نشده"}
-                </span>
-                <div className="flex items-center gap-2">
-                  {hasNote && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteNote.mutate()}
-                      disabled={deleteNote.isPending}
-                      className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                    >
-                      حذف
-                    </Button>
+            <div className="flex items-center gap-1.5">
+              {NOTE_COLORS.map((c) => (
+                <button
+                  key={c.id}
+                  title={c.label}
+                  aria-label={`رنگ ${c.label}`}
+                  onClick={() => setNoteColor(c.id)}
+                  className={cn(
+                    "size-5 rounded-full transition hover:scale-110",
+                    c.dot,
+                    noteColor === c.id && cn("ring-2 ring-offset-2 ring-offset-background scale-110", c.ring)
                   )}
-                  <Button
-                    size="sm"
-                    onClick={() => saveNote.mutate()}
-                    disabled={saveNote.isPending || (!noteDraft.trim() && !hasNote)}
-                    className="h-8 gap-1.5"
-                  >
-                    <Icon name="check" size={14} />
-                    {saveNote.isPending ? "در حال ذخیره…" : "ذخیره یادداشت"}
-                  </Button>
-                </div>
-              </div>
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="مثلاً: تحویل بنر باشگاه ورشی، تماس با چاپخانه…"
+              rows={2}
+              className="flex-1 min-w-0 rounded-lg border bg-card px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                onClick={() => saveNote.mutate()}
+                disabled={saveNote.isPending || (!noteDraft.trim() && !hasNote)}
+                className="h-8 gap-1"
+              >
+                <Icon name="check" size={14} />
+                {saveNote.isPending ? "…" : "ذخیره"}
+              </Button>
+              {hasNote && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => deleteNote.mutate()}
+                  disabled={deleteNote.isPending}
+                  className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                >
+                  حذف
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -363,9 +367,9 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
 // ─── Sidebar stat row ────────────────────────────────────────────────
 function SideStat({ label, value, icon, tone }: { label: string; value: number; icon: IconName; tone: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-card/70 border px-2.5 py-2">
+    <div className="flex-1 md:flex-none flex items-center gap-2 rounded-lg bg-card border px-2.5 py-2">
       <Icon name={icon} size={14} className={cn("shrink-0", tone)} />
-      <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
+      <span className="text-[11px] text-muted-foreground flex-1 truncate">{label}</span>
       <span className={cn("text-sm font-bold tabular-nums", tone)}>{faNum(value)}</span>
     </div>
   );
@@ -388,11 +392,11 @@ function TimeBar({ label, value, pct, bar, text }: { label: string; value: numbe
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: IconName; color: string }) {
   return (
     <div className="rounded-xl border p-3 hover:shadow-sm transition">
-      <div className={cn("size-9 rounded-lg grid place-items-center mb-2", color)}>
+      <div className={cn("size-9 rounded-lg grid place-items-center mb-2 mx-auto", color)}>
         <Icon name={icon} size={17} />
       </div>
-      <div className="text-2xl font-black tabular-nums">{faNum(value)}</div>
-      <div className="text-[11px] text-muted-foreground mt-0.5">{label}</div>
+      <div className="text-2xl font-black tabular-nums text-center">{faNum(value)}</div>
+      <div className="text-[11px] text-muted-foreground mt-0.5 text-center">{label}</div>
     </div>
   );
 }
@@ -415,7 +419,7 @@ function EventList({ events, onEventClick, emptyMessage }: { events: CalendarEve
     );
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {events.map((e) => {
         const start = toDate(e.startDate);
         const end = toDate(e.endDate);
@@ -424,7 +428,7 @@ function EventList({ events, onEventClick, emptyMessage }: { events: CalendarEve
             <button
               key={e.id}
               onClick={() => onEventClick?.(e)}
-              className={cn("w-full text-right rounded-xl border p-3 hover:shadow-md transition", "bg-muted/30 border-border")}
+              className={cn("w-full text-right rounded-xl border p-3.5 hover:shadow-md transition", "bg-muted/30 border-border")}
             >
               <div className="flex items-start gap-2.5">
                 <div className="flex-1 min-w-0">

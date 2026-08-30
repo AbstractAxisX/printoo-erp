@@ -72,7 +72,7 @@ export function useOrderDetail() {
     preloadModal();
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => fetchOrder(orderId!),
     enabled: !!orderId && open,
@@ -101,6 +101,8 @@ export function useOrderDetail() {
     <OrderDetailModal
       order={data?.order ?? null}
       open={open}
+      isError={isError}
+      onRetry={() => refetch()}
       onOpenChange={(v) => {
         setOpen(v);
         if (!v) setOrderId(null);

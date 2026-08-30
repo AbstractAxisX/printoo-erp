@@ -62,6 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { format } from "date-fns";
 import { formatDate, daysRemaining } from "@/lib/format";
 import {
   TASK_STATUS,
@@ -938,7 +939,7 @@ function TaskFormFields({
           <DatePicker
             value={form.dueDate || null}
             onChange={(d) =>
-              setForm((f) => ({ ...f, dueDate: d ? d.toISOString().slice(0, 10) : "" }))
+              setForm((f) => ({ ...f, dueDate: d ? format(d, "yyyy-MM-dd") : "" }))
             }
             placeholder="انتخاب تاریخ"
           />

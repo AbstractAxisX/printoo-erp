@@ -139,7 +139,7 @@ export function PrintOrderDetailModal({
 
   // Fetch the order via the existing GET /api/orders/[id] endpoint.
   // The print-safe projection strips out financial + phone fields.
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => api<{ order: FullOrder }>(`/api/orders/${orderId}`),
     enabled: !!orderId && open,
@@ -300,6 +300,16 @@ export function PrintOrderDetailModal({
                 <span className="text-sm text-muted-foreground">
                   در حال بارگذاری سفارش...
                 </span>
+              </>
+            ) : isError ? (
+              <>
+                <Icon name="alertTriangle" size={28} className="text-rose-500" />
+                <span className="text-sm font-medium text-rose-600">
+                  خطا در بارگذاری سفارش — سرور پاسخ نداد
+                </span>
+                <Button size="sm" variant="outline" onClick={() => refetch()}>
+                  تلاش دوباره
+                </Button>
               </>
             ) : (
               <span className="text-sm text-muted-foreground">سفارش یافت نشد</span>

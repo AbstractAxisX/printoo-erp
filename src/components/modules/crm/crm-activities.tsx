@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { format } from "date-fns";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import {
   AlertDialog,
@@ -97,7 +98,7 @@ export function CRMActivities() {
   const grouped = React.useMemo(() => {
     const m = new Map<string, Activity[]>();
     for (const a of activities) {
-      const key = new Date(a.date).toISOString().slice(0, 10);
+      const key = format(new Date(a.date), "yyyy-MM-dd");
       if (!m.has(key)) m.set(key, []);
       m.get(key)!.push(a);
     }

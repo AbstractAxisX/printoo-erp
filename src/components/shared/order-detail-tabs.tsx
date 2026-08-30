@@ -37,6 +37,7 @@ import {
   type OrderStatus,
   type ModuleKey,
 } from "@/lib/constants";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import type { OrderDetail } from "./order-detail-modal";
@@ -430,7 +431,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
             />
             <DatePicker
               value={qcDueDate ? new Date(qcDueDate) : null}
-              onChange={(d) => setQcDueDate(d ? d.toISOString().slice(0, 10) : "")}
+              onChange={(d) => setQcDueDate(d ? format(d, "yyyy-MM-dd") : "")}
               placeholder="سررسید (اختیاری)"
             />
           </div>
