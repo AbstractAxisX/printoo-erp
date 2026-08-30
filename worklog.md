@@ -3420,3 +3420,29 @@ Stage Summary:
 - Pattern decisions consistent with task 7-a: "*" in label → `required` prop (Field renders red asterisk); redundant placeholders removed; example/unit placeholders kept; hint paragraphs folded into Field `hint` prop; layout classes (sm:col-span-2) moved to Field `className`; borderless control groups (button-grids, sliders) intentionally keep Label-above.
 - 9 files skipped and documented (no labeled form inputs — read-only lists, display modals, placeholder-only search bars).
 - All 5 non-admin module groups now use the same Field visual language as admin/auth (tasks 7-a + 7-b complete the codebase-wide conversion).
+
+---
+Task ID: Phase-7
+Agent: orchestrator (main) + 2 form-converter subagents (7-a, 7-b)
+Task: فاز ۷ — لیبل حاشیه‌ای همهٔ فرم‌ها + بازسازی کامل پیش‌فاکتور حرفه‌ای + مرحلهٔ ۴ ویزارد + ریشه‌یابی نهایی خطاهای کاربر
+
+Work Log:
+- بررسی خطای «ایجاد سفارش»: API در sandbox سالم بود (سفارش ۱۶ و ۱۷ ساخته شد)؛ ریشهٔ خطای کاربر همان stale Prisma client بود → predev حرفه‌ای ساخته شد (توضیح پایین).
+- مودال طراح/چاپ: در sandbox فول‌تست شد و سالم است (محتوای کامل مودال طراح و چاپ خوانده شد)؛ خطای کاربر از stale client می‌آمد.
+- کامپوننت Field ساخته شد (src/components/ui/field.tsx): لیبل روی حاشیهٔ بالا-راست با bg-background chip، group-focus-within رنگ primary، required ستارهٔ قرمز، hint — مطابق خواستهٔ کاربر (روی مرز، نه داخل باکس).
+- ساب‌ایجنت 7-a: ۲۸ فیلد در ۸ فایل ادمین+auth تبدیل شد (لاگین، تسک‌ها، مشتریان، محصولات، تامین‌کنندگان، انواع هزینه، کاربران، مودال‌های سفارش). VLM لاگین ۹/۱۰. گروه‌های دکمه‌ای بدون حاشیه عمداً Label بالا ماندند.
+- ساب‌ایجنت 7-b: ۴۳ فیلد در ۸ فایل ماژول‌ها (طراح/چاپ/CRM/SRM + ۲ دیالوگ deal/activity). فایل‌های بدون فرم لیبل‌دار skip شدند. جمعاً ۷۱ فیلد در ۱۶ فایل.
+- پیش‌فاکتور از صفر (خواستهٔ اصلی): schema جدید {status, issueDate, validUntil, items با unitPrice/discount, subtotal, discountAmount, taxRate, taxAmount, totalAmount, paidAmount, notes, terms} — ردیف‌های تستی فاز قبل حذف شدند (خواستهٔ صریح کاربر).
+- lib/pre-invoice.ts: منبع واحد حقیقت — normalizeItems (اعتبارسنجی فارسی)، computeTotals (فرمول subtotal−discount+tax)، STATUS_TRANSITIONS ماتریس مجاز، STATUS_META رنگ‌ها.
+- API بازسازی: GET لیست با فیلترها، POST صدور (اتمیک شماره + تراکنش + افزایشی order.paidAmount)، PUT ویرایش (فقط draft/sent/rejected؛ قفل بعد از تایید)، PATCH انتقال وضعیت با ماتریس، DELETE (برگشت delta پول)، POST [id]/convert (تبدیل به Invoice با شماره اتمیک + بررسی تکرار ۴۰۹).
+- POST /api/orders: createPreInvoice با قرارداد جدید بازنویسی شد؛ paidAmount حالا INCREMENT است (مدل قبلی بازنویسی می‌کرد — با چند پیش‌فاکتور غلط بود).
+- مودال pre-invoice-modal.tsx کامل بازنویسی: ۳ نما — لیست (وضعیت+تاریخ شمسی+مبالغ)، فرم صدور (قیمت واحد/تخفیف ردیف قابل ویرایش + محاسبهٔ زندهٔ ۵ ستونه)، سند چاپی A4 (سربرگ شرکت، طرفین، جدول اقلام، جمع‌بندی رنگی، امضا، اعتبار شمسی، منقضی‌شدن قرمز) + دکمه‌های چرخهٔ وضعیت + چاپ با print-doc CSS اختصاصی (globals.css).
+- مرحلهٔ ۴ ویزارد بازنویسی کامل: ۶ بخش — خلاصهٔ سفارش (InfoCell)، زمان‌بندی مراحل (DateRangeCard «از X تا Y» یا «مشخص نشده» یا «نیازی به طراحی نیست»)، اقلام (تب مشتریان)، یادداشت، پیش‌فاکتور حرفه‌ای (تخفیف/مالیات/پیش‌پرداخت/اعتبار/توضیحات + محاسبهٔ زنده)، فاکتور نهایی. VLM ۹.۵/۱۰.
+- ویزارد: state جدید (piDiscount/piTaxRate/piPrepaid/piValidDays/piNotes جایگزین preInvoicePaid per-item تستی)، payload جدید، edit-mode tri-state با قرارداد جدید، hydration فقط برای PI قابل‌ویرایش (converted/approved قفل)، تایپ‌فیکس createMut.
+- FinanceTab مودال سفارش: ردیف‌های پیش‌فاکتور وضعیت‌دار + کلیک → مدیریت.
+- predev.mjs (scripts/): prisma generate + db push (با حذف خودکار ردیف‌های legacy در صورت شکست) + هش کلاینت Prisma؛ اگر تغییر کرده باشد کش .next پاک می‌شود — ریشه‌ای‌ترین رفع ۵۰۰های «Unknown field assignedUser» (چانک‌های کهنهٔ Turbopack).
+- رفع خطاهای TS: Prisma.NumberFilter→FloatFilter (orders route)، تایپ createMut ویزارد، آیکون‌های مرده circle/square در toggle-button. tsc --noEmit الان صفر خطا در کد اپ.
+
+Stage Summary:
+- E2E تأییدشده در مرورگر: سفارش ۱۷ + پیش‌فاکتور ۳ (۲۵٬۰۰۰−۵٬۰۰۰+۱۸۰۰=۲۱٬۸۰۰، پیش‌پرداخت ۲۰٬۰۰۰) → ارسال → تایید → تبدیل به فاکتور ۲؛ order.paidAmount=۲۰٬۰۰۰ افزایشی؛ مودال طراح سالم؛ ساخت تسک با فرم جدید موفق؛ کنسول صفر خطا.
+- کامیت 46db0a8 پوش شد. کاربر باید فقط git pull + npm install + npm run dev بزند (predev خودش همه‌چیز را ترمیم می‌کند).
