@@ -277,12 +277,14 @@ export function OrderDetailModal({
   open,
   onOpenChange,
   isError,
+  errorMessage,
   onRetry,
 }: {
   order: OrderDetail | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   isError?: boolean;
+  errorMessage?: string;
   onRetry?: () => void;
 }) {
   const invalidate = useInvalidate();
@@ -345,8 +347,8 @@ export function OrderDetailModal({
           {isError ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Icon name="alertTriangle" size={32} className="text-rose-500" />
-              <span className="text-sm font-medium text-rose-600">
-                خطا در بارگذاری سفارش — سرور پاسخ نداد
+              <span className="text-sm font-medium text-rose-600 text-center leading-relaxed max-w-md">
+                {errorMessage || "خطا در بارگذاری سفارش — سرور پاسخ نداد"}
               </span>
               {onRetry && (
                 <Button size="sm" variant="outline" onClick={onRetry}>

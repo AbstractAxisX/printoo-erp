@@ -3446,3 +3446,27 @@ Work Log:
 Stage Summary:
 - E2E تأییدشده در مرورگر: سفارش ۱۷ + پیش‌فاکتور ۳ (۲۵٬۰۰۰−۵٬۰۰۰+۱۸۰۰=۲۱٬۸۰۰، پیش‌پرداخت ۲۰٬۰۰۰) → ارسال → تایید → تبدیل به فاکتور ۲؛ order.paidAmount=۲۰٬۰۰۰ افزایشی؛ مودال طراح سالم؛ ساخت تسک با فرم جدید موفق؛ کنسول صفر خطا.
 - کامیت 46db0a8 پوش شد. کاربر باید فقط git pull + npm install + npm run dev بزند (predev خودش همه‌چیز را ترمیم می‌کند).
+
+---
+Task ID: Phase-8
+Agent: orchestrator (main)
+Task: فاز ۸ — ریشه‌یابی نهایی خطاهای ماشین کاربر + حذف باکس سفید لیبل‌ها + بازطراحی کامل فرم‌های ویزارد + چاپ PDF پیش‌فاکتور بلافاصله پس از ثبت
+
+Work Log:
+- باگ «خطا در ساخت سفارش» روی ماشین کاربر بازتولید و ریشه‌یابی شد: شمارهٔ سفارش/پیش‌فاکتور @unique است و نسخهٔ فاز ۶ nextNumber شمارنده را با next=1 می‌ساخت؛ روی دیتابیس با دیتای واقعی → P2002 برخورد → ۵۰۰ همیشگی. فیکس دولایه: lib/counter.ts (nextNumber با collision-guard حلقه‌ای + ensureCounters که شمارندهٔ غایب/عقب‌مانده را به max موجود ترمیم می‌کند) — متصل به ۳ route: orders، pre-invoices، pre-invoices/[id]/convert.
+- تست بازتولیدی: شمارنده عمداً خراب شد (order.next=1 در حالی که max=17) → POST سفارش → سفارش #۱۸ صادر شد (خودترمیم!) + پیش‌فاکتور #۴ با صحت مالی کامل (subtotal 10000 − discount 1000 + tax 450 = 9450؛ order.paidAmount=3000 افزایشی).
+- lib/api-error.ts: jsonError — تشخیص PrismaClientValidationError و P2021/P2022 → پیام فارسی قابل‌اقدام (کد DB_STALE/503): «سرور را ببندید و npm run dev…». اعمال در tasks، dashboard (try/catch جدید)، notifications (try/catch جدید)، orders، orders/[id]، pre-invoices.
+- سه مودال سفارش (ادمین/طراح/چاپ) حالا error.message واقعی را نشان می‌دهند (prop errorMessage جدید در OrderDetailModal + use-order-detail؛ error destructure در designer/print) — به‌جای «سرور پاسخ نداد» خاموش.
+- باکس سفید لیبل‌ها (شکایت اصلی): Field chip از bg-background (0.985 خاکستری‌سبز) به bg-card (سفید خالص) تغییر کرد + DialogContent از bg-background به bg-card + فرم لاگین داخل کارت سفید + SearchSelect از bg-background به bg-transparent. اندازه‌گیری مرورگر: chip=lab(100 0 0) === card=lab(100 0 0) در کارت و دیالوگ — همرنگی کامل در هر دو حالت روشن/تاریک.
+- بازطراحی کامل فرم‌های ویزارد (شکایت «اینپوت‌های بی‌عنوان»): ItemRow جدید = کارت با هدر (شماره/نام/چیپ‌ها/جمع/اکشن‌ها) + گرید ۱۲ ستونه با Field برای همه: محصول (SearchSelect)، تعداد، قیمت واحد، مرحله (Select)، توضیح آیتم، جمع کل (readonly). Step3: هر ۵ DatePicker در Field (شروع/پایان طراحی، شروع/پایان چاپ، تاریخ پایان) + پنل‌های داخلی bg-card + یادداشت در Field. دیالوگ مشتری جدید/محصول جدید/یادداشت آیتم همه Field شدند. Step1: SearchSelect انتخاب مشتری در Field.
+- چاپ PDF بلافاصله پس از ثبت: POST /api/orders حالا preInvoice {id,number} برمی‌گرداند؛ onSuccess حالت success جدید می‌سازد (کارت سبز: «سفارش #۱۹ ثبت شد» + «پیش‌فاکتور #۵ صادر شد») با دکمه‌های [چاپ پیش‌فاکتور/ذخیره PDF] [ثبت سفارش جدید (resetWizard کامل)] [بازگشت]. PreInvoiceModal با prop جدید initialDocId مستقیم روی سند چاپی باز می‌شود. دکمه چاپ prominent شد («چاپ / ذخیره PDF» primary). CSS چاپ مقاوم شد: dialog-content در چاپ static/بدون برش + print-color-adjust:exact + overlay حذف.
+- E2E کامل (agent-browser): فرم‌های جدید ویزارد (DOM: محصول*|تعداد*|قیمت واحد*|مرحله|توضیح آیتم|جمع کل) → ثبت با پیش‌فاکتور → success «سفارش #۱۹» → چاپ → DocView مستقیم → PDF واقعی تولید شد (agent-browser pdf) → VLM: سند ۹/۱۰ فقط خود سند، بدون عناصر اپ، جدول و جمع‌بندی بریده‌نشده. ریست ویزارد ✓. مودال طراح #۱۹ کامل ۹/۱۰ ✓. لاگین کارت سفید ۸/۱۰ با چیپ بی‌نقص ✓.
+- URLهای دقیق خطادار کاربر همه ۲۰۰: tasks?module=designer، tasks?module=print، dashboard?from=1999-12-31...، notifications.
+- lint: 0 error (۳ هشدار قدیمی TanStack) — tsc: صفر خطا در src/.
+
+Stage Summary:
+- ریشهٔ «خطا در ساخت سفارش» کاربر: شمارندهٔ بدون seed فاز ۶ + @unique → شمارهٔ تکراری. حالا حتی با شمارندهٔ خراب خودترمیم می‌شود (اثبات‌شده با بازتولید).
+- خطاهای ۵۰۰ ماشین کاربر = کلاینت Prisma کهنه در سرورِ در حال اجرا (ری‌استارت نشده) — حالا پیام فارسی قابل‌اقدام می‌گیرند + predev در ری‌استارت بعدی همه‌چیز را ترمیم می‌کند.
+- باکس سفید لیبل‌ها با همرنگی bg-card در همه‌جا (کارت/دیالوگ/لاگین/روشن/تاریک) حذف شد.
+- همهٔ فرم‌های ویزارد عنوان‌دار شدند (۲۰+ فیلد جدید notch)؛ ItemRow از ردیف فشردهٔ placeholder-دار به کارت گرید ۱۲ ستونه.
+- چرخهٔ کامل «ثبت سفارش → پیش‌فاکتور → چاپ PDF» با یک کلیک پس از ثبت، و سند PDF واقعی ۹/۱۰ تأیید شد.

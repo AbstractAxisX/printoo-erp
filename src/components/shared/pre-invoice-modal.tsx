@@ -75,6 +75,8 @@ type PreInvoiceModalProps = {
   customerName?: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Phase 8 — اگر داده شود، مودال مستقیم روی سند چاپی همین پیش‌فاکتور باز می‌شود (چاپ بلافاصله پس از ثبت سفارش) */
+  initialDocId?: string | null;
 };
 
 // ─── Jalali date fmt ─────────────────────────────────────────────────
@@ -89,7 +91,7 @@ const jShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   day: "2-digit",
 });
 
-export function PreInvoiceModal({ orderId, open, onOpenChange }: PreInvoiceModalProps) {
+export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId }: PreInvoiceModalProps) {
   const invalidate = useInvalidate();
   const queryClient = useQueryClient();
   const [view, setView] = React.useState<"list" | "issue" | "doc">("list");
@@ -97,10 +99,16 @@ export function PreInvoiceModal({ orderId, open, onOpenChange }: PreInvoiceModal
 
   React.useEffect(() => {
     if (open) {
-      setView("list");
-      setDocId(null);
+      // Phase 8 — شروع مستقیم روی سند (مثلاً پس از ثبت سفارش برای چاپ PDF)
+      if (initialDocId) {
+        setView("doc");
+        setDocId(initialDocId);
+      } else {
+        setView("list");
+        setDocId(null);
+      }
     }
-  }, [open, orderId]);
+  }, [open, orderId, initialDocId]);
 
   // سفارش + اقلام برای فرم صدور
   const { data: orderData } = useQuery({
@@ -572,8 +580,8 @@ function DocView({
             <Icon name="trash" size={13} /> حذف
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={() => window.print()} className="gap-1.5 h-8">
-          <Icon name="print" size={13} /> چاپ
+        <Button size="sm" onClick={() => window.print()} className="gap-1.5 h-8 shadow-sm">
+          <Icon name="print" size={13} /> چاپ / ذخیره PDF
         </Button>
       </div>
 

@@ -108,7 +108,7 @@ export function DesignerOrderDetailModal({
 
   // Fetch the order via the existing GET /api/orders/[id] endpoint.
   // The designer-safe projection strips out financial + phone fields.
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => api<{ order: FullOrder }>(`/api/orders/${orderId}`),
     enabled: !!orderId && open,
@@ -182,8 +182,8 @@ export function DesignerOrderDetailModal({
             ) : isError ? (
               <>
                 <Icon name="alertTriangle" size={28} className="text-rose-500" />
-                <span className="text-sm font-medium text-rose-600">
-                  خطا در بارگذاری سفارش — سرور پاسخ نداد
+                <span className="text-sm font-medium text-rose-600 text-center leading-relaxed max-w-md">
+                  {(error as Error)?.message || "خطا در بارگذاری سفارش — سرور پاسخ نداد"}
                 </span>
                 <Button size="sm" variant="outline" onClick={() => refetch()}>
                   تلاش دوباره

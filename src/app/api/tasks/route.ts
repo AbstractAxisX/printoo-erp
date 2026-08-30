@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { jsonError } from "@/lib/api-error";
 import {
   isTaskStatus,
   isTaskPriority,
@@ -68,11 +69,8 @@ export async function GET(req: NextRequest) {
       include: TASK_INCLUDE,
     });
     return NextResponse.json({ tasks });
-  } catch {
-    return NextResponse.json(
-      { error: "خطا در دریافت تسک‌ها" },
-      { status: 500 }
-    );
+  } catch (e) {
+    return jsonError(e, "خطا در دریافت تسک‌ها");
   }
 }
 
@@ -182,10 +180,7 @@ export async function POST(req: NextRequest) {
       include: TASK_INCLUDE,
     });
     return NextResponse.json({ task }, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "خطا در ایجاد تسک" },
-      { status: 500 }
-    );
+  } catch (e) {
+    return jsonError(e, "خطا در ایجاد تسک");
   }
 }

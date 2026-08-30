@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { nextNumber, ensureCounters } from "@/lib/counter";
+import { jsonError } from "@/lib/api-error";
 
 // ─── Pre-Invoice → Invoice conversion — Phase 7 ─────────────────────
 //
@@ -17,6 +19,9 @@ export async function POST(
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
   const { id } = await params;
+
+  // ترمیم شمارنده قبل از تراکنش (idempotent)
+  await ensureCounters();
 
   try {
     const existing = await db.preInvoice.findUnique({ where: { id } });
@@ -45,15 +50,12 @@ export async function POST(
     }
 
     const result = await db.$transaction(async (tx) => {
-      const counter = await tx.counter.upsert({
-        where: { id: "invoice" },
-        update: { next: { increment: 1 } },
-        create: { id: "invoice", next: 1 },
-      });
+      // شماره‌گذاری اتمیک و خودترمیم — lib/counter
+      const num = await nextNumber(tx, "invoice");
 
       const invoice = await tx.invoice.create({
         data: {
-          number: counter.next,
+          number: num,
           orderId: existing.orderId,
           customerId: existing.customerId,
           totalAmount: existing.totalAmount,
@@ -72,10 +74,7 @@ export async function POST(
     });
 
     return NextResponse.json(result, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "خطا در تبدیل به فاکتور" },
-      { status: 500 }
-    );
+  } catch (e) {
+    return jsonError(e, "خطا در تبدیل به فاکتور");
   }
 }

@@ -36,7 +36,7 @@ export function SearchSelect({
           aria-expanded={open}
           aria-controls="search-select-list"
           className={cn(
-            "flex items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm hover:bg-accent/50 transition min-w-0",
+            "flex items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 py-2 text-sm hover:bg-accent/50 transition min-w-0",
             className
           )}
         >

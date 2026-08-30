@@ -6,6 +6,8 @@ import {
   computeTotals,
   isPreInvoiceStatus,
 } from "@/lib/pre-invoice";
+import { nextNumber, ensureCounters } from "@/lib/counter";
+import { jsonError } from "@/lib/api-error";
 
 // ─── Pre-Invoices API — Phase 7 rebuild ─────────────────────────────
 //
@@ -56,17 +58,17 @@ export async function GET(req: NextRequest) {
       include: INCLUDE,
     });
     return NextResponse.json({ preInvoices });
-  } catch {
-    return NextResponse.json(
-      { error: "خطا در دریافت پیش‌فاکتورها" },
-      { status: 500 }
-    );
+  } catch (e) {
+    return jsonError(e, "خطا در دریافت پیش‌فاکتورها");
   }
 }
 
 export async function POST(req: NextRequest) {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
+
+  // ترمیم شمارنده قبل از تراکنش (idempotent)
+  await ensureCounters();
 
   try {
     const body = await req.json();
@@ -140,16 +142,12 @@ export async function POST(req: NextRequest) {
     validUntil.setDate(validUntil.getDate() + days);
 
     const preInvoice = await db.$transaction(async (tx) => {
-      // R3: شماره‌گذاری اتمیک — increment تک‌مرحله‌ای، بدون رقابت
-      const counter = await tx.counter.upsert({
-        where: { id: "preInvoice" },
-        update: { next: { increment: 1 } },
-        create: { id: "preInvoice", next: 1 },
-      });
+      // R3: شماره‌گذاری اتمیک و خودترمیم — lib/counter
+      const num = await nextNumber(tx, "preInvoice");
 
       const pi = await tx.preInvoice.create({
         data: {
-          number: counter.next,
+          number: num,
           orderId,
           customerId: customerId || order.customerId,
           status: status || "draft",
@@ -178,10 +176,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ preInvoice }, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "خطا در صدور پیش‌فاکتور" },
-      { status: 500 }
-    );
+  } catch (e) {
+    return jsonError(e, "خطا در صدور پیش‌فاکتور");
   }
 }

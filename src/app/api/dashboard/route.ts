@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { jsonError } from "@/lib/api-error";
 
 function getRange(req: NextRequest): { from: Date; to: Date } {
   const { searchParams } = new URL(req.url);
@@ -23,6 +24,7 @@ function dayKey(d: Date): string {
 }
 
 export async function GET(req: NextRequest) {
+  try {
   const { from, to } = getRange(req);
   const prev = prevRange(from, to);
 
@@ -144,4 +146,7 @@ export async function GET(req: NextRequest) {
     byStatus,
     series,
   });
+  } catch (e) {
+    return jsonError(e, "خطا در دریافت داشبورد");
+  }
 }

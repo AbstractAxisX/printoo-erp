@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchSelect } from "@/components/shared/search-select";
+import { PreInvoiceModal } from "@/components/shared/pre-invoice-modal";
 import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -122,6 +123,14 @@ export function OrderWizardPage() {
   const [existingPreInvoiceId, setExistingPreInvoiceId] = React.useState<string | null>(null);
   const [invoiceEnabled, setInvoiceEnabled] = React.useState(false);
 
+  // Phase 8 — حالت موفقیت پس از ثبت + چاپ پیش‌فاکتور بلافاصله
+  const [success, setSuccess] = React.useState<{
+    orderNumbers: number[];
+    orderId: string | null;
+    preInvoice: { id: string; number: number } | null;
+  } | null>(null);
+  const [piModalOpen, setPiModalOpen] = React.useState(false);
+
   // Edit mode: read param from store, fetch existing order
   const param = useAppStore((s) => s.param);
   const isEditing = !!param;
@@ -201,6 +210,32 @@ export function OrderWizardPage() {
   }, [param, editData, loadedOrderId]);
 
   const showEditLoading = isEditing && loadedOrderId !== param && !editError;
+
+  // ریست کامل ویزارد برای «ثبت سفارش جدید» پس از موفقیت
+  function resetWizard() {
+    setStep(1);
+    setMultiMode(false);
+    setCustomers([]);
+    setActiveCustomer("");
+    setItemsByCustomer({});
+    setSplitMode("grouped");
+    setPriority("normal");
+    setEndDate("");
+    setNoEndDate(false);
+    setNote("");
+    setDesignStart("");
+    setDesignEnd("");
+    setPrintStart("");
+    setPrintEnd("");
+    setPreInvoiceEnabled(false);
+    setPiDiscount("");
+    setPiTaxRate("");
+    setPiPrepaid("");
+    setPiValidDays("15");
+    setPiNotes("");
+    setInvoiceEnabled(false);
+    setSuccess(null);
+  }
 
   const { data: customersData } = useQuery({
     queryKey: ["customers-wizard"],
@@ -367,7 +402,11 @@ export function OrderWizardPage() {
       return api("/api/orders", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: async (data: unknown) => {
-      const res = (data ?? {}) as { count?: number; order?: { id: string } };
+      const res = (data ?? {}) as {
+        count?: number;
+        created?: { id: string; number: number }[];
+        preInvoice?: { id: string; number: number } | null;
+      };
       invalidate(["orders"]);
       invalidate(["dashboard"]);
       invalidate(["notifications"]);
@@ -414,10 +453,15 @@ export function OrderWizardPage() {
 
       if (isEditing) {
         toast.success("تغییرات سفارش ذخیره شد");
+        navigate("admin", "orders");
       } else {
-        toast.success(`${res.count ?? 1} سفارش با موفقیت ایجاد شد`);
+        // Phase 8 — به‌جای پرش فوری، صفحهٔ موفقیت با چاپ پیش‌فاکتور
+        setSuccess({
+          orderNumbers: (res.created ?? []).map((o) => o.number),
+          orderId: res.created?.[0]?.id ?? null,
+          preInvoice: res.preInvoice ?? null,
+        });
       }
-      navigate("admin", "orders");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -439,6 +483,63 @@ export function OrderWizardPage() {
       <div className="max-w-6xl mx-auto py-20 flex flex-col items-center gap-3">
         <Icon name="loading" size={32} className="animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">در حال بارگذاری سفارش...</p>
+      </div>
+    );
+  }
+
+  // ─── Phase 8: صفحهٔ موفقیت پس از ثبت — چاپ پیش‌فاکتور بلافاصله ────────
+  if (success) {
+    const nums = success.orderNumbers;
+    const numsFa = nums.length
+      ? nums.length === 1
+        ? `#${toFa(nums[0])}`
+        : `${toFa(nums.length)} سفارش (#${nums.map((n) => toFa(n)).join("، #")})`
+      : "سفارش";
+    return (
+      <div className="max-w-2xl mx-auto py-6">
+        <Card className="p-8 text-center space-y-5">
+          <div className="size-16 rounded-full bg-emerald-500/15 text-emerald-600 grid place-items-center mx-auto">
+            <Icon name="checkCircle" size={36} />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold">
+              {nums.length > 1 ? `${numsFa} با موفقیت ثبت شدند` : `سفارش ${numsFa} با موفقیت ثبت شد`}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {success.preInvoice ? (
+                <>
+                  پیش‌فاکتور <span className="font-bold text-foreground">#{toFa(success.preInvoice.number)}</span> نیز صادر شد —
+                  می‌توانید همین حالا سند رسمی آن را چاپ کنید یا به‌صورت PDF ذخیره کنید.
+                </>
+              ) : (
+                "از دکمه‌های زیر برای ادامه استفاده کنید."
+              )}
+            </p>
+          </div>
+
+          {success.preInvoice && (
+            <Button size="lg" onClick={() => setPiModalOpen(true)} className="gap-2 w-full sm:w-auto">
+              <Icon name="print" size={17} /> چاپ پیش‌فاکتور / ذخیره PDF
+            </Button>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+            <Button variant="outline" onClick={resetWizard} className="gap-2 w-full sm:w-auto">
+              <Icon name="plus" size={15} /> ثبت سفارش جدید
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("admin", "orders")} className="gap-2 w-full sm:w-auto">
+              بازگشت به سفارشات <Icon name="arrowLeft" size={15} />
+            </Button>
+          </div>
+        </Card>
+
+        {/* مودال پیش‌فاکتور — مستقیم روی سند چاپی باز می‌شود */}
+        <PreInvoiceModal
+          orderId={success.orderId}
+          open={piModalOpen}
+          onOpenChange={setPiModalOpen}
+          initialDocId={success.preInvoice?.id ?? null}
+        />
       </div>
     );
   }
@@ -698,17 +799,17 @@ function Step1({
         {(customers.length === 0 || multiMode) && (
           <div className="flex items-center gap-2">
             <div className="size-8 shrink-0" />
-            <div className="flex-1">
+            <Field label={customers.length ? "افزودن مشتری دیگر" : "انتخاب مشتری"} className="flex-1">
               <SearchSelect
                 value={null}
                 onChange={(v) => v && addCustomer(v)}
-                placeholder={customers.length ? "افزودن مشتری دیگر..." : "انتخاب مشتری..."}
+                placeholder="جستجو بر اساس نام یا شماره تلفن…"
                 searchPlaceholder="جستجوی نام یا تلفن..."
                 options={customerOptions.filter((o) => !customers.includes(o.value))}
                 allowClear={false}
                 className="w-full"
               />
-            </div>
+            </Field>
           </div>
         )}
 
@@ -752,8 +853,14 @@ function CreateCustomerDialog({
       <DialogContent aria-describedby={undefined}>
         <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="userAdd" size={18} className="text-primary" /> ایجاد مشتری جدید</DialogTitle></DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
-          <div className="space-y-1.5"><Label>نام مشتری *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus /></div>
-          <div className="space-y-1.5"><Label>شماره تلفن *</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required dir="ltr" placeholder="0912..." /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="نام مشتری" required>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />
+            </Field>
+            <Field label="شماره تلفن" required>
+              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required dir="ltr" placeholder="0912…" />
+            </Field>
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>انصراف</Button>
             <Button type="submit" disabled={loading} className="gap-2">
@@ -883,7 +990,9 @@ function Step2({
         <DialogContent aria-describedby={undefined} className="max-w-sm">
           <DialogHeader><DialogTitle>محصول جدید</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (newProduct.trim()) createProduct.mutate(newProduct.trim()); }} className="space-y-4">
-            <div className="space-y-1.5"><Label>نام محصول *</Label><Input value={newProduct} onChange={(e) => setNewProduct(e.target.value)} required autoFocus /></div>
+            <Field label="نام محصول" required>
+              <Input value={newProduct} onChange={(e) => setNewProduct(e.target.value)} required autoFocus />
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setProductModal(false)}>انصراف</Button>
               <Button type="submit" disabled={createProduct.isPending} className="gap-2">
@@ -911,71 +1020,78 @@ function ItemRow({
 }) {
   const total = item.quantity * item.pricePerUnit;
   return (
-    <div className="rounded-lg border bg-card p-2.5 hover:shadow-sm transition">
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="size-7 rounded-md bg-muted text-muted-foreground grid place-items-center text-xs font-bold shrink-0">{index + 1}</div>
+    <div className="rounded-xl border bg-card p-3 space-y-3 hover:shadow-sm transition">
+      {/* هدر آیتم: نام + جمع + عملیات */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-7 rounded-md bg-primary/10 text-primary grid place-items-center text-xs font-bold shrink-0">{index + 1}</div>
+          <span className="text-sm font-semibold truncate">{item.productName || "آیتم جدید"}</span>
+          {item.needsMaterial && (
+            <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full shrink-0">نیازمند متریال</span>
+          )}
+          {item.note && (
+            <button onClick={onNote} className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0 hover:bg-primary/20 transition" title="مشاهدهٔ یادداشت">
+              یادداشت دارد
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-sm font-bold tabular-nums" dir="ltr">{formatCurrency(total)}</span>
+          <Button variant="ghost" size="icon" className="size-8" onClick={onNote} title="یادداشت آیتم"><Icon name="info" size={15} /></Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={onCopy} title="کپی آیتم"><Icon name="copy" size={15} /></Button>
+          <Button variant="ghost" size="icon" className="size-8 text-rose-600 hover:text-rose-700" onClick={onDelete} title="حذف آیتم"><Icon name="trash" size={15} /></Button>
+        </div>
+      </div>
 
-        {/* Product */}
-        <div className="w-40 shrink-0">
+      {/* فیلدهای آیتم — همه با برچسب روی حاشیه */}
+      <div className="grid grid-cols-2 md:grid-cols-12 gap-x-3 gap-y-2.5">
+        <Field label="محصول" required className="col-span-2 md:col-span-4">
           <SearchSelect
             value={item.productId}
             onChange={(v) => {
               const p = productOptions.find((x) => x.id === v);
               onUpdate({ productId: v ?? "", productName: p?.name ?? "", pricePerUnit: p?.basePrice ?? item.pricePerUnit });
             }}
-            placeholder="انتخاب محصول"
-            searchPlaceholder="جستجوی محصول..."
+            placeholder="جستجو و انتخاب محصول…"
+            searchPlaceholder="نام محصول…"
             options={productOptions.map((p) => ({ value: p.id, label: p.name }))}
-            className="w-full py-1.5"
+            className="w-full"
             allowClear={false}
           />
-        </div>
+        </Field>
 
-        {/* Quantity */}
-        <div className="w-20 shrink-0">
-          <Input type="number" min={1} value={item.quantity} onChange={(e) => onUpdate({ quantity: Math.max(1, Number(e.target.value)) })} className="text-center py-1.5" placeholder="تعداد" dir="ltr" />
-        </div>
+        <Field label="تعداد" required className="col-span-1 md:col-span-2">
+          <Input type="number" min={1} value={item.quantity} onChange={(e) => onUpdate({ quantity: Math.max(1, Number(e.target.value)) })} className="text-center" dir="ltr" />
+        </Field>
 
-        {/* Price per unit */}
-        <div className="w-28 shrink-0">
-          <Input type="number" min={0} value={item.pricePerUnit} onChange={(e) => onUpdate({ pricePerUnit: Number(e.target.value) })} className="text-center py-1.5" placeholder="قیمت واحد" dir="ltr" />
-        </div>
+        <Field label="قیمت واحد (IQD)" required className="col-span-1 md:col-span-3">
+          <Input type="number" min={0} value={item.pricePerUnit} onChange={(e) => onUpdate({ pricePerUnit: Number(e.target.value) })} className="text-center" dir="ltr" />
+        </Field>
 
-        {/* Total (auto) */}
-        <div className="w-28 shrink-0 text-center">
-          <div className="text-sm font-semibold py-1.5" dir="ltr">{formatCurrency(total)}</div>
-        </div>
-
-        {/* Stage */}
-        <div className="w-32 shrink-0">
+        <Field label="مرحله" className="col-span-2 md:col-span-3">
           <Select value={item.stage} onValueChange={(v) => onUpdate({ stage: v as ItemDraft["stage"] })}>
-            <SelectTrigger className="py-1.5 h-9"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               {STAGES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
-        {/* Description */}
-        <div className="w-32 shrink-0">
-          <Input value={item.description} onChange={(e) => onUpdate({ description: e.target.value })} className="py-1.5 text-xs" placeholder="توضیح" />
-        </div>
+        <Field label="توضیح آیتم" className="col-span-2 md:col-span-5">
+          <Input value={item.description} onChange={(e) => onUpdate({ description: e.target.value })} placeholder="مثلاً: کوت گلاسه ۱۳۵ گرمی" />
+        </Field>
 
-        {/* Note button */}
-        <button onClick={onNote} className={cn("size-9 rounded-lg grid place-items-center shrink-0 border transition", item.note ? "bg-primary/10 text-primary border-primary/30" : "hover:bg-accent")} title="یادداشت">
-          <Icon name="info" size={16} />
-        </button>
+        <Field label="جمع کل" className="col-span-2 md:col-span-3">
+          <Input readOnly tabIndex={-1} value={formatCurrency(total)} dir="ltr"
+            className="text-center font-bold bg-transparent cursor-default focus-visible:ring-0" />
+        </Field>
 
-        {/* Needs material */}
-        <label className="flex items-center gap-1.5 shrink-0 cursor-pointer px-2 py-1.5 rounded-lg border">
-          <Checkbox checked={item.needsMaterial} onCheckedChange={(v) => onUpdate({ needsMaterial: !!v })} />
-          <span className="text-[11px]">نیازمند متریال</span>
-        </label>
-
-        {/* Actions */}
-        <div className="flex items-center gap-0.5 shrink-0 mr-auto">
-          <Button variant="ghost" size="icon" className="size-8" onClick={onCopy} title="کپی"><Icon name="copy" size={15} /></Button>
-          <Button variant="ghost" size="icon" className="size-8 text-rose-600 hover:text-rose-700" onClick={onDelete} title="حذف"><Icon name="trash" size={15} /></Button>
+        {/* متریال */}
+        <div className="col-span-2 md:col-span-4 flex items-center">
+          <label className="flex items-center gap-2 h-9 w-full px-3 rounded-md border cursor-pointer hover:bg-accent/50 transition text-xs">
+            <Checkbox checked={item.needsMaterial} onCheckedChange={(v) => onUpdate({ needsMaterial: !!v })} />
+            <span className="text-muted-foreground">این آیتم نیازمند متریال است</span>
+          </label>
         </div>
       </div>
     </div>
@@ -989,7 +1105,9 @@ function NoteItemModal({ open, onOpenChange, note, onSave }: { open: boolean; on
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined} className="max-w-sm">
         <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="info" size={18} className="text-primary" /> یادداشت آیتم</DialogTitle></DialogHeader>
-        <Textarea value={val} onChange={(e) => setVal(e.target.value)} rows={4} placeholder="یادداشت اختصاصی برای این ردیف..." autoFocus />
+        <Field label="یادداشت اختصاصی این ردیف" hint="فقط برای تیم داخلی — روی پیش‌فاکتور چاپ نمی‌شود">
+          <Textarea value={val} onChange={(e) => setVal(e.target.value)} rows={4} autoFocus />
+        </Field>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>انصراف</Button>
           <Button onClick={() => onSave(val)} className="gap-2"><Icon name="check" size={16} /> ذخیره</Button>
@@ -1061,20 +1179,28 @@ function Step3(props: {
         <p className="text-[11px] text-muted-foreground">این تاریخ‌ها صرفاً برای زمان‌بندی در تقویم ماژول‌هاست و مستقل از تاریخ پایان سفارش است.</p>
 
         {needsDesign && (
-          <div className="rounded-lg border bg-background p-3 space-y-2">
+          <div className="rounded-lg border bg-card p-3 space-y-2.5">
             <div className="flex items-center gap-2 text-sm font-medium"><Icon name="design" size={16} className="text-violet-500" /> ماژول طراحی</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={designStart || null} onChange={(d) => setDesignStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="شروع" /></div>
-              <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={designEnd || null} onChange={(d) => setDesignEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="پایان" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="شروع طراحی">
+                <DatePicker value={designStart || null} onChange={(d) => setDesignStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
+              </Field>
+              <Field label="پایان طراحی">
+                <DatePicker value={designEnd || null} onChange={(d) => setDesignEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
+              </Field>
             </div>
           </div>
         )}
 
-        <div className="rounded-lg border bg-background p-3 space-y-2">
+        <div className="rounded-lg border bg-card p-3 space-y-2.5">
           <div className="flex items-center gap-2 text-sm font-medium"><Icon name="print" size={16} className="text-amber-500" /> ماژول چاپ</div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">شروع</Label><DatePicker value={printStart || null} onChange={(d) => setPrintStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="شروع" /></div>
-            <div className="space-y-1"><Label className="text-xs">پایان</Label><DatePicker value={printEnd || null} onChange={(d) => setPrintEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="پایان" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="شروع چاپ">
+              <DatePicker value={printStart || null} onChange={(d) => setPrintStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
+            </Field>
+            <Field label="پایان چاپ">
+              <DatePicker value={printEnd || null} onChange={(d) => setPrintEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
+            </Field>
           </div>
         </div>
 
@@ -1090,18 +1216,19 @@ function Step3(props: {
           <ToggleButton checked={noEndDate} onChange={setNoEndDate} id="noend" label="سفارش بدون زمان پایان" size="sm" />
         </div>
         {!noEndDate && (
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-xs">تاریخ پایان</Label><DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? format(d, "yyyy-MM-dd") : "")} placeholder="تاریخ پایان" /></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="تاریخ پایان">
+              <DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
+            </Field>
           </div>
         )}
         <p className="text-[11px] text-muted-foreground">تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ می‌باشد.</p>
       </div>
 
       {/* Note */}
-      <div className="space-y-1.5">
-        <Label>یادداشت سفارش (اختیاری)</Label>
-        <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="یادداشت کلی سفارش..." />
-      </div>
+      <Field label="یادداشت سفارش" hint="اختیاری — در پیش‌فاکتور چاپ نمی‌شود">
+        <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="مثلاً: تحویل حضوری در دفتر مرکزی" />
+      </Field>
     </Card>
   );
 }

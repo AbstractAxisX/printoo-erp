@@ -59,10 +59,12 @@ export function Field({
     <div className={cn("group/field", className)}>
       <div className="relative">
         {children}
-        {/* برچسب روی مرز بالا — pointer-events:none تا کلیک به اینپوت برسد */}
+        {/* برچسب روی مرز بالا — pointer-events:none تا کلیک به اینپوت برسد.
+            bg-card چون همهٔ فرم‌ها روی کارت/دیالوگ سفید نشسته‌اند (تمیزترین
+            همرنگی در هر دو حالت روشن/تاریک) */}
         <span
           className={cn(
-            "pointer-events-none absolute -top-2 right-3 z-10 bg-background px-1.5",
+            "pointer-events-none absolute -top-2 right-3 z-10 bg-card px-1.5",
             "text-[11px] font-medium leading-4 text-muted-foreground",
             "transition-colors duration-200",
             "group-focus-within/field:text-primary",

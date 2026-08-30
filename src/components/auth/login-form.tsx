@@ -82,7 +82,8 @@ export function LoginForm() {
 
       {/* Form panel */}
       <div className="flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-sm space-y-6">
+        {/* کارت سفید — سطح یکدست برای همهٔ فیلدها تا چیپ برچسب کاملاً همرنگ شود */}
+        <div className="w-full max-w-sm space-y-6 rounded-2xl border bg-card p-6 sm:p-8 shadow-sm">
           <div className="lg:hidden flex items-center gap-3 mb-2">
             <div className="size-10 rounded-xl bg-primary text-primary-foreground grid place-items-center">
               <Icon name="print" size={22} />
@@ -106,7 +107,7 @@ export function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 dir="ltr"
-                className="w-full rounded-lg border border-input bg-background pr-10 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition"
+                className="w-full rounded-lg border border-input bg-transparent pr-10 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition"
                 placeholder="you@example.com"
               />
             </Field>
@@ -121,7 +122,7 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 dir="ltr"
-                className="w-full rounded-lg border border-input bg-background pr-10 pl-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition"
+                className="w-full rounded-lg border border-input bg-transparent pr-10 pl-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition"
                 placeholder="••••••••"
               />
               <button

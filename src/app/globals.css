@@ -168,6 +168,23 @@
     border: none !important;
     border-radius: 0 !important;
     background: white !important;
+    /* رنگ‌های سند (سربرگ جدول‌ها و …) در چاپ حفظ شوند */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* دیالوگ والد (fixed + max-h + overflow) نباید سند را برش بزند */
+  [data-slot="dialog-overlay"] { display: none !important; }
+  [data-slot="dialog-content"] {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    overflow: visible !important;
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
   }
   @page { margin: 12mm; }
 }

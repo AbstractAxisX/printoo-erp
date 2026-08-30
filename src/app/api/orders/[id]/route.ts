@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { TASK_INCLUDE } from "@/lib/task-validation";
+import { jsonError } from "@/lib/api-error";
 
 type ItemDraft = {
   productId: string;
@@ -45,18 +46,24 @@ function stageToStatus(stage?: string) {
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const order = await db.order.findUnique({
-    where: { id },
-    include: {
-      customer: true,
-      items: { include: { product: true } },
-      preInvoices: true,
-      invoice: true,
-      tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
-    },
-  });
-  if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
-  return NextResponse.json({ order });
+  try {
+    const order = await db.order.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        items: { include: { product: true } },
+        preInvoices: true,
+        invoice: true,
+        tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
+      },
+    });
+    if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+    return NextResponse.json({ order });
+  } catch (e) {
+    // این همان endpoint مودال جزئیات سفارش در ماژول طراح/چاپ است —
+    // پیام قابل‌اقدام به‌جای «سرور پاسخ نداد» خاموش
+    return jsonError(e, "خطا در بارگذاری سفارش");
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -64,8 +71,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     await db.order.delete({ where: { id } });
     return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "حذف ناموفق" }, { status: 500 });
+  } catch (e) {
+    return jsonError(e, "حذف ناموفق");
   }
 }
 
@@ -137,7 +144,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ order, items: newItems });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "به‌روزرسانی ناموفق" }, { status: 500 });
+    return jsonError(e, "به‌روزرسانی ناموفق");
   }
 }
