@@ -10,7 +10,7 @@ import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -73,7 +73,9 @@ export function ExpenseTypesPage() {
         <DialogContent aria-describedby={undefined}>
           <DialogHeader><DialogTitle>نوع هزینه جدید</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMut.mutate(name.trim()); }} className="space-y-4">
-            <div className="space-y-1.5"><Label>نام *</Label><Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></div>
+            <Field label="نام" required>
+              <Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
               <Button type="submit" disabled={createMut.isPending} className="gap-2">{createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />} ذخیره</Button>

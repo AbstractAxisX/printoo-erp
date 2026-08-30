@@ -7,6 +7,7 @@ import { useInvalidate } from "@/lib/use-invalidate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -149,19 +150,17 @@ export function DealFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>عنوان معامله *</Label>
+          <Field label="عنوان معامله" required>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="مثلاً: چاپ کاتالوگ ۵۰۰ نسخه"
               required
             />
-          </div>
+          </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>مشتری *</Label>
+            <Field label="مشتری" required>
               <Select
                 value={form.customerId}
                 onValueChange={(v) => setForm({ ...form, customerId: v })}
@@ -185,22 +184,19 @@ export function DealFormDialog({
                   )}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label>ارزش معامله (IQD)</Label>
+            <Field label="ارزش معامله (IQD)">
               <Input
                 type="number"
                 value={form.value || ""}
                 onChange={(e) => setForm({ ...form, value: Number(e.target.value) })}
                 dir="ltr"
-                placeholder="0"
                 min={0}
               />
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label>مرحله</Label>
+            <Field label="مرحله">
               <Select
                 value={form.stage}
                 onValueChange={(v) => {
@@ -222,10 +218,9 @@ export function DealFormDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label>منبع</Label>
+            <Field label="منبع">
               <Select
                 value={form.source || "none"}
                 onValueChange={(v) => setForm({ ...form, source: v === "none" ? "" : (v as DealSource) })}
@@ -242,25 +237,21 @@ export function DealFormDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label>تاریخ بسته شدن پیش‌بینی</Label>
+            <Field label="تاریخ بسته شدن پیش‌بینی">
               <DatePicker
                 value={form.expectedCloseDate}
                 onChange={(d) => setForm({ ...form, expectedCloseDate: d })}
-                placeholder="انتخاب تاریخ"
               />
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label>مسئول</Label>
+            <Field label="مسئول">
               <Input
                 value={form.assignedTo}
                 onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
-                placeholder="نام مسئول پیگیری"
               />
-            </div>
+            </Field>
           </div>
 
           <div className="space-y-2">
@@ -284,15 +275,13 @@ export function DealFormDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>توضیحات</Label>
+          <Field label="توضیحات">
             <Textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
-              placeholder="توضیحات مرتبط با معامله..."
             />
-          </div>
+          </Field>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

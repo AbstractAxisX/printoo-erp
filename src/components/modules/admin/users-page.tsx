@@ -23,7 +23,7 @@ import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -386,13 +386,11 @@ export function UsersPage() {
             <DialogTitle>ویرایش {editUser?.name}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>ایمیل (غیرقابل تغییر)</Label>
+            <Field label="ایمیل (غیرقابل تغییر)">
               <Input value={editForm.email} disabled dir="ltr" />
-            </div>
+            </Field>
             <UserFormFields form={editForm} setForm={setEditForm} />
-            <div className="space-y-1.5">
-              <Label>رمز عبور جدید (اختیاری)</Label>
+            <Field label="رمز عبور جدید (اختیاری)">
               <Input
                 type="password"
                 value={newPassword}
@@ -400,7 +398,7 @@ export function UsersPage() {
                 placeholder="برای تغییر رمز پر کنید"
                 dir="ltr"
               />
-            </div>
+            </Field>
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)}>
                 انصراف
@@ -433,18 +431,16 @@ function UserFormFields({
 }) {
   return (
     <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label>نام و نام خانوادگی *</Label>
+      <Field label="نام و نام خانوادگی" required>
         <Input
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           placeholder="مثلاً: سارا احمدی"
           autoFocus
         />
-      </div>
+      </Field>
       {withPassword && (
-        <div className="space-y-1.5">
-          <Label>ایمیل *</Label>
+        <Field label="ایمیل" required>
           <Input
             type="email"
             value={form.email}
@@ -452,11 +448,10 @@ function UserFormFields({
             placeholder="user@printoo24.com"
             dir="ltr"
           />
-        </div>
+        </Field>
       )}
       {withPassword && (
-        <div className="space-y-1.5">
-          <Label>رمز عبور *</Label>
+        <Field label="رمز عبور" required>
           <Input
             type="password"
             value={form.password}
@@ -464,16 +459,15 @@ function UserFormFields({
             placeholder="حداقل ۶ کاراکتر"
             dir="ltr"
           />
-        </div>
+        </Field>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label>نقش *</Label>
+        <Field label="نقش" required>
           <Select
             value={form.role}
             onValueChange={(v) => setForm((f) => ({ ...f, role: v }))}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -484,16 +478,15 @@ function UserFormFields({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>شماره تماس</Label>
+        </Field>
+        <Field label="شماره تماس">
           <Input
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
             placeholder="0912..."
             dir="ltr"
           />
-        </div>
+        </Field>
       </div>
     </div>
   );

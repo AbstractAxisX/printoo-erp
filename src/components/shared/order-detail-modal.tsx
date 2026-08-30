@@ -93,8 +93,12 @@ export type OrderDetail = {
   preInvoices: {
     id: string;
     number: number;
+    status?: string;
+    issueDate?: string;
+    validUntil?: string | null;
     totalAmount: number;
     paidAmount: number;
+    discountAmount?: number;
     date?: string;
     items?: string;
   }[];

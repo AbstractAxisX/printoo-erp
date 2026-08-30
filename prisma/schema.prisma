@@ -209,18 +209,35 @@ model OrderItem {
 }
 
 // ─── Pre-Invoice (پیش فاکتور) ──────────────────────────────────
+// ─── PreInvoice (پیش‌فاکتور) — بازسازی فاز ۷ ─────────────────────────────
+// موجودیت عملیاتی پیش‌فاکتور چاپخانه:
+//   چرخهٔ وضعیت: draft → sent → approved → converted (یا rejected)
+//   شماره‌گذاری اتمیک از Counter، اعتبار زمانی، اقلام با قیمت واحد/تخفیف،
+//   مالیات، پیش‌پرداخت و سنپ‌شات مشتری. مبلغ پرداختی سفارش به‌صورت
+//   افزایشی/کاهشی (delta) با order.paidAmount همگام می‌شود.
 model PreInvoice {
-  id          String   @id @default(cuid())
-  number      Int      @unique
-  orderId     String
-  order       Order    @relation(fields: [orderId], references: [id])
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-  totalAmount Float    @default(0)
-  paidAmount  Float    @default(0)
-  date        DateTime @default(now())
-  items       String // JSON string: [{name, quantity, total, paid}]
-  createdAt   DateTime @default(now())
+  id             String    @id @default(cuid())
+  number         Int       @unique
+  orderId        String
+  order          Order     @relation(fields: [orderId], references: [id])
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id])
+  // draft | sent | approved | rejected | converted
+  status         String    @default("draft")
+  issueDate      DateTime  @default(now())
+  validUntil     DateTime?
+  // JSON: [{name, quantity, unit, unitPrice, discount, total}]
+  items          String
+  subtotal       Float     @default(0)
+  discountAmount Float     @default(0)
+  taxRate        Float     @default(0) // درصد مالیات (۰ تا ۱۰۰)
+  taxAmount      Float     @default(0)
+  totalAmount    Float     @default(0) // subtotal - discount + tax
+  paidAmount     Float     @default(0) // پیش‌پرداخت دریافتی
+  notes          String?
+  terms          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 // ─── Invoice (فاکتور) ───────────────────────────────────────────

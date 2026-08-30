@@ -154,4 +154,20 @@
   .no-print { display: none !important; }
   .print-area { display: block !important; }
   body { background: white !important; }
+  /* سند پیش‌فاکتور: فقط خود سند چاپ می‌شود، بقیهٔ اپ مخفی */
+  body * { visibility: hidden !important; }
+  .print-doc, .print-doc * { visibility: visible !important; }
+  .print-doc {
+    position: absolute !important;
+    inset-inline: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+  }
+  @page { margin: 12mm; }
 }

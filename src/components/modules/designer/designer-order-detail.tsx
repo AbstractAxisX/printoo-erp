@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { formatDate, daysRemaining } from "@/lib/format";
 import { PRIORITY, ITEM_STAGE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -329,25 +329,18 @@ export function DesignerOrderDetailModal({
             </div>
 
             {/* Designer note */}
-            <div>
-              <Label
-                htmlFor="designer-note"
-                className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5"
-              >
-                <Icon name="edit" size={13} /> یادداشت طراح
-              </Label>
+            <Field
+              label="یادداشت طراح"
+              hint="این یادداشت پس از ارسال به چاپ، برای همه ماژول‌ها قابل مشاهده خواهد بود."
+            >
               <Textarea
                 id="designer-note"
                 value={designerNote}
                 onChange={(e) => setDesignerNote(e.target.value)}
                 rows={4}
-                placeholder="یادداشت خود را برای مراحل بعد وارد کنید..."
                 className="resize-none"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                این یادداشت پس از ارسال به چاپ، برای همه ماژول‌ها قابل مشاهده خواهد بود.
-              </p>
-            </div>
+            </Field>
           </div>
 
           {/* Footer with actions */}
@@ -398,25 +391,25 @@ export function DesignerOrderDetailModal({
             </div>
           </div>
           <div className="px-6 py-4">
-            <Label
-              htmlFor="qc-description"
-              className="text-xs font-medium text-muted-foreground mb-2 block"
+            <Field
+              label="توضیح گزارش"
+              required
+              hint={
+                <span className="flex items-start gap-1">
+                  <Icon name="info" size={11} className="mt-0.5 shrink-0" />
+                  این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی
+                  (طراحی) باقی می‌ماند.
+                </span>
+              }
             >
-              توضیح گزارش
-            </Label>
-            <Textarea
-              id="qc-description"
-              value={qcDescription}
-              onChange={(e) => setQcDescription(e.target.value)}
-              rows={5}
-              placeholder="مشکل یا موردی که نیاز به بررسی کنترل کیفیت دارد را توضیح دهید..."
-              className="resize-none"
-            />
-            <p className="text-[11px] text-muted-foreground mt-2 flex items-start gap-1">
-              <Icon name="info" size={11} className="mt-0.5 shrink-0" />
-              این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی
-              (طراحی) باقی می‌ماند.
-            </p>
+              <Textarea
+                id="qc-description"
+                value={qcDescription}
+                onChange={(e) => setQcDescription(e.target.value)}
+                rows={5}
+                className="resize-none"
+              />
+            </Field>
           </div>
           <DialogFooter className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2">
             <Button

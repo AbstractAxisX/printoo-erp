@@ -9,7 +9,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -324,8 +324,7 @@ export function SRMServices() {
             <DialogTitle>خدمه جدید</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>تامین‌کننده *</Label>
+            <Field label="تامین‌کننده" required>
               <Select
                 value={form.supplierId}
                 onValueChange={(v) => setForm({ ...form, supplierId: v })}
@@ -347,9 +346,8 @@ export function SRMServices() {
                   )}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>زیردسته</Label>
+            </Field>
+            <Field label="زیردسته">
               <Select
                 value={form.subcategoryId}
                 onValueChange={(v) => setForm({ ...form, subcategoryId: v })}
@@ -372,19 +370,17 @@ export function SRMServices() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>نام خدمه *</Label>
+            </Field>
+            <Field label="نام خدمه" required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
                 placeholder="مثال: چاپ افست ۴ رنگ"
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>واحد</Label>
+              <Field label="واحد">
                 <Select
                   value={form.unit}
                   onValueChange={(v) => setForm({ ...form, unit: v })}
@@ -400,15 +396,13 @@ export function SRMServices() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>توضیحات</Label>
+              </Field>
+              <Field label="توضیحات">
                 <Input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="توضیح کوتاه"
                 />
-              </div>
+              </Field>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
@@ -726,8 +720,7 @@ function ServiceDetailDrawer({
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>قیمت (IQD) *</Label>
+              <Field label="قیمت (IQD)" required>
                 <Input
                   type="number"
                   value={priceForm.price}
@@ -736,9 +729,8 @@ function ServiceDetailDrawer({
                   dir="ltr"
                   placeholder="مثال: 5000"
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label>حداقل تعداد</Label>
+              </Field>
+              <Field label="حداقل تعداد">
                 <Input
                   type="number"
                   value={priceForm.minQuantity}
@@ -746,26 +738,24 @@ function ServiceDetailDrawer({
                   dir="ltr"
                   min="1"
                 />
-              </div>
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label>اعتبار تا (اختیاری)</Label>
+            <Field label="اعتبار تا (اختیاری)">
               <Input
                 type="date"
                 value={priceForm.validTo}
                 onChange={(e) => setPriceForm({ ...priceForm, validTo: e.target.value })}
                 dir="ltr"
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label>یادداشت</Label>
+            </Field>
+            <Field label="یادداشت">
               <Textarea
                 value={priceForm.note}
                 onChange={(e) => setPriceForm({ ...priceForm, note: e.target.value })}
                 rows={2}
                 placeholder="توضیح قیمت، شرایط ویژه و..."
               />
-            </div>
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddPriceOpen(false)}>
                 انصراف

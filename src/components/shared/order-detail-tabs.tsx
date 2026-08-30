@@ -42,6 +42,15 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import type { OrderDetail } from "./order-detail-modal";
 
+// ─── Phase 7: وضعیت پیش‌فاکتور — همان رنگ‌های lib/pre-invoice ──────
+const PI_STATUS_BADGE = {
+  draft: { label: "پیش‌نویس", cls: "bg-muted text-muted-foreground" },
+  sent: { label: "ارسال‌شده", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" },
+  approved: { label: "تاییدشده", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: "ردشده", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  converted: { label: "تبدیل به فاکتور", cls: "bg-primary/15 text-primary" },
+} as const;
+
 // ─── 1. Overview tab ────────────────────────────────────────────
 // Context-First: identity, next-action CTA, status timeline, note.
 const NEXT_ACTION: Partial<Record<OrderStatus, { to: OrderStatus; label: string; icon: Parameters<typeof Icon>[0]["name"]; }>> = {
@@ -700,37 +709,50 @@ export function FinanceTab({
         </div>
       </div>
 
-      {/* Pre-invoices */}
+      {/* Pre-invoices — Phase 7: status-aware rows, click opens management */}
       <div className="rounded-lg border">
         <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
           <span className="text-xs font-medium flex items-center gap-1.5">
             <Icon name="receipt" size={13} /> پیش‌فاکتورها
           </span>
           <Button size="sm" variant="outline" onClick={onPreInvoice} className="h-7 gap-1 text-xs">
-            <Icon name={hasPreInvoice ? "edit" : "plus"} size={12} />
-            {hasPreInvoice ? "ویرایش" : "صدور"}
+            <Icon name="plus" size={12} />
+            {hasPreInvoice ? "مدیریت" : "صدور"}
           </Button>
         </div>
         <div className="divide-y">
           {order.preInvoices?.length ? (
-            order.preInvoices.map((pi) => (
-              <div key={pi.id} className="px-3 py-2 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium">پیش‌فاکتور #{pi.number}</div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {pi.date ? formatDate(pi.date) : ""}
+            order.preInvoices.map((pi) => {
+              const st = (pi.status ?? "draft") as keyof typeof PI_STATUS_BADGE;
+              const badge = PI_STATUS_BADGE[st] ?? PI_STATUS_BADGE.draft;
+              return (
+                <button
+                  key={pi.id}
+                  onClick={onPreInvoice}
+                  className="w-full text-right px-3 py-2 flex items-center justify-between hover:bg-accent/40 transition"
+                >
+                  <div>
+                    <div className="text-sm font-medium flex items-center gap-2">
+                      پیش‌فاکتور #{pi.number}
+                      <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {pi.issueDate || pi.date ? formatDate(pi.issueDate ?? pi.date!) : ""}
+                    </div>
                   </div>
-                </div>
-                <div className="text-left">
-                  <div className="text-sm font-semibold tabular-nums" dir="ltr">
-                    {formatCurrency(pi.totalAmount)}
+                  <div className="text-left">
+                    <div className="text-sm font-semibold tabular-nums" dir="ltr">
+                      {formatCurrency(pi.totalAmount)}
+                    </div>
+                    <div className="text-[11px] text-emerald-600 tabular-nums" dir="ltr">
+                      پرداخت: {formatCurrency(pi.paidAmount)}
+                    </div>
                   </div>
-                  <div className="text-[11px] text-emerald-600 tabular-nums" dir="ltr">
-                    پرداخت: {formatCurrency(pi.paidAmount)}
-                  </div>
-                </div>
-              </div>
-            ))
+                </button>
+              );
+            })
           ) : (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground">
               پیش‌فاکتوری صادر نشده است.

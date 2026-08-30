@@ -14,7 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "setup": "prisma generate && prisma db push --accept-data-loss",
-    "predev": "prisma generate && prisma db push --accept-data-loss"
+    "predev": "node scripts/predev.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

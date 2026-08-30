@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatDate, daysRemaining, formatCurrency } from "@/lib/format";
 import { PRIORITY, ITEM_STAGE } from "@/lib/constants";
@@ -684,25 +684,25 @@ export function PrintOrderDetailModal({
             </div>
           </div>
           <div className="px-6 py-4">
-            <Label
-              htmlFor="qc-description"
-              className="text-xs font-medium text-muted-foreground mb-2 block"
+            <Field
+              label="توضیح گزارش"
+              required
+              hint={
+                <span className="flex items-start gap-1">
+                  <Icon name="info" size={11} className="mt-0.5 shrink-0" />
+                  این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی
+                  (چاپ) باقی می‌ماند.
+                </span>
+              }
             >
-              توضیح گزارش
-            </Label>
-            <Textarea
-              id="qc-description"
-              value={qcDescription}
-              onChange={(e) => setQcDescription(e.target.value)}
-              rows={5}
-              placeholder="مشکل یا موردی که نیاز به بررسی کنترل کیفیت دارد را توضیح دهید..."
-              className="resize-none"
-            />
-            <p className="text-[11px] text-muted-foreground mt-2 flex items-start gap-1">
-              <Icon name="info" size={11} className="mt-0.5 shrink-0" />
-              این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی
-              (چاپ) باقی می‌ماند.
-            </p>
+              <Textarea
+                id="qc-description"
+                value={qcDescription}
+                onChange={(e) => setQcDescription(e.target.value)}
+                rows={5}
+                className="resize-none"
+              />
+            </Field>
           </div>
           <DialogFooter className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2">
             <Button
@@ -751,10 +751,7 @@ export function PrintOrderDetailModal({
           </div>
           <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto scrollbar-thin">
             {/* Supplier */}
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                تامین‌کننده
-              </Label>
+            <Field label="تامین‌کننده">
               <select
                 value={costForm.supplierId}
                 onChange={(e) =>
@@ -769,12 +766,9 @@ export function PrintOrderDetailModal({
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
             {/* Expense type */}
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                نوع هزینه
-              </Label>
+            <Field label="نوع هزینه">
               <select
                 value={costForm.expenseTypeId}
                 onChange={(e) =>
@@ -789,15 +783,9 @@ export function PrintOrderDetailModal({
                   </option>
                 ))}
               </select>
-            </div>
+            </Field>
             {/* Description */}
-            <div>
-              <Label
-                htmlFor="cost-description"
-                className="text-xs font-medium text-muted-foreground mb-1.5 block"
-              >
-                توضیح
-              </Label>
+            <Field label="توضیح">
               <Textarea
                 id="cost-description"
                 value={costForm.description}
@@ -805,18 +793,12 @@ export function PrintOrderDetailModal({
                   setCostForm((f) => ({ ...f, description: e.target.value }))
                 }
                 rows={3}
-                placeholder="توضیح هزینه (اختیاری)..."
+                placeholder="(اختیاری)"
                 className="resize-none"
               />
-            </div>
+            </Field>
             {/* Amount */}
-            <div>
-              <Label
-                htmlFor="cost-amount"
-                className="text-xs font-medium text-muted-foreground mb-1.5 block"
-              >
-                مبلغ (IQD)
-              </Label>
+            <Field label="مبلغ (IQD)" required>
               <Input
                 id="cost-amount"
                 type="number"
@@ -824,44 +806,29 @@ export function PrintOrderDetailModal({
                 onChange={(e) =>
                   setCostForm((f) => ({ ...f, amount: e.target.value }))
                 }
-                placeholder="0"
                 className="tabular-nums"
               />
-            </div>
+            </Field>
             {/* File URLs (simple text inputs) */}
             <div className="grid grid-cols-1 gap-3">
-              <div>
-                <Label
-                  htmlFor="cost-file1"
-                  className="text-xs font-medium text-muted-foreground mb-1.5 block"
-                >
-                  فایل ضمیمه ۱ (نام / URL)
-                </Label>
+              <Field label="فایل ضمیمه ۱ (نام / URL)">
                 <Input
                   id="cost-file1"
                   value={costForm.fileUrl1}
                   onChange={(e) =>
                     setCostForm((f) => ({ ...f, fileUrl1: e.target.value }))
                   }
-                  placeholder="نام فایل یا URL..."
                 />
-              </div>
-              <div>
-                <Label
-                  htmlFor="cost-file2"
-                  className="text-xs font-medium text-muted-foreground mb-1.5 block"
-                >
-                  فایل ضمیمه ۲ (نام / URL)
-                </Label>
+              </Field>
+              <Field label="فایل ضمیمه ۲ (نام / URL)">
                 <Input
                   id="cost-file2"
                   value={costForm.fileUrl2}
                   onChange={(e) =>
                     setCostForm((f) => ({ ...f, fileUrl2: e.target.value }))
                   }
-                  placeholder="نام فایل یا URL..."
                 />
-              </div>
+              </Field>
             </div>
             <p className="text-[11px] text-muted-foreground flex items-start gap-1">
               <Icon name="info" size={11} className="mt-0.5 shrink-0" />

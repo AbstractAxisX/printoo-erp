@@ -17,6 +17,7 @@ import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -71,15 +72,13 @@ export function OrderNoteModal({
             {order.number}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label>متن یادداشت</Label>
+        <Field label="متن یادداشت">
           <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={5}
-            placeholder="یادداشت خود را وارد کنید..."
           />
-        </div>
+        </Field>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             انصراف

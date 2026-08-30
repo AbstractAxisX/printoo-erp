@@ -3364,3 +3364,59 @@ Stage Summary:
 - سه مودال سفارش error-resilient شدند.
 - ماژول‌های طراح و چاپ فول‌تست و سالم.
 - کامیت 25959e2 پوش شد. دستورات بازیابی ماشین کاربر در پیام نهایی.
+
+---
+Task ID: 7-a
+Agent: forms-admin-converter
+Task: Admin module + auth form floating-label conversion (Field notch-label pattern)
+
+Work Log:
+- Read new src/components/ui/field.tsx (Field + FieldInput) — notch label on top-right border (RTL), bg-background chip, focus-color transition.
+- login-form.tsx: converted email + password fields to <Field label required>; removed separate <label> elements; icon spans (mail/lock) + eye toggle passed directly as Field children (Field's inner div is `relative` — absolute icons keep working); kept raw input classNames, dir="ltr", required attrs, placeholders (example-style), "مرا به خاطر بسپار" checkbox + demo box untouched. (2 fields)
+- tasks-page.tsx TaskFormFields: عنوان(required, dropped redundant placeholder "عنوان تسک"), توضیحات(Textarea), مسئول انجام(SearchSelect — moved the module-visibility <p> into Field `hint` prop), تاریخ سررسید(DatePicker, dropped redundant "انتخاب تاریخ" placeholder), ماژول + وضعیت(Select; SelectTrigger got w-full so the notch spans the trigger). اولویت (ToggleButton group) intentionally KEEPS Label-above — notch chip needs a bordered control; kept Label import for it. (5 fields)
+- customers-page.tsx: نام مشتری(required, dropped "نام و نام خانوادگی" placeholder), شماره تلفن(required, kept "0912..." example), یادداشت(Textarea). Removed unused Label import. (3 fields)
+- products-page.tsx: نام محصول(required), واحد, قیمت پایه (IQD)(number, dir=ltr), توضیحات. Removed Label import. (4 fields)
+- suppliers-page.tsx: نام تامین‌کننده(required), تلفن(dir=ltr), مسئول ارتباط, آدرس(Textarea), یادداشت(Textarea). Removed Label import. (5 fields)
+- expense-types-page.tsx: نام(required, autoFocus kept). Removed Label import. (1 field)
+- users-page.tsx: edit dialog ایمیل (غیرقابل تغییر)(disabled) + رمز عبور جدید (اختیاری)(kept "برای تغییر رمز پر کنید" hint-placeholder); UserFormFields: نام و نام خانوادگی(required, kept "مثلاً: سارا احمدی"), ایمیل(required), رمز عبور(required, kept "حداقل ۶ کاراکتر"), نقش(required, Select w-full), شماره تماس(kept "0912..."). Removed Label import. (7 fields)
+- order-modals.tsx: OrderNoteModal متن یادداشت(Textarea, dropped redundant placeholder). "وضعیت جدید" Label kept (FilterToggle chips = no border). Label import kept (still used). (1 field)
+- orders-filters.tsx: SKIPPED — no Label+Input pairs; it's a toolbar of SearchComboboxes (placeholder-driven) + FilterToggle chips, per task instruction.
+- Zero logic changes: all state, handlers, query keys, API calls, required attrs, dir="ltr" preserved.
+
+Verification:
+- bun run lint: 0 errors (3 pre-existing benign React-Compiler warnings in reusable-gantt/data-table/virtualized-data-table — unrelated).
+- bunx tsc --noEmit | grep components/(modules/admin|auth): only pre-existing order-wizard.tsx(279) error (file NOT touched by me, unmodified in git; another agent's conflict zone). 0 new errors in converted files.
+- Browser E2E (agent-browser on localhost:3000): login form — chips "ایمیل *"/"رمز عبور *" straddle border exactly (-top-2, 8px overlap), icons + eye button correctly positioned & clickable, remember-checkbox intact, console clean. Customers dialog — 3 chips at 8px border overlap. Tasks dialog — 5 chips verified geometrically; old Label remains only for اولویت toggles.
+- VLM review: login form 9/10 (labels perfectly cut border, no collisions); tasks dialog 8/10 (correct, minor spacing note on the kept اولویت row).
+
+Stage Summary:
+- 8 files converted, 28 labeled inputs moved to the Field notch-label pattern (login 2, tasks 5, customers 3, products 4, suppliers 5, expense-types 1, users 7, order-note 1).
+- Pattern decisions: Label text ending " *" → label prop + required (red asterisk rendered by Field); redundant placeholders removed; example/unit placeholders (0912..., حداقل ۶ کاراکتر, مثلاً: سارا احمدی, user@printoo24.com) kept; SelectTrigger + w-full when Field-wrapped; borderless toggle groups (اولویت in tasks, وضعیت جدید in order-modals) keep Label-above since a notch needs a bordered control.
+- Did NOT touch: order-wizard.tsx, order-detail-tabs.tsx, designer/print/finance/crm/srm/qc files (other agents' zones — visible in git status as their concurrent edits).
+
+---
+Task ID: 7-b
+Agent: forms-modules-converter
+Task: designer/print/finance/crm/srm/qc form floating-label conversion
+Work Log:
+- designer/designer-order-detail.tsx: 2 fields — یادداشت طراح (Textarea; the old <p> explainer became Field `hint`), توضیح گزارش QC (Textarea, required — submit blocked on empty; info paragraph moved into `hint` as icon span). Removed Label import.
+- print/print-order-detail.tsx: 7 fields — توضیح گزارش QC (required + hint), تامین‌کننده + نوع هزینه (native <select>s — notch works on their border), توضیح (placeholder reduced to "(اختیاری)" — only the optional-ness info kept), مبلغ (IQD) (required; dropped redundant "0" placeholder; tabular-nums kept), فایل ضمیمه ۱/۲ (نام / URL) (dropped placeholder that duplicated label). Removed Label import.
+- crm/crm-customers.tsx: 3 fields — نام مشتری (required, dropped "نام و نام خانوادگی" placeholder), شماره تلفن (required, dir=ltr, kept "0912..." example), یادداشت (Textarea). Removed Label import. (toolbar SelectTrigger filter untouched — never had a Label)
+- crm/activity-form-dialog.tsx: 5 fields — عنوان (required, kept "مثلاً: تماس برای پیگیری سفارش کاتالوگ" example), مشتری + معامله مرتبط (shadcn Selects), تاریخ و زمان (DatePicker; sm:col-span-2 moved to Field className; dropped redundant DatePicker placeholder), توضیحات (dropped "جزئیات بیشتر..."). نوع فعالیت button-grid KEEPS Label-above (notch needs a bordered control) → Label import retained.
+- crm/deal-form-dialog.tsx: 8 fields — عنوان معامله (required, kept "مثلاً: چاپ کاتالوگ ۵۰۰ نسخه"), مشتری (required per submit validation), ارزش معامله (IQD) (number, dir=ltr, dropped "0"), مرحله + منبع (Selects), تاریخ بسته شدن پیش‌بینی (DatePicker), مسئول (dropped "نام مسئول پیگیری"), توضیحات (dropped placeholder). احتمال موفقیت slider row KEEPS Label (Slider has no border) → Label import retained.
+- srm/srm-suppliers.tsx: 6 fields — نام تامین‌کننده (required), شماره تلفن (dir=ltr, kept "0912..."), شخص مسئول (dropped "نام شخص رابط"), نشانی (dropped "نشانی کامل"), دسته / زیردسته (Select with grouped options), یادداشت (Textarea). Removed Label import.
+- srm/srm-categories.tsx: 3 fields — نام دسته (required, kept "مثال: ..." example), دسته والد (Select, required), نام زیردسته (required, kept example). آیکون picker grid KEEPS Label → Label import retained.
+- srm/srm-services.tsx: 9 fields — تامین‌کننده (required, Select), زیردسته (Select), نام خدمه (required, kept "مثال: چاپ افست ۴ رنگ"), واحد (Select), توضیحات (dropped "توضیح کوتاه"), قیمت (IQD) (required, number, dir=ltr, kept "مثال: 5000"), حداقل تعداد (number, dir=ltr), اعتبار تا (اختیاری) (date, dir=ltr), یادداشت (Textarea, kept "توضیح قیمت، شرایط ویژه و..."). Removed Label import.
+- SKIPPED (no labeled form inputs): designer/designer-tasks.tsx, print/print-tasks.tsx (read-only task lists), finance/finance-costs.tsx + qc/qc-reports.tsx + designer-orders/print-orders/crm-deals/srm-costs (icon+placeholder search inputs only — no Label), finance/finance-cost-detail.tsx (display-only modal), crm/crm-activities.tsx (toolbar SelectTrigger filter only), all qc/* files (zero Label/Input/Textarea/SelectTrigger — grep-verified).
+- Zero logic changes: all state, handlers, query keys, API calls, mutation bodies, required HTML attrs, dir="ltr", ids preserved. Native <select> elements keep their exact styling classes.
+
+Verification:
+- bun run lint: 0 errors (3 pre-existing benign React-Compiler "incompatible library" warnings in reusable-gantt/data-table/virtualized-data-table — same as before my edits).
+- bunx tsc --noEmit | grep modules/(designer|print|finance|crm|srm|qc): ZERO errors. Full tsc has 16 pre-existing errors, all outside my scope (examples/, scripts/, skills/, api/orders route, admin order-wizard line 279, toggle-button) — none introduced by me.
+- Browser E2E (agent-browser, isolated session on localhost:3000): CRM "مشتری جدید" dialog — 3 notch chips render ("نام مشتری *", "شماره تلفن *", "یادداشت"), geometric check: label spans 162-178px vs input border at 170px (chip straddles the border exactly, -top-2) and right-aligned (right-3, RTL). Contrast check: admin suppliers dialog (other agent's zone, old pattern) still shows Labels-above-inputs while my CRM dialog shows the new notch pattern. Console clean, no page errors.
+
+Stage Summary:
+- 8 files converted, 43 labeled inputs moved to the Field notch-label pattern (designer 2, print 7, crm-customers 3, activity-form 5, deal-form 8, srm-suppliers 6, srm-categories 3, srm-services 9).
+- Pattern decisions consistent with task 7-a: "*" in label → `required` prop (Field renders red asterisk); redundant placeholders removed; example/unit placeholders kept; hint paragraphs folded into Field `hint` prop; layout classes (sm:col-span-2) moved to Field `className`; borderless control groups (button-grids, sliders) intentionally keep Label-above.
+- 9 files skipped and documented (no labeled form inputs — read-only lists, display modals, placeholder-only search bars).
+- All 5 non-admin module groups now use the same Field visual language as admin/auth (tasks 7-a + 7-b complete the codebase-wide conversion).

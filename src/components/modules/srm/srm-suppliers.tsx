@@ -9,7 +9,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -390,44 +390,36 @@ export function SRMSuppliers() {
             <DialogTitle>{editing ? "ویرایش تامین‌کننده" : "تامین‌کننده جدید"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>نام تامین‌کننده *</Label>
+            <Field label="نام تامین‌کننده" required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
-                placeholder="نام شرکت یا فرد"
               />
-            </div>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>شماره تلفن</Label>
+              <Field label="شماره تلفن">
                 <Input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   dir="ltr"
                   placeholder="0912..."
                 />
-              </div>
-              <div className="space-y-1.5">
-                <Label>شخص مسئول</Label>
+              </Field>
+              <Field label="شخص مسئول">
                 <Input
                   value={form.contactPerson}
                   onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
-                  placeholder="نام شخص رابط"
                 />
-              </div>
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label>نشانی</Label>
+            <Field label="نشانی">
               <Input
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="نشانی کامل"
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label>دسته / زیردسته</Label>
+            </Field>
+            <Field label="دسته / زیردسته">
               <Select
                 value={form.subcategoryId}
                 onValueChange={(v) => setForm({ ...form, subcategoryId: v })}
@@ -454,15 +446,14 @@ export function SRMSuppliers() {
                   )}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>یادداشت</Label>
+            </Field>
+            <Field label="یادداشت">
               <Textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
                 rows={2}
               />
-            </div>
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 انصراف

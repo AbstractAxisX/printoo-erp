@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { normalizeItems, computeTotals } from "@/lib/pre-invoice";
 
 type ItemDraft = {
   productId: string;
@@ -30,9 +31,13 @@ type CreateBody = {
   note?: string | null;
   moduleDates?: ModuleDates;
   preInvoice?: {
-    items: { name: string; quantity: number; total: number; paid: number }[];
-    totalAmount: number;
-    paidAmount: number;
+    items: { name: string; quantity: number; unit?: string; unitPrice: number; discount?: number }[];
+    discountAmount?: number;
+    taxRate?: number;
+    paidAmount?: number;
+    validDays?: number;
+    notes?: string | null;
+    terms?: string | null;
   } | null;
   invoice?: {
     items: { name: string; quantity: number; total: number; paid: number }[];
@@ -154,7 +159,7 @@ export async function GET(req: NextRequest) {
     where.createdAt = createdAt;
   }
   if (amountMin || amountMax) {
-    const totalAmount: Prisma.NumberFilter = {};
+    const totalAmount: Prisma.FloatFilter = {};
     if (amountMin) totalAmount.gte = Number(amountMin);
     if (amountMax) totalAmount.lte = Number(amountMax);
     where.totalAmount = totalAmount;
@@ -356,28 +361,53 @@ function stageToStatus(stage?: string) {
 }
 
 // Helpers now take the tx client → run inside the caller's transaction.
+// Phase 7: createPreInvoice fully rebuilt — normalized items, discount,
+// tax, validity window, notes; paidAmount applies INCREMENTALLY to
+// order.paidAmount (the old version overwrote it, which broke with
+// multiple pre-invoices per order).
 async function createPreInvoice(
   tx: Prisma.TransactionClient,
   orderId: string,
   customerId: string,
   pi: NonNullable<CreateBody["preInvoice"]>
 ) {
+  const items = normalizeItems(pi.items);
+  const totals = computeTotals(items, pi.discountAmount ?? 0, pi.taxRate ?? 0);
+  const paid = Math.min(
+    Math.max(0, Number(pi.paidAmount) || 0),
+    totals.totalAmount
+  );
+
   const num = await nextNumber(tx, "preInvoice");
+  const days = Math.max(1, Math.min(365, Number(pi.validDays) || 15));
+  const validUntil = new Date();
+  validUntil.setDate(validUntil.getDate() + days);
+
   await tx.preInvoice.create({
     data: {
       number: num,
       orderId,
       customerId,
-      totalAmount: Number(pi.totalAmount) || 0,
-      paidAmount: Number(pi.paidAmount) || 0,
-      items: JSON.stringify(pi.items),
+      status: "draft",
+      validUntil,
+      items: JSON.stringify(items),
+      subtotal: totals.subtotal,
+      discountAmount: totals.discountAmount,
+      taxRate: totals.taxRate,
+      taxAmount: totals.taxAmount,
+      totalAmount: totals.totalAmount,
+      paidAmount: paid,
+      notes: pi.notes || null,
+      terms: pi.terms || null,
     },
   });
-  // bump order paidAmount
-  await tx.order.update({
-    where: { id: orderId },
-    data: { paidAmount: Number(pi.paidAmount) || 0 },
-  });
+  // همگام‌سازی افزایشی paidAmount سفارش (چند پیش‌فاکتور جمع می‌شود)
+  if (paid > 0) {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { paidAmount: { increment: paid } },
+    });
+  }
 }
 
 async function createInvoice(

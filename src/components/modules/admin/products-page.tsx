@@ -10,7 +10,7 @@ import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
@@ -175,12 +175,20 @@ export function ProductsPage() {
         <DialogContent aria-describedby={undefined}>
           <DialogHeader><DialogTitle>{editing ? "ویرایش محصول" : "محصول جدید"}</DialogTitle></DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-1.5"><Label>نام محصول *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
+            <Field label="نام محصول" required>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label>واحد</Label><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>قیمت پایه (IQD)</Label><Input value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value })} type="number" dir="ltr" /></div>
+              <Field label="واحد">
+                <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+              </Field>
+              <Field label="قیمت پایه (IQD)">
+                <Input value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value })} type="number" dir="ltr" />
+              </Field>
             </div>
-            <div className="space-y-1.5"><Label>توضیحات</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+            <Field label="توضیحات">
+              <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
               <Button type="submit" disabled={createMut.isPending || updateMut.isPending} className="gap-2">

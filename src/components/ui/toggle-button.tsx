@@ -13,7 +13,7 @@ type ToggleButtonProps = {
   className?: string;
   size?: "sm" | "md";
   activeIcon?: "check" | "star" | "alert";
-  inactiveIcon?: "cancel" | "circle" | "square";
+  inactiveIcon?: "cancel";
   activeColor?: "primary" | "emerald" | "amber";
 };
 
@@ -74,7 +74,7 @@ export function ToggleIconButton({
   title?: string;
   size?: "sm" | "md";
   activeIcon?: "check" | "star" | "alert";
-  inactiveIcon?: "cancel" | "circle" | "square";
+  inactiveIcon?: "cancel";
   activeColor?: "primary" | "emerald" | "amber";
 }) {
   const sizeCls = size === "sm" ? "size-7" : "size-9";

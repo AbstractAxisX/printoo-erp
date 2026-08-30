@@ -7,6 +7,7 @@ import { useInvalidate } from "@/lib/use-invalidate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -174,19 +175,17 @@ export function ActivityFormDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>عنوان *</Label>
+          <Field label="عنوان" required>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="مثلاً: تماس برای پیگیری سفارش کاتالوگ"
               required
             />
-          </div>
+          </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>مشتری</Label>
+            <Field label="مشتری">
               <Select
                 value={form.customerId || "none"}
                 onValueChange={(v) => setForm({ ...form, customerId: v === "none" ? "" : v, dealId: "" })}
@@ -203,10 +202,9 @@ export function ActivityFormDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5">
-              <Label>معامله مرتبط</Label>
+            <Field label="معامله مرتبط">
               <Select
                 value={form.dealId || "none"}
                 onValueChange={(v) => setForm({ ...form, dealId: v === "none" ? "" : v })}
@@ -224,27 +222,23 @@ export function ActivityFormDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>تاریخ و زمان</Label>
+            <Field label="تاریخ و زمان" className="sm:col-span-2">
               <DatePicker
                 value={form.date}
                 onChange={(d) => setForm({ ...form, date: d })}
-                placeholder="انتخاب تاریخ فعالیت"
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>توضیحات</Label>
+          <Field label="توضیحات">
             <Textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={3}
-              placeholder="جزئیات بیشتر..."
             />
-          </div>
+          </Field>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

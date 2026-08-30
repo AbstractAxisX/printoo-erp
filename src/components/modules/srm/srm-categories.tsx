@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
@@ -430,15 +431,14 @@ export function SRMCategories() {
             <DialogTitle>دسته جدید</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitCat} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>نام دسته *</Label>
+            <Field label="نام دسته" required>
               <Input
                 value={catForm.name}
                 onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
                 required
                 placeholder="مثال: متریال، چاپ، خدمات..."
               />
-            </div>
+            </Field>
             <div className="space-y-1.5">
               <Label>آیکون</Label>
               <div className="grid grid-cols-6 gap-2">
@@ -483,8 +483,7 @@ export function SRMCategories() {
             <DialogTitle>زیردسته جدید</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitSub} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>دسته والد *</Label>
+            <Field label="دسته والد" required>
               <Select
                 value={subForm.categoryId}
                 onValueChange={(v) => setSubForm({ ...subForm, categoryId: v })}
@@ -500,16 +499,15 @@ export function SRMCategories() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>نام زیردسته *</Label>
+            </Field>
+            <Field label="نام زیردسته" required>
               <Input
                 value={subForm.name}
                 onChange={(e) => setSubForm({ ...subForm, name: e.target.value })}
                 required
                 placeholder="مثال: پیپر بگ، کارت ویزیت..."
               />
-            </div>
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setSubDialogOpen(false)}>
                 انصراف

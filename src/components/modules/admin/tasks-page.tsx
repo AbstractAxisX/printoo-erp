@@ -47,6 +47,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ToggleButton } from "@/components/ui/toggle-button";
 import {
@@ -879,28 +880,29 @@ function TaskFormFields({
 }) {
   return (
     <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label>عنوان *</Label>
+      <Field label="عنوان" required>
         <Input
           value={form.title}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-          placeholder="عنوان تسک"
           autoFocus
         />
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <Label>توضیحات</Label>
+      <Field label="توضیحات">
         <Textarea
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={2}
           placeholder="توضیحات اختیاری..."
         />
-      </div>
+      </Field>
 
-      <div className="space-y-1.5">
-        <Label>مسئول انجام</Label>
+      <Field
+        label="مسئول انجام"
+        hint={
+          <>تسک علاوه بر این پنل، در پنل «{MODULES[form.module]?.faLabel}» هم دیده می‌شود.</>
+        }
+      >
         <SearchSelect
           value={form.assignedTo}
           onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
@@ -908,10 +910,7 @@ function TaskFormFields({
           searchPlaceholder="جستجوی نام کارمند..."
           options={assigneeOptions}
         />
-        <p className="text-[11px] text-muted-foreground">
-          تسک علاوه بر این پنل، در پنل «{MODULES[form.module]?.faLabel}» هم دیده می‌شود.
-        </p>
-      </div>
+      </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
@@ -934,26 +933,23 @@ function TaskFormFields({
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label>تاریخ سررسید</Label>
+        <Field label="تاریخ سررسید">
           <DatePicker
             value={form.dueDate || null}
             onChange={(d) =>
               setForm((f) => ({ ...f, dueDate: d ? format(d, "yyyy-MM-dd") : "" }))
             }
-            placeholder="انتخاب تاریخ"
           />
-        </div>
+        </Field>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label>ماژول</Label>
+        <Field label="ماژول">
           <Select
             value={form.module}
             onValueChange={(v) => setForm((f) => ({ ...f, module: v as ModuleKey }))}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -964,16 +960,15 @@ function TaskFormFields({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </Field>
 
         {withStatus && (
-          <div className="space-y-1.5">
-            <Label>وضعیت</Label>
+          <Field label="وضعیت">
             <Select
               value={form.status}
               onValueChange={(v) => setForm((f) => ({ ...f, status: v as TaskStatus }))}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -984,7 +979,7 @@ function TaskFormFields({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         )}
       </div>
     </div>

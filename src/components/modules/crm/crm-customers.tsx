@@ -9,7 +9,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleButton } from "@/components/ui/toggle-button";
 import { Icon } from "@/lib/icons";
@@ -371,17 +371,14 @@ export function CRMCustomers() {
             <DialogTitle>{editing ? "ویرایش مشتری" : "مشتری جدید"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>نام مشتری *</Label>
+            <Field label="نام مشتری" required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
-                placeholder="نام و نام خانوادگی"
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label>شماره تلفن *</Label>
+            </Field>
+            <Field label="شماره تلفن" required>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -389,7 +386,7 @@ export function CRMCustomers() {
                 dir="ltr"
                 placeholder="0912..."
               />
-            </div>
+            </Field>
             <ToggleButton
               checked={form.isFavorite}
               onChange={(v) => setForm({ ...form, isFavorite: v })}
@@ -398,14 +395,13 @@ export function CRMCustomers() {
               activeIcon="star"
               activeColor="amber"
             />
-            <div className="space-y-1.5">
-              <Label>یادداشت</Label>
+            <Field label="یادداشت">
               <Textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
                 rows={2}
               />
-            </div>
+            </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 انصراف
