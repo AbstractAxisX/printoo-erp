@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
@@ -40,18 +39,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await tx.order.update({ where: { id }, data: { status } });
 
       // آیتم‌ها با کفِ وضعیت جدید همگام شوند (فقط برای وضعیت‌های جریان)
+      // Phase 10: برگشت به عقب (مثلاً چاپ→طراحی) مهرهای زمانی و تاریخ‌های
+      // برنامه‌ریزی‌شده را هرگز پاک نمی‌کند — تاریخ‌ها باید بمانند و «فعال»
+      // باشند (خواستهٔ صریح کاربر: تاریخ چاپ موقع برگشت/ادیت نباید بپرد).
       await syncItemsToStatus(tx, id, status as OrderStatusStr);
 
-      // تاریخ‌های برنامه‌ریزی ماژول‌ها (اگر ارسال شده باشند)
-      await tx.orderItem.updateMany({
-        where: { orderId: id },
-        data: {
-          designStartDate: toISO(designStart),
-          designEndDate: toISO(designEnd),
-          printStartDate: toISO(printStart),
-          printEndDate: toISO(printEnd),
-        },
-      });
+      // Phase 10 (باگ «تاریخ می‌پره»): قبلاً هر ۴ تاریخ بی‌قیدوشرط با
+      // toISO(null) بازنویسی می‌شد → هر تغییر وضعیت، زمان‌بندی را پاک
+      // می‌کرد. حالا فقط تاریخ‌های «ارسال‌شدهٔ غیرتهی» اعمال می‌شوند
+      // (partial update) و بقیه دست‌نخورده می‌مانند.
+      const dateData: Record<string, Date> = {};
+      if (designStart) dateData.designStartDate = new Date(designStart);
+      if (designEnd) dateData.designEndDate = new Date(designEnd);
+      if (printStart) dateData.printStartDate = new Date(printStart);
+      if (printEnd) dateData.printEndDate = new Date(printEnd);
+      if (Object.keys(dateData).length > 0) {
+        await tx.orderItem.updateMany({ where: { orderId: id }, data: dateData });
+      }
 
       await tx.notification.create({
         data: {

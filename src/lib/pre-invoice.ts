@@ -127,6 +127,39 @@ export type PreInvoiceTotals = {
   totalAmount: number;
 };
 
+/** Phase 10: ساخت اقلام پیش‌فاکتور از خود آیتم‌های واقعی سفارش (سرور) */
+export function itemsFromOrderItems(
+  items: { product?: { name?: string | null; unit?: string | null } | null; note?: string | null; description?: string | null; quantity: number; pricePerUnit: number }[]
+): PreInvoiceItem[] {
+  return items.map((it) => {
+    const name = (it.product?.name ?? "").trim() || "قلم سفارش";
+    return {
+      name,
+      quantity: Number(it.quantity) || 1,
+      unit: (it.product?.unit ?? "عدد") || "عدد",
+      unitPrice: Number(it.pricePerUnit) || 0,
+      discount: 0,
+      total: Math.max(0, (Number(it.quantity) || 1) * (Number(it.pricePerUnit) || 0)),
+    };
+  });
+}
+
+/**
+ * Phase 10 — قرارداد «به‌ازای چه» پیش‌فاکتور صادر می‌شود:
+ *   • سفارش تفکیکی (مجزا) → هر آیتم سفارشِ خودش است → پیش‌فاکتور تک-آیتمی
+ *     (خواستهٔ ۱ کاربر: «اگر سفارش مجزا بود به ازای هر ایتم جدا پیش فاکتور ثبت شه»)
+ *   • چند-مشتری + گروهی → سفارش گروهیِ هر مشتری جدا می‌شود و «هر آیتم»
+ *     داخلش پیش‌فاکتور خودش را می‌گیرد (خواستهٔ ۲: تفکیک مشتری + per-item)
+ *   • گروهیِ تک-مشتری → یک پیش‌فاکتور برای کل گروه (خواستهٔ ۳: زمان‌بندی
+ *     طراحی/چاپ «روی کل گروه»).
+ */
+export function isPerItemInvoice(
+  splitMode: string,
+  customerCount: number
+): boolean {
+  return splitMode === "separated" || customerCount > 1;
+}
+
 /** محاسبهٔ مبالغ کل از اقلام نرمال‌شده + تخفیف سرجمع + نرخ مالیات */
 export function computeTotals(
   items: PreInvoiceItem[],

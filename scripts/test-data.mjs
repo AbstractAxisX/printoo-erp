@@ -1,10 +1,15 @@
-// Printoo24 ERP — Demo data (فاز ۹ — بازنویسی کامل)
+// Printoo24 ERP — Demo data (فاز ۱۰ — به‌روزرسانی قرارداد per-item)
 //
 // دیتای دموی حجیم و واقعی برای «همهٔ» ماژول‌ها با ساختار جدید گردش کار
 // (سفارش گروهی گیت‌دار + تفکیک‌شده):
 //   • ۳۱ سفارش در همهٔ وضعیت‌ها (گروهی چندآیتمی با پیشرفت جزئی، تک‌آیتمی،
 //     معوق، فوری، بدون موعد) — آیتم‌ها با مهر designCompletedAt/printCompletedAt
-//   • ۱۵ پیش‌فاکتور (draft/sent/approved/rejected/converted) + ۷ فاکتور نهایی
+//     و «موعد موردی» متفاوت per-item (designStartDate…printEndDate — فاز ۱۰)
+//   • ۳۲ پیش‌فاکتور با قرارداد فاز ۱۰:
+//       – مجزا (separated) و گروهیِ چند-مشتری → پیش‌فاکتور به‌ازای هر آیتم
+//         (PreInvoice.itemId ست است؛ اقلام سند = همان یک قلم)
+//       – گروهیِ تک-مشتری → یک پیش‌فاکتور برای کل سفارش (itemId=null)
+//     وضعیت‌ها draft/sent/approved/rejected/converted + ۷ فاکتور نهایی
 //     (issued/paid/cancelled — manual + pre_invoice) با مالیات/تخفیف/سررسید
 //   • ۴۸+ تسک در ۸ ماژول با مسئول، معوق/آینده
 //   • QC، هزینه‌های متریال، پرداخت‌ها، هزینه‌ها، نوتیف‌ها، معاملات CRM،
@@ -264,6 +269,7 @@ async function main() {
   let orderNum = 0;
   const created = []; // {id, number, customerName, status, paid}
   const mkItem = (prod, qty, stage, opts = {}) => ({
+    _prod: prod, // نام محصول — فقط برای seed؛ قبل از create حذف می‌شود
     productId: P[prod],
     quantity: qty,
     pricePerUnit: prodSpecs.find((p) => p[0] === prod)?.[2] ?? 1000,
@@ -304,114 +310,142 @@ async function main() {
         designerNote: spec.designerNote ?? null,
         createdBy: "مدیر سیستم",
         createdAt: day(spec.createdIn ?? -20),
-        items: { create: spec.items },
       },
     });
+    // فاز ۱۰: آیتم‌ها یکی‌یکی ساخته می‌شوند تا id قطعی هر آیتم برای
+    // پیش‌فاکتورهای per-item (PreInvoice.itemId) در دسترس باشد
+    const items = [];
+    for (const it of spec.items) {
+      const { _prod, ...data } = it;
+      const row = await db.orderItem.create({ data: { orderId: order.id, ...data } });
+      const p = prodSpecs.find((x) => x[0] === _prod);
+      items.push({
+        id: row.id, name: _prod, unit: p?.[1] ?? "عدد",
+        quantity: data.quantity, unitPrice: data.pricePerUnit,
+        totalAmount: data.totalAmount,
+      });
+    }
     created.push({
       id: order.id, number: orderNum, customerName: spec.customer,
-      status: spec.status, total,
+      status: spec.status, total, items,
     });
     return order;
   }
 
-  const dS = day(-7), dE = day(3), pS = day(-2), pE = day(5);
+  // (فاز ۱۰) موعد هر آیتم به‌صورت «موردی و متنوع» ست می‌شود — نه یکسان برای
+  // کل سفارش؛ بعضی آیتم‌ها هم عمداً بدون موعد می‌مانند
 
   // ── pending_design (۹ سفارش) — گیت طراحی فعال ──
   await mkOrder({ customer: "رستوران باران", status: "pending_design", splitMode: "grouped", priority: "urgent", endIn: 4, createdIn: -6,
     note: "منوی جدید فصل — فایل لوگو از مشتری دریافت شد",
-    items: [mkItem("منو رستورانی لمینت", 400, "design", { mat: true, designStart: dS, designEnd: day(1), note: "طراحی دو‌ستونه با تصاویر غذا" }),
-      mkItem("بنر vinil 340g", 2, "design", { designStart: dS, designEnd: day(1), desc: "بنر ورودی ۳×۱.۵ متر" }),
+    items: [mkItem("منو رستورانی لمینت", 400, "design", { mat: true, designStart: day(-7), designEnd: day(0), note: "طراحی دو‌ستونه با تصاویر غذا" }),
+      mkItem("بنر vinil 340g", 2, "design", { designStart: day(-3), designEnd: day(2), desc: "بنر ورودی ۳×۱.۵ متر" }),
       mkItem("تراکت A5 دو‌رو", 2000, "print", { desc: "تبلیغ منوی جدید — چاپ مستقیم" }) ] });
   await mkOrder({ customer: "کلینیک لبخند", status: "pending_design", splitMode: "grouped", priority: "normal", endIn: 8, createdIn: -5,
-    items: [mkItem("ست اداری (کارت+سربرگ+پاکت)", 3, "design", { designStart: dS, designEnd: dE }),
-      mkItem("کارت ویزیت سلفونی مات", 1000, "design", { mat: true, designStart: dS, designEnd: dE }) ] });
+    items: [mkItem("ست اداری (کارت+سربرگ+پاکت)", 3, "design", { designStart: day(-7), designEnd: day(3) }),
+      mkItem("کارت ویزیت سلفونی مات", 1000, "design", { mat: true, designStart: day(-4), designEnd: day(5) }) ] });
   await mkOrder({ customer: "شرکت آفتاب", status: "pending_design", splitMode: "separated", priority: "urgent", endIn: 2, createdIn: -3,
     note: "فوری برای نمایشگاه",
     items: [mkItem("پوستر A3 گلاسه", 300, "design", { designStart: day(-2), designEnd: day(-1), note: "موعد طراحی گذشته است" }) ] });
+  // گروهیِ چند-مشتری (هر قلم PI جداگانه) — طراحی نیمه‌کاره: ۱ از ۲ قلمِ نیازمند طراحی انجام شد
   await mkOrder({ customer: "آموزشگاه پارس", status: "pending_design", splitMode: "grouped", priority: "normal", endIn: 10, createdIn: -8,
+    note: "ثبت گروهی چند-مشتری — هر قلم پیش‌فاکتور مجزا دارد",
     items: [mkItem("کاتالوگ ۱۶ صفحه", 500, "design", { designStart: day(-10), designEnd: day(4) }),
       mkItem("کارت ویزیت سلفونی براق", 2000, "print", { desc: "طراحی آماده دارد" }),
-      mkItem("کاتالوگ ۱۶ صفحه", 500, "print", { designDone: day(-2), desc: "جلد طراحی شد — داخل آماده" }) ] });
+      mkItem("کاتالوگ ۱۶ صفحه", 500, "print", { designDone: day(-2), printStart: day(-1), printEnd: day(5), desc: "جلد طراحی شد — داخل آماده" }) ] });
   await mkOrder({ customer: "باشگاه ورشی", status: "pending_design", splitMode: "grouped", priority: "normal", endIn: null, createdIn: -2,
     note: "تاریخ تحویل هنوز مشخص نیست",
     items: [mkItem("فلکس برش‌دار", 5, "design", { desc: "تابلو ورودی باشگاه" }) ] });
   await mkOrder({ customer: "بیمارستان مهر", status: "pending_design", splitMode: "grouped", priority: "urgent", endIn: 6, createdIn: -4,
     items: [mkItem("فرم ثبت‌نام A4", 3000, "design", { designStart: day(-3), designEnd: day(0), note: "فرم سه‌لایه با شماره سریال" }),
-      mkItem("پاکت نامه لمینت", 100, "design", {}),
+      mkItem("پاکت نامه لمینت", 100, "design", { designStart: day(3), designEnd: day(7) }),
       mkItem("تراکت A4 یک‌رو", 5000, "print", {}),
-      mkItem("پوستر A3 گلاسه", 50, "print", { designDone: day(-1) }),
+      mkItem("پوستر A3 گلاسه", 50, "print", { designDone: day(-1), printStart: day(0), printEnd: day(3) }),
       mkItem("کارت ویزیت سلفونی مات", 500, "print", { designDone: day(-1) }) ] });
   await mkOrder({ customer: "داروخانه سبز", status: "pending_design", splitMode: "separated", priority: "normal", endIn: 12, createdIn: -1,
     items: [mkItem("استیکر براق سفید", 300, "design", { desc: "برچسب دارو با بارکد" }) ] });
+  // گروهیِ چند-مشتری — موعد طراحی اقلام پله‌ای (هفتهٔ جاری / هفتهٔ بعد)
   await mkOrder({ customer: "کافه ترنج", status: "pending_design", splitMode: "grouped", priority: "normal", endIn: 9, createdIn: -9,
     designerNote: "رنگ سازمانی کافه (سبز فیروزه‌ای) در همهٔ اقلام رعایت شود",
+    note: "ثبت گروهی چند-مشتری — هر قلم پیش‌فاکتور مجزا دارد",
     items: [mkItem("لیوان کاغذی چاپ‌دار", 20, "design", { mat: true, designStart: day(-5), designEnd: day(2) }),
-      mkItem("استیکر شفاف برش‌دار", 1000, "design", { designStart: day(-5), designEnd: day(2) }),
+      mkItem("استیکر شفاف برش‌دار", 1000, "design", { designStart: day(-2), designEnd: day(5) }),
       mkItem("بنر vinil 340g", 1, "print", {}) ] });
   await mkOrder({ customer: "دفتر وکالت دادگر", status: "pending_design", splitMode: "grouped", priority: "normal", endIn: 14, createdIn: -7,
-    items: [mkItem("سربرگ A4 یک‌رو رنگی", 40, "design", {}),
+    items: [mkItem("سربرگ A4 یک‌رو رنگی", 40, "design", { designStart: day(1), designEnd: day(5) }),
       mkItem("پاکت نامه لمینت", 30, "design", {}) ] });
 
   // ── in_printing (۷ سفارش) — طراحی همه تکمیل، چاپ در جریان ──
+  // چاپ نیمه‌کاره: ۱ از ۳ قلم چاپ شده (منو در انبار) — موعد چاپ اقلام متفاوت
   await mkOrder({ customer: "رستوران باران", status: "in_printing", splitMode: "grouped", priority: "urgent", endIn: -1, createdIn: -12,
     note: "پرداخت پس از تحویل توافق شد",
-    items: [mkItem("بنر vinil 340g", 3, "print", { mat: true, matConfirmed: true, designDone: day(-6), printStart: pS, printEnd: day(-1), note: "متریال براق سفید سفارش شد" }),
-      mkItem("تراکت A5 دو‌رو", 5000, "print", { designDone: day(-6), printStart: pS, printEnd: pE }),
-      mkItem("منو رستورانی لمینت", 150, "warehouse", { designDone: day(-7), printDone: day(-1), desc: "چاپ اول انجام شد" }) ] });
+    items: [mkItem("بنر vinil 340g", 3, "print", { mat: true, matConfirmed: true, designDone: day(-7), printStart: day(-3), printEnd: day(-1), note: "متریال براق سفید سفارش شد" }),
+      mkItem("تراکت A5 دو‌رو", 5000, "print", { designDone: day(-6), printStart: day(-2), printEnd: day(5) }),
+      mkItem("منو رستورانی لمینت", 150, "warehouse", { designDone: day(-7), printStart: day(-4), printEnd: day(-1), printDone: day(-1), desc: "چاپ اول انجام شد" }) ] });
   await mkOrder({ customer: "مجموعه برکت", status: "in_printing", splitMode: "separated", priority: "urgent", endIn: 2, createdIn: -10,
     items: [mkItem("کاتالوگ ۳۲ صفحه", 200, "print", { designDone: day(-5), printStart: day(-2), printEnd: day(2) }) ] });
+  // ۱ از ۴ قلم چاپ شده؛ مهر تکمیل طراحی اقلام پله‌ای و موعد چاپ متفاوت
   await mkOrder({ customer: "فروشگاه مدار", status: "in_printing", splitMode: "grouped", priority: "normal", endIn: 5, createdIn: -11,
-    items: [mkItem("فلکس برش‌دار", 8, "print", { mat: true, matConfirmed: true, designDone: day(-8), printStart: pS, printEnd: day(3) }),
-      mkItem("بنر vinil 340g", 4, "print", { designDone: day(-8), printStart: pS, printEnd: day(3) }),
-      mkItem("استیکر شفاف برش‌دار", 2000, "print", { designDone: day(-8) }),
-      mkItem("پوستر A3 گلاسه", 100, "warehouse", { designDone: day(-9), printDone: day(-1) }) ] });
+    items: [mkItem("فلکس برش‌دار", 8, "print", { mat: true, matConfirmed: true, designDone: day(-8), printStart: day(-2), printEnd: day(3) }),
+      mkItem("بنر vinil 340g", 4, "print", { designDone: day(-7), printStart: day(-1), printEnd: day(4) }),
+      mkItem("استیکر شفاف برش‌دار", 2000, "print", { designDone: day(-6) }),
+      mkItem("پوستر A3 گلاسه", 100, "warehouse", { designDone: day(-9), printStart: day(-3), printEnd: day(-1), printDone: day(-1) }) ] });
+  // گروهیِ چند-مشتری — طراحی اقلام در روزهای مختلف تکمیل شده
   await mkOrder({ customer: "رایان‌گستر", status: "in_printing", splitMode: "grouped", priority: "normal", endIn: 7, createdIn: -9,
+    note: "ثبت گروهی چند-مشتری — هر قلم پیش‌فاکتور مجزا دارد",
     items: [mkItem("ست اداری (کارت+سربرگ+پاکت)", 6, "print", { designDone: day(-6), printStart: day(-1), printEnd: day(4) }),
-      mkItem("کارت ویزیت سلفونی مات", 3000, "print", { mat: true, designDone: day(-6), note: "متریال هنوز تایید نشده" }),
-      mkItem("سربرگ A4 یک‌رو رنگی", 20, "print", { designDone: day(-6) }) ] });
+      mkItem("کارت ویزیت سلفونی مات", 3000, "print", { mat: true, designDone: day(-5), note: "متریال هنوز تایید نشده" }),
+      mkItem("سربرگ A4 یک‌رو رنگی", 20, "print", { designDone: day(-4) }) ] });
+  // پیشرفت جزئی ۱ از ۲: پوستر چاپ شده و به انبار رفته، کاتالوگ هنوز در چاپ
   await mkOrder({ customer: "گالری رنگین‌کمان", status: "in_printing", splitMode: "grouped", priority: "normal", endIn: null, createdIn: -8,
-    items: [mkItem("پوستر A3 گلاسه", 200, "print", { designDone: day(-4) }),
+    items: [mkItem("پوستر A3 گلاسه", 200, "warehouse", { designDone: day(-4), printStart: day(-3), printEnd: day(-1), printDone: day(-1) }),
       mkItem("کاتالوگ ۱۶ صفحه", 100, "print", { designDone: day(-4), printStart: day(-1), printEnd: day(2) }) ] });
+  // گروهیِ چند-مشتری
   await mkOrder({ customer: "آژانس مسیر سبز", status: "in_printing", splitMode: "grouped", priority: "urgent", endIn: 3, createdIn: -14,
     designerNote: "رنگ‌ها باید با برندبوک مشتری تطبیق داده شود — نسخهٔ چاپ تست الزامی است",
+    note: "ثبت گروهی چند-مشتری — هر قلم پیش‌فاکتور مجزا دارد",
     items: [mkItem("کاتالوگ ۳۲ صفحه", 400, "print", { designDone: day(-8), printStart: day(-4), printEnd: day(1), note: "چاپ تست رنگ انجام شد" }),
-      mkItem("کاتالوگ ۱۶ صفحه", 300, "print", { designDone: day(-8) }) ] });
+      mkItem("کاتالوگ ۱۶ صفحه", 300, "print", { designDone: day(-6) }) ] });
   await mkOrder({ customer: "حسین رضایی", status: "in_printing", splitMode: "separated", priority: "normal", endIn: 4, createdIn: -6,
     items: [mkItem("کارت ویزیت سلفونی براق", 1000, "print", { designDone: day(-3), printStart: day(-1), printEnd: day(3) }) ] });
 
   // ── warehouse_logistics (۶ سفارش) — چاپ کامل، در انبار ──
   await mkOrder({ customer: "شرکت آفتاب", status: "warehouse_logistics", splitMode: "grouped", priority: "normal", endIn: 2, createdIn: -15,
-    items: [mkItem("تراکت A4 یک‌رو", 10000, "warehouse", { designDone: day(-12), printDone: day(-4) }),
-      mkItem("پوستر A3 گلاسه", 150, "warehouse", { designDone: day(-12), printDone: day(-3) }),
-      mkItem("بنر vinil 340g", 2, "warehouse", { designDone: day(-13), printDone: day(-2) }) ] });
+    items: [mkItem("تراکت A4 یک‌رو", 10000, "warehouse", { designDone: day(-12), printStart: day(-8), printEnd: day(-4), printDone: day(-4) }),
+      mkItem("پوستر A3 گلاسه", 150, "warehouse", { designDone: day(-12), printStart: day(-7), printEnd: day(-3), printDone: day(-3) }),
+      mkItem("بنر vinil 340g", 2, "warehouse", { designDone: day(-13), printStart: day(-6), printEnd: day(-2), printDone: day(-2) }) ] });
   await mkOrder({ customer: "مدارس نور", status: "warehouse_logistics", splitMode: "separated", priority: "urgent", endIn: 0, createdIn: -13,
     note: "برای مراسم افتتاحیه لازم است",
-    items: [mkItem("بنر vinil 340g", 6, "warehouse", { designDone: day(-10), printDone: day(-1) }) ] });
+    items: [mkItem("بنر vinil 340g", 6, "warehouse", { designDone: day(-10), printStart: day(-5), printEnd: day(-1), printDone: day(-1) }) ] });
   await mkOrder({ customer: "کافه ترنج", status: "warehouse_logistics", splitMode: "grouped", priority: "normal", endIn: 3, createdIn: -16,
-    items: [mkItem("استیکر شفاف برش‌دار", 5000, "warehouse", { designDone: day(-11), printDone: day(-2) }),
-      mkItem("لیوان کاغذی چاپ‌دار", 15, "warehouse", { mat: true, matConfirmed: true, designDone: day(-11), printDone: day(-1) }) ] });
+    items: [mkItem("استیکر شفاف برش‌دار", 5000, "warehouse", { designDone: day(-11), printStart: day(-6), printEnd: day(-2), printDone: day(-2) }),
+      mkItem("لیوان کاغذی چاپ‌دار", 15, "warehouse", { mat: true, matConfirmed: true, designDone: day(-10), printStart: day(-5), printEnd: day(-1), printDone: day(-1) }) ] });
   await mkOrder({ customer: "ساختمانی آرمان", status: "warehouse_logistics", splitMode: "grouped", priority: "normal", endIn: -2, createdIn: -18,
     note: "تحویل معوق — پیگیری لجستیک",
-    items: [mkItem("بنر vinil 340g", 10, "warehouse", { designDone: day(-14), printDone: day(-5) }),
-      mkItem("فلکس برش‌دار", 6, "warehouse", { designDone: day(-14), printDone: day(-5) }) ] });
+    items: [mkItem("بنر vinil 340g", 10, "warehouse", { designDone: day(-14), printStart: day(-10), printEnd: day(-5), printDone: day(-5) }),
+      mkItem("فلکس برش‌دار", 6, "warehouse", { designDone: day(-13), printStart: day(-9), printEnd: day(-4), printDone: day(-4) }) ] });
+  // گروهیِ چند-مشتری — سه قلم با تاریخ طراحی/چاپ پله‌ای تکمیل شده
   await mkOrder({ customer: "بیمارستان مهر", status: "warehouse_logistics", splitMode: "grouped", priority: "urgent", endIn: 1, createdIn: -20,
-    items: [mkItem("فرم ثبت‌نام A4", 8000, "warehouse", { designDone: day(-16), printDone: day(-6) }),
-      mkItem("پاکت نامه لمینت", 200, "warehouse", { designDone: day(-16), printDone: day(-5) }),
-      mkItem("کارت ویزیت سلفونی مات", 1000, "warehouse", { designDone: day(-16), printDone: day(-4) }) ] });
+    note: "ثبت گروهی چند-مشتری — هر قلم پیش‌فاکتور مجزا دارد",
+    items: [mkItem("فرم ثبت‌نام A4", 8000, "warehouse", { designDone: day(-16), printStart: day(-11), printEnd: day(-6), printDone: day(-6) }),
+      mkItem("پاکت نامه لمینت", 200, "warehouse", { designDone: day(-15), printStart: day(-9), printEnd: day(-5), printDone: day(-5) }),
+      mkItem("کارت ویزیت سلفونی مات", 1000, "warehouse", { designDone: day(-14), printStart: day(-7), printEnd: day(-4), printDone: day(-4) }) ] });
   await mkOrder({ customer: "داروخانه سبز", status: "warehouse_logistics", splitMode: "separated", priority: "normal", endIn: 5, createdIn: -12,
-    items: [mkItem("استیکر براق سفید", 2000, "warehouse", { designDone: day(-9), printDone: day(-1) }) ] });
+    items: [mkItem("استیکر براق سفید", 2000, "warehouse", { designDone: day(-9), printStart: day(-4), printEnd: day(-1), printDone: day(-1) }) ] });
 
   // ── completed (۶) ──
   const done = (prod, qty, extra = {}) => mkItem(prod, qty, "completed", { designDone: day(-25), printDone: day(-18), ...extra });
   await mkOrder({ customer: "کلینیک لبخند", status: "completed", splitMode: "grouped", priority: "normal", endIn: -3, createdIn: -40,
-    items: [done("ست اداری (کارت+سربرگ+پاکت)", 5), done("کارت ویزیت سلفونی مات", 2000, { mat: true, matConfirmed: true }) ] });
+    items: [done("ست اداری (کارت+سربرگ+پاکت)", 5, { designStart: day(-38), designEnd: day(-31), printStart: day(-28), printEnd: day(-20) }),
+      done("کارت ویزیت سلفونی مات", 2000, { mat: true, matConfirmed: true, designStart: day(-36), designEnd: day(-29), printStart: day(-25), printEnd: day(-18) }) ] });
   await mkOrder({ customer: "مجموعه برکت", status: "completed", splitMode: "separated", priority: "normal", endIn: -5, createdIn: -35,
     items: [done("کاتالوگ ۱۶ صفحه", 300, { printStart: day(-30), printEnd: day(-22) }) ] });
   await mkOrder({ customer: "فروشگاه مدار", status: "completed", splitMode: "grouped", priority: "urgent", endIn: -1, createdIn: -30,
     items: [done("بنر vinil 340g", 12), done("فلکس برش‌دار", 8), done("استیکر شفاف برش‌دار", 3000) ] });
   await mkOrder({ customer: "رایان‌گستر", status: "completed", splitMode: "grouped", priority: "normal", endIn: -8, createdIn: -45,
     note: "قرارداد سالانه — قسط دوم پرداخت شد",
-    items: [done("کاتالوگ ۳۲ صفحه", 600), done("سربرگ A4 یک‌رو رنگی", 50) ] });
+    items: [done("کاتالوگ ۳۲ صفحه", 600, { designStart: day(-52), designEnd: day(-42), printStart: day(-38), printEnd: day(-25) }),
+      done("سربرگ A4 یک‌رو رنگی", 50, { designStart: day(-48), designEnd: day(-40), printStart: day(-34), printEnd: day(-22) }) ] });
   await mkOrder({ customer: "آموزشگاه پارس", status: "completed", splitMode: "separated", priority: "normal", endIn: -10, createdIn: -50,
     items: [done("تراکت A4 یک‌رو", 20000) ] });
   await mkOrder({ customer: "گالری رنگین‌کمان", status: "completed", splitMode: "grouped", priority: "normal", endIn: -12, createdIn: -55,
@@ -427,20 +461,44 @@ async function main() {
     note: "مشتری منصرف شد — سفارش لغو",
     items: [mkItem("کارت ویزیت سلفونی مات", 500, "design", {})] });
 
-  // ═══════════════ 7) پیش‌فاکتورها (۱۵) ═══════════════
+  // ═══════════════ 7) پیش‌فاکتورها (۳۲) — قرارداد فاز ۱۰ ═══════════════
+  // مجزا / گروهیِ چند-مشتری → PI به‌ازای هر آیتم (itemId ست، اقلام = یک قلم).
+  // گروهیِ تک-مشتری → یک PI برای کل سفارش (itemId=null، همهٔ اقلام).
+  // اقلام اسناد به‌طور پیش‌فرض از خودِ آیتم‌های واقعی سفارش مشتق می‌شوند
+  // (مثل API فاز ۱۰)؛ spec.items فقط برای اسناد سفارشی (تبدیل‌شده‌ها).
   console.log("→ پیش‌فاکتورها…");
   let piNum = 0;
   const mkPI = async (orderIdx, spec) => {
     const o = created[orderIdx];
     piNum += 1;
-    const items = (spec.items ?? []).map((it) => ({
-      name: it.name,
-      quantity: it.qty,
-      unit: it.unit ?? "عدد",
-      unitPrice: it.price,
-      discount: it.discount ?? 0,
-      total: it.qty * it.price - (it.discount ?? 0),
-    }));
+    let itemId = null;
+    let rows;
+    if (spec.items) {
+      // اقلام سفارشی (فرمت قدیمی — فقط برای PIهای تبدیل‌شده به فاکتور)
+      rows = spec.items.map((it) => ({
+        name: it.name,
+        quantity: it.qty,
+        unit: it.unit ?? "عدد",
+        unitPrice: it.price,
+        discount: it.discount ?? 0,
+      }));
+    } else if (spec.itemIdx !== undefined) {
+      // فاز ۱۰: پیش‌فاکتور «به‌ازای یک آیتم» (سفارش مجزا / گروهی چند-مشتری)
+      const it = o.items[spec.itemIdx];
+      itemId = it.id;
+      rows = [{
+        name: it.name, quantity: it.quantity, unit: it.unit,
+        unitPrice: it.unitPrice, discount: spec.itemDiscount ?? 0,
+      }];
+    } else {
+      // فاز ۱۰: یک پیش‌فاکتور برای کل گروه (سفارش گروهیِ تک-مشتری)
+      const discounts = spec.discounts ?? [];
+      rows = o.items.map((it, i) => ({
+        name: it.name, quantity: it.quantity, unit: it.unit,
+        unitPrice: it.unitPrice, discount: discounts[i] ?? 0,
+      }));
+    }
+    const items = rows.map((r) => ({ ...r, total: r.quantity * r.unitPrice - r.discount }));
     const subtotal = items.reduce((s, i) => s + i.total, 0);
     const disc = spec.discountAmount ?? 0;
     const rate = spec.taxRate ?? 0;
@@ -455,6 +513,7 @@ async function main() {
         number: piNum,
         orderId: o.id,
         customerId: C[o.customerName],
+        itemId, // ← فاز ۱۰: null = کل گروه · غیر null = PI همان آیتم
         status: spec.status,
         issueDate: day(spec.issuedIn ?? -5),
         validUntil,
@@ -469,21 +528,67 @@ async function main() {
     return pi;
   };
 
-  await mkPI(0, { status: "sent", items: [{ name: "منوی رستورانی لمینت", qty: 400, price: 8500 }, { name: "بنر ورودی ۳×۱.۵", qty: 2, price: 54000 }], paid: 100000, notes: "پیش‌پرداخت نقدی دریافت شد" });
-  await mkPI(1, { status: "approved", items: [{ name: "ست اداری", qty: 3, price: 95000 }, { name: "کارت ویزیت مات", qty: 1000, price: 1500, discount: 50000 }], paid: 150000 });
-  await mkPI(2, { status: "draft", items: [{ name: "پوستر A3 گلاسه", qty: 300, price: 5000 }], paid: 0 });
-  await mkPI(3, { status: "sent", items: [{ name: "کاتالوگ ۱۶ صفحه", qty: 500, price: 18000, discount: 200000 }, { name: "کارت ویزیت براق", qty: 2000, price: 1500 }], paid: 0 });
-  await mkPI(4, { status: "draft", items: [{ name: "فلکس برش‌دار", qty: 5, price: 15000 }], paid: 0 });
-  await mkPI(5, { status: "sent", items: [{ name: "فرم ثبت‌نام سه‌لایه", qty: 3000, price: 550 }, { name: "پاکت نامه لمینت", qty: 100, price: 1200 }, { name: "تراکت A4", qty: 5000, price: 450 }], paid: 200000, notes: "چکامک بیمارستان" });
-  await mkPI(9, { status: "approved", items: [{ name: "بنر vinil ۳۴۰g", qty: 3, price: 36000, discount: 30000 }, { name: "تراکت A5 دو‌رو", qty: 5000, price: 600 }], paid: 300000, taxRate: 5 });
-  await mkPI(11, { status: "rejected", items: [{ name: "کاتالوگ ۳۲ صفحه", qty: 200, price: 32000 }], paid: 0, notes: "قیمت برای مشتری بالا بود — بازنگری شود" });
-  await mkPI(15, { status: "approved", items: [{ name: "ست اداری", qty: 6, price: 95000 }, { name: "کارت ویزیت مات", qty: 3000, price: 1500 }], paid: 400000 });
-  await mkPI(19, { status: "sent", items: [{ name: "تراکت A4 یک‌رو", qty: 10000, price: 450 }, { name: "پوستر A3", qty: 150, price: 5000 }], paid: 150000 });
-  await mkPI(21, { status: "approved", items: [{ name: "بنر vinil ۶عدد", qty: 6, price: 54000 }], paid: 0 });
-  await mkPI(23, { status: "converted", items: [{ name: "ست اداری کامل", qty: 5, price: 95000 }, { name: "کارت ویزیت مات", qty: 2000, price: 1500 }], paid: 200000, taxRate: 5 });
-  await mkPI(25, { status: "converted", items: [{ name: "کاتالوگ ۱۶ صفحه", qty: 300, price: 18000 }], paid: 270000 });
-  await mkPI(26, { status: "draft", items: [{ name: "بنر و فلکس تبلیغاتی", qty: 20, price: 13500 }], paid: 0 });
-  await mkPI(29, { status: "sent", items: [{ name: "پوستر نمایشگاهی", qty: 400, price: 5000, discount: 100000 }], paid: 500000 });
+  // شماره‌ها به‌ترتیب صدور: #1 باران (ارسالی) و #8 برکت (رد‌شده) هم‌راستا با
+  // نوتیفیکیشن‌های موجود «پیش‌فاکتور #۱» / «پیش‌فاکتور #۸ مجموعه برکت رد شد».
+  // (ترتیب فراخوانی‌ها عمداً درهم‌تنیده است تا شماره‌ها با داستان‌ها بخوانند)
+
+  // ── گروهیِ تک-مشتری: یک PI برای کل سفارش (itemId=null) ──
+  await mkPI(0, { status: "sent", paid: 100000, issuedIn: -6, notes: "پیش‌پرداخت نقدی دریافت شد" }); // #1 باران
+  await mkPI(1, { status: "approved", paid: 150000, issuedIn: -5, discounts: [0, 50000] }); // #2 لبخند
+  await mkPI(5, { status: "sent", paid: 200000, issuedIn: -4, notes: "چکامک بیمارستان" }); // #3 مهر
+
+  // ── مجزا: سفارش تک‌آیتمی → PI همان آیتم ──
+  await mkPI(2, { itemIdx: 0, status: "draft", paid: 0, issuedIn: -3 }); // #4 آفتاب (فوری نمایشگاه)
+
+  // ── گروهیِ تک-مشتری (تک‌آیتمی) ──
+  await mkPI(4, { status: "draft", paid: 0, issuedIn: -2 }); // #5 ورشی
+
+  // ── گروهیِ چند-مشتری (پارس): PI به‌ازای هر قلم ──
+  await mkPI(3, { itemIdx: 0, status: "sent", paid: 0, issuedIn: -8 }); // #6 پارس — کاتالوگ (طراحی)
+  await mkPI(3, { itemIdx: 1, status: "draft", paid: 0, issuedIn: -8 }); // #7 پارس — کارت ویزیت
+
+  // ── مجزا (رد‌شده) — شمارهٔ ۸ هم‌راستا با نوتیف «#۸ مجموعه برکت رد شد» ──
+  await mkPI(10, { itemIdx: 0, status: "rejected", paid: 0, issuedIn: -10, notes: "قیمت برای مشتری بالا بود — بازنگری شود" }); // #8 برکت
+
+  await mkPI(3, { itemIdx: 2, status: "sent", paid: 0, issuedIn: -8 }); // #9 پارس — کاتالوگ (چاپ)
+  await mkPI(6, { itemIdx: 0, status: "draft", paid: 0, issuedIn: -1 }); // #10 داروخانه
+
+  // ── گروهیِ چند-مشتری (ترنج) ──
+  await mkPI(7, { itemIdx: 0, status: "sent", paid: 0, issuedIn: -9 }); // #11 ترنج — لیوان
+  await mkPI(7, { itemIdx: 1, status: "sent", paid: 0, issuedIn: -9 }); // #12 ترنج — استیکر
+  await mkPI(7, { itemIdx: 2, status: "draft", paid: 0, issuedIn: -9 }); // #13 ترنج — بنر
+
+  // ── گروهیِ تک-مشتری ──
+  await mkPI(9, { status: "approved", paid: 300000, taxRate: 5, discountAmount: 30000, issuedIn: -11 }); // #14 باران (چاپ)
+  await mkPI(11, { status: "rejected", paid: 0, issuedIn: -10, notes: "قیمت برای مشتری بالا بود — بازنگری شود" }); // #15 مدار
+
+  // ── گروهیِ چند-مشتری (رایان‌گستر) ──
+  await mkPI(12, { itemIdx: 0, status: "approved", paid: 400000, issuedIn: -8 }); // #16 رایان — ست اداری (قسط اول)
+  await mkPI(12, { itemIdx: 1, status: "sent", paid: 0, issuedIn: -8 }); // #17 رایان — کارت (متریال)
+  await mkPI(12, { itemIdx: 2, status: "draft", paid: 0, issuedIn: -8 }); // #18 رایان — سربرگ
+
+  // ── گروهیِ چند-مشتری (آژانس) ──
+  await mkPI(14, { itemIdx: 0, status: "sent", paid: 500000, issuedIn: -13, notes: "پیش‌پرداخت کاتالوگ توریسم" }); // #19 آژانس — کاتالوگ ۳۲
+  await mkPI(14, { itemIdx: 1, status: "sent", paid: 0, issuedIn: -13 }); // #20 آژانس — کاتالوگ ۱۶
+
+  await mkPI(15, { itemIdx: 0, status: "approved", paid: 0, issuedIn: -6 }); // #21 رضایی (مجزا)
+  await mkPI(19, { status: "sent", paid: 150000, issuedIn: -17 }); // #22 آرمان (انبار/معوق)
+
+  // ── گروهیِ چند-مشتری (بیمارستان مهر — انبار) ──
+  await mkPI(20, { itemIdx: 0, status: "approved", paid: 0, issuedIn: -19 }); // #23 مهر — فرم
+  await mkPI(20, { itemIdx: 1, status: "approved", paid: 0, issuedIn: -19 }); // #24 مهر — پاکت
+  await mkPI(20, { itemIdx: 2, status: "sent", paid: 0, issuedIn: -19 }); // #25 مهر — کارت
+
+  await mkPI(17, { itemIdx: 0, status: "approved", paid: 0, issuedIn: -13 }); // #26 مدارس نور (مجزا)
+  await mkPI(21, { itemIdx: 0, status: "sent", paid: 150000, issuedIn: -12 }); // #27 داروخانه (مجزا، انبار)
+
+  // ── تبدیل‌شده‌ها (فاز ۱۰: اقلام از خودِ آیتم‌های واقعی سفارش، مثل فاکتور) ──
+  await mkPI(23, { itemIdx: 0, status: "converted", paid: 200000, taxRate: 5, issuedIn: -32, notes: "تبدیل به فاکتور نهایی #۵" }); // #28 برکت (مجزا، کامل)
+  await mkPI(25, { status: "converted", paid: 270000, taxRate: 5, issuedIn: -46, notes: "تبدیل به فاکتور نهایی #۶" }); // #29 رایان (گروهی، کامل)
+
+  await mkPI(26, { itemIdx: 0, status: "draft", paid: 0, issuedIn: -49 }); // #30 پارس (مجزا، کامل‌شده)
+  await mkPI(29, { itemIdx: 0, status: "sent", paid: 0, issuedIn: -65, notes: "پیش‌فاکتور سال گذشته — آرشیو" }); // #31 ورشی
+  await mkPI(30, { itemIdx: 0, status: "rejected", paid: 0, issuedIn: -14, notes: "مشتری منصرف شد — سفارش لغو" }); // #32 رضایی (لغو)
 
   // ═══════════════ 8) فاکتورهای نهایی (۷) ═══════════════
   console.log("→ فاکتورهای نهایی…");
@@ -524,14 +629,14 @@ async function main() {
   await mkInv(18, { status: "paid", items: [{ name: "استیکر شفاف برش‌دار", qty: 5000, price: 3500, discount: 250000 }, { name: "لیوان کاغذی چاپ‌دار", qty: 15, price: 220000 }], paid: 0 /* filled below */, taxRate: 5, notes: "تسویهٔ کامل نقدی" });
   await mkInv(20, { status: "issued", items: [{ name: "بنر vinil", qty: 10, price: 36000 }, { name: "فلکس برش‌دار", qty: 6, price: 15000 }], paid: 0, dueDays: 10 });
   await mkInv(21, { status: "issued", items: [{ name: "فرم ثبت‌نام سه‌لایه", qty: 8000, price: 550 }, { name: "پاکت نامه لمینت", qty: 200, price: 1200 }, { name: "کارت ویزیت مات", qty: 1000, price: 1500 }], paid: 2000000, taxRate: 5 });
-  // فاکتورهای تبدیل‌شده از PI (paid همان PI)
-  await mkInv(23, { status: "paid", source: "pre_invoice", items: [{ name: "ست اداری کامل", qty: 5, price: 95000 }, { name: "کارت ویزیت مات", qty: 2000, price: 1500 }], paid: 200000, taxRate: 5, notes: "تبدیل از پیش‌فاکتور تاییدشده" });
-  await mkInv(25, { status: "issued", source: "pre_invoice", items: [{ name: "کاتالوگ ۱۶ صفحه", qty: 300, price: 18000 }], paid: 270000, dueDays: 45 });
+  // فاکتورهای تبدیل‌شده از PI (paid همان PI) — اقلام هم‌راستا با PI تبدیل‌شده فاز ۱۰
+  await mkInv(23, { status: "issued", source: "pre_invoice", items: [{ name: "کاتالوگ ۱۶ صفحه", qty: 300, price: 18000 }], paid: 200000, taxRate: 5, notes: "تبدیل از پیش‌فاکتور تاییدشده — قسط اول دریافت شد" });
+  await mkInv(25, { status: "issued", source: "pre_invoice", items: [{ name: "کاتالوگ ۳۲ صفحه", qty: 600, price: 32000 }, { name: "سربرگ A4 یک‌رو رنگی", qty: 50, unit: "بسته ۱۰۰", price: 55000 }], paid: 270000, taxRate: 5, dueDays: 45 });
   await mkInv(26, { status: "cancelled", items: [{ name: "بنر و فلکس", qty: 20, price: 13500 }], paid: 0, notes: "سفارش در انبار اصلاح شد — فاکتور باطل" });
   // ترمیم فاکتور paid کامل (#2)
   await db.invoice.update({ where: { number: 2 }, data: { paidAmount: 4187500 } });
   const inv2 = await db.invoice.findUnique({ where: { number: 2 } });
-  created[18].paidFromInv = (created[18].paidFromInv ?? 0) + (inv2.paidAmount - 500000);
+  created[18].paidFromInv = (created[18].paidFromInv ?? 0) + inv2.paidAmount; // فاز ۱۰: ترمیم حسابداری — paid اولیه ۰ بود، دلتا کامل اعمال شود
 
   // ── sync order.paidAmount از اسناد ──
   for (const o of created) {
@@ -839,8 +944,12 @@ async function main() {
       db.invoice.count(), db.customer.count(), db.product.count(),
       db.supplier.count(), db.supplierService.count(), db.priceList.count(),
     ]);
+  const [piPerItem, piGroup] = await Promise.all([
+    db.preInvoice.count({ where: { itemId: { not: null } } }),
+    db.preInvoice.count({ where: { itemId: null } }),
+  ]);
   console.log(
-    `✓ دیتای دمو ساخته شد: ${orders} سفارش · ${pis} پیش‌فاکتور · ${invs} فاکتور · ` +
+    `✓ دیتای دمو ساخته شد: ${orders} سفارش · ${pis} پیش‌فاکتور (${piPerItem} موردی + ${piGroup} گروهی) · ${invs} فاکتور · ` +
     `${tasks} تسک · ${customers} مشتری · ${products} محصول · ${suppliers} تامین‌کننده · ` +
     `${services} خدمت · ${priceLists} لیست قیمت`
   );

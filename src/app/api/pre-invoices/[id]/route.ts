@@ -20,6 +20,13 @@ import {
 
 const INCLUDE = {
   customer: true,
+  // Phase 10: آیتمِ مرتبط (per-item) با تاریخ‌های طراحی/چاپ + همهٔ آیتم‌های
+  // سفارش برای خلاصهٔ زمان‌بندی گروه (min start / max end).
+  item: {
+    include: {
+      product: { select: { name: true, unit: true } },
+    },
+  },
   order: {
     select: {
       id: true,
@@ -28,7 +35,19 @@ const INCLUDE = {
       endDate: true,
       totalAmount: true,
       paidAmount: true,
+      splitMode: true,
       customer: { select: { id: true, name: true, phone: true } },
+      items: {
+        select: {
+          id: true,
+          designStartDate: true,
+          designEndDate: true,
+          printStartDate: true,
+          printEndDate: true,
+          designCompletedAt: true,
+          printCompletedAt: true,
+        },
+      },
     },
   },
 } as const;

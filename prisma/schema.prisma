@@ -208,6 +208,8 @@ model OrderItem {
   // Phase 9: لحظهٔ واقعی تکمیل هر مرحله توسط طراح/چاپ (audit)
   designCompletedAt DateTime?
   printCompletedAt  DateTime?
+  // Phase 10: پیش‌فاکتورهای به‌ازای همین آیتم (SetNull → حذف آیتم، سند را نمی‌کشد)
+  preInvoices    PreInvoice[]
   createdAt      DateTime @default(now())
 }
 
@@ -225,6 +227,11 @@ model PreInvoice {
   order          Order     @relation(fields: [orderId], references: [id])
   customerId     String
   customer       Customer  @relation(fields: [customerId], references: [id])
+  // Phase 10: قلمِ مرتبط برای پیش‌فاکتور «به‌ازای آیتم» (سفارش مجزا/چند-مشتری).
+  // null = پیش‌فاکتور کل گروه (سفارش گروهی تک-مشتری). SetNull: حذف آیتم،
+  // سند را زنده نگه می‌دارد و فقط لینک را رها می‌کند.
+  itemId         String?
+  item           OrderItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
   // draft | sent | approved | rejected | converted
   status         String    @default("draft")
   issueDate      DateTime  @default(now())

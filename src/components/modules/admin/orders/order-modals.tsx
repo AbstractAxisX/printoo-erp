@@ -102,6 +102,9 @@ export function OrderNoteModal({
 }
 
 // ─── Status Modal ──────────────────────────────────────────────
+// Phase 10 (باگ «تاریخ می‌پره»): تاریخ‌ها دیگر از null شروع نمی‌شوند —
+// از آیتم اولِ سفارش هیدراته می‌شوند تا کاربر تاریخ‌های موجود را ببیند و
+// فقط مقادیر غیرتهی ارسال می‌شوند (سرور هم هرگز تاریخ را پاک نمی‌کند).
 export function OrderStatusModal({
   order,
   onClose,
@@ -119,10 +122,13 @@ export function OrderStatusModal({
   React.useEffect(() => {
     if (order) {
       setStatus(order.status);
-      setDesignStart(null);
-      setDesignEnd(null);
-      setPrintStart(null);
-      setPrintEnd(null);
+      // هیدراته از آیتم اول — تاریخ‌ها «می‌مانند» و قابل ادیت هستند
+      const first = order.items?.[0];
+      const parse = (v?: string | null) => (v ? new Date(v) : null);
+      setDesignStart(parse(first?.designStartDate));
+      setDesignEnd(parse(first?.designEndDate));
+      setPrintStart(parse(first?.printStartDate));
+      setPrintEnd(parse(first?.printEndDate));
     }
   }, [order]);
 
@@ -143,6 +149,7 @@ export function OrderStatusModal({
       }),
     onSuccess: () => {
       invalidate(["orders"]);
+      invalidate(["order"]);
       toast.success("وضعیت به‌روزرسانی شد");
       onClose();
     },
@@ -179,7 +186,13 @@ export function OrderStatusModal({
           {(showDesignDates || showPrintDates) && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
               <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <Icon name="calendar" size={14} /> تعیین زمان ماژول‌ها (اختیاری)
+                <Icon name="calendar" size={14} /> زمان‌بندی ماژول‌ها (از آیتم اول سفارش)
+              </div>
+              <div className="text-[11px] text-muted-foreground leading-relaxed flex items-start gap-1">
+                <Icon name="info" size={12} className="mt-0.5 shrink-0" />
+                تاریخ‌های موجود نمایش داده می‌شوند؛ خالی گذاشتن هر تاریخ، مقدار
+                قبلی را پاک نمی‌کند — تاریخ‌ها با تغییر وضعیت (حتی برگشت از چاپ
+                به طراحی) حفظ می‌شوند.
               </div>
               {showDesignDates && (
                 <div className="space-y-2">

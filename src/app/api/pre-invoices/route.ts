@@ -5,6 +5,7 @@ import {
   normalizeItems,
   computeTotals,
   isPreInvoiceStatus,
+  itemsFromOrderItems,
 } from "@/lib/pre-invoice";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
       customerId,
       status,
       items,
+      itemId,
       discountAmount,
       taxRate,
       paidAmount,
@@ -94,7 +96,14 @@ export async function POST(req: NextRequest) {
 
     const order = await db.order.findUnique({
       where: { id: orderId },
-      select: { id: true, customerId: true },
+      select: {
+        id: true,
+        customerId: true,
+        items: {
+          where: itemId ? { id: itemId } : undefined,
+          include: { product: true },
+        },
+      },
     });
     if (!order) {
       return NextResponse.json(
@@ -103,12 +112,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Phase 10: اگر itemId آمده، آیتم باید متعلق به همین سفارش باشد
+    if (itemId && order.items.length === 0) {
+      return NextResponse.json(
+        { error: "آیتم موردنظر در این سفارش یافت نشد" },
+        { status: 404 }
+      );
+    }
+
     let normalized;
     try {
-      normalized = normalizeItems(items);
+      // اقلام: یا از payload یا (Phase 10) از خود آیتم‌های واقعی سفارش
+      normalized = Array.isArray(items) && items.length > 0
+        ? normalizeItems(items)
+        : itemsFromOrderItems(order.items);
     } catch (e) {
       return NextResponse.json(
         { error: (e as Error).message },
+        { status: 400 }
+      );
+    }
+    if (normalized.length === 0) {
+      return NextResponse.json(
+        { error: "حداقل یک قلم برای پیش‌فاکتور الزامی است" },
         { status: 400 }
       );
     }
@@ -150,6 +176,7 @@ export async function POST(req: NextRequest) {
           number: num,
           orderId,
           customerId: customerId || order.customerId,
+          itemId: itemId || null,
           status: status || "draft",
           validUntil,
           items: JSON.stringify(normalized),

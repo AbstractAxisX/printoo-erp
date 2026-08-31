@@ -225,7 +225,48 @@ export function OverviewTab({
 }
 
 // ─── 2. Items tab ───────────────────────────────────────────────
+// Phase 10: نمایش تاریخ طراحی/چاپ per-item + ویرایش همان‌جا
+// (خواستهٔ ۳: «براشون زمان طراحی و چاپ ثبت کنیم همونجا») — ادیتور
+// هر آیتم ۴ DatePicker دارد و فقط مقادیر غیرتهی ذخیره می‌شوند
+// (PUT /api/orders/[id]/item-dates → تاریخ قبلی هرگز پاک نمی‌شود).
 export function ItemsTab({ order }: { order: OrderDetail }) {
+  const invalidate = useInvalidate();
+  const [editing, setEditing] = React.useState<string | null>(null); // itemId در حال ویرایش
+  const [draft, setDraft] = React.useState<{
+    designStart: string; designEnd: string; printStart: string; printEnd: string;
+  }>({ designStart: "", designEnd: "", printStart: "", printEnd: "" });
+
+  const startEdit = (it: OrderDetail["items"][number]) => {
+    setEditing(it.id);
+    setDraft({
+      designStart: it.designStartDate ? it.designStartDate.slice(0, 10) : "",
+      designEnd: it.designEndDate ? it.designEndDate.slice(0, 10) : "",
+      printStart: it.printStartDate ? it.printStartDate.slice(0, 10) : "",
+      printEnd: it.printEndDate ? it.printEndDate.slice(0, 10) : "",
+    });
+  };
+
+  const saveDates = useMutation({
+    mutationFn: (itemId: string) => {
+      // فقط تاریخ‌های پرشده ارسال می‌شوند (partial update)
+      const updates: Record<string, string> = {};
+      if (draft.designStart) updates.designStart = draft.designStart;
+      if (draft.designEnd) updates.designEnd = draft.designEnd;
+      if (draft.printStart) updates.printStart = draft.printStart;
+      if (draft.printEnd) updates.printEnd = draft.printEnd;
+      return api(`/api/orders/${order.id}/item-dates`, {
+        method: "PUT",
+        body: JSON.stringify({ updates: [{ itemId, ...updates }] }),
+      });
+    },
+    onSuccess: () => {
+      invalidate(["order", "orders"]);
+      toast.success("زمان‌بندی آیتم ذخیره شد");
+      setEditing(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!order.items?.length) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
@@ -245,10 +286,14 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
           it.printEndDate &&
           it.stage === "print" &&
           new Date(it.printEndDate) < new Date();
+        const isEditing = editing === it.id;
         return (
           <div
             key={it.id}
-            className="rounded-lg border p-3 hover:bg-accent/30 transition"
+            className={cn(
+              "rounded-lg border p-3 hover:bg-accent/30 transition",
+              isEditing && "border-primary/40 bg-primary/5"
+            )}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -266,59 +311,120 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
                   )}
                 </div>
               </div>
-              <div className="text-left shrink-0">
-                <div className="text-sm font-semibold tabular-nums" dir="ltr">
-                  {formatCurrency(it.totalAmount)}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="text-left">
+                  <div className="text-sm font-semibold tabular-nums" dir="ltr">
+                    {formatCurrency(it.totalAmount)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums" dir="ltr">
+                    {it.quantity} × {formatCurrency(it.pricePerUnit)}
+                  </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground tabular-nums" dir="ltr">
-                  {it.quantity} × {formatCurrency(it.pricePerUnit)}
-                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="size-7"
+                  title={isEditing ? "بستن ویرایش" : "ویرایش زمان‌بندی این آیتم"}
+                  onClick={() => (isEditing ? setEditing(null) : startEdit(it))}
+                >
+                  <Icon name={isEditing ? "cancel" : "edit"} size={13} />
+                </Button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mt-2 flex-wrap text-[11px]">
-              <span className="px-1.5 py-0.5 rounded bg-muted">
-                {stage?.label ?? it.stage}
-              </span>
-              {it.needsMaterial && (
-                <span
-                  className={cn(
-                    "px-1.5 py-0.5 rounded flex items-center gap-0.5",
-                    it.materialConfirmed
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                      : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                  )}
-                >
-                  <Icon name={it.materialConfirmed ? "check" : "alert"} size={10} />
-                  {it.materialConfirmed ? "متریال تأمین شد" : "نیازمند متریال"}
+            {/* حالت نمایش — تاریخ‌ها per-item */}
+            {!isEditing && (
+              <div className="flex items-center gap-2 mt-2 flex-wrap text-[11px]">
+                <span className="px-1.5 py-0.5 rounded bg-muted">
+                  {stage?.label ?? it.stage}
                 </span>
-              )}
-              {it.designStartDate && (
+                {it.needsMaterial && (
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 rounded flex items-center gap-0.5",
+                      it.materialConfirmed
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                    )}
+                  >
+                    <Icon name={it.materialConfirmed ? "check" : "alert"} size={10} />
+                    {it.materialConfirmed ? "متریال تأمین شد" : "نیازمند متریال"}
+                  </span>
+                )}
                 <span className="text-muted-foreground flex items-center gap-0.5">
                   <Icon name="design" size={10} /> طراحی:{" "}
-                  {formatDate(it.designStartDate)}
-                  {it.designEndDate && ` تا ${formatDate(it.designEndDate)}`}
+                  {it.designStartDate
+                    ? `${formatDate(it.designStartDate)}${it.designEndDate ? ` تا ${formatDate(it.designEndDate)}` : ""}`
+                    : "ثبت نشده"}
                   {designLate && (
                     <span className="text-rose-600 mr-0.5">(معوق)</span>
                   )}
                 </span>
-              )}
-              {it.printStartDate && (
                 <span className="text-muted-foreground flex items-center gap-0.5">
                   <Icon name="print" size={10} /> چاپ:{" "}
-                  {formatDate(it.printStartDate)}
-                  {it.printEndDate && ` تا ${formatDate(it.printEndDate)}`}
+                  {it.printStartDate
+                    ? `${formatDate(it.printStartDate)}${it.printEndDate ? ` تا ${formatDate(it.printEndDate)}` : ""}`
+                    : "ثبت نشده"}
                   {printLate && (
                     <span className="text-rose-600 mr-0.5">(معوق)</span>
                   )}
                 </span>
-              )}
-              {it.note && (
-                <span className="text-muted-foreground flex items-center gap-0.5 truncate max-w-[200px]">
-                  <Icon name="info" size={10} /> {it.note}
-                </span>
-              )}
-            </div>
+                {it.note && (
+                  <span className="text-muted-foreground flex items-center gap-0.5 truncate max-w-[200px]">
+                    <Icon name="info" size={10} /> {it.note}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* حالت ویرایش — ۴ تاریخ per-item */}
+            {isEditing && (
+              <div className="mt-3 rounded-lg border bg-card p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium flex items-center gap-1.5 text-primary">
+                    <Icon name="calendar" size={13} /> زمان‌بندی این آیتم
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    خالی = بدون تغییر
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <DatePicker
+                    value={draft.designStart || null}
+                    onChange={(d) => setDraft((s) => ({ ...s, designStart: d ? format(d, "yyyy-MM-dd") : "" }))}
+                    placeholder="شروع طراحی"
+                    className="w-full bg-transparent"
+                  />
+                  <DatePicker
+                    value={draft.designEnd || null}
+                    onChange={(d) => setDraft((s) => ({ ...s, designEnd: d ? format(d, "yyyy-MM-dd") : "" }))}
+                    placeholder="پایان طراحی"
+                    className="w-full bg-transparent"
+                  />
+                  <DatePicker
+                    value={draft.printStart || null}
+                    onChange={(d) => setDraft((s) => ({ ...s, printStart: d ? format(d, "yyyy-MM-dd") : "" }))}
+                    placeholder="شروع چاپ"
+                    className="w-full bg-transparent"
+                  />
+                  <DatePicker
+                    value={draft.printEnd || null}
+                    onChange={(d) => setDraft((s) => ({ ...s, printEnd: d ? format(d, "yyyy-MM-dd") : "" }))}
+                    placeholder="پایان چاپ"
+                    className="w-full bg-transparent"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={() => saveDates.mutate(it.id)} disabled={saveDates.isPending} className="gap-1.5">
+                    {saveDates.isPending ? <Icon name="loading" size={13} className="animate-spin" /> : <Icon name="check" size={13} />}
+                    ذخیره زمان‌بندی
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
+                    انصراف
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -675,21 +781,50 @@ export function CostsTab({ order }: { order: OrderDetail }) {
   );
 }
 
-// ─── 5. Pre-invoice tab (فاز ۹ — جایگزین FinanceTab) ────────────
-// مدیریت کامل پیش‌فاکتور داخل مودال جزئیات:
-//   صادرنشده → CTA صدور همان‌جا (فرم صدور در PreInvoiceModal با initialView="issue")
-//   صادرشده  → ردیف‌های وضعیت‌دار + مشاهده/ویرایش/چاپ هر سند
+// ─── 5. Pre-invoice tab (فاز ۹ → بازسازی Phase 10) ─────────────
+// به‌ازای چه پیش‌فاکتور صادر می‌شود؟
+//   • سفارش تفکیکی (مجزا) → هر آیتم = سفارش خودش → سند تک-آیتمی
+//   • چند-مشتری گروهی → هر آیتمِ مشتری سند خودش (تفکیک مشتری)
+//   • گروهیِ تک-مشتری → یک سند برای کل گروه (زمان‌بندی کل گروه روی سند)
+// UI: ردیف هر آیتم (تاریخ‌های طراحی/چاپ + سند خودش یا دکمهٔ صدور) +
+// بخش «کل گروه» با خلاصهٔ زمان‌بندی و سندهای گروهی.
 export function PreInvoiceTab({
   order,
   onIssue,
   onOpenDoc,
 }: {
   order: OrderDetail;
-  onIssue: () => void;
+  /** Phase 10: صدور — itemId مشخص یعنی سند همان آیتم؛ null یعنی کل گروه */
+  onIssue: (itemId: string | null) => void;
   onOpenDoc: (piId: string) => void;
 }) {
   const unpaid = Math.max(0, order.totalAmount - order.paidAmount);
-  const hasPreInvoice = (order.preInvoices?.length ?? 0) > 0;
+  const preInvoices = order.preInvoices ?? [];
+  const itemDocs = preInvoices.filter((pi) => !!pi.itemId);
+  const groupDocs = preInvoices.filter((pi) => !pi.itemId);
+  // حالت per-item: مجزا یا سابقهٔ چند-مشتری (سندهای per-item موجود)
+  const perItemMode =
+    order.splitMode === "separated" || itemDocs.length > 0;
+  const customerName = order.customer?.name;
+
+  // خلاصهٔ زمان‌بندی گروه (min شروع / max پایان)
+  const groupSchedule = (() => {
+    const items = order.items ?? [];
+    const min = (arr: (string | null | undefined)[]) =>
+      arr.filter(Boolean).sort()[0] || null;
+    const max = (arr: (string | null | undefined)[]) =>
+      arr.filter(Boolean).sort().slice(-1)[0] || null;
+    return {
+      designFrom: min(items.map((i) => i.designStartDate)),
+      designTo: max(items.map((i) => i.designEndDate)),
+      printFrom: min(items.map((i) => i.printStartDate)),
+      printTo: max(items.map((i) => i.printEndDate)),
+    };
+  })();
+  const hasAnySchedule = !!(
+    groupSchedule.designFrom || groupSchedule.designTo ||
+    groupSchedule.printFrom || groupSchedule.printTo
+  );
 
   return (
     <div className="space-y-3">
@@ -715,92 +850,124 @@ export function PreInvoiceTab({
         </div>
       </div>
 
-      {/* صادرنشده → صدور همان‌جا */}
-      {!hasPreInvoice && (
-        <div className="rounded-xl border border-dashed p-8 flex flex-col items-center gap-3 text-center">
-          <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center">
-            <Icon name="receipt" size={24} />
-          </div>
-          <div className="font-semibold text-sm">پیش‌فاکتوری صادر نشده است</div>
-          <div className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-            پیش‌فاکتور را همین‌جا صادر کنید — اقلام از سفارش پیش‌پر می‌شوند و سند
-            قابل چاپ PDF خواهد بود.
-          </div>
-          <Button size="sm" onClick={onIssue} className="mt-1 gap-1.5">
-            <Icon name="plus" size={14} /> صدور پیش‌فاکتور
-          </Button>
-        </div>
-      )}
+      {/* حالت سندگذاری */}
+      <div className="rounded-lg border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-1.5">
+        <Icon name="info" size={13} className="mt-0.5 shrink-0 text-primary" />
+        <span>
+          {perItemMode ? (
+            <>
+              <b>پیش‌فاکتور به‌ازای هر آیتم:</b> هر آیتم سند مجزای خودش را دارد
+              {customerName && <> (آیتم‌های {customerName})</>}؛ زمان طراحی/چاپ همان
+              آیتم روی سندش درج می‌شود.
+            </>
+          ) : (
+            <>
+              <b>یک پیش‌فاکتور برای کل گروه:</b> زمان‌بندی طراحی/چاپ کل گروه روی
+              سند درج می‌شود.
+            </>
+          )}
+        </span>
+      </div>
 
-      {/* صادرشده → ردیف‌های وضعیت‌دار */}
-      {hasPreInvoice && (
-        <div className="rounded-lg border">
-          <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
+      {/* ═══ بخش per-item: ردیف هر آیتم ═══ */}
+      {perItemMode && (order.items ?? []).length > 0 && (
+        <div className="rounded-lg border overflow-hidden">
+          <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2">
             <span className="text-xs font-medium flex items-center gap-1.5">
-              <Icon name="receipt" size={13} /> پیش‌فاکتورهای سفارش
+              <Icon name="checkList" size={13} /> پیش‌فاکتور آیتم‌ها
             </span>
-            <Button size="sm" variant="outline" onClick={onIssue} className="h-7 gap-1 text-xs">
-              <Icon name="plus" size={12} /> صدور جدید
-            </Button>
+            <span className="text-[10px] text-muted-foreground">
+              {toFaLocal(itemDocs.length)} از {toFaLocal(order.items.length)} آیتم سند دارد
+            </span>
           </div>
           <div className="divide-y">
-            {order.preInvoices?.map((pi) => {
-              const st = (pi.status ?? "draft") as keyof typeof PI_STATUS_BADGE;
-              const badge = PI_STATUS_BADGE[st] ?? PI_STATUS_BADGE.draft;
-              const isConverted = st === "converted";
+            {(order.items ?? []).map((it, i) => {
+              const doc = itemDocs.find((pi) => pi.itemId === it.id);
+              const badge = doc
+                ? PI_STATUS_BADGE[(doc.status ?? "draft") as keyof typeof PI_STATUS_BADGE] ?? PI_STATUS_BADGE.draft
+                : null;
+              const isConverted = doc?.status === "converted";
               const isExpired =
-                pi.validUntil && !isConverted ? new Date(pi.validUntil) < new Date() : false;
+                doc?.validUntil && !isConverted ? new Date(doc.validUntil) < new Date() : false;
+              const dSchedule = it.designStartDate || it.designEndDate;
+              const pSchedule = it.printStartDate || it.printEndDate;
               return (
                 <div
-                  key={pi.id}
+                  key={it.id}
                   className="px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-accent/30 transition"
                 >
                   <button
-                    onClick={() => onOpenDoc(pi.id)}
+                    onClick={() => doc && onOpenDoc(doc.id)}
                     className="flex-1 min-w-0 text-right"
                   >
                     <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                      پیش‌فاکتور #{pi.number}
-                      <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
-                        {badge.label}
-                      </span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{i + 1}.</span>
+                      {it.product?.name ?? "آیتم"}
+                      {badge ? (
+                        <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
+                          {badge.label}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          بدون سند
+                        </span>
+                      )}
                       {isExpired && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
                           منقضی
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      {pi.issueDate || pi.date ? formatDate(pi.issueDate ?? pi.date!) : ""}
+                    <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                      <span dir="ltr" className="tabular-nums">
+                        {it.quantity} × {formatCurrency(it.pricePerUnit)} = {formatCurrency(it.totalAmount)}
+                      </span>
+                      {dSchedule && (
+                        <span className="flex items-center gap-0.5">
+                          <Icon name="design" size={10} /> {formatDate(it.designStartDate!)}
+                          {it.designEndDate ? ` تا ${formatDate(it.designEndDate)}` : ""}
+                        </span>
+                      )}
+                      {pSchedule && (
+                        <span className="flex items-center gap-0.5">
+                          <Icon name="print" size={10} /> {formatDate(it.printStartDate!)}
+                          {it.printEndDate ? ` تا ${formatDate(it.printEndDate)}` : ""}
+                        </span>
+                      )}
                     </div>
                   </button>
-                  <div className="text-left shrink-0">
-                    <div className="text-sm font-semibold tabular-nums" dir="ltr">
-                      {formatCurrency(pi.totalAmount)}
-                    </div>
-                    <div className="text-[11px] text-emerald-600 tabular-nums" dir="ltr">
-                      پرداخت: {formatCurrency(pi.paidAmount)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="size-7"
-                      onClick={() => onOpenDoc(pi.id)}
-                      title={isConverted ? "مشاهده و چاپ" : "مشاهده / ویرایش / چاپ"}
-                    >
-                      <Icon name="edit" size={13} />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="size-7 hover:text-emerald-600"
-                      onClick={() => onOpenDoc(pi.id)}
-                      title="چاپ / PDF"
-                    >
-                      <Icon name="print" size={13} />
-                    </Button>
+                  <div className="shrink-0 flex items-center gap-1">
+                    {doc ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="size-7"
+                          onClick={() => onOpenDoc(doc.id)}
+                          title={isConverted ? "مشاهده و چاپ" : "مشاهده / ویرایش / چاپ"}
+                        >
+                          <Icon name="edit" size={13} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="size-7 hover:text-emerald-600"
+                          onClick={() => onOpenDoc(doc.id)}
+                          title="چاپ / PDF"
+                        >
+                          <Icon name="print" size={13} />
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px] gap-1"
+                        onClick={() => onIssue(it.id)}
+                      >
+                        <Icon name="plus" size={12} /> صدور
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
@@ -808,8 +975,132 @@ export function PreInvoiceTab({
           </div>
         </div>
       )}
+
+      {/* ═══ بخش کل گروه ═══ */}
+      {!(order.items ?? []).length ? (
+        <div className="rounded-xl border border-dashed p-8 flex flex-col items-center gap-3 text-center">
+          <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center">
+            <Icon name="receipt" size={24} />
+          </div>
+          <div className="font-semibold text-sm">این سفارش آیتمی ندارد</div>
+          <div className="text-xs text-muted-foreground">
+            ابتدا از ویزارد سفارش، آیتم اضافه کنید.
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs font-medium flex items-center gap-1.5">
+              <Icon name="receipt" size={13} />
+              {perItemMode ? "سندهای کل گروه (اختیاری)" : "پیش‌فاکتور کل گروه"}
+            </span>
+            {/* زمان‌بندی کل گروه — خواستهٔ ۳ */}
+            {hasAnySchedule && (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                {groupSchedule.designFrom && (
+                  <span className="flex items-center gap-0.5">
+                    <Icon name="design" size={10} />
+                    {formatDate(groupSchedule.designFrom)}
+                    {groupSchedule.designTo ? ` تا ${formatDate(groupSchedule.designTo)}` : ""}
+                  </span>
+                )}
+                {groupSchedule.printFrom && (
+                  <span className="flex items-center gap-0.5">
+                    <Icon name="print" size={10} />
+                    {formatDate(groupSchedule.printFrom)}
+                    {groupSchedule.printTo ? ` تا ${formatDate(groupSchedule.printTo)}` : ""}
+                  </span>
+                )}
+              </span>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1 text-xs"
+              onClick={() => onIssue(null)}
+            >
+              <Icon name="plus" size={12} /> {groupDocs.length ? "سند جدید گروه" : "صدور سند گروه"}
+            </Button>
+          </div>
+          {groupDocs.length === 0 ? (
+            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+              {perItemMode
+                ? "برای کل گروه سندی صادر نشده — آیتم‌ها سندهای خودشان را دارند."
+                : "هنوز پیش‌فاکتوری برای این سفارش صادر نشده است."}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {groupDocs.map((pi) => {
+                const st = (pi.status ?? "draft") as keyof typeof PI_STATUS_BADGE;
+                const badge = PI_STATUS_BADGE[st] ?? PI_STATUS_BADGE.draft;
+                const isConverted = st === "converted";
+                const isExpired =
+                  pi.validUntil && !isConverted ? new Date(pi.validUntil) < new Date() : false;
+                return (
+                  <div
+                    key={pi.id}
+                    className="px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-accent/30 transition"
+                  >
+                    <button
+                      onClick={() => onOpenDoc(pi.id)}
+                      className="flex-1 min-w-0 text-right"
+                    >
+                      <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                        پیش‌فاکتور #{pi.number}
+                        <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
+                          {badge.label}
+                        </span>
+                        {isExpired && (
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                            منقضی
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {pi.issueDate || pi.date ? formatDate(pi.issueDate ?? pi.date!) : ""}
+                      </div>
+                    </button>
+                    <div className="text-left shrink-0">
+                      <div className="text-sm font-semibold tabular-nums" dir="ltr">
+                        {formatCurrency(pi.totalAmount)}
+                      </div>
+                      <div className="text-[11px] text-emerald-600 tabular-nums" dir="ltr">
+                        پرداخت: {formatCurrency(pi.paidAmount)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="size-7"
+                        onClick={() => onOpenDoc(pi.id)}
+                        title={isConverted ? "مشاهده و چاپ" : "مشاهده / ویرایش / چاپ"}
+                      >
+                        <Icon name="edit" size={13} />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="size-7 hover:text-emerald-600"
+                        onClick={() => onOpenDoc(pi.id)}
+                        title="چاپ / PDF"
+                      >
+                        <Icon name="print" size={13} />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+function toFaLocal(n: number) {
+  return n.toLocaleString("fa-IR");
 }
 
 // ─── 6. History tab (reconstructed timeline; AuditLog deferred) ──

@@ -6,6 +6,7 @@ import { aggregateStatus, syncItemsToStatus, type OrderStatusStr } from "@/lib/o
 import { jsonError } from "@/lib/api-error";
 
 type ItemDraft = {
+  id?: string; // Phase 10: شناسهٔ واقعی DB — آیتم موجود درجا آپدیت می‌شود (نه حذف/بازسازی)
   productId: string;
   quantity: number;
   pricePerUnit: number;
@@ -14,6 +15,11 @@ type ItemDraft = {
   description?: string | null;
   stage?: string;
   needsMaterial?: boolean;
+  // Phase 10: تاریخ‌های per-item — فقط وقتی «ارسال» شوند اعمال می‌شوند
+  designStartDate?: string | null;
+  designEndDate?: string | null;
+  printStartDate?: string | null;
+  printEndDate?: string | null;
 };
 
 type ModuleDates = {
@@ -43,7 +49,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         customer: true,
         items: { include: { product: true } },
         // Phase 9: پیش‌فاکتورها مرتب + فاکتور کامل — تب‌های مودال جزئیات
-        preInvoices: { orderBy: { number: "desc" } },
+        // Phase 10: itemId برای تفکیک پیش‌فاکتور per-item / کل گروه
+        preInvoices: { orderBy: { number: "desc" }, include: { item: true } },
         invoice: true,
         tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
       },
@@ -68,37 +75,90 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 }
 
 // Update order (note, endDate, status, customer, items, etc.)
+// Phase 10 — «smart item merge»: قبلاً PUT همهٔ آیتم‌ها را حذف و از نو
+// می‌ساخت → مهرهای designCompletedAt/printCompletedAt، تاریخ‌های per-item
+// و لینک پیش‌فاکتورها به آیتم‌ها می‌پرید (خواستهٔ صریح: «تاریخ چاپ موقع
+// ادیت می‌پره!»). حالا:
+//   • آیتم با id واقعی → update درجا (فقط فیلدهای ارسال‌شده؛ تاریخ تهی
+//     هرگز تاریخ موجود را پاک نمی‌کند — undefined یعنی دست‌نخورده)
+//   • آیتم بدون id → create
+//   • آیتم DB که در payload نیست → delete (SetNull: سند PI زنده می‌ماند)
+//   • مهرهای تکمیل هرگز از این مسیر نوشته نمی‌شوند (audit فقط از
+//     گردش کار طراح/چاپ یا syncItemsToStatus).
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = (await req.json()) as UpdateBody;
 
   try {
-    // 1) Build base scalar data
-    const data: Record<string, unknown> = {};
-    if (typeof body.note === "string") data.note = body.note;
-    if (typeof body.endDate !== "undefined") data.endDate = toISO(body.endDate);
-    if (typeof body.noEndDate === "boolean") data.noEndDate = body.noEndDate;
-    if (typeof body.priority === "string") data.priority = body.priority;
-    if (typeof body.totalAmount === "number") data.totalAmount = body.totalAmount;
-    if (typeof body.status === "string") data.status = body.status;
-    if (typeof body.customerId === "string") data.customerId = body.customerId;
-    if (typeof body.splitMode === "string") data.splitMode = body.splitMode;
+    const result = await db.$transaction(async (tx) => {
+      // 1) Build base scalar data
+      const data: Record<string, unknown> = {};
+      if (typeof body.note === "string") data.note = body.note;
+      if (typeof body.endDate !== "undefined") data.endDate = toISO(body.endDate);
+      if (typeof body.noEndDate === "boolean") data.noEndDate = body.noEndDate;
+      if (typeof body.priority === "string") data.priority = body.priority;
+      if (typeof body.totalAmount === "number") data.totalAmount = body.totalAmount;
+      if (typeof body.status === "string") data.status = body.status;
+      if (typeof body.customerId === "string") data.customerId = body.customerId;
+      if (typeof body.splitMode === "string") data.splitMode = body.splitMode;
 
-    // 2) Replace items if provided
-    const hasItems = Array.isArray(body.items);
-    const moduleDates = body.moduleDates ?? {};
-    let newItems: { id: string; totalAmount: number; stage: string }[] = [];
+      // 2) Smart-merge items if provided
+      const hasItems = Array.isArray(body.items);
+      const moduleDates = body.moduleDates ?? {};
+      const moduleDateFallback = {
+        designStart: toISO(moduleDates.design?.start) ?? undefined,
+        designEnd: toISO(moduleDates.design?.end) ?? undefined,
+        printStart: toISO(moduleDates.print?.start) ?? undefined,
+        printEnd: toISO(moduleDates.print?.end) ?? undefined,
+      };
+      let mergedItems: { id: string; totalAmount: number; stage: string }[] = [];
 
-    if (hasItems) {
-      const items = body.items as ItemDraft[];
-      // delete existing items first
-      await db.orderItem.deleteMany({ where: { orderId: id } });
+      if (hasItems) {
+        const items = body.items as ItemDraft[];
+        const existing = await tx.orderItem.findMany({
+          where: { orderId: id },
+          select: { id: true },
+        });
+        const existingIds = new Set(existing.map((i) => i.id));
 
-      // create new items
-      newItems = await Promise.all(
-        items.map(async (it) => {
-          const total = Number(it.totalAmount) || Number(it.quantity) * Number(it.pricePerUnit);
-          const created = await db.orderItem.create({
+        // گروه‌بندی: آیتم‌های موجود (id معتبر) در برابر آیتم‌های جدید
+        const toUpdate = items.filter((it) => it.id && existingIds.has(it.id));
+        const toCreate = items.filter((it) => !it.id || !existingIds.has(it.id));
+        const payloadIds = new Set(toUpdate.map((it) => it.id));
+        const toDelete = [...existingIds].filter((eid) => !payloadIds.has(eid));
+
+        for (const eid of toDelete) {
+          await tx.orderItem.delete({ where: { id: eid } });
+        }
+
+        for (const it of toUpdate) {
+          const total =
+            Number(it.totalAmount) || Number(it.quantity) * Number(it.pricePerUnit);
+          const upd = await tx.orderItem.update({
+            where: { id: it.id! },
+            data: {
+              productId: it.productId,
+              quantity: Number(it.quantity) || 1,
+              pricePerUnit: Number(it.pricePerUnit) || 0,
+              totalAmount: total,
+              note: it.note || null,
+              description: it.description || null,
+              stage: it.stage || "design",
+              needsMaterial: !!it.needsMaterial,
+              // فقط تاریخ‌های ارسال‌شدهٔ غیرتهی اعمال می‌شوند (partial)
+              ...(it.designStartDate ? { designStartDate: toISO(it.designStartDate) } : {}),
+              ...(it.designEndDate ? { designEndDate: toISO(it.designEndDate) } : {}),
+              ...(it.printStartDate ? { printStartDate: toISO(it.printStartDate) } : {}),
+              ...(it.printEndDate ? { printEndDate: toISO(it.printEndDate) } : {}),
+            },
+          });
+          mergedItems.push({ id: upd.id, totalAmount: total, stage: upd.stage });
+        }
+
+        for (const it of toCreate) {
+          const total =
+            Number(it.totalAmount) || Number(it.quantity) * Number(it.pricePerUnit);
+          const created = await tx.orderItem.create({
             data: {
               orderId: id,
               productId: it.productId,
@@ -109,39 +169,49 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               description: it.description || null,
               stage: it.stage || "design",
               needsMaterial: !!it.needsMaterial,
-              designStartDate: toISO(moduleDates.design?.start),
-              designEndDate: toISO(moduleDates.design?.end),
-              printStartDate: toISO(moduleDates.print?.start),
-              printEndDate: toISO(moduleDates.print?.end),
+              designStartDate: toISO(
+                it.designStartDate ?? moduleDateFallback.designStart ?? null
+              ),
+              designEndDate: toISO(
+                it.designEndDate ?? moduleDateFallback.designEnd ?? null
+              ),
+              printStartDate: toISO(
+                it.printStartDate ?? moduleDateFallback.printStart ?? null
+              ),
+              printEndDate: toISO(
+                it.printEndDate ?? moduleDateFallback.printEnd ?? null
+              ),
             },
           });
-          return { id: created.id, totalAmount: total, stage: created.stage };
-        })
-      );
+          mergedItems.push({ id: created.id, totalAmount: total, stage: created.stage });
+        }
 
-      // auto-update totalAmount if not explicitly provided
-      if (typeof body.totalAmount !== "number") {
-        data.totalAmount = newItems.reduce((s, i) => s + i.totalAmount, 0);
+        // auto-update totalAmount if not explicitly provided
+        if (typeof body.totalAmount !== "number") {
+          data.totalAmount = mergedItems.reduce((s, i) => s + i.totalAmount, 0);
+        }
+
+        // auto-update status if not explicitly provided — Phase 9: تجمیع
+        // مرحله‌های آیتم‌ها (نه فقط آیتم اول). اگر status صریحاً آمده باشد،
+        // آیتم‌ها بعداً با syncItemsToStatus همگام می‌شوند.
+        if (typeof body.status !== "string" && mergedItems.length > 0) {
+          data.status = aggregateStatus(mergedItems);
+        }
       }
 
-      // auto-update status if not explicitly provided — Phase 9: تجمیع
-      // مرحله‌های آیتم‌ها (نه فقط آیتم اول). اگر status صریحاً آمده باشد،
-      // آیتم‌ها بعداً با syncItemsToStatus همگام می‌شوند.
-      if (typeof body.status !== "string" && newItems.length > 0) {
-        data.status = aggregateStatus(newItems);
+      // 3) Update the order
+      const order = await tx.order.update({ where: { id }, data });
+
+      // 4) Phase 9: تغییر وضعیت دستی → همگام‌سازی stage آیتم‌ها (اگر آیتم‌ها
+      // در همین درخواست جایگزین نشده‌اند، وضعیت فعلی آیتم‌ها ملاک sync است)
+      if (typeof body.status === "string") {
+        await syncItemsToStatus(tx, id, body.status as OrderStatusStr);
       }
-    }
 
-    // 3) Update the order
-    const order = await db.order.update({ where: { id }, data });
+      return { order, items: mergedItems };
+    });
 
-    // 4) Phase 9: تغییر وضعیت دستی → همگام‌سازی stage آیتم‌ها (اگر آیتم‌ها
-    // در همین درخواست جایگزین نشده‌اند، وضعیت فعلی آیتم‌ها ملاک sync است)
-    if (typeof body.status === "string") {
-      await syncItemsToStatus(db, id, body.status as OrderStatusStr);
-    }
-
-    return NextResponse.json({ order, items: newItems });
+    return NextResponse.json({ order: result.order, items: result.items });
   } catch (e) {
     return jsonError(e, "به‌روزرسانی ناموفق");
   }

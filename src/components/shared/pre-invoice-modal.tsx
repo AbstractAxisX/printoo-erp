@@ -53,7 +53,37 @@ export type PreInvoiceRow = {
   notes: string | null;
   terms: string | null;
   customer?: { name: string; phone?: string | null } | null;
-  order?: { number: number } | null;
+  order?: {
+    number: number;
+    items?: {
+      id: string;
+      designStartDate: string | null;
+      designEndDate: string | null;
+      printStartDate: string | null;
+      printEndDate: string | null;
+      designCompletedAt?: string | null;
+      printCompletedAt?: string | null;
+    }[];
+  } | null;
+  /** Phase 10 — آیتم مرتبط (null = کل گروه) + تاریخ‌های آن */
+  itemId?: string | null;
+  item?: {
+    id: string;
+    designStartDate?: string | null;
+    designEndDate?: string | null;
+    printStartDate?: string | null;
+    printEndDate?: string | null;
+    product?: { name?: string | null } | null;
+  } | null;
+  orderItems?: {
+    id: string;
+    designStartDate: string | null;
+    designEndDate: string | null;
+    printStartDate: string | null;
+    printEndDate: string | null;
+    designCompletedAt?: string | null;
+    printCompletedAt?: string | null;
+  }[];
 };
 
 type OrderRow = {
@@ -61,11 +91,16 @@ type OrderRow = {
   number: number;
   totalAmount: number;
   paidAmount: number;
+  splitMode?: string;
   customer: { name: string; phone?: string | null } | null;
   items: {
     id: string;
     quantity: number;
     pricePerUnit: number;
+    designStartDate?: string | null;
+    designEndDate?: string | null;
+    printStartDate?: string | null;
+    printEndDate?: string | null;
     product: { name: string; unit?: string | null } | null;
   }[];
 };
@@ -79,6 +114,8 @@ type PreInvoiceModalProps = {
   initialDocId?: string | null;
   /** Phase 9 — نمای آغازین: تب پیش‌فاکتورِ مودال سفارش مستقیم فرم صدور را باز می‌کند */
   initialView?: "list" | "issue" | "doc";
+  /** Phase 10 — صدور برای آیتم مشخص (سند per-item)؛ null/undefined = کل گروه */
+  initialItemId?: string | null;
 };
 
 // ─── Jalali date fmt ─────────────────────────────────────────────────
@@ -93,11 +130,13 @@ const jShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   day: "2-digit",
 });
 
-export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, initialView }: PreInvoiceModalProps) {
+export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, initialView, initialItemId }: PreInvoiceModalProps) {
   const invalidate = useInvalidate();
   const queryClient = useQueryClient();
   const [view, setView] = React.useState<"list" | "issue" | "doc">("list");
   const [docId, setDocId] = React.useState<string | null>(null);
+  // Phase 10 — آیتم هدف صدور (null = کل گروه)
+  const [issueItemId, setIssueItemId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (open) {
@@ -105,16 +144,20 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
       if (initialDocId) {
         setView("doc");
         setDocId(initialDocId);
+        setIssueItemId(null);
       } else if (initialView === "issue") {
         // Phase 9 — تب پیش‌فاکتور: مستقیم فرم صدور
+        // Phase 10 — برای آیتم مشخص یا کل گروه
         setView("issue");
         setDocId(null);
+        setIssueItemId(initialItemId ?? null);
       } else {
         setView("list");
         setDocId(null);
+        setIssueItemId(null);
       }
     }
-  }, [open, orderId, initialDocId, initialView]);
+  }, [open, orderId, initialDocId, initialView, initialItemId]);
 
   // سفارش + اقلام برای فرم صدور
   const { data: orderData } = useQuery({
@@ -201,7 +244,11 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
             orderId={orderId}
             loading={listLoading}
             rows={list}
-            onIssue={() => setView("issue")}
+            order={order ?? null}
+            onIssue={(itemId) => {
+              setIssueItemId(itemId);
+              setView("issue");
+            }}
             onOpenDoc={(id) => { setDocId(id); setView("doc"); }}
           />
         )}
@@ -209,6 +256,7 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
         {view === "issue" && (
           <IssueView
             order={order ?? null}
+            itemId={issueItemId}
             onBack={() => setView("list")}
             onIssued={(id) => {
               setDocId(id);
@@ -238,13 +286,15 @@ function ListView({
   orderId,
   loading,
   rows,
+  order,
   onIssue,
   onOpenDoc,
 }: {
   orderId: string | null;
   loading: boolean;
   rows: PreInvoiceRow[];
-  onIssue: () => void;
+  order: OrderRow | null;
+  onIssue: (itemId: string | null) => void;
   onOpenDoc: (id: string) => void;
 }) {
   return (
@@ -261,9 +311,19 @@ function ListView({
             </p>
           </div>
         </div>
-        <Button size="sm" onClick={onIssue} className="gap-1.5" disabled={!orderId}>
-          <Icon name="plus" size={14} /> صدور پیش‌فاکتور
-        </Button>
+        <div className="flex items-center gap-1.5">
+          {/* Phase 10 — صدور برای آیتم‌های بدون سند */}
+          {(order?.items ?? []).some(
+            (it) => !rows.some((pi) => (pi as { itemId?: string | null }).itemId === it.id)
+          ) && (
+            <Button size="sm" variant="outline" onClick={() => onIssue("__first__")} className="gap-1.5" disabled={!orderId}>
+              <Icon name="plus" size={14} /> آیتم بدون سند
+            </Button>
+          )}
+          <Button size="sm" onClick={() => onIssue(null)} className="gap-1.5" disabled={!orderId}>
+            <Icon name="plus" size={14} /> صدور (کل سفارش)
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -272,7 +332,7 @@ function ListView({
         <div className="rounded-xl border border-dashed py-12 flex flex-col items-center gap-2 text-muted-foreground">
           <Icon name="receipt" size={32} className="opacity-30" />
           <span className="text-sm">هنوز پیش‌فاکتوری برای این سفارش صادر نشده است</span>
-          <Button size="sm" variant="outline" onClick={onIssue} className="mt-1 gap-1.5">
+          <Button size="sm" variant="outline" onClick={() => onIssue(null)} className="mt-1 gap-1.5">
             <Icon name="plus" size={13} /> صدور اولین پیش‌فاکتور
           </Button>
         </div>
@@ -281,6 +341,11 @@ function ListView({
           {rows.map((pi) => {
             const meta = STATUS_META[pi.status as PreInvoiceStatus] ?? STATUS_META.draft;
             const remaining = pi.totalAmount - pi.paidAmount;
+            // Phase 10 — سند مرتبط با کدام آیتم؟
+            const piItemId = (pi as { itemId?: string | null }).itemId ?? null;
+            const linkedItem = piItemId
+              ? (order?.items ?? []).find((it) => it.id === piItemId)
+              : null;
             return (
               <button
                 key={pi.id}
@@ -294,6 +359,13 @@ function ListView({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm">پیش‌فاکتور #{pi.number}</span>
+                      {linkedItem ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                          آیتم: {linkedItem.product?.name ?? "—"}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">کل گروه</span>
+                      )}
                       <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", meta.badge)}>
                         {meta.label}
                       </span>
@@ -336,14 +408,25 @@ type IssueItem = { key: string; name: string; unit: string; quantity: number; un
 
 function IssueView({
   order,
+  itemId,
   onBack,
   onIssued,
 }: {
   order: OrderRow | null;
+  /** Phase 10 — سند برای این آیتم صادر می‌شود؛ null = کل گروه؛ "__first__" = اولین آیتم بدون سند */
+  itemId: string | null;
   onBack: () => void;
   onIssued: (id: string) => void;
 }) {
-  // اقلام از سفارش مشتق می‌شوند (نام/تعداد از سفارش، قیمت واحد قابل ویرایش)
+  // اقلام: برای آیتم مشخص فقط همان آیتم؛ وگرنه همهٔ اقلام سفارش
+  const targetItems = React.useMemo(() => {
+    if (!order) return [];
+    if (itemId && itemId !== "__first__")
+      return order.items.filter((it) => it.id === itemId);
+    return order.items;
+  }, [order, itemId]);
+  const targetItem = itemId && itemId !== "__first__" ? targetItems[0] : null;
+
   const [items, setItems] = React.useState<IssueItem[]>([]);
   const [discountAmount, setDiscountAmount] = React.useState("");
   const [taxRate, setTaxRate] = React.useState("");
@@ -352,19 +435,17 @@ function IssueView({
   const [notes, setNotes] = React.useState("");
 
   React.useEffect(() => {
-    if (order) {
-      setItems(
-        order.items.map((it, i) => ({
-          key: `${it.id}-${i}`,
-          name: it.product?.name ?? "آیتم",
-          unit: it.product?.unit ?? "عدد",
-          quantity: it.quantity,
-          unitPrice: it.pricePerUnit,
-          discount: 0,
-        }))
-      );
-    }
-  }, [order]);
+    setItems(
+      targetItems.map((it, i) => ({
+        key: `${it.id}-${i}`,
+        name: it.product?.name ?? "آیتم",
+        unit: it.product?.unit ?? "عدد",
+        quantity: it.quantity,
+        unitPrice: it.pricePerUnit,
+        discount: 0,
+      }))
+    );
+  }, [targetItems]);
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice - i.discount, 0);
   const disc = Math.min(Math.max(0, Number(discountAmount) || 0), subtotal);
@@ -383,6 +464,8 @@ function IssueView({
         method: "POST",
         body: JSON.stringify({
           orderId: order?.id,
+          // Phase 10 — لینک به آیتم (per-item) یا null (کل گروه)
+          itemId: targetItem?.id ?? null,
           items: items.map((i) => ({
             name: i.name,
             quantity: i.quantity,
@@ -398,7 +481,9 @@ function IssueView({
         }),
       }),
     onSuccess: (d) => {
-      toast.success("پیش‌فاکتور صادر شد");
+      toast.success(
+        targetItem ? "پیش‌فاکتور آیتم صادر شد" : "پیش‌فاکتور صادر شد"
+      );
       onIssued(d.preInvoice.id);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -416,13 +501,19 @@ function IssueView({
             <Icon name="arrowRight" size={15} />
           </button>
           <div>
-            <h2 className="font-bold">صدور پیش‌فاکتور</h2>
+            <h2 className="font-bold">
+              صدور پیش‌فاکتور{targetItem ? " آیتم" : ""}
+            </h2>
             <p className="text-xs text-muted-foreground">
               سفارش #{order.number} — {order.customer?.name}
+              {targetItem && ` — آیتم: ${targetItem.product?.name ?? "—"}`}
             </p>
           </div>
         </div>
       </div>
+
+      {/* Phase 10 — زمان‌بندی طراحی/چاپِ همان آیتم یا کل گروه (خواستهٔ ۳) */}
+      <ScheduleChips item={targetItem ?? null} orderItems={order.items} />
 
       {/* اقلام — قیمت واحد و تخفیف ردیف قابل ویرایش */}
       <div className="rounded-xl border overflow-hidden">
@@ -521,6 +612,91 @@ function SumBox({ label, value, tone }: { label: string; value: number; tone?: s
   );
 }
 
+// ═══ Phase 10 — زمان‌بندی طراحی/چاپ روی پیش‌فاکتور (خواستهٔ ۳) ═══
+// سند per-item → تاریخ‌های همان آیتم؛ سند گروهی → خلاصهٔ min/max کل گروه.
+type SchedItem = {
+  designStartDate?: string | null;
+  designEndDate?: string | null;
+  printStartDate?: string | null;
+  printEndDate?: string | null;
+  designCompletedAt?: string | null;
+  printCompletedAt?: string | null;
+};
+
+function piSchedule(
+  item: SchedItem | null,
+  orderItems: readonly SchedItem[] | null | undefined
+): {
+  designFrom: string | null; designTo: string | null;
+  printFrom: string | null; printTo: string | null;
+  perItem: boolean; designDone: string | null; printDone: string | null;
+} {
+  if (item) {
+    return {
+      designFrom: item.designStartDate ?? null,
+      designTo: item.designEndDate ?? null,
+      printFrom: item.printStartDate ?? null,
+      printTo: item.printEndDate ?? null,
+      perItem: true,
+      designDone: null,
+      printDone: null,
+    };
+  }
+  const items = orderItems ?? [];
+  const min = (arr: (string | null | undefined)[]) =>
+    (arr.filter(Boolean) as string[]).sort()[0] ?? null;
+  const max = (arr: (string | null | undefined)[]) =>
+    (arr.filter(Boolean) as string[]).sort().slice(-1)[0] ?? null;
+  const doneMax = (arr: (string | null | undefined)[]) =>
+    (arr.filter(Boolean) as string[]).sort().slice(-1)[0] ?? null;
+  return {
+    designFrom: min(items.map((i) => i.designStartDate)),
+    designTo: max(items.map((i) => i.designEndDate)),
+    printFrom: min(items.map((i) => i.printStartDate)),
+    printTo: max(items.map((i) => i.printEndDate)),
+    perItem: false,
+    designDone: doneMax(items.map((i) => i.designCompletedAt)),
+    printDone: doneMax(items.map((i) => i.printCompletedAt)),
+  };
+}
+
+/** چیپ‌های زمان‌بندی برای فرم صدور (حالت اپ — نه چاپ) */
+function ScheduleChips({
+  item,
+  orderItems,
+}: {
+  item: SchedItem | null;
+  orderItems: readonly SchedItem[] | null | undefined;
+}) {
+  const s = piSchedule(item, orderItems);
+  const has = !!(s.designFrom || s.designTo || s.printFrom || s.printTo);
+  if (!has) return null;
+  return (
+    <div className="rounded-lg border bg-muted/20 px-3 py-2 flex items-center gap-3 flex-wrap text-[11px]">
+      <span className="font-medium text-muted-foreground flex items-center gap-1 shrink-0">
+        <Icon name="calendar" size={12} className="text-primary" />
+        {s.perItem ? "زمان‌بندی این آیتم:" : "زمان‌بندی کل گروه:"}
+      </span>
+      {(s.designFrom || s.designTo) && (
+        <span className="text-muted-foreground flex items-center gap-1">
+          <Icon name="design" size={11} className="text-violet-500" />
+          {s.designFrom ? jShort.format(new Date(s.designFrom)) : "…"}
+          <span className="text-muted-foreground/50">تا</span>
+          {s.designTo ? jShort.format(new Date(s.designTo)) : "بدون پایان"}
+        </span>
+      )}
+      {(s.printFrom || s.printTo) && (
+        <span className="text-muted-foreground flex items-center gap-1">
+          <Icon name="print" size={11} className="text-amber-500" />
+          {s.printFrom ? jShort.format(new Date(s.printFrom)) : "…"}
+          <span className="text-muted-foreground/50">تا</span>
+          {s.printTo ? jShort.format(new Date(s.printTo)) : "بدون پایان"}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════ 3) DOC VIEW (printable) ═════════════════════
 function DocView({
   pi,
@@ -540,6 +716,17 @@ function DocView({
   const items: PreInvoiceItem[] = React.useMemo(() => {
     try { return JSON.parse(pi.items); } catch { return []; }
   }, [pi.items]);
+
+  // Phase 10 — زمان‌بندی روی سند (خواستهٔ ۳: «برای پیش‌فاکتور هم زمان طراحی
+  // و چاپ اینارو بیاره»): سند per-item → تاریخ همان آیتم؛ سند گروهی → کل گروه.
+  const schedule = React.useMemo(
+    () => piSchedule(pi.item ?? null, pi.order?.items ?? null),
+    [pi.item, pi.order]
+  );
+  const scheduleHas = !!(
+    schedule.designFrom || schedule.designTo ||
+    schedule.printFrom || schedule.printTo
+  );
 
   const status = pi.status as PreInvoiceStatus;
   const meta = STATUS_META[status] ?? STATUS_META.draft;
@@ -641,8 +828,50 @@ function DocView({
                 سفارش مرتبط: <span className="font-medium tabular-nums">#{pi.order.number}</span>
               </div>
             )}
+            {pi.item?.product?.name && (
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                آیتم سفارش: <span className="font-medium">{pi.item.product.name}</span>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* زمان‌بندی اجرا (خواستهٔ ۳) — روی سند چاپی */}
+        {scheduleHas && (
+          <div className="mt-4 rounded-lg border border-slate-200 overflow-hidden">
+            <div className="bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
+              {schedule.perItem ? "زمان‌بندی اجرای این آیتم" : "زمان‌بندی اجرای سفارش (کل گروه)"}
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-x-reverse divide-slate-200 text-[11px] text-center">
+              <div className="px-2 py-2">
+                <div className="text-slate-400 text-[10px] mb-0.5">طراحی</div>
+                <div className="font-medium tabular-nums" dir="rtl">
+                  {schedule.designFrom ? jShort.format(new Date(schedule.designFrom)) : "—"}
+                  {" تا "}
+                  {schedule.designTo ? jShort.format(new Date(schedule.designTo)) : "بدون پایان"}
+                </div>
+                {!schedule.perItem && schedule.designDone && (
+                  <div className="text-[10px] text-emerald-700 mt-0.5">
+                    (تکمیل طراحی: {jShort.format(new Date(schedule.designDone))})
+                  </div>
+                )}
+              </div>
+              <div className="px-2 py-2">
+                <div className="text-slate-400 text-[10px] mb-0.5">چاپ</div>
+                <div className="font-medium tabular-nums" dir="rtl">
+                  {schedule.printFrom ? jShort.format(new Date(schedule.printFrom)) : "—"}
+                  {" تا "}
+                  {schedule.printTo ? jShort.format(new Date(schedule.printTo)) : "بدون پایان"}
+                </div>
+                {!schedule.perItem && schedule.printDone && (
+                  <div className="text-[10px] text-emerald-700 mt-0.5">
+                    (تکمیل چاپ: {jShort.format(new Date(schedule.printDone))})
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* اقلام */}
         <table className="w-full mt-5 text-sm border border-slate-200 border-collapse">

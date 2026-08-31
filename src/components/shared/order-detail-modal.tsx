@@ -112,6 +112,8 @@ export type OrderDetail = {
     discountAmount?: number;
     date?: string;
     items?: string;
+    /** Phase 10: آیتم مرتبط — null = سند کل گروه */
+    itemId?: string | null;
   }[];
   invoice: InvoiceFull | null;
   // Extended (additive — GET /api/orders/[id] already includes these)
@@ -306,6 +308,8 @@ export function OrderDetailModal({
   // Phase 9 — نمای آغازین PreInvoiceModal: فرم صدور یا سند مشخص
   const [piInitialDocId, setPiInitialDocId] = React.useState<string | null>(null);
   const [piInitialView, setPiInitialView] = React.useState<"list" | "issue" | "doc">("list");
+  // Phase 10 — صدور برای آیتم مشخص (سند per-item) یا کل گروه (null)
+  const [piInitialItemId, setPiInitialItemId] = React.useState<string | null>(null);
 
   // Sync local state when order loads/changes
   React.useEffect(() => {
@@ -612,14 +616,16 @@ export function OrderDetailModal({
                 {activeTab === "preInvoice" && (
                   <PreInvoiceTab
                     order={order}
-                    onIssue={() => {
+                    onIssue={(itemId) => {
                       setPiInitialView("issue");
                       setPiInitialDocId(null);
+                      setPiInitialItemId(itemId);
                       setPreInvoiceOpen(true);
                     }}
                     onOpenDoc={(piId) => {
                       setPiInitialView("doc");
                       setPiInitialDocId(piId);
+                      setPiInitialItemId(null);
                       setPreInvoiceOpen(true);
                     }}
                   />
@@ -673,6 +679,7 @@ export function OrderDetailModal({
         onOpenChange={setPreInvoiceOpen}
         initialDocId={piInitialDocId}
         initialView={piInitialView}
+        initialItemId={piInitialItemId}
       />
     </>
   );

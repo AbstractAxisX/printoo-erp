@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 
 type ItemDraft = {
   id: string;
+  // Phase 10: شناسهٔ واقعی DB — برای merge هوشمند در ویرایش (حفظ تاریخ‌ها/مهرها)
+  dbId?: string;
   productId: string;
   productName: string;
   quantity: number;
@@ -35,6 +37,12 @@ type ItemDraft = {
   description: string;
   stage: "design" | "print" | "warehouse" | "completed" | "archive";
   needsMaterial: boolean;
+  // Phase 10: زمان‌بندی per-item (خواستهٔ ۳: «تاریخ طراحی و چاپ برای هر
+  // ایتم مجزا ثبت شه») — yyyy-MM-dd
+  designStart: string;
+  designEnd: string;
+  printStart: string;
+  printEnd: string;
 };
 
 type Customer = { id: string; name: string; phone: string };
@@ -66,6 +74,7 @@ type OrderEditData = {
   }[];
   preInvoices: {
     id: string;
+    number: number;
     status?: string;
     paidAmount: number;
     discountAmount?: number;
@@ -108,10 +117,8 @@ export function OrderWizardPage() {
   const [endDate, setEndDate] = React.useState("");
   const [noEndDate, setNoEndDate] = React.useState(false);
   const [note, setNote] = React.useState("");
-  const [designStart, setDesignStart] = React.useState("");
-  const [designEnd, setDesignEnd] = React.useState("");
-  const [printStart, setPrintStart] = React.useState("");
-  const [printEnd, setPrintEnd] = React.useState("");
+  // Phase 10: تاریخ‌های طراحی/چاپ per-item شدند (در ItemDraft هر آیتم) —
+  // این‌ها فقط ابزار «اعمال روی همه» در مرحلهٔ ۳ هستند.
 
   const [preInvoiceEnabled, setPreInvoiceEnabled] = React.useState(false);
   // Phase 7 — فرم پیش‌فاکتور حرفه‌ای (جایگزین نقشهٔ per-item paid تستی)
@@ -120,7 +127,11 @@ export function OrderWizardPage() {
   const [piPrepaid, setPiPrepaid] = React.useState("");
   const [piValidDays, setPiValidDays] = React.useState("15");
   const [piNotes, setPiNotes] = React.useState("");
-  const [existingPreInvoiceId, setExistingPreInvoiceId] = React.useState<string | null>(null);
+  // Phase 10 — در ویرایش، پیش‌فاکتورها فقط خلاصهٔ فقط-خواندنی هستند؛
+  // مدیریت کامل (صدور/وضعیت/چاپ) از تب «پیش‌فاکتور» مودال جزئیات انجام می‌شود.
+  const [editPreInvoices, setEditPreInvoices] = React.useState<{
+    id: string; number: number; status: string; totalAmount: number;
+  }[]>([]);
   const [invoiceEnabled, setInvoiceEnabled] = React.useState(false);
 
   // Phase 8 — حالت موفقیت پس از ثبت + چاپ پیش‌فاکتور بلافاصله
@@ -128,6 +139,7 @@ export function OrderWizardPage() {
     orderNumbers: number[];
     orderId: string | null;
     preInvoice: { id: string; number: number } | null;
+    preInvoiceCount: number;
   } | null>(null);
   const [piModalOpen, setPiModalOpen] = React.useState(false);
 
@@ -157,9 +169,10 @@ export function OrderWizardPage() {
     setActiveCustomer(order.customerId);
     setMultiMode(false);
 
-    // Step 2: items
+    // Step 2: items — Phase 10: dbId برای merge هوشمند + تاریخ‌های per-item
     const items: ItemDraft[] = (order.items ?? []).map((it) => ({
       id: crypto.randomUUID(),
+      dbId: it.id,
       productId: it.productId,
       productName: it.product?.name ?? "",
       quantity: it.quantity,
@@ -170,6 +183,10 @@ export function OrderWizardPage() {
         ? it.stage
         : "design") as ItemDraft["stage"],
       needsMaterial: !!it.needsMaterial,
+      designStart: it.designStartDate ? it.designStartDate.slice(0, 10) : "",
+      designEnd: it.designEndDate ? it.designEndDate.slice(0, 10) : "",
+      printStart: it.printStartDate ? it.printStartDate.slice(0, 10) : "",
+      printEnd: it.printEndDate ? it.printEndDate.slice(0, 10) : "",
     }));
     setItemsByCustomer({ [order.customerId]: items });
 
@@ -180,31 +197,18 @@ export function OrderWizardPage() {
     setNoEndDate(!!order.noEndDate);
     setNote(order.note ?? "");
 
-    // Module dates from first item
-    const firstItem = order.items?.[0];
-    if (firstItem) {
-      setDesignStart(firstItem.designStartDate ? firstItem.designStartDate.slice(0, 10) : "");
-      setDesignEnd(firstItem.designEndDate ? firstItem.designEndDate.slice(0, 10) : "");
-      setPrintStart(firstItem.printStartDate ? firstItem.printStartDate.slice(0, 10) : "");
-      setPrintEnd(firstItem.printEndDate ? firstItem.printEndDate.slice(0, 10) : "");
-    }
-
-    // Step 4: review — Phase 7: hydrate the professional pre-invoice form.
-    // فقط پیش‌فاکتور قابل‌ویرایش (draft/sent/rejected) فرم را پر می‌کند؛
-    // approved/converted نهایی است و فرم را غیرفعال می‌گذارد.
-    const existingPI = order.preInvoices?.[0];
-    setExistingPreInvoiceId(existingPI?.id ?? null);
-    const piStatus = existingPI?.status ?? "draft";
-    const piEditable = !!existingPI && piStatus !== "approved" && piStatus !== "converted";
-    setPreInvoiceEnabled(piEditable);
+    // Phase 10 — ویرایش: خلاصهٔ فقط-خواندنی پیش‌فاکتورها (مدیریت کامل از
+    // مودال جزئیات). فرم PI فقط در حالت «ایجاد» فعال است.
+    setEditPreInvoices(
+      (order.preInvoices ?? []).map((p) => ({
+        id: p.id,
+        number: p.number ?? 0,
+        status: p.status ?? "draft",
+        totalAmount: p.totalAmount ?? 0,
+      }))
+    );
+    setPreInvoiceEnabled(false);
     setInvoiceEnabled(!!order.invoice);
-    if (existingPI && piEditable) {
-      setPiDiscount(existingPI.discountAmount ? String(existingPI.discountAmount) : "");
-      setPiTaxRate(existingPI.taxRate ? String(existingPI.taxRate) : "");
-      setPiPrepaid(existingPI.paidAmount ? String(existingPI.paidAmount) : "");
-      setPiNotes(existingPI.notes ?? "");
-      setPiValidDays("15");
-    }
 
     setLoadedOrderId(param);
   }, [param, editData, loadedOrderId]);
@@ -223,16 +227,13 @@ export function OrderWizardPage() {
     setEndDate("");
     setNoEndDate(false);
     setNote("");
-    setDesignStart("");
-    setDesignEnd("");
-    setPrintStart("");
-    setPrintEnd("");
     setPreInvoiceEnabled(false);
     setPiDiscount("");
     setPiTaxRate("");
     setPiPrepaid("");
     setPiValidDays("15");
     setPiNotes("");
+    setEditPreInvoices([]);
     setInvoiceEnabled(false);
     setSuccess(null);
   }
@@ -278,6 +279,10 @@ export function OrderWizardPage() {
       description: "",
       stage: "design",
       needsMaterial: false,
+      designStart: "",
+      designEnd: "",
+      printStart: "",
+      printEnd: "",
     };
   }
 
@@ -318,11 +323,25 @@ export function OrderWizardPage() {
     return true;
   }
 
+  // ابزار «اعمال روی همه» مرحلهٔ ۳ — تاریخ‌ها را روی تمام آیتم‌ها می‌نویسد
+  function applyDatesToAll(patch: Partial<Pick<ItemDraft, "designStart" | "designEnd" | "printStart" | "printEnd">>) {
+    setItemsByCustomer((s) => {
+      const next: Record<string, ItemDraft[]> = {};
+      for (const [cid, arr] of Object.entries(s)) {
+        next[cid] = arr.map((it) => ({ ...it, ...patch }));
+      }
+      return next;
+    });
+  }
+
   const createMut = useMutation<unknown, Error, void>({
     mutationFn: async (): Promise<unknown> => {
-      // Build items payload (shared by create & edit)
+      // Build items payload (shared by create & edit) — Phase 10: per-item
+      // dates + dbId (merge هوشمند سرور: آیتم موجود درجا آپدیت می‌شود و
+      // مهرها/تاریخ‌های تکمیل هرگز نمی‌پرند).
       const cid = customers[0] ?? "";
-      const items = (itemsByCustomer[cid] ?? []).map((i) => ({
+      const mapDraft = (i: ItemDraft) => ({
+        ...(i.dbId ? { id: i.dbId } : {}),
         productId: i.productId,
         quantity: i.quantity,
         pricePerUnit: i.pricePerUnit,
@@ -331,14 +350,15 @@ export function OrderWizardPage() {
         description: i.description || null,
         stage: i.stage,
         needsMaterial: i.needsMaterial,
-      }));
-      const moduleDates = {
-        design: needsDesign ? { start: designStart || null, end: designEnd || null } : undefined,
-        print: { start: printStart || null, end: printEnd || null },
-      };
+        designStartDate: i.designStart || null,
+        designEndDate: i.designEnd || null,
+        printStartDate: i.printStart || null,
+        printEndDate: i.printEnd || null,
+      });
+      const items = (itemsByCustomer[cid] ?? []).map(mapDraft);
 
       if (isEditing && param) {
-        // Edit mode: PUT to /api/orders/[id]
+        // Edit mode: PUT to /api/orders/[id] — آیتم‌ها با id واقعی merge می‌شوند
         const body = {
           customerId: cid,
           items,
@@ -347,7 +367,6 @@ export function OrderWizardPage() {
           endDate: noEndDate ? null : endDate || null,
           noEndDate,
           note: note || null,
-          moduleDates,
         };
         return api(`/api/orders/${param}`, { method: "PUT", body: JSON.stringify(body) });
       }
@@ -356,39 +375,21 @@ export function OrderWizardPage() {
       const body: Record<string, unknown> = {
         customers,
         itemsByCustomer: Object.fromEntries(
-          Object.entries(itemsByCustomer).map(([c, list]) => [
-            c,
-            list.map((i) => ({
-              productId: i.productId,
-              quantity: i.quantity,
-              pricePerUnit: i.pricePerUnit,
-              totalAmount: i.quantity * i.pricePerUnit,
-              note: i.note || null,
-              description: i.description || null,
-              stage: i.stage,
-              needsMaterial: i.needsMaterial,
-            })),
-          ])
+          Object.entries(itemsByCustomer).map(([c, list]) => [c, list.map(mapDraft)])
         ),
         splitMode,
         priority,
         endDate: noEndDate ? null : endDate || null,
         noEndDate,
         note: note || null,
-        moduleDates,
         markCompleted: anyCompleted,
       };
-      // ─── Phase 7: پیش‌فاکتور حرفه‌ای — اقلام با قیمت واحد + تخفیف کل +
-      // مالیات + پیش‌پرداخت + اعتبار + توضیحات (همان قرارداد /api/pre-invoices)
+      // ─── Phase 10: پیش‌فاکتور — اقلام در «سرور» از خود آیتم‌های واقعی
+      // سفارش ساخته می‌شوند (طبق حالت):
+      //   مجزا یا چند-مشتری → پیش‌فاکتور per-item (هر آیتم سند خودش)
+      //   گروهیِ تک-مشتری → یک سند برای کل گروه
       if (preInvoiceEnabled) {
-        const piItems = (itemsByCustomer[cid] ?? []).map((i) => ({
-          name: i.productName,
-          quantity: i.quantity,
-          unitPrice: i.pricePerUnit,
-          discount: 0,
-        }));
         body.preInvoice = {
-          items: piItems,
           discountAmount: Number(piDiscount) || 0,
           taxRate: Number(piTaxRate) || 0,
           paidAmount: Number(piPrepaid) || 0,
@@ -406,50 +407,12 @@ export function OrderWizardPage() {
         count?: number;
         created?: { id: string; number: number }[];
         preInvoice?: { id: string; number: number } | null;
+        preInvoiceCount?: number;
       };
       invalidate(["orders"]);
       invalidate(["dashboard"]);
       invalidate(["notifications"]);
       invalidate(["order"]);
-
-      // Phase 7: edit-mode preInvoice tri-state با قرارداد جدید
-      if (isEditing && param) {
-        const cidEdit = customers[0] ?? "";
-        const piItems = (itemsByCustomer[cidEdit] ?? []).map((i) => ({
-          name: i.productName,
-          quantity: i.quantity,
-          unitPrice: i.pricePerUnit,
-          discount: 0,
-        }));
-        const piBody = {
-          items: piItems,
-          discountAmount: Number(piDiscount) || 0,
-          taxRate: Number(piTaxRate) || 0,
-          paidAmount: Number(piPrepaid) || 0,
-          validDays: Number(piValidDays) || 15,
-          notes: piNotes || null,
-        };
-        try {
-          if (preInvoiceEnabled && existingPreInvoiceId) {
-            await api(`/api/pre-invoices/${existingPreInvoiceId}`, {
-              method: "PUT",
-              body: JSON.stringify(piBody),
-            });
-          } else if (!preInvoiceEnabled && existingPreInvoiceId) {
-            await api(`/api/pre-invoices/${existingPreInvoiceId}`, { method: "DELETE" });
-            setExistingPreInvoiceId(null);
-          } else if (preInvoiceEnabled && !existingPreInvoiceId && param) {
-            const resPI = await api<{ preInvoice: { id: string } }>("/api/pre-invoices", {
-              method: "POST",
-              body: JSON.stringify({ orderId: param, customerId: cidEdit, ...piBody }),
-            });
-            setExistingPreInvoiceId(resPI.preInvoice.id);
-          }
-        } catch (e) {
-          // preInvoice mutation failed but order saved — toast warning, don't block
-          toast.error(" سفارش ذخیره شد ولی خطا در ثبت/به‌روزرسانی پیش‌فاکتور");
-        }
-      }
 
       if (isEditing) {
         toast.success("تغییرات سفارش ذخیره شد");
@@ -460,6 +423,7 @@ export function OrderWizardPage() {
           orderNumbers: (res.created ?? []).map((o) => o.number),
           orderId: res.created?.[0]?.id ?? null,
           preInvoice: res.preInvoice ?? null,
+          preInvoiceCount: res.preInvoiceCount ?? (res.preInvoice ? 1 : 0),
         });
       }
     },
@@ -507,10 +471,18 @@ export function OrderWizardPage() {
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {success.preInvoice ? (
-                <>
-                  پیش‌فاکتور <span className="font-bold text-foreground">#{toFa(success.preInvoice.number)}</span> نیز صادر شد —
-                  می‌توانید همین حالا سند رسمی آن را چاپ کنید یا به‌صورت PDF ذخیره کنید.
-                </>
+                success.preInvoiceCount > 1 ? (
+                  <>
+                    <span className="font-bold text-foreground">{toFa(success.preInvoiceCount)} پیش‌فاکتور</span> به‌ازای
+                    آیتم‌ها صادر شد — می‌توانید سند اول را چاپ کنید و بقیه را از تب
+                    «پیش‌فاکتور» جزئیات سفارش مدیریت کنید.
+                  </>
+                ) : (
+                  <>
+                    پیش‌فاکتور <span className="font-bold text-foreground">#{toFa(success.preInvoice.number)}</span> نیز صادر شد —
+                    می‌توانید همین حالا سند رسمی آن را چاپ کنید یا به‌صورت PDF ذخیره کنید.
+                  </>
+                )
               ) : (
                 "از دکمه‌های زیر برای ادامه استفاده کنید."
               )}
@@ -637,16 +609,11 @@ export function OrderWizardPage() {
           setNoEndDate={setNoEndDate}
           note={note}
           setNote={setNote}
-          needsDesign={needsDesign}
-          designStart={designStart}
-          setDesignStart={setDesignStart}
-          designEnd={designEnd}
-          setDesignEnd={setDesignEnd}
-          printStart={printStart}
-          setPrintStart={setPrintStart}
-          printEnd={printEnd}
-          setPrintEnd={setPrintEnd}
+          customers={customers}
+          allCustomers={allCustomers}
           itemsByCustomer={itemsByCustomer}
+          updateItem={updateItem}
+          applyDatesToAll={applyDatesToAll}
           customerCount={customers.length}
         />
       )}
@@ -660,13 +627,11 @@ export function OrderWizardPage() {
           priority={priority}
           endDate={endDate}
           noEndDate={noEndDate}
-          designStart={designStart}
-          designEnd={designEnd}
-          printStart={printStart}
-          printEnd={printEnd}
           note={note}
           needsDesign={needsDesign}
           anyCompleted={anyCompleted}
+          isEditing={isEditing}
+          editPreInvoices={editPreInvoices}
           preInvoiceEnabled={preInvoiceEnabled}
           setPreInvoiceEnabled={setPreInvoiceEnabled}
           piDiscount={piDiscount}
@@ -1119,28 +1084,34 @@ function NoteItemModal({ open, onOpenChange, note, onSave }: { open: boolean; on
 }
 
 // ─── STEP 3: Timing & priority ────────────────────────────────
+// Phase 10: زمان‌بندی per-item — هر آیتم ۴ تاریخ خودش را دارد
+// (شروع/پایان طراحی + شروع/پایان چاپ). ابزار «اعمال روی همه» برای
+// تسریع کار؛ اگر چند مشتری هست، آیتم‌ها به تفکیک مشتری گروه می‌شوند.
 function Step3(props: {
   splitMode: "grouped" | "separated"; setSplitMode: (v: "grouped" | "separated") => void;
   priority: "normal" | "urgent"; setPriority: (v: "normal" | "urgent") => void;
   endDate: string; setEndDate: (v: string) => void;
   noEndDate: boolean; setNoEndDate: (v: boolean) => void;
   note: string; setNote: (v: string) => void;
-  needsDesign: boolean;
-  designStart: string; setDesignStart: (v: string) => void;
-  designEnd: string; setDesignEnd: (v: string) => void;
-  printStart: string; setPrintStart: (v: string) => void;
-  printEnd: string; setPrintEnd: (v: string) => void;
+  customers: string[];
+  allCustomers: Customer[];
   itemsByCustomer: Record<string, ItemDraft[]>;
+  updateItem: (cid: string, itemId: string, patch: Partial<ItemDraft>) => void;
+  applyDatesToAll: (patch: Partial<Pick<ItemDraft, "designStart" | "designEnd" | "printStart" | "printEnd">>) => void;
   customerCount: number;
 }) {
-  const { splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate, note, setNote, needsDesign, designStart, setDesignStart, designEnd, setDesignEnd, printStart, setPrintStart, printEnd, setPrintEnd, itemsByCustomer, customerCount } = props;
+  const { splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate, note, setNote, customers, allCustomers, itemsByCustomer, updateItem, applyDatesToAll, customerCount } = props;
   const allItems = Object.values(itemsByCustomer).flat();
+  // ابزار اعمال-روی-همه (وضعیت محلی، جدا از آیتم‌ها)
+  const [bulkDesign, setBulkDesign] = React.useState<{ start: string; end: string }>({ start: "", end: "" });
+  const [bulkPrint, setBulkPrint] = React.useState<{ start: string; end: string }>({ start: "", end: "" });
+  const scheduledCount = allItems.filter((i) => i.designStart || i.designEnd || i.printStart || i.printEnd).length;
 
   return (
     <Card className="p-5 space-y-5">
       <div className="flex items-center gap-2.5">
         <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="calendar" size={20} /></div>
-        <div><h2 className="font-semibold">زمان‌دهی و اولویت</h2><p className="text-xs text-muted-foreground">این مرحله اختیاری است</p></div>
+        <div><h2 className="font-semibold">زمان‌دهی و اولویت</h2><p className="text-xs text-muted-foreground">زمان‌بندی هر آیتم جداگانه است — این مرحله اختیاری است</p></div>
       </div>
 
       {/* Split mode */}
@@ -1170,12 +1141,12 @@ function Step3(props: {
                   <b>حالت چند-مشتری + گروهی:</b> آیتم‌های هر مشتری در یک سفارش
                   گروهی مخصوص همان مشتری ثبت می‌شوند — یعنی{" "}
                   <b>{customerCount.toLocaleString("fa-IR")} سفارش گروهی</b>{" "}
-                  (هر مشتری، سفارش جداگانهٔ خودش).
+                  (هر مشتری، سفارش جداگانهٔ خودش) و به‌ازای هر آیتم یک پیش‌فاکتور جدا.
                 </>
               ) : (
                 <>
                   <b>حالت چند-مشتری + تفکیک‌شده:</b> هر آیتم هر مشتری، یک سفارش
-                  کاملاً مجزا می‌شود.
+                  کاملاً مجزا با پیش‌فاکتور خودش می‌شود.
                 </>
               )}
             </span>
@@ -1197,43 +1168,94 @@ function Step3(props: {
         <p className="text-[11px] text-muted-foreground">اولویت برای کل سفارش اعمال می‌شود (طراح و چاپ).</p>
       </div>
 
-      {/* Module dates */}
+      {/* ═══ Per-item scheduling ═══ */}
       <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <Icon name="calendarAdd" size={18} className="text-primary" />
-          <h3 className="font-medium text-sm">زمان‌دهی به ماژول‌ها (اختیاری)</h3>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Icon name="calendarAdd" size={18} className="text-primary" />
+            <h3 className="font-medium text-sm">زمان‌بندی آیتم‌ها (هر آیتم مجزا)</h3>
+          </div>
+          <span className="text-[10px] px-2 py-1 rounded-full bg-muted text-muted-foreground">
+            {toFa(scheduledCount)} از {toFa(allItems.length)} آیتم زمان‌بندی شده
+          </span>
         </div>
-        <p className="text-[11px] text-muted-foreground">این تاریخ‌ها صرفاً برای زمان‌بندی در تقویم ماژول‌هاست و مستقل از تاریخ پایان سفارش است.</p>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          تاریخ طراحی و چاپ برای هر آیتم جداگانه ثبت می‌شود؛ طراح/چاپ همین تاریخ‌ها را
+          در کار خود می‌بینند و روی پیش‌فاکتور هر آیتم هم درج می‌شود.
+        </p>
 
-        {needsDesign && (
-          <div className="rounded-lg border bg-card p-3 space-y-2.5">
-            <div className="flex items-center gap-2 text-sm font-medium"><Icon name="design" size={16} className="text-violet-500" /> ماژول طراحی</div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="شروع طراحی">
-                <DatePicker value={designStart || null} onChange={(d) => setDesignStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
-              </Field>
-              <Field label="پایان طراحی">
-                <DatePicker value={designEnd || null} onChange={(d) => setDesignEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
-              </Field>
+        {/* ابزار اعمال-روی-همه */}
+        <div className="rounded-lg border bg-card p-3 space-y-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Icon name="layers" size={14} /> اعمال سریع روی همهٔ آیتم‌ها
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+              <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="design" size={12} className="text-violet-500" /> طراحی</div>
+              <DatePicker value={bulkDesign.start || null} onChange={(d) => setBulkDesign((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="شروع" className="w-full bg-transparent" />
+              <DatePicker value={bulkDesign.end || null} onChange={(d) => setBulkDesign((b) => ({ ...b, end: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="پایان" className="w-full bg-transparent" />
+              <Button size="sm" variant="outline" className="w-full h-7 text-[11px]" disabled={!bulkDesign.start && !bulkDesign.end}
+                onClick={() => applyDatesToAll({ designStart: bulkDesign.start, designEnd: bulkDesign.end })}>
+                اعمال طراحی روی همه
+              </Button>
+            </div>
+            <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+              <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="print" size={12} className="text-amber-500" /> چاپ</div>
+              <DatePicker value={bulkPrint.start || null} onChange={(d) => setBulkPrint((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="شروع" className="w-full bg-transparent" />
+              <DatePicker value={bulkPrint.end || null} onChange={(d) => setBulkPrint((b) => ({ ...b, end: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="پایان" className="w-full bg-transparent" />
+              <Button size="sm" variant="outline" className="w-full h-7 text-[11px]" disabled={!bulkPrint.start && !bulkPrint.end}
+                onClick={() => applyDatesToAll({ printStart: bulkPrint.start, printEnd: bulkPrint.end })}>
+                اعمال چاپ روی همه
+              </Button>
             </div>
           </div>
-        )}
-
-        <div className="rounded-lg border bg-card p-3 space-y-2.5">
-          <div className="flex items-center gap-2 text-sm font-medium"><Icon name="print" size={16} className="text-amber-500" /> ماژول چاپ</div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="شروع چاپ">
-              <DatePicker value={printStart || null} onChange={(d) => setPrintStart(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
-            </Field>
-            <Field label="پایان چاپ">
-              <DatePicker value={printEnd || null} onChange={(d) => setPrintEnd(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
-            </Field>
-          </div>
         </div>
 
-        {!needsDesign && (
-          <div className="text-xs text-muted-foreground flex items-center gap-1.5"><Icon name="info" size={13} /> هیچ آیتمی نیاز به طراحی ندارد، بنابراین فقط زمان چاپ تعیین می‌شود.</div>
-        )}
+        {/* کارت زمان‌بندی هر آیتم — به تفکیک مشتری */}
+        {customers.map((cid) => {
+          const cust = allCustomers.find((c) => c.id === cid);
+          const items = itemsByCustomer[cid] ?? [];
+          if (!items.length) return null;
+          return (
+            <div key={cid} className="space-y-2">
+              {customers.length > 1 && (
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary pt-1">
+                  <Icon name="customers" size={13} /> {cust?.name ?? "—"}
+                </div>
+              )}
+              {items.map((it, idx) => (
+                <div key={it.id} className="rounded-lg border bg-card p-3 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="size-6 rounded-md bg-muted text-muted-foreground grid place-items-center text-[11px] font-bold shrink-0">{idx + 1}</span>
+                      <span className="text-sm font-medium truncate">{it.productName || "آیتم"}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] rounded bg-muted px-1.5 py-0.5">{STAGES.find((s) => s.value === it.stage)?.label}</span>
+                      {(it.designStart || it.designEnd || it.printStart || it.printEnd) && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">زمان‌بندی شده</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    <Field label="شروع طراحی">
+                      <DatePicker value={it.designStart || null} onChange={(d) => updateItem(cid, it.id, { designStart: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
+                    </Field>
+                    <Field label="پایان طراحی">
+                      <DatePicker value={it.designEnd || null} onChange={(d) => updateItem(cid, it.id, { designEnd: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
+                    </Field>
+                    <Field label="شروع چاپ">
+                      <DatePicker value={it.printStart || null} onChange={(d) => updateItem(cid, it.id, { printStart: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
+                    </Field>
+                    <Field label="پایان چاپ">
+                      <DatePicker value={it.printEnd || null} onChange={(d) => updateItem(cid, it.id, { printEnd: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
+                    </Field>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* End date */}
@@ -1249,7 +1271,7 @@ function Step3(props: {
             </Field>
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground">تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ می‌باشد.</p>
+        <p className="text-[11px] text-muted-foreground">تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ هر آیتم می‌باشد.</p>
       </div>
 
       {/* Note */}
@@ -1261,6 +1283,9 @@ function Step3(props: {
 }
 
 // ─── STEP 4: Review ───────────────────────────────────────────
+// Phase 10: بازنگری با زمان‌بندی per-item + قرارداد پیش‌فاکتور جدید:
+//   مجزا یا چند-مشتری → پیش‌فاکتور به‌ازای هر آیتم؛ گروهیِ تک-مشتری →
+//   یک سند برای کل گروه. در ویرایش، پیش‌فاکتورها فقط-خواندنی هستند.
 function Step4(props: {
   customers: string[];
   itemsByCustomer: Record<string, ItemDraft[]>;
@@ -1269,13 +1294,11 @@ function Step4(props: {
   priority: "normal" | "urgent";
   endDate: string;
   noEndDate: boolean;
-  designStart: string;
-  designEnd: string;
-  printStart: string;
-  printEnd: string;
   note: string;
   needsDesign: boolean;
   anyCompleted: boolean;
+  isEditing: boolean;
+  editPreInvoices: { id: string; number: number; status: string; totalAmount: number }[];
   preInvoiceEnabled: boolean;
   setPreInvoiceEnabled: (v: boolean) => void;
   piDiscount: string;
@@ -1293,7 +1316,7 @@ function Step4(props: {
 }) {
   const {
     customers, itemsByCustomer, allCustomers, splitMode, priority, endDate, noEndDate,
-    designStart, designEnd, printStart, printEnd, note, needsDesign, anyCompleted,
+    note, needsDesign, anyCompleted, isEditing, editPreInvoices,
     preInvoiceEnabled, setPreInvoiceEnabled,
     piDiscount, setPiDiscount, piTaxRate, setPiTaxRate, piPrepaid, setPiPrepaid,
     piValidDays, setPiValidDays, piNotes, setPiNotes,
@@ -1305,17 +1328,35 @@ function Step4(props: {
   const allItems = Object.values(itemsByCustomer).flat();
   const activeCustomer = allCustomers.find((c) => c.id === activeCid);
 
-  // ─── محاسبهٔ زندهٔ پیش‌فاکتور (همان فرمول سرور — lib/pre-invoice) ──
-  const subtotal = allItems.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
-  const disc = Math.min(Math.max(0, Number(piDiscount) || 0), subtotal);
-  const rate = Math.min(Math.max(0, Number(piTaxRate) || 0), 100);
-  const tax = Math.round((subtotal - disc) * (rate / 100));
-  const payable = Math.round(subtotal - disc + tax);
-  const prepaid = Math.min(Math.max(0, Number(piPrepaid) || 0), payable);
-  const remaining = payable - prepaid;
+  // قرارداد Phase 10 — per-item یا گروهی؟
+  const perItemPI = splitMode === "separated" || customers.length > 1;
+  const piDocCount = perItemPI ? allItems.length : customers.length;
 
-  const hasDesignDates = !!(designStart || designEnd);
-  const hasPrintDates = !!(printStart || printEnd);
+  // ─── محاسبهٔ زندهٔ پیش‌فاکتور (همان فرمول سرور — lib/pre-invoice) ──
+  // حالت گروهیِ تک-مشتری: کل سفارش یک سند. حالت per-item: هر آیتم سندی
+  // با مالیات درصدی خودش (تخفیف/پیش‌پرداخت فقط روی اولین سند اعمال می‌شود).
+  const rate = Math.min(Math.max(0, Number(piTaxRate) || 0), 100);
+  const calcDoc = (subtotal: number, applyExtras: boolean) => {
+    const disc = applyExtras ? Math.min(Math.max(0, Number(piDiscount) || 0), subtotal) : 0;
+    const tax = Math.round((subtotal - disc) * (rate / 100));
+    return { subtotal, disc, tax, payable: Math.round(subtotal - disc + tax) };
+  };
+  const grandSubtotal = allItems.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
+  const grand = calcDoc(grandSubtotal, true);
+  const prepaid = Math.min(Math.max(0, Number(piPrepaid) || 0), grand.payable);
+  const remaining = grand.payable - prepaid;
+
+  // خلاصهٔ زمان‌بندی گروه (برای پیش‌فاکتور گروهی و کارت‌های بازنگری)
+  const groupSchedule = (() => {
+    const ds = allItems.map((i) => i.designStart).filter(Boolean).sort();
+    const de = allItems.map((i) => i.designEnd).filter(Boolean).sort();
+    const ps = allItems.map((i) => i.printStart).filter(Boolean).sort();
+    const pe = allItems.map((i) => i.printEnd).filter(Boolean).sort();
+    return {
+      designFrom: ds[0] || "", designTo: de[de.length - 1] || "",
+      printFrom: ps[0] || "", printTo: pe[pe.length - 1] || "",
+    };
+  })();
 
   return (
     <Card className="p-5 space-y-5">
@@ -1340,16 +1381,69 @@ function Step4(props: {
         </div>
       </section>
 
-      {/* ═══ ۲. زمان‌بندی ماژول‌ها ═══ */}
+      {/* ═══ ۲. زمان‌بندی — خلاصهٔ گروه + جزئیات per-item ═══ */}
       <section className="rounded-xl border overflow-hidden">
-        <SectionTitle icon="calendar" title="زمان‌بندی مراحل" />
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <DateRangeCard
-            icon="design" label="مرحلهٔ طراحی" from={designStart} to={designEnd}
-            applicable={needsDesign} />
-          <DateRangeCard
-            icon="print" label="مرحلهٔ چاپ" from={printStart} to={printEnd}
-            applicable />
+        <SectionTitle icon="calendar" title="زمان‌بندی مراحل (هر آیتم مجزا)" />
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <DateRangeCard
+              icon="design" label="مرحلهٔ طراحی (کل گروه)" from={groupSchedule.designFrom} to={groupSchedule.designTo}
+              applicable={needsDesign} />
+            <DateRangeCard
+              icon="print" label="مرحلهٔ چاپ (کل گروه)" from={groupSchedule.printFrom} to={groupSchedule.printTo}
+              applicable />
+          </div>
+          {customers.length > 1 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {customers.map((c) => {
+                const cust = allCustomers.find((x) => x.id === c);
+                return (
+                  <button key={c} onClick={() => setTab(c)}
+                    className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition",
+                      activeCid === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
+                    {cust?.name ?? c}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {/* جدول زمان‌بندی per-item مشتری فعال */}
+          <div className="rounded-lg border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="text-right font-medium px-3 py-2">آیتم{customers.length > 1 ? ` (${activeCustomer?.name ?? ""})` : ""}</th>
+                  <th className="text-center font-medium px-2 py-2">طراحی</th>
+                  <th className="text-center font-medium px-2 py-2">چاپ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {activeItems.map((it) => {
+                  const dHas = !!(it.designStart || it.designEnd);
+                  const pHas = !!(it.printStart || it.printEnd);
+                  return (
+                    <tr key={it.id}>
+                      <td className="px-3 py-2 font-medium">{it.productName || "—"}</td>
+                      <td className="px-2 py-2 text-center">
+                        {dHas ? (
+                          <span className="tabular-nums" dir="ltr">
+                            {it.designStart ? fmtShort(it.designStart) : "…"} → {it.designEnd ? fmtShort(it.designEnd) : "بدون پایان"}
+                          </span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        {pHas ? (
+                          <span className="tabular-nums" dir="ltr">
+                            {it.printStart ? fmtShort(it.printStart) : "…"} → {it.printEnd ? fmtShort(it.printEnd) : "بدون پایان"}
+                          </span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -1384,61 +1478,110 @@ function Step4(props: {
       )}
 
       {/* ═══ ۵. پیش‌فاکتور ═══ */}
-      <section className={cn("rounded-xl border overflow-hidden transition-colors", preInvoiceEnabled && "border-emerald-300 dark:border-emerald-800")}>
-        <div className="px-4 py-3 bg-muted/30 border-b flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <div className={cn("size-8 rounded-lg grid place-items-center", preInvoiceEnabled ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground")}>
+      {isEditing ? (
+        // Phase 10 — ویرایش: خلاصهٔ فقط-خواندنی؛ مدیریت کامل از مودال جزئیات
+        <section className="rounded-xl border overflow-hidden">
+          <div className="px-4 py-3 bg-muted/30 border-b flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
               <Icon name="receipt" size={17} />
             </div>
             <div>
-              <div className="font-semibold text-sm">صدور پیش‌فاکتور</div>
-              <div className="text-[11px] text-muted-foreground">با فعال‌سازی، پیش‌فاکتور همزمان با ثبت سفارش صادر می‌شود</div>
+              <div className="font-semibold text-sm">پیش‌فاکتورهای این سفارش</div>
+              <div className="text-[11px] text-muted-foreground">
+                برای صدور/ویرایش/چاپ، از تب «پیش‌فاکتور» در جزئیات سفارش استفاده کنید
+              </div>
             </div>
           </div>
-          <ToggleButton checked={preInvoiceEnabled} onChange={setPreInvoiceEnabled} id="pi" activeColor="emerald" />
-        </div>
-
-        {preInvoiceEnabled && (
-          <div className="p-4 space-y-4">
-            {/* شرایط مالی */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Field label="تخفیف کل (IQD)">
-                <Input type="number" min={0} dir="ltr" value={piDiscount} placeholder="0"
-                  onChange={(e) => setPiDiscount(e.target.value)} />
-              </Field>
-              <Field label="مالیات (٪)">
-                <Input type="number" min={0} max={100} dir="ltr" value={piTaxRate} placeholder="0"
-                  onChange={(e) => setPiTaxRate(e.target.value)} />
-              </Field>
-              <Field label="پیش‌پرداخت دریافتی">
-                <Input type="number" min={0} dir="ltr" value={piPrepaid} placeholder="0"
-                  onChange={(e) => setPiPrepaid(e.target.value)} />
-              </Field>
-              <Field label="اعتبار پیش‌فاکتور (روز)">
-                <Input type="number" min={1} max={365} dir="ltr" value={piValidDays}
-                  onChange={(e) => setPiValidDays(e.target.value)} />
-              </Field>
-            </div>
-
-            <Field label="توضیحات پیش‌فاکتور" hint="روی سند چاپی نمایش داده می‌شود">
-              <Textarea rows={2} value={piNotes} onChange={(e) => setPiNotes(e.target.value)}
-                placeholder="مثلاً: تحویل ۵ روز کاری پس از تایید طرح" />
-            </Field>
-
-            {/* محاسبهٔ زنده */}
-            <div className="rounded-xl border bg-muted/20 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
-              <SumCell label="جمع اقلام" value={subtotal} />
-              <SumCell label="تخفیف" value={disc} tone="text-amber-600" />
-              <SumCell label={`مالیات${rate ? ` (${toFa(rate)}٪)` : ""}`} value={tax} />
-              <SumCell label="قابل پرداخت" value={payable} tone="text-primary" bold />
-              <SumCell label="باقیمانده" value={remaining} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
-            </div>
+          <div className="p-4 space-y-2">
+            {editPreInvoices.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-2">
+                برای این سفارش پیش‌فاکتوری صادر نشده است — پس از ذخیره، از جزئیات سفارش صدور کنید.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {editPreInvoices.map((p) => (
+                  <div key={p.id} className="rounded-lg border px-3 py-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">پیش‌فاکتور #{toFa(p.number)}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums" dir="ltr">{formatCurrency(p.totalAmount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </section>
+      ) : (
+        <section className={cn("rounded-xl border overflow-hidden transition-colors", preInvoiceEnabled && "border-emerald-300 dark:border-emerald-800")}>
+          <div className="px-4 py-3 bg-muted/30 border-b flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className={cn("size-8 rounded-lg grid place-items-center", preInvoiceEnabled ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground")}>
+                <Icon name="receipt" size={17} />
+              </div>
+              <div>
+                <div className="font-semibold text-sm">
+                  صدور پیش‌فاکتور {perItemPI ? `(به‌ازای هر آیتم — ${toFa(piDocCount)} سند)` : "(یک سند برای کل گروه)"}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {perItemPI
+                    ? "هر آیتم پیش‌فاکتور مجزای خودش را می‌گیرد؛ زمان طراحی/چاپ همان آیتم روی سندش درج می‌شود"
+                    : "زمان‌بندی طراحی/چاپ کل گروه روی سند درج می‌شود"}
+                </div>
+              </div>
+            </div>
+            <ToggleButton checked={preInvoiceEnabled} onChange={setPreInvoiceEnabled} id="pi" activeColor="emerald" />
+          </div>
+
+          {preInvoiceEnabled && (
+            <div className="p-4 space-y-4">
+              {/* شرایط مالی */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Field label="تخفیف (IQD)" hint={perItemPI ? "فقط روی اولین سند" : undefined}>
+                  <Input type="number" min={0} dir="ltr" value={piDiscount} placeholder="0"
+                    onChange={(e) => setPiDiscount(e.target.value)} />
+                </Field>
+                <Field label="مالیات (٪)">
+                  <Input type="number" min={0} max={100} dir="ltr" value={piTaxRate} placeholder="0"
+                    onChange={(e) => setPiTaxRate(e.target.value)} />
+                </Field>
+                <Field label="پیش‌پرداخت دریافتی" hint={perItemPI ? "فقط روی اولین سند" : undefined}>
+                  <Input type="number" min={0} dir="ltr" value={piPrepaid} placeholder="0"
+                    onChange={(e) => setPiPrepaid(e.target.value)} />
+                </Field>
+                <Field label="اعتبار پیش‌فاکتور (روز)">
+                  <Input type="number" min={1} max={365} dir="ltr" value={piValidDays}
+                    onChange={(e) => setPiValidDays(e.target.value)} />
+                </Field>
+              </div>
+
+              <Field label="توضیحات پیش‌فاکتور" hint="روی سند چاپی نمایش داده می‌شود">
+                <Textarea rows={2} value={piNotes} onChange={(e) => setPiNotes(e.target.value)}
+                  placeholder="مثلاً: تحویل ۵ روز کاری پس از تایید طرح" />
+              </Field>
+
+              {/* محاسبهٔ زنده — کل */}
+              <div className="rounded-xl border bg-muted/20 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
+                <SumCell label="جمع کل اقلام" value={grand.subtotal} />
+                <SumCell label="تخفیف" value={grand.disc} tone="text-amber-600" />
+                <SumCell label={`مالیات${rate ? ` (${toFa(rate)}٪)` : ""}`} value={grand.tax} />
+                <SumCell label="قابل پرداخت (مجموع)" value={grand.payable} tone="text-primary" bold />
+                <SumCell label="باقیمانده" value={remaining} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
+              </div>
+              {perItemPI && (
+                <div className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                  <Icon name="info" size={13} className="mt-0.5 shrink-0" />
+                  <span>
+                    {toFa(piDocCount)} سند مجزا صادر می‌شود؛ مالیات {toFa(rate)}٪ روی هر سند جداگانه
+                    اعمال می‌شود و تخفیف/پیش‌پرداخت فقط روی «اولین» سند تا مجموع مبالغ
+                    با جمع سفارش همخوان بماند.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ═══ ۶. فاکتور نهایی (سفارش تکمیل‌شده) ═══ */}
-      {anyCompleted && (
+      {anyCompleted && !isEditing && (
         <section className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 overflow-hidden">
           <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2.5">
@@ -1531,8 +1674,12 @@ function SumCell({ label, value, tone, bold }: { label: string; value: number; t
 }
 
 const faDateFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { year: "numeric", month: "long", day: "numeric" });
+const faDateShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { year: "2-digit", month: "2-digit", day: "2-digit" });
 function fmtDate(iso: string) {
   try { return faDateFmt.format(new Date(iso)); } catch { return iso; }
+}
+function fmtShort(iso: string) {
+  try { return faDateShort.format(new Date(iso)); } catch { return iso; }
 }
 function toFa(n: number) { return n.toLocaleString("fa-IR"); }
 
