@@ -13,6 +13,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
+    "db:demo": "node scripts/test-data.mjs",
     "setup": "prisma generate && prisma db push --accept-data-loss",
     "predev": "node scripts/predev.mjs"
   },

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { normalizeItems, computeTotals } from "@/lib/pre-invoice";
+import { aggregateStatus } from "@/lib/order-flow";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -179,11 +180,15 @@ export async function POST(req: NextRequest) {
             data: {
               number: num,
               customerId,
+              // Phase 9: وضعیت سفارش = تجمیع مرحله‌های آیتم‌ها — سفارش گروهی
+              // با هر آیتم طراحی → در گیت طراحی می‌ماند (خواستهٔ صریح:
+              // «حتی اگر یکی از آیتم‌ها مال چاپ باشد، تا طراحی همه تمام
+              // نشده کسی حق کار روی سفارش را ندارد»).
               status: markCompleted
                 ? "completed"
-                : items[0]?.stage === "archive"
+                : items[0]?.stage === "archive" && items.every((i) => i.stage === "archive")
                 ? "archived"
-                : stageToStatus(items[0]?.stage),
+                : aggregateStatus(items),
               splitMode,
               priority,
               endDate: noEndDate ? null : toISO(endDate),
@@ -361,19 +366,58 @@ async function createInvoice(
   inv: NonNullable<CreateBody["invoice"]>
 ) {
   const num = await nextNumber(tx, "invoice");
+  // Phase 9: فاکتور با قرارداد جدید (اقلام نرمال + تخفیف + مالیات).
+  // ورودی legacy فقط total/paid دارد — اقلام از خود سفارش ساخته می‌شوند
+  // تا سند همیشه محتوای واقعی داشته باشد.
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    include: { items: { include: { product: true } } },
+  });
+  const items =
+    Array.isArray(inv.items) && inv.items.length
+      ? inv.items.map((it) => ({
+          name: String((it as { name?: string }).name ?? "قلم فاکتور"),
+          quantity: Number((it as { quantity?: number }).quantity ?? 1),
+          unit: "عدد",
+          unitPrice: Number((it as { unitPrice?: number }).unitPrice ?? 0),
+          discount: 0,
+          total:
+            Number((it as { total?: number }).total ?? 0) ||
+            Number((it as { quantity?: number }).quantity ?? 1) * 0,
+        }))
+      : (order?.items ?? []).map((it) => ({
+          name: it.product?.name ?? "قلم سفارش",
+          quantity: it.quantity,
+          unit: "عدد",
+          unitPrice: it.pricePerUnit,
+          discount: 0,
+          total: it.totalAmount,
+        }));
+
+  const totals = computeTotals(items, 0, 0);
+  const paid = Math.min(Math.max(0, Number(inv.paidAmount) || 0), totals.totalAmount);
+
   await tx.invoice.create({
     data: {
       number: num,
       orderId,
       customerId,
-      totalAmount: Number(inv.totalAmount) || 0,
-      paidAmount: Number(inv.paidAmount) || 0,
+      status: "issued",
+      items: JSON.stringify(items),
+      subtotal: totals.subtotal,
       discountAmount: Number(inv.discountAmount) || 0,
-      items: JSON.stringify(inv.items),
+      taxRate: 0,
+      taxAmount: totals.taxAmount,
+      totalAmount: totals.totalAmount,
+      paidAmount: paid,
+      source: "manual",
     },
   });
-  await tx.order.update({
-    where: { id: orderId },
-    data: { paidAmount: Number(inv.paidAmount) || 0 },
-  });
+  // paidAmount افزایشی — قرارداد مشترک با پیش‌فاکتور
+  if (paid > 0) {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { paidAmount: { increment: paid } },
+    });
+  }
 }

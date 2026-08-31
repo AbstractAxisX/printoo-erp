@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { TASK_INCLUDE } from "@/lib/task-validation";
+import { aggregateStatus, syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
 
 type ItemDraft = {
@@ -33,17 +34,6 @@ type UpdateBody = {
   moduleDates?: ModuleDates;
 };
 
-function stageToStatus(stage?: string) {
-  switch (stage) {
-    case "design": return "pending_design";
-    case "print": return "in_printing";
-    case "warehouse": return "warehouse_logistics";
-    case "completed": return "completed";
-    case "archive": return "archived";
-    default: return "pending_design";
-  }
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
@@ -52,7 +42,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       include: {
         customer: true,
         items: { include: { product: true } },
-        preInvoices: true,
+        // Phase 9: پیش‌فاکتورها مرتب + فاکتور کامل — تب‌های مودال جزئیات
+        preInvoices: { orderBy: { number: "desc" } },
         invoice: true,
         tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
       },
@@ -133,14 +124,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data.totalAmount = newItems.reduce((s, i) => s + i.totalAmount, 0);
       }
 
-      // auto-update status if not explicitly provided and there's at least one item
+      // auto-update status if not explicitly provided — Phase 9: تجمیع
+      // مرحله‌های آیتم‌ها (نه فقط آیتم اول). اگر status صریحاً آمده باشد،
+      // آیتم‌ها بعداً با syncItemsToStatus همگام می‌شوند.
       if (typeof body.status !== "string" && newItems.length > 0) {
-        data.status = stageToStatus(newItems[0].stage);
+        data.status = aggregateStatus(newItems);
       }
     }
 
     // 3) Update the order
     const order = await db.order.update({ where: { id }, data });
+
+    // 4) Phase 9: تغییر وضعیت دستی → همگام‌سازی stage آیتم‌ها (اگر آیتم‌ها
+    // در همین درخواست جایگزین نشده‌اند، وضعیت فعلی آیتم‌ها ملاک sync است)
+    if (typeof body.status === "string") {
+      await syncItemsToStatus(db, id, body.status as OrderStatusStr);
+    }
 
     return NextResponse.json({ order, items: newItems });
   } catch (e) {

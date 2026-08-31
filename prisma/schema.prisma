@@ -205,6 +205,9 @@ model OrderItem {
   designEndDate   DateTime?
   printStartDate  DateTime?
   printEndDate    DateTime?
+  // Phase 9: لحظهٔ واقعی تکمیل هر مرحله توسط طراح/چاپ (audit)
+  designCompletedAt DateTime?
+  printCompletedAt  DateTime?
   createdAt      DateTime @default(now())
 }
 
@@ -240,7 +243,13 @@ model PreInvoice {
   updatedAt      DateTime  @updatedAt
 }
 
-// ─── Invoice (فاکتور) ───────────────────────────────────────────
+// ─── Invoice (فاکتور) — بازسازی فاز ۹ ─────────────────────────────
+// فاکتور نهایی: فقط زمانی صادر می‌شود که سفارش به مرحلهٔ انبار/لجستیک
+// (یا بعدتر) رسیده باشد. ساختار مالی همان پیش‌فاکتور است + سررسید پرداخت.
+//   چرخهٔ وضعیت: draft → issued → paid (یا cancelled)
+//   source: manual (صدور مستقیم) | pre_invoice (تبدیل از پیش‌فاکتور)
+//   یک فاکتور نهایی برای هر سفارش (orderId یکتا) — در تکرار خطای 409.
+//   order.paidAmount به‌صورت افزایشی (delta) همگام می‌شود.
 model Invoice {
   id             String   @id @default(cuid())
   number         Int      @unique
@@ -248,12 +257,22 @@ model Invoice {
   order          Order    @relation(fields: [orderId], references: [id])
   customerId     String
   customer       Customer @relation(fields: [customerId], references: [id])
-  totalAmount    Float    @default(0)
-  paidAmount     Float    @default(0)
+  // draft | issued | paid | cancelled
+  status         String   @default("issued")
+  issueDate      DateTime @default(now())
+  dueDate        DateTime? // سررسید پرداخت
+  items          String   // JSON: [{name, quantity, unit, unitPrice, discount, total}]
+  subtotal       Float    @default(0)
   discountAmount Float    @default(0)
-  date           DateTime @default(now())
-  items          String // JSON string
+  taxRate        Float    @default(0) // درصد (۰-۱۰۰)
+  taxAmount      Float    @default(0)
+  totalAmount    Float    @default(0) // subtotal - discount + tax
+  paidAmount     Float    @default(0)
+  notes          String?
+  terms          String?
+  source         String   @default("manual") // manual | pre_invoice
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // ─── Tasks ──────────────────────────────────────────────────────

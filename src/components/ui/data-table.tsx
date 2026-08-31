@@ -31,6 +31,9 @@ import { cn } from "@/lib/utils";
 
 export type DataTableMeta<TData> = {
   onRowClick?: (row: TData) => void;
+  /** Phase 9 — اگر false، کلیک روی ردیف فقط onRowClick می‌زند؛
+   * باز/بسته‌کردن ردیف‌های گروهی فقط با دکمهٔ شورون است. */
+  expandOnRowClick?: boolean;
   hideable?: boolean;
 };
 
@@ -61,6 +64,8 @@ type DataTableProps<TData, TValue> = {
   getRowCanExpand?: (row: TData) => boolean;
   renderExpandedRow?: (row: TData) => React.ReactNode;
   onRowClick?: (row: TData) => void;
+  /** Phase 9 — اگر false: کلیک ردیف فقط onRowClick؛ باز/بسته فقط با دکمهٔ شورون */
+  expandOnRowClick?: boolean;
   className?: string;
   dense?: boolean;
   totalCount?: number; // for server-side pagination
@@ -84,6 +89,7 @@ export function DataTable<TData, TValue>({
   getRowCanExpand,
   renderExpandedRow,
   onRowClick,
+  expandOnRowClick = true,
   className,
   dense = false,
 }: DataTableProps<TData, TValue>) {
@@ -227,7 +233,11 @@ export function DataTable<TData, TValue>({
                       row.getIsExpanded() && "bg-muted/30"
                     )}
                     onClick={() => {
-                      if (getRowCanExpand && getRowCanExpand(row.original)) {
+                      if (
+                        expandOnRowClick &&
+                        getRowCanExpand &&
+                        getRowCanExpand(row.original)
+                      ) {
                         row.toggleExpanded();
                       }
                       onRowClick?.(row.original);

@@ -52,10 +52,21 @@ import {
   ItemsTab,
   TasksTab,
   CostsTab,
-  FinanceTab,
+  PreInvoiceTab,
   HistoryTab,
 } from "./order-detail-tabs";
+import { InvoiceTab, type InvoiceFull } from "./invoice-tab";
 import { PreInvoiceModal } from "./pre-invoice-modal";
+
+/** Phase 9 — شناسهٔ تب مودال جزئیات (برای openOrder(id, tab)) */
+export type OrderDetailTab =
+  | "overview"
+  | "items"
+  | "tasks"
+  | "costs"
+  | "preInvoice"
+  | "invoice"
+  | "history";
 
 export type OrderDetail = {
   id: string;
@@ -102,13 +113,7 @@ export type OrderDetail = {
     date?: string;
     items?: string;
   }[];
-  invoice: {
-    id: string;
-    number: number;
-    totalAmount: number;
-    paidAmount: number;
-    date?: string;
-  } | null;
+  invoice: InvoiceFull | null;
   // Extended (additive — GET /api/orders/[id] already includes these)
   tasks?: {
     id: string;
@@ -124,14 +129,15 @@ export type OrderDetail = {
   }[];
 };
 
-type TabId = "overview" | "items" | "tasks" | "costs" | "finance" | "history";
+type TabId = OrderDetailTab;
 
 const TABS: { id: TabId; label: string; icon: Parameters<typeof Icon>[0]["name"] }[] = [
   { id: "overview", label: "نمای کلی", icon: "dashboard" },
   { id: "items", label: "آیتم‌ها", icon: "orders" },
   { id: "tasks", label: "تسک‌ها", icon: "task" },
   { id: "costs", label: "هزینه‌ها", icon: "coins" },
-  { id: "finance", label: "مالی", icon: "wallet" },
+  { id: "preInvoice", label: "پیش‌فاکتور", icon: "receipt" },
+  { id: "invoice", label: "فاکتور", icon: "invoice" },
   { id: "history", label: "تاریخچه", icon: "route" },
 ];
 
@@ -276,6 +282,7 @@ export function OrderDetailModal({
   order,
   open,
   onOpenChange,
+  initialTab,
   isError,
   errorMessage,
   onRetry,
@@ -283,6 +290,8 @@ export function OrderDetailModal({
   order: OrderDetail | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Phase 9 — تب آغازین (دکمهٔ ردیف پیش‌فاکتور/فاکتور → مستقیم همان تب) */
+  initialTab?: OrderDetailTab | null;
   isError?: boolean;
   errorMessage?: string;
   onRetry?: () => void;
@@ -294,14 +303,19 @@ export function OrderDetailModal({
   const [status, setStatus] = React.useState<OrderStatus>("pending_design");
   const [note, setNote] = React.useState("");
   const [preInvoiceOpen, setPreInvoiceOpen] = React.useState(false);
+  // Phase 9 — نمای آغازین PreInvoiceModal: فرم صدور یا سند مشخص
+  const [piInitialDocId, setPiInitialDocId] = React.useState<string | null>(null);
+  const [piInitialView, setPiInitialView] = React.useState<"list" | "issue" | "doc">("list");
 
   // Sync local state when order loads/changes
   React.useEffect(() => {
     if (order) {
       setStatus(order.status);
       setNote(order.note || "");
-      setActiveTab("overview");
+      // تب آغازین فقط بار اول (order.id جدید) اعمال می‌شود
+      setActiveTab(initialTab ?? "overview");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
   // ── Status mutation (action-forward) ──
@@ -544,7 +558,19 @@ export function OrderDetailModal({
                       {tasksCount}
                     </span>
                   )}
-                  {t.id === "finance" && hasPreInvoice && (
+                  {t.id === "preInvoice" && hasPreInvoice && (
+                    <span
+                      className={cn(
+                        "text-[10px] rounded-full px-1.5 py-0.5 tabular-nums",
+                        isActive
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {order.preInvoices.length}
+                    </span>
+                  )}
+                  {t.id === "invoice" && order.invoice && (
                     <span className="size-1.5 rounded-full bg-emerald-500" />
                   )}
                 </button>
@@ -583,12 +609,22 @@ export function OrderDetailModal({
                 {activeTab === "items" && <ItemsTab order={order} />}
                 {activeTab === "tasks" && <TasksTab order={order} />}
                 {activeTab === "costs" && <CostsTab order={order} />}
-                {activeTab === "finance" && (
-                  <FinanceTab
+                {activeTab === "preInvoice" && (
+                  <PreInvoiceTab
                     order={order}
-                    onPreInvoice={() => setPreInvoiceOpen(true)}
+                    onIssue={() => {
+                      setPiInitialView("issue");
+                      setPiInitialDocId(null);
+                      setPreInvoiceOpen(true);
+                    }}
+                    onOpenDoc={(piId) => {
+                      setPiInitialView("doc");
+                      setPiInitialDocId(piId);
+                      setPreInvoiceOpen(true);
+                    }}
                   />
                 )}
+                {activeTab === "invoice" && <InvoiceTab order={order} />}
                 {activeTab === "history" && <HistoryTab order={order} />}
               </motion.div>
             </AnimatePresence>
@@ -599,11 +635,20 @@ export function OrderDetailModal({
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setPreInvoiceOpen(true)}
+              onClick={() => setActiveTab("preInvoice")}
               className="gap-1.5"
             >
               <Icon name="receipt" size={14} />
-              {hasPreInvoice ? "ویرایش پیش‌فاکتور" : "صدور پیش‌فاکتور"}
+              {hasPreInvoice ? "مدیریت پیش‌فاکتور" : "صدور پیش‌فاکتور"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveTab("invoice")}
+              className="gap-1.5"
+            >
+              <Icon name="invoice" size={14} />
+              فاکتور نهایی
             </Button>
             <Button
               size="sm"
@@ -626,6 +671,8 @@ export function OrderDetailModal({
         customerName={order.customer?.name}
         open={preInvoiceOpen}
         onOpenChange={setPreInvoiceOpen}
+        initialDocId={piInitialDocId}
+        initialView={piInitialView}
       />
     </>
   );

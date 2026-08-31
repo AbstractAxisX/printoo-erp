@@ -36,6 +36,7 @@ import {
   OrderDeleteDialog,
 } from "./order-modals";
 import { orderMatchesFilters, type Order } from "./types";
+import { ITEM_STAGE } from "@/lib/constants";
 
 export function OrdersPage() {
   const navigate = useAppStore((s) => s.navigate);
@@ -70,6 +71,9 @@ export function OrdersPage() {
     onOpenStatus: (o) => setStatusOrder(o),
     onOpenDelete: (o) => setDeleteOrder(o),
     onEdit: (o) => navigate("admin", "orders-new", o.id),
+    // Phase 9 — دکمهٔ ردیف: مودال جزئیات مستقیم روی تب پیش‌فاکتور/فاکتور
+    onOpenPreInvoice: (o) => openOrder(o.id, "preInvoice"),
+    onOpenInvoice: (o) => openOrder(o.id, "invoice"),
   });
 
   return (
@@ -111,6 +115,10 @@ export function OrdersPage() {
               isLoading={isLoading}
               pageSize={10}
               showColumnToggle
+              // Phase 9 — ردیف‌های بازشوندهٔ سفارش گروهی (dropdown آیتم‌ها)
+              getRowCanExpand={(o) => (o.items?.length ?? 0) > 1}
+              expandOnRowClick={false}
+              renderExpandedRow={(o) => <GroupedItemsRow order={o} />}
               // مرحله/تاریخ ساخت به‌طور پیش‌فرض مخفی — جدول در عرض صفحه جا
               // می‌شود (بدون اسکرول افقی). از منوی «ستون‌ها» قابل بازگشتن‌اند.
               defaultHidden={["stage", "createdAt"]}
@@ -141,5 +149,82 @@ export function OrdersPage() {
         {modal}
       </div>
     </TooltipProvider>
+  );
+}
+
+// ─── Phase 9: ردیف بازشوندهٔ آیتم‌های سفارش گروهی ────────────────────
+// سفارش گروهی در جدول به‌صورت دراپ‌داون باز می‌شود: کلیک روی شورون،
+// آیتم‌های داخلی (محصول، مرحله، تعداد/قیمت، متریال، تاریخ‌ها) را نشان
+// می‌دهد. آیتم‌ها «با هم» جلو می‌روند — گیت طراحی در ستون وضعیت.
+function GroupedItemsRow({ order }: { order: Order }) {
+  const items = order.items ?? [];
+  return (
+    <div className="p-3 bg-muted/10">
+      <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="px-3 py-2 bg-muted/40 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 flex-wrap">
+          <Icon name="layers" size={12} />
+          آیتم‌های سفارش گروهی #{order.number}
+          <span className="text-muted-foreground/60">
+            ({items.length.toLocaleString("fa-IR")} آیتم — با هم پیش می‌روند)
+          </span>
+        </div>
+        <div className="divide-y">
+          {items.map((it, i) => {
+            const stage = ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE];
+            const designLate =
+              it.designEndDate && it.stage === "design" && new Date(it.designEndDate) < new Date();
+            return (
+              <div
+                key={it.id}
+                className="px-3 py-2.5 flex items-center gap-3 flex-wrap hover:bg-accent/20 transition"
+              >
+                <span className="size-6 rounded-md bg-muted text-muted-foreground grid place-items-center text-[11px] font-bold shrink-0">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">
+                    {it.product?.name ?? "—"}
+                    {it.description && (
+                      <span className="text-xs text-muted-foreground font-normal mr-2">
+                        {it.description}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                    <span className="tabular-nums" dir="ltr">
+                      {it.quantity.toLocaleString("en-US")} ×{" "}
+                      {(it.pricePerUnit ?? 0).toLocaleString("en-US")}
+                    </span>
+                    {it.note && (
+                      <span className="flex items-center gap-0.5">
+                        <Icon name="info" size={10} /> {it.note}
+                      </span>
+                    )}
+                    {it.needsMaterial && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                        متریال
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {designLate && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                      طراحی معوق
+                    </span>
+                  )}
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-muted">
+                    {stage?.label ?? it.stage}
+                  </span>
+                  <span className="text-xs font-semibold tabular-nums" dir="ltr">
+                    {(it.totalAmount ?? 0).toLocaleString("en-US")}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

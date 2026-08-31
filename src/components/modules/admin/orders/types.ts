@@ -14,6 +14,7 @@ export type OrderItem = {
   productId: string;
   product: { name: string };
   quantity: number;
+  pricePerUnit: number;
   totalAmount: number;
   note: string | null;
   description: string | null;

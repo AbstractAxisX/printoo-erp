@@ -22,12 +22,21 @@ import { StatusBadge, PriorityBadge } from "@/components/shared";
 import { OrderRowActions } from "./order-row-actions";
 import type { Order } from "./types";
 
+/** اعداد فارسی برای چیپ‌های ردیف */
+function toFa(n: number) {
+  return n.toLocaleString("fa-IR");
+}
+
 export type OrderColumnActions = {
   onOpenDetail: (o: Order) => void; // row click → detail modal
   onOpenNote: (o: Order) => void; // status cell → note modal
   onOpenStatus: (o: Order) => void; // status cell → status modal
   onOpenDelete: (o: Order) => void; // trash → delete confirm
   onEdit: (o: Order) => void; // pencil → edit wizard
+  /** Phase 9 — دکمهٔ ردیف → مودال جزئیات روی تب پیش‌فاکتور */
+  onOpenPreInvoice: (o: Order) => void;
+  /** Phase 9 — دکمهٔ ردیف → مودال جزئیات روی تب فاکتور */
+  onOpenInvoice: (o: Order) => void;
 };
 
 export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
@@ -35,13 +44,51 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     {
       accessorKey: "number",
       header: "شماره",
-      cell: ({ row }) => (
-        <span className="font-mono text-xs font-bold">
-          #{row.original.number}
-        </span>
-      ),
+      cell: ({ row }) => {
+        // Phase 9: سفارش گروهی چندآیتمی → شورون باز/بستهٔ آیتم‌ها.
+        // کلیک روی شورون فقط expand می‌کند؛ کلیک روی ردیف → مودال جزئیات.
+        const canExpand = (row.original.items?.length ?? 0) > 1;
+        const isGrouped = row.original.splitMode === "grouped";
+        return (
+          <div className="flex items-center gap-1.5">
+            {canExpand ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  row.toggleExpanded();
+                }}
+                aria-label={row.getIsExpanded() ? "بستن آیتم‌ها" : "باز کردن آیتم‌ها"}
+                className={cn(
+                  "size-6 rounded-md border grid place-items-center shrink-0 transition",
+                  row.getIsExpanded()
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "hover:bg-accent text-muted-foreground"
+                )}
+              >
+                <Icon
+                  name={row.getIsExpanded() ? "chevronDown" : "chevronLeft"}
+                  size={13}
+                />
+              </button>
+            ) : (
+              <span className="w-6 shrink-0" />
+            )}
+            <div className="flex flex-col items-start">
+              <span className="font-mono text-xs font-bold">
+                #{row.original.number}
+              </span>
+              {isGrouped && (row.original.items?.length ?? 0) > 1 && (
+                <span className="text-[10px] text-primary bg-primary/10 rounded px-1.5 py-0.5 flex items-center gap-0.5 mt-0.5">
+                  <Icon name="layers" size={9} />
+                  گروهی {toFa(row.original.items.length)} آیتم
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      },
       enableSorting: true,
-      size: 72,
+      size: 110,
     },
     {
       id: "customer",
@@ -67,8 +114,10 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
       header: "آیتم‌ها",
       cell: ({ row }) => {
         const items = row.original.items ?? [];
+        const canExpand = items.length > 1;
+        const designCount = items.filter((i) => i.stage === "design").length;
         return (
-          <div className="flex flex-wrap gap-1 max-w-[220px]">
+          <div className="flex flex-wrap items-center gap-1 max-w-[240px]">
             {items.slice(0, 2).map((it) => (
               <span
                 key={it.id}
@@ -85,10 +134,17 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
             {items.length === 0 && (
               <span className="text-xs text-muted-foreground">—</span>
             )}
+            {/* گیت طراحی: تا طراحی همهٔ آیتم‌ها تمام نشود سفارش جلو نمی‌رود */}
+            {canExpand && designCount > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 flex items-center gap-0.5">
+                <Icon name="design" size={9} />
+                {toFa(designCount)} در طراحی
+              </span>
+            )}
           </div>
         );
       },
-      size: 220,
+      size: 240,
     },
     {
       accessorKey: "status",
@@ -199,6 +255,8 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
           onNote={() => a.onOpenNote(row.original)}
           onDelete={() => a.onOpenDelete(row.original)}
           onEdit={() => a.onEdit(row.original)}
+          onPreInvoice={() => a.onOpenPreInvoice(row.original)}
+          onInvoice={() => a.onOpenInvoice(row.original)}
         />
       ),
       enableSorting: false,

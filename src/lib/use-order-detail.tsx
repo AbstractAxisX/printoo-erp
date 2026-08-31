@@ -20,7 +20,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { OrderDetail } from "@/components/shared/order-detail-modal";
+import type { OrderDetail, OrderDetailTab } from "@/components/shared/order-detail-modal";
 
 // Code-split the modal (and its tab components) out of the page bundle.
 // The raw loader is kept so preloadModal() can warm the same chunk.
@@ -59,12 +59,15 @@ async function fetchOrder(id: string): Promise<{ order: OrderDetail }> {
  * Usage:
  *   const { openOrder, modal, prefetchOrder } = useOrderDetail();
  *   <button onClick={() => openOrder(orderId)}>...</button>
+ *   <button onClick={() => openOrder(orderId, "preInvoice")}>...</button> // با تب مشخص
  *   <Row onMouseEnter={() => prefetchOrder(orderId)} /> // optional warm-up
  *   {modal}
  */
 export function useOrderDetail() {
   const [orderId, setOrderId] = React.useState<string | null>(null);
   const [open, setOpen] = React.useState(false);
+  // Phase 9: تب اولیه (مثلاً دکمهٔ پیش‌فاکتور ردیف → مستقیم تب پیش‌فاکتور)
+  const [initialTab, setInitialTab] = React.useState<OrderDetailTab | null>(null);
   const queryClient = useQueryClient();
 
   // Warm the code-split chunk as soon as a page using the modal mounts.
@@ -80,8 +83,9 @@ export function useOrderDetail() {
     gcTime: 5 * 60_000,
   });
 
-  const openOrder = React.useCallback((id: string) => {
+  const openOrder = React.useCallback((id: string, tab?: OrderDetailTab) => {
     setOrderId(id);
+    setInitialTab(tab ?? null);
     setOpen(true);
   }, []);
 
@@ -101,12 +105,16 @@ export function useOrderDetail() {
     <OrderDetailModal
       order={data?.order ?? null}
       open={open}
+      initialTab={initialTab}
       isError={isError}
       errorMessage={(error as Error | null)?.message}
       onRetry={() => refetch()}
       onOpenChange={(v) => {
         setOpen(v);
-        if (!v) setOrderId(null);
+        if (!v) {
+          setOrderId(null);
+          setInitialTab(null);
+        }
       }}
     />
   );

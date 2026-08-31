@@ -46,13 +46,22 @@ try {
     run("prisma db push --accept-data-loss");
   } catch {
     console.log(
-      "\n[predev] db push شکست خورد — ردیف‌های legacy پیش‌فاکتور حذف و تلاش دوباره..."
+      "\n[predev] db push شکست خورد — ردیف‌های legacy (PreInvoice/Invoice) حذف و تلاش دوباره..."
     );
     try {
-      execSync("prisma db execute --schema prisma/schema.prisma --stdin", {
-        stdio: "inherit",
-        input: 'DELETE FROM "PreInvoice";',
-      });
+      // فاز ۹: مدل Invoice بازسازی شد (ستون‌های required جدید) — ردیف‌های
+      // شکل قدیم باید حذف شوند تا ALTER TABLE ممکن شود. PreInvoice هم از
+      // فاز ۷ همین وضعیت را دارد. اسکریپت دیتای دمو بعداً همه را بازمی‌سازد.
+      for (const table of ["PreInvoice", "Invoice"]) {
+        try {
+          execSync("prisma db execute --schema prisma/schema.prisma --stdin", {
+            stdio: "inherit",
+            input: `DELETE FROM "${table}";`,
+          });
+        } catch {
+          // جدول ممکن است هنوز وجود نداشته باشد — بی‌خطر
+        }
+      }
       run("prisma db push --accept-data-loss");
     } catch (e) {
       console.error(

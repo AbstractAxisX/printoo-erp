@@ -647,6 +647,7 @@ export function OrderWizardPage() {
           printEnd={printEnd}
           setPrintEnd={setPrintEnd}
           itemsByCustomer={itemsByCustomer}
+          customerCount={customers.length}
         />
       )}
 
@@ -1130,8 +1131,9 @@ function Step3(props: {
   printStart: string; setPrintStart: (v: string) => void;
   printEnd: string; setPrintEnd: (v: string) => void;
   itemsByCustomer: Record<string, ItemDraft[]>;
+  customerCount: number;
 }) {
-  const { splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate, note, setNote, needsDesign, designStart, setDesignStart, designEnd, setDesignEnd, printStart, setPrintStart, printEnd, setPrintEnd, itemsByCustomer } = props;
+  const { splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate, note, setNote, needsDesign, designStart, setDesignStart, designEnd, setDesignEnd, printStart, setPrintStart, printEnd, setPrintEnd, itemsByCustomer, customerCount } = props;
   const allItems = Object.values(itemsByCustomer).flat();
 
   return (
@@ -1147,13 +1149,38 @@ function Step3(props: {
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setSplitMode("grouped")} className={cn("rounded-lg border p-3 text-right transition", splitMode === "grouped" ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-accent")}>
             <div className="flex items-center justify-between"><span className="font-medium text-sm">گروهی</span><Icon name={splitMode === "grouped" ? "checkCircle" : "orders"} size={18} className={splitMode === "grouped" ? "text-primary" : "text-muted-foreground"} /></div>
-            <p className="text-xs text-muted-foreground mt-1">همه آیتم‌ها در یک سفارش</p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              همهٔ آیتم‌ها در یک سفارش — آیتم‌ها «با هم» پیش می‌روند: تا طراحی
+              همهٔ آیتم‌های نیازمند طراحی تمام نشود، سفارش به چاپ نمی‌رود.
+            </p>
           </button>
           <button onClick={() => setSplitMode("separated")} className={cn("rounded-lg border p-3 text-right transition", splitMode === "separated" ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-accent")}>
             <div className="flex items-center justify-between"><span className="font-medium text-sm">تفکیک شده</span><Icon name={splitMode === "separated" ? "checkCircle" : "layers"} size={18} className={splitMode === "separated" ? "text-primary" : "text-muted-foreground"} /></div>
-            <p className="text-xs text-muted-foreground mt-1">هر آیتم یک سفارش مجزا</p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              هر آیتم یک سفارش کاملاً مجزا با گردش کار مستقل.
+            </p>
           </button>
         </div>
+        {customerCount > 1 && (
+          <div className="rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5 text-[11px] leading-relaxed flex items-start gap-1.5">
+            <Icon name="info" size={13} className="text-primary mt-0.5 shrink-0" />
+            <span>
+              {splitMode === "grouped" ? (
+                <>
+                  <b>حالت چند-مشتری + گروهی:</b> آیتم‌های هر مشتری در یک سفارش
+                  گروهی مخصوص همان مشتری ثبت می‌شوند — یعنی{" "}
+                  <b>{customerCount.toLocaleString("fa-IR")} سفارش گروهی</b>{" "}
+                  (هر مشتری، سفارش جداگانهٔ خودش).
+                </>
+              ) : (
+                <>
+                  <b>حالت چند-مشتری + تفکیک‌شده:</b> هر آیتم هر مشتری، یک سفارش
+                  کاملاً مجزا می‌شود.
+                </>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Priority */}

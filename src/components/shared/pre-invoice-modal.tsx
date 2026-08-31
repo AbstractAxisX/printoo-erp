@@ -77,6 +77,8 @@ type PreInvoiceModalProps = {
   onOpenChange: (v: boolean) => void;
   /** Phase 8 — اگر داده شود، مودال مستقیم روی سند چاپی همین پیش‌فاکتور باز می‌شود (چاپ بلافاصله پس از ثبت سفارش) */
   initialDocId?: string | null;
+  /** Phase 9 — نمای آغازین: تب پیش‌فاکتورِ مودال سفارش مستقیم فرم صدور را باز می‌کند */
+  initialView?: "list" | "issue" | "doc";
 };
 
 // ─── Jalali date fmt ─────────────────────────────────────────────────
@@ -91,7 +93,7 @@ const jShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   day: "2-digit",
 });
 
-export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId }: PreInvoiceModalProps) {
+export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, initialView }: PreInvoiceModalProps) {
   const invalidate = useInvalidate();
   const queryClient = useQueryClient();
   const [view, setView] = React.useState<"list" | "issue" | "doc">("list");
@@ -103,12 +105,16 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId }: P
       if (initialDocId) {
         setView("doc");
         setDocId(initialDocId);
+      } else if (initialView === "issue") {
+        // Phase 9 — تب پیش‌فاکتور: مستقیم فرم صدور
+        setView("issue");
+        setDocId(null);
       } else {
         setView("list");
         setDocId(null);
       }
     }
-  }, [open, orderId, initialDocId]);
+  }, [open, orderId, initialDocId, initialView]);
 
   // سفارش + اقلام برای فرم صدور
   const { data: orderData } = useQuery({

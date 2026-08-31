@@ -1,12 +1,12 @@
 "use client";
 
-// Printoo24 ERP — Order row actions (Phase 3 atomic split)
+// Printoo24 ERP — Order row actions (Phase 3 atomic split → Phase 9 wiring)
 //
-// Extracted from orders-page.tsx so the page stays ≤300 lines.
-// Pure presentational — receives callbacks, owns no state.
-//
-// Actions (cognitive-UX): note · edit · pre-invoice · invoice · delete.
-// Each is a tooltip-wrapped icon button — admin keeps a scannable, dense row.
+// Actions: note · edit · pre-invoice · invoice · delete.
+// فاز ۹: دکمهٔ پیش‌فاکتور/فاکتور واقعی شدند — مودال جزئیات سفارش را
+// مستقیم روی همان تب باز می‌کنند (نه toast «به‌زودی»):
+//   پیش‌فاکتور → openOrder(id, "preInvoice")  (صدور/ویرایش/چاپ)
+//   فاکتور     → openOrder(id, "invoice")     (گیت انبار/لجستیک)
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Icon } from "@/lib/icons";
-import { toast } from "sonner";
 import type { Order } from "./types";
 
 export type OrderRowActionsProps = {
@@ -23,6 +22,10 @@ export type OrderRowActionsProps = {
   onNote: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  /** Phase 9 — باز کردن تب پیش‌فاکتور در مودال جزئیات */
+  onPreInvoice: () => void;
+  /** Phase 9 — باز کردن تب فاکتور در مودال جزئیات */
+  onInvoice: () => void;
 };
 
 export function OrderRowActions({
@@ -30,7 +33,13 @@ export function OrderRowActions({
   onNote,
   onDelete,
   onEdit,
+  onPreInvoice,
+  onInvoice,
 }: OrderRowActionsProps) {
+  const isGrouped = order.splitMode === "grouped" && (order.items?.length ?? 0) > 1;
+  const invoiceEligible =
+    order.status === "warehouse_logistics" || order.status === "completed";
+
   return (
     <div className="flex items-center justify-center gap-0.5">
       <Tooltip>
@@ -39,6 +48,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7"
+            aria-label="یادداشت"
             onClick={(e) => {
               e.stopPropagation();
               onNote();
@@ -56,6 +66,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7"
+            aria-label="ویرایش"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
@@ -72,16 +83,22 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 hover:text-emerald-600"
+            className="size-7 hover:text-emerald-600 relative"
+            aria-label="پیش‌فاکتور"
             onClick={(e) => {
               e.stopPropagation();
-              toast.info("پیش‌فاکتور به‌زودی");
+              onPreInvoice();
             }}
           >
             <Icon name="receipt" size={14} />
+            {(order as { preInvoices?: unknown[] }).preInvoices?.length ? (
+              <span className="absolute -top-0.5 -left-0.5 size-1.5 rounded-full bg-emerald-500" />
+            ) : null}
           </Button>
         </TooltipTrigger>
-        <TooltipContent>پیش‌فاکتور</TooltipContent>
+        <TooltipContent>
+          {isGrouped ? "پیش‌فاکتور (سفارش گروهی)" : "پیش‌فاکتور"}
+        </TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -89,18 +106,19 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 hover:text-blue-600"
+            className="size-7 hover:text-cyan-600"
+            aria-label="فاکتور"
             onClick={(e) => {
               e.stopPropagation();
-              toast.info(
-                order.status === "completed" ? "فاکتور" : "سفارش تکمیل نشده"
-              );
+              onInvoice();
             }}
           >
             <Icon name="invoice" size={14} />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>فاکتور</TooltipContent>
+        <TooltipContent>
+          {invoiceEligible ? "فاکتور نهایی" : "فاکتور (پس از انبار/لجستیک)"}
+        </TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -109,6 +127,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7 hover:text-rose-600"
+            aria-label="حذف"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();

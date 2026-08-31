@@ -26,6 +26,7 @@ export type PrintOrder = {
   id: string;
   number: number;
   status: string;
+  splitMode: string;
   priority: string;
   designerNote: string | null;
   createdAt: string;
@@ -40,6 +41,7 @@ export type PrintOrder = {
     stage: string;
     printStartDate: string | null;
     printEndDate: string | null;
+    printCompletedAt: string | null;
   }[];
 };
 
@@ -48,6 +50,7 @@ type FullOrder = {
   id: string;
   number: number;
   status: string;
+  splitMode?: string;
   priority: string;
   designerNote: string | null;
   createdAt: string;
@@ -62,6 +65,7 @@ type FullOrder = {
     stage: string;
     printStartDate: string | null;
     printEndDate: string | null;
+    printCompletedAt: string | null;
   }[];
 };
 
@@ -73,6 +77,7 @@ function toPrintOrder(o: FullOrder | null | undefined): PrintOrder | null {
     id: o.id,
     number: o.number,
     status: o.status,
+    splitMode: o.splitMode ?? "grouped",
     priority: o.priority,
     designerNote: o.designerNote ?? null,
     createdAt: o.createdAt,
@@ -87,6 +92,7 @@ function toPrintOrder(o: FullOrder | null | undefined): PrintOrder | null {
       stage: it.stage,
       printStartDate: it.printStartDate ?? null,
       printEndDate: it.printEndDate ?? null,
+      printCompletedAt: it.printCompletedAt ?? null,
     })),
   };
 }
@@ -244,6 +250,31 @@ export function PrintOrderDetailModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ── Action: تکمیل چاپ یک آیتم (فاز ۹) ──────────────────────────
+  const completeItemMut = useMutation({
+    mutationFn: (itemId: string) =>
+      api<{ ok: boolean; advanced: boolean; remainingPrint: number; orderStatus: string }>(
+        `/api/orders/${orderId}/print-action`,
+        {
+          method: "POST",
+          body: JSON.stringify({ action: "complete_item", itemId }),
+        }
+      ),
+    onSuccess: (res) => {
+      invalidate(["orders", "dashboard", "open-orders"]);
+      qc.invalidateQueries({ queryKey: ["order", orderId] });
+      if (res.advanced) {
+        toast.success("چاپ سفارش کامل شد — سفارش به انبار و لجستیک ارسال شد");
+        setTimeout(() => onOpenChange(false), 900);
+      } else {
+        toast.success(
+          `چاپ آیتم تکمیل شد — ${res.remainingPrint} آیتم چاپ باقی مانده`
+        );
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // ── Action: register cost ────────────────────────────────────────
   const createCostMut = useMutation({
     mutationFn: () => {
@@ -339,7 +370,8 @@ export function PrintOrderDetailModal({
     confirmMaterialMut.isPending ||
     reportQcMut.isPending ||
     sendWarehouseMut.isPending ||
-    createCostMut.isPending;
+    createCostMut.isPending ||
+    completeItemMut.isPending;
 
   return (
     <>
@@ -409,6 +441,36 @@ export function PrintOrderDetailModal({
             </div>
           </div>
 
+          {/* Phase 9: نوار پیشرفت چاپ (سفارش گروهی) */}
+          {(() => {
+            const printItems = (order.items ?? []).filter((i) => i.stage === "print");
+            const donePrint = (order.items ?? []).filter(
+              (i) => i.stage !== "print" && i.printCompletedAt
+            );
+            const scope = printItems.length + donePrint.length;
+            if (scope <= 1) return null;
+            const pct = scope > 0 ? Math.round((donePrint.length / scope) * 100) : 0;
+            return (
+              <div className="mx-6 mt-3 rounded-lg border bg-amber-500/5 p-2.5">
+                <div className="flex items-center justify-between text-[11px] mb-1.5">
+                  <span className="font-medium flex items-center gap-1">
+                    <Icon name="layers" size={12} className="text-amber-600 dark:text-amber-400" />
+                    پیشرفت چاپ سفارش گروهی
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {donePrint.length.toLocaleString("fa-IR")} از {scope.toLocaleString("fa-IR")} آیتم
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Body — scrollable */}
           <div
             className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4"
@@ -420,10 +482,15 @@ export function PrintOrderDetailModal({
                 <Icon name="orders" size={13} /> آیتم‌های سفارش
               </div>
               <div className="space-y-2">
-                {(order.items ?? []).map((it, i) => (
+                {(order.items ?? []).map((it, i) => {
+                  const inPrint = it.stage === "print";
+                  return (
                   <div
                     key={it.id}
-                    className="rounded-lg border p-3 hover:bg-accent/30 transition"
+                    className={cn(
+                      "rounded-lg border p-3 hover:bg-accent/30 transition",
+                      inPrint && "border-amber-200 dark:border-amber-900/50 bg-amber-500/[0.03]"
+                    )}
                   >
                     <div className="flex items-start gap-2.5">
                       <span className="size-6 rounded-md bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 grid place-items-center text-xs font-bold shrink-0">
@@ -436,6 +503,11 @@ export function PrintOrderDetailModal({
                         {it.description && (
                           <div className="text-xs text-muted-foreground mt-0.5">
                             {it.description}
+                          </div>
+                        )}
+                        {it.printCompletedAt && (
+                          <div className="text-[10px] text-emerald-600 mt-1 tabular-nums flex items-center gap-1">
+                            <Icon name="check" size={10} /> چاپ شد: {formatDate(it.printCompletedAt)}
                           </div>
                         )}
                       </div>
@@ -456,6 +528,23 @@ export function PrintOrderDetailModal({
                             {it.materialConfirmed ? "متریال تأیید شد" : "نیازمند متریال"}
                           </span>
                         )}
+                        {/* Phase 9: تکمیل چاپ این آیتم */}
+                        {inPrint && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => completeItemMut.mutate(it.id)}
+                            disabled={actionPending}
+                            className="h-7 gap-1 border-amber-300 dark:border-amber-800 hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-300"
+                          >
+                            {completeItemMut.isPending && completeItemMut.variables === it.id ? (
+                              <Icon name="loading" size={12} className="animate-spin" />
+                            ) : (
+                              <Icon name="checkCircle" size={12} />
+                            )}
+                            تکمیل چاپ
+                          </Button>
+                        )}
                       </div>
                     </div>
                     {it.note && (
@@ -465,7 +554,8 @@ export function PrintOrderDetailModal({
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
                 {(order.items ?? []).length === 0 && (
                   <div className="text-xs text-muted-foreground py-3 text-center">
                     آیتمی برای این سفارش ثبت نشده است.
@@ -651,7 +741,10 @@ export function PrintOrderDetailModal({
             <Button
               size="sm"
               onClick={() => sendWarehouseMut.mutate()}
-              disabled={actionPending}
+              disabled={
+                actionPending ||
+                (order.items ?? []).filter((i) => i.stage === "print").length === 0
+              }
               className="gap-1.5"
             >
               {sendWarehouseMut.isPending ? (
@@ -659,7 +752,9 @@ export function PrintOrderDetailModal({
               ) : (
                 <Icon name="warehouse" size={14} />
               )}
-              ارسال به انبار
+              {(order.items ?? []).filter((i) => i.stage === "print").length > 1
+                ? "تکمیل همه و ارسال به انبار"
+                : "تکمیل و ارسال به انبار"}
             </Button>
           </DialogFooter>
         </DialogContent>

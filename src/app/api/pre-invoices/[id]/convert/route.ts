@@ -53,15 +53,37 @@ export async function POST(
       // شماره‌گذاری اتمیک و خودترمیم — lib/counter
       const num = await nextNumber(tx, "invoice");
 
+      // Phase 9: فاکتور با قرارداد کامل (اقلام + تخفیف + مالیات +
+      // سررسید ۳۰ روزه + source=pre_invoice). اقلام از خود PI منتقل
+      // می‌شوند — تجزیهٔ JSON و ساخت مجدد برای سازگاری شکل.
+      let items: unknown = existing.items;
+      try {
+        items = JSON.stringify(JSON.parse(existing.items));
+      } catch {
+        // اقلام legacy — همان رشته منتقل می‌شود
+      }
+
       const invoice = await tx.invoice.create({
         data: {
           number: num,
           orderId: existing.orderId,
           customerId: existing.customerId,
+          status: "issued",
+          items: items as string,
+          subtotal: existing.subtotal,
+          discountAmount: existing.discountAmount,
+          taxRate: existing.taxRate,
+          taxAmount: existing.taxAmount,
           totalAmount: existing.totalAmount,
           paidAmount: existing.paidAmount,
-          discountAmount: existing.discountAmount,
-          items: existing.items,
+          dueDate: (() => {
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            return d;
+          })(),
+          notes: existing.notes,
+          terms: existing.terms,
+          source: "pre_invoice",
         },
       });
 

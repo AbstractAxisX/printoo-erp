@@ -79,7 +79,7 @@ export function OverviewTab({
   onNoteChange: (v: string) => void;
   onSaveNote: () => void;
   savingNote: boolean;
-  onGoTab: (t: "items" | "tasks" | "costs" | "finance" | "history") => void;
+  onGoTab: (t: "items" | "tasks" | "costs" | "preInvoice" | "invoice" | "history") => void;
 }) {
   const next = NEXT_ACTION[status];
   const unpaid = Math.max(0, order.totalAmount - order.paidAmount);
@@ -156,7 +156,7 @@ export function OverviewTab({
           </div>
         </button>
         <button
-          onClick={() => onGoTab("finance")}
+          onClick={() => onGoTab("preInvoice")}
           className="rounded-lg border p-3 text-right hover:bg-accent/30 transition"
         >
           <div className="text-[10px] text-muted-foreground">باقی‌مانده</div>
@@ -675,16 +675,22 @@ export function CostsTab({ order }: { order: OrderDetail }) {
   );
 }
 
-// ─── 5. Finance tab (replaces the no-op "فاکتور" button — R5 fix) ──
-export function FinanceTab({
+// ─── 5. Pre-invoice tab (فاز ۹ — جایگزین FinanceTab) ────────────
+// مدیریت کامل پیش‌فاکتور داخل مودال جزئیات:
+//   صادرنشده → CTA صدور همان‌جا (فرم صدور در PreInvoiceModal با initialView="issue")
+//   صادرشده  → ردیف‌های وضعیت‌دار + مشاهده/ویرایش/چاپ هر سند
+export function PreInvoiceTab({
   order,
-  onPreInvoice,
+  onIssue,
+  onOpenDoc,
 }: {
   order: OrderDetail;
-  onPreInvoice: () => void;
+  onIssue: () => void;
+  onOpenDoc: (piId: string) => void;
 }) {
   const unpaid = Math.max(0, order.totalAmount - order.paidAmount);
   const hasPreInvoice = (order.preInvoices?.length ?? 0) > 0;
+
   return (
     <div className="space-y-3">
       {/* Summary */}
@@ -709,40 +715,66 @@ export function FinanceTab({
         </div>
       </div>
 
-      {/* Pre-invoices — Phase 7: status-aware rows, click opens management */}
-      <div className="rounded-lg border">
-        <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
-          <span className="text-xs font-medium flex items-center gap-1.5">
-            <Icon name="receipt" size={13} /> پیش‌فاکتورها
-          </span>
-          <Button size="sm" variant="outline" onClick={onPreInvoice} className="h-7 gap-1 text-xs">
-            <Icon name="plus" size={12} />
-            {hasPreInvoice ? "مدیریت" : "صدور"}
+      {/* صادرنشده → صدور همان‌جا */}
+      {!hasPreInvoice && (
+        <div className="rounded-xl border border-dashed p-8 flex flex-col items-center gap-3 text-center">
+          <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center">
+            <Icon name="receipt" size={24} />
+          </div>
+          <div className="font-semibold text-sm">پیش‌فاکتوری صادر نشده است</div>
+          <div className="text-xs text-muted-foreground leading-relaxed max-w-sm">
+            پیش‌فاکتور را همین‌جا صادر کنید — اقلام از سفارش پیش‌پر می‌شوند و سند
+            قابل چاپ PDF خواهد بود.
+          </div>
+          <Button size="sm" onClick={onIssue} className="mt-1 gap-1.5">
+            <Icon name="plus" size={14} /> صدور پیش‌فاکتور
           </Button>
         </div>
-        <div className="divide-y">
-          {order.preInvoices?.length ? (
-            order.preInvoices.map((pi) => {
+      )}
+
+      {/* صادرشده → ردیف‌های وضعیت‌دار */}
+      {hasPreInvoice && (
+        <div className="rounded-lg border">
+          <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
+            <span className="text-xs font-medium flex items-center gap-1.5">
+              <Icon name="receipt" size={13} /> پیش‌فاکتورهای سفارش
+            </span>
+            <Button size="sm" variant="outline" onClick={onIssue} className="h-7 gap-1 text-xs">
+              <Icon name="plus" size={12} /> صدور جدید
+            </Button>
+          </div>
+          <div className="divide-y">
+            {order.preInvoices?.map((pi) => {
               const st = (pi.status ?? "draft") as keyof typeof PI_STATUS_BADGE;
               const badge = PI_STATUS_BADGE[st] ?? PI_STATUS_BADGE.draft;
+              const isConverted = st === "converted";
+              const isExpired =
+                pi.validUntil && !isConverted ? new Date(pi.validUntil) < new Date() : false;
               return (
-                <button
+                <div
                   key={pi.id}
-                  onClick={onPreInvoice}
-                  className="w-full text-right px-3 py-2 flex items-center justify-between hover:bg-accent/40 transition"
+                  className="px-3 py-2.5 flex items-center justify-between gap-2 hover:bg-accent/30 transition"
                 >
-                  <div>
-                    <div className="text-sm font-medium flex items-center gap-2">
+                  <button
+                    onClick={() => onOpenDoc(pi.id)}
+                    className="flex-1 min-w-0 text-right"
+                  >
+                    <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
                       پیش‌فاکتور #{pi.number}
                       <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
                         {badge.label}
                       </span>
+                      {isExpired && (
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                          منقضی
+                        </span>
+                      )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
                       {pi.issueDate || pi.date ? formatDate(pi.issueDate ?? pi.date!) : ""}
                     </div>
-                  </div>
-                  <div className="text-left">
+                  </button>
+                  <div className="text-left shrink-0">
                     <div className="text-sm font-semibold tabular-nums" dir="ltr">
                       {formatCurrency(pi.totalAmount)}
                     </div>
@@ -750,49 +782,32 @@ export function FinanceTab({
                       پرداخت: {formatCurrency(pi.paidAmount)}
                     </div>
                   </div>
-                </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="size-7"
+                      onClick={() => onOpenDoc(pi.id)}
+                      title={isConverted ? "مشاهده و چاپ" : "مشاهده / ویرایش / چاپ"}
+                    >
+                      <Icon name="edit" size={13} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="size-7 hover:text-emerald-600"
+                      onClick={() => onOpenDoc(pi.id)}
+                      title="چاپ / PDF"
+                    >
+                      <Icon name="print" size={13} />
+                    </Button>
+                  </div>
+                </div>
               );
-            })
-          ) : (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              پیش‌فاکتوری صادر نشده است.
-            </div>
-          )}
+            })}
+          </div>
         </div>
-      </div>
-
-      {/* Invoice (real display — was a no-op button, R5 fixed) */}
-      <div className="rounded-lg border">
-        <div className="px-3 py-2 border-b bg-muted/30">
-          <span className="text-xs font-medium flex items-center gap-1.5">
-            <Icon name="invoice" size={13} /> فاکتور رسمی
-          </span>
-        </div>
-        <div className="px-3 py-2">
-          {order.invoice ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">فاکتور #{order.invoice.number}</div>
-                <div className="text-[11px] text-muted-foreground">
-                  {order.invoice.date ? formatDate(order.invoice.date) : ""}
-                </div>
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-semibold tabular-nums" dir="ltr">
-                  {formatCurrency(order.invoice.totalAmount)}
-                </div>
-                <div className="text-[11px] text-emerald-600 tabular-nums" dir="ltr">
-                  پرداخت: {formatCurrency(order.invoice.paidAmount)}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground py-1">
-              فاکتور رسمی صادر نشده. (صدور فاکتور در ماژول مالی فعال خواهد شد.)
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -837,9 +852,9 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
   }
   if (order.invoice) {
     events.push({
-      date: order.invoice.date ?? order.invoice.id,
+      date: order.invoice.issueDate ?? order.invoice.id,
       icon: "invoice",
-      title: `فاکتور رسمی #${order.invoice.number} صادر شد`,
+      title: `فاکتور نهایی #${order.invoice.number} صادر شد`,
       subtitle: `مبلغ: ${formatCurrency(order.invoice.totalAmount)}`,
       tone: "emerald",
     });
