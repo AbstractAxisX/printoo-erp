@@ -58,12 +58,6 @@ export const FLOW_STATUSES: OrderStatusStr[] = [
   "warehouse_logistics",
 ];
 
-/** وضعیت‌هایی که در آن‌ها می‌توان فاکتور نهایی صادر کرد */
-export const INVOICE_ELIGIBLE_STATUSES: OrderStatusStr[] = [
-  "warehouse_logistics",
-  "completed",
-];
-
 /**
  * وضعیت موثر سفارش از جمع مرحله‌های آیتم‌ها:
  *   - اگر «هر» آیتمی در design باشد → pending_design (گیت طراحی)
@@ -216,9 +210,4 @@ export async function syncItemsToStatus(
     if (STAGE_RANK[target] >= 2) data.printCompletedAt = now;
     await tx.orderItem.update({ where: { id: it.id }, data });
   }
-}
-
-/** آیا این سفارش در مرحلهٔ صادرکردن فاکتور نهایی است؟ */
-export function canIssueInvoice(status: string): boolean {
-  return INVOICE_ELIGIBLE_STATUSES.includes(status as OrderStatusStr);
 }

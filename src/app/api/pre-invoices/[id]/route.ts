@@ -7,6 +7,7 @@ import {
   isPreInvoiceStatus,
   STATUS_TRANSITIONS,
 } from "@/lib/pre-invoice";
+import { mirrorInvoicePaid } from "@/lib/paid-sync";
 
 // ─── Pre-Invoice [id] API — Phase 7 rebuild ─────────────────────────
 //
@@ -40,6 +41,8 @@ const INCLUDE = {
       items: {
         select: {
           id: true,
+          note: true,
+          description: true,
           designStartDate: true,
           designEndDate: true,
           printStartDate: true,
@@ -155,12 +158,14 @@ export async function PUT(
       });
 
       // همگام‌سازی delta مبلغ پرداختی سفارش
+      // Phase 11: فاکتور صادرشدهٔ همین سفارش نیز آینه می‌شود
       const delta = newPaid - existing.paidAmount;
       if (delta !== 0) {
         await tx.order.update({
           where: { id: existing.orderId },
           data: { paidAmount: { increment: delta } },
         });
+        await mirrorInvoicePaid(tx, existing.orderId);
       }
       return pi;
     });
@@ -263,6 +268,8 @@ export async function DELETE(
             data: { paidAmount: { decrement: dec } },
           });
         }
+        // Phase 11: فاکتور صادرشده هم آینه شود
+        await mirrorInvoicePaid(tx, existing.orderId);
       }
     });
 

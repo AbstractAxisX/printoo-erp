@@ -1,12 +1,13 @@
 "use client";
 
-// Printoo24 ERP — Order row actions (Phase 3 atomic split → Phase 9 wiring)
+// Printoo24 ERP — Order row actions (Phase 3 atomic split → Phase 11 wiring)
 //
 // Actions: note · edit · pre-invoice · invoice · delete.
-// فاز ۹: دکمهٔ پیش‌فاکتور/فاکتور واقعی شدند — مودال جزئیات سفارش را
-// مستقیم روی همان تب باز می‌کنند (نه toast «به‌زودی»):
-//   پیش‌فاکتور → openOrder(id, "preInvoice")  (صدور/ویرایش/چاپ)
-//   فاکتور     → openOrder(id, "invoice")     (گیت انبار/لجستیک)
+// فاز ۱۱: دکمه‌های پیش‌فاکتور/فاکتور به مودال‌های «مستقل» متصل شدند —
+// مدیریت کامل (ویرایش/چاپ/چرخهٔ وضعیت/صدور) همان‌جا از جدول:
+//   پیش‌فاکتور → PreInvoiceModal (لیست سندها)
+//   فاکتور     → InvoiceModal (قفل تاییدی → فرم صدور → سند)
+// فاکتور آزاد است — هر زمان کارفرما بخواهد صادر می‌شود.
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Icon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import type { Order } from "./types";
 
 export type OrderRowActionsProps = {
@@ -37,8 +39,7 @@ export function OrderRowActions({
   onInvoice,
 }: OrderRowActionsProps) {
   const isGrouped = order.splitMode === "grouped" && (order.items?.length ?? 0) > 1;
-  const invoiceEligible =
-    order.status === "warehouse_logistics" || order.status === "completed";
+  const hasInvoice = !!(order as { invoice?: unknown }).invoice;
 
   return (
     <div className="flex items-center justify-center gap-0.5">
@@ -106,7 +107,7 @@ export function OrderRowActions({
           <Button
             variant="ghost"
             size="icon"
-            className="size-7 hover:text-cyan-600"
+            className={cn("size-7 hover:text-cyan-600", hasInvoice && "text-emerald-600")}
             aria-label="فاکتور"
             onClick={(e) => {
               e.stopPropagation();
@@ -117,7 +118,7 @@ export function OrderRowActions({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {invoiceEligible ? "فاکتور نهایی" : "فاکتور (پس از انبار/لجستیک)"}
+          {hasInvoice ? "فاکتور نهایی (ویرایش/چاپ)" : "صدور فاکتور نهایی"}
         </TooltipContent>
       </Tooltip>
 

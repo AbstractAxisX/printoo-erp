@@ -149,42 +149,68 @@
   }
 }
 
-/* Print styles for invoices */
+/* Print styles — Phase 11: سند A4 تمام‌صفحه (مثل سایت printoo24.com)
+   رویکرد جدید: در چاپ، کل اپ حذف می‌شود (display:none) و فقط دیالوگِ
+   سند (که Radix آن را مستقیم به body portal می‌کند) می‌ماند — سند از
+   صفحهٔ ۱ و لبه‌به‌لبه چاپ می‌شود؛ بدون صفحهٔ خالی اول. */
 @media print {
   .no-print { display: none !important; }
   .print-area { display: block !important; }
-  body { background: white !important; }
-  /* سند پیش‌فاکتور: فقط خود سند چاپ می‌شود، بقیهٔ اپ مخفی */
-  body * { visibility: hidden !important; }
-  .print-doc, .print-doc * { visibility: visible !important; }
-  .print-doc {
-    position: absolute !important;
-    inset-inline: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-height: none !important;
-    overflow: visible !important;
-    box-shadow: none !important;
-    border: none !important;
-    border-radius: 0 !important;
+  body {
     background: white !important;
-    /* رنگ‌های سند (سربرگ جدول‌ها و …) در چاپ حفظ شوند */
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  /* دیالوگ والد (fixed + max-h + overflow) نباید سند را برش بزند */
+  /* کل اپ حذف — فقط دیالوگ باز (سند) چاپ می‌شود */
+  body > *:not([data-slot="dialog-content"]) { display: none !important; }
   [data-slot="dialog-overlay"] { display: none !important; }
   [data-slot="dialog-content"] {
     position: static !important;
+    /* Tailwind v4 از خاصیت translate (نه transform) برای وسط‌چینی دیالوگ
+       استفاده می‌کند — هر سه باید در چاپ خنثی شوند وگرنه سند از صفحه
+       بیرون می‌افتد (x/y منفی). */
     transform: none !important;
+    translate: none !important;
+    rotate: none !important;
+    scale: none !important;
     max-height: none !important;
     max-width: none !important;
-    width: 100% !important;
+    width: auto !important;
     overflow: visible !important;
     background: white !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
   }
-  @page { margin: 12mm; }
+  /* قاب خاکستری دور سند در اپ — در چاپ حذف */
+  .doc-frame { background: transparent !important; padding: 0 !important; }
+  /* قیف اسکیل موبایل در چاپ آزاد می‌شود */
+  .doc-scaler { height: auto !important; overflow: visible !important; }
+  .doc-scaler > div { transform: none !important; width: auto !important; }
+  /* سند چاپی — عرض دقیق A4، بدون سایه/بُرُز */
+  .print-doc {
+    position: static !important;
+    display: block !important;
+    width: 210mm !important;
+    max-width: none !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+    margin: 0 !important;
+    /* رنگ‌های سربرگ تیره و اکسنت‌ها در چاپ حفظ شوند */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* جدول از ردیف نبریده شود (سندهای بلند چندصفحه‌ای) */
+  .print-doc tr { break-inside: avoid; }
+}
+
+/* Phase 11 — margin صفر برای سند لبه‌به‌لبه (خاصیت size A4 از داخل کامپوننت
+   P24Doc با <style media=print> تزریق می‌شود — خط لولهٔ CSS بیلد آن را حذف می‌کند). */
+@media print {
+  @page { margin: 0; }
 }

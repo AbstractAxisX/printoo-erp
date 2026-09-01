@@ -120,26 +120,31 @@ export function OrderWizardPage() {
   // Phase 10: تاریخ‌های طراحی/چاپ per-item شدند (در ItemDraft هر آیتم) —
   // این‌ها فقط ابزار «اعمال روی همه» در مرحلهٔ ۳ هستند.
 
-  const [preInvoiceEnabled, setPreInvoiceEnabled] = React.useState(false);
-  // Phase 7 — فرم پیش‌فاکتور حرفه‌ای (جایگزین نقشهٔ per-item paid تستی)
-  const [piDiscount, setPiDiscount] = React.useState("");
-  const [piTaxRate, setPiTaxRate] = React.useState("");
-  const [piPrepaid, setPiPrepaid] = React.useState("");
-  const [piValidDays, setPiValidDays] = React.useState("15");
-  const [piNotes, setPiNotes] = React.useState("");
-  // Phase 10 — در ویرایش، پیش‌فاکتورها فقط خلاصهٔ فقط-خواندنی هستند؛
-  // مدیریت کامل (صدور/وضعیت/چاپ) از تب «پیش‌فاکتور» مودال جزئیات انجام می‌شود.
-  const [editPreInvoices, setEditPreInvoices] = React.useState<{
-    id: string; number: number; status: string; totalAmount: number;
-  }[]>([]);
-  const [invoiceEnabled, setInvoiceEnabled] = React.useState(false);
+  // Phase 11 — پیش‌فاکتور دیگر در مرحلهٔ ۴ ویزارد نیست — «همیشگی» است و
+  // خودکار با سفارش ساخته می‌شود؛ مدیریت آن دقیقاً پس از ثبت کامل
+  // (صفحهٔ موفقیت) انجام می‌شود: ویرایش per-item / چاپ.
 
-  // Phase 8 — حالت موفقیت پس از ثبت + چاپ پیش‌فاکتور بلافاصله
+  // پاسخ POST /api/orders فاز 11 — همهٔ سندهای پیش‌فاکتور با متادیتا (per-item / کل گروه)
+  type SuccessPI = {
+    id: string;
+    number: number;
+    orderId: string;
+    orderNumber: number;
+    customerId: string;
+    customerName: string;
+    itemId: string | null;
+    itemLabel: string;
+    totalAmount: number;
+  };
   const [success, setSuccess] = React.useState<{
     orderNumbers: number[];
-    orderId: string | null;
-    preInvoice: { id: string; number: number } | null;
-    preInvoiceCount: number;
+    preInvoices: SuccessPI[];
+  } | null>(null);
+  // مقصد مودال پیش‌فاکتور (doc ویا edit)
+  const [piModal, setPiModal] = React.useState<{
+    orderId: string;
+    docId: string;
+    view: "doc" | "edit";
   } | null>(null);
   const [piModalOpen, setPiModalOpen] = React.useState(false);
 
@@ -197,19 +202,6 @@ export function OrderWizardPage() {
     setNoEndDate(!!order.noEndDate);
     setNote(order.note ?? "");
 
-    // Phase 10 — ویرایش: خلاصهٔ فقط-خواندنی پیش‌فاکتورها (مدیریت کامل از
-    // مودال جزئیات). فرم PI فقط در حالت «ایجاد» فعال است.
-    setEditPreInvoices(
-      (order.preInvoices ?? []).map((p) => ({
-        id: p.id,
-        number: p.number ?? 0,
-        status: p.status ?? "draft",
-        totalAmount: p.totalAmount ?? 0,
-      }))
-    );
-    setPreInvoiceEnabled(false);
-    setInvoiceEnabled(!!order.invoice);
-
     setLoadedOrderId(param);
   }, [param, editData, loadedOrderId]);
 
@@ -227,15 +219,9 @@ export function OrderWizardPage() {
     setEndDate("");
     setNoEndDate(false);
     setNote("");
-    setPreInvoiceEnabled(false);
-    setPiDiscount("");
-    setPiTaxRate("");
-    setPiPrepaid("");
-    setPiValidDays("15");
-    setPiNotes("");
-    setEditPreInvoices([]);
-    setInvoiceEnabled(false);
     setSuccess(null);
+    setPiModal(null);
+    setPiModalOpen(false);
   }
 
   const { data: customersData } = useQuery({
@@ -384,46 +370,43 @@ export function OrderWizardPage() {
         note: note || null,
         markCompleted: anyCompleted,
       };
-      // ─── Phase 10: پیش‌فاکتور — اقلام در «سرور» از خود آیتم‌های واقعی
-      // سفارش ساخته می‌شوند (طبق حالت):
-      //   مجزا یا چند-مشتری → پیش‌فاکتور per-item (هر آیتم سند خودش)
-      //   گروهیِ تک-مشتری → یک سند برای کل گروه
-      if (preInvoiceEnabled) {
-        body.preInvoice = {
-          discountAmount: Number(piDiscount) || 0,
-          taxRate: Number(piTaxRate) || 0,
-          paidAmount: Number(piPrepaid) || 0,
-          validDays: Number(piValidDays) || 15,
-          notes: piNotes || null,
-        };
-      }
-      if (invoiceEnabled && anyCompleted) {
-        body.invoice = { items: [], totalAmount: 0, paidAmount: 0, discountAmount: 0 };
-      }
+      // Phase 11: پیش‌فاکتور در مرحلهٔ ۴ ایجاد نمی‌شود — سرور خودکار
+      // با سفارش می‌سازد (مجزا/چند-مشتری → per-item؛ گروهی تک-مشتری →
+      // یک سند کل گروه) و پاسخ کامل می‌دهد تا صفحهٔ موفقیت
+      // مدیریت (ویرایش/چاپ) همان‌جا انجام شود.
       return api("/api/orders", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: async (data: unknown) => {
       const res = (data ?? {}) as {
         count?: number;
         created?: { id: string; number: number }[];
-        preInvoice?: { id: string; number: number } | null;
-        preInvoiceCount?: number;
+        preInvoices?: {
+          id: string;
+          number: number;
+          orderId: string;
+          orderNumber: number;
+          customerId: string;
+          customerName: string;
+          itemId: string | null;
+          itemLabel: string;
+          totalAmount: number;
+        }[];
       };
       invalidate(["orders"]);
       invalidate(["dashboard"]);
       invalidate(["notifications"]);
       invalidate(["order"]);
+      invalidate(["pre-invoices"]);
 
       if (isEditing) {
         toast.success("تغییرات سفارش ذخیره شد");
         navigate("admin", "orders");
       } else {
-        // Phase 8 — به‌جای پرش فوری، صفحهٔ موفقیت با چاپ پیش‌فاکتور
+        // Phase 11 — صفحهٔ موفقیت = مدیریت کامل پیش‌فاکتورها (به تفکیک
+        // آیتم/مشتری یا کل گروه) دقیقاً پس از ساخت کامل سفارش.
         setSuccess({
           orderNumbers: (res.created ?? []).map((o) => o.number),
-          orderId: res.created?.[0]?.id ?? null,
-          preInvoice: res.preInvoice ?? null,
-          preInvoiceCount: res.preInvoiceCount ?? (res.preInvoice ? 1 : 0),
+          preInvoices: res.preInvoices ?? [],
         });
       }
     },
@@ -451,7 +434,10 @@ export function OrderWizardPage() {
     );
   }
 
-  // ─── Phase 8: صفحهٔ موفقیت پس از ثبت — چاپ پیش‌فاکتور بلافاصله ────────
+  // ─── Phase 11: صفحهٔ موفقیت — مدیریت کامل پیش‌فاکتورها پس از ثبت کامل سفارش ──
+  // پیش‌فاکتور «همیشگی» است — خودکار صادر شد و دقیقاً اینجا مدیریت می‌شود:
+  //   • سفارش تفکیکی یا چند-مشتری → ردیف جدا به تفکیک مشتری و آیتم
+  //   • سفارش گروهی → یک سند برای کل گروه (هر ردیف = آیتم + مبلغ و جمع کل)
   if (success) {
     const nums = success.orderNumbers;
     const numsFa = nums.length
@@ -459,9 +445,27 @@ export function OrderWizardPage() {
         ? `#${toFa(nums[0])}`
         : `${toFa(nums.length)} سفارش (#${nums.map((n) => toFa(n)).join("، #")})`
       : "سفارش";
+    const pis = success.preInvoices;
+
+    // گروه‌بندی به تفکیک مشتری (خواستهٔ ۲ فاز ۹۸/۱۱)
+    const byCustomer = new Map<string, typeof pis>();
+    for (const pi of pis) {
+      const arr = byCustomer.get(pi.customerId) ?? [];
+      arr.push(pi);
+      byCustomer.set(pi.customerId, arr);
+    }
+    const customerEntries = [...byCustomer.entries()];
+    const multiCustomer = customerEntries.length > 1;
+    const piTotal = pis.reduce((s, pi) => s + (pi.totalAmount || 0), 0);
+
+    const openPi = (pi: (typeof pis)[number], view: "doc" | "edit") => {
+      setPiModal({ orderId: pi.orderId, docId: pi.id, view });
+      setPiModalOpen(true);
+    };
+
     return (
-      <div className="max-w-2xl mx-auto py-6">
-        <Card className="p-8 text-center space-y-5">
+      <div className="max-w-3xl mx-auto py-6 space-y-4">
+        <Card className="p-7 text-center space-y-4">
           <div className="size-16 rounded-full bg-emerald-500/15 text-emerald-600 grid place-items-center mx-auto">
             <Icon name="checkCircle" size={36} />
           </div>
@@ -470,30 +474,24 @@ export function OrderWizardPage() {
               {nums.length > 1 ? `${numsFa} با موفقیت ثبت شدند` : `سفارش ${numsFa} با موفقیت ثبت شد`}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {success.preInvoice ? (
-                success.preInvoiceCount > 1 ? (
-                  <>
-                    <span className="font-bold text-foreground">{toFa(success.preInvoiceCount)} پیش‌فاکتور</span> به‌ازای
-                    آیتم‌ها صادر شد — می‌توانید سند اول را چاپ کنید و بقیه را از تب
-                    «پیش‌فاکتور» جزئیات سفارش مدیریت کنید.
-                  </>
-                ) : (
-                  <>
-                    پیش‌فاکتور <span className="font-bold text-foreground">#{toFa(success.preInvoice.number)}</span> نیز صادر شد —
-                    می‌توانید همین حالا سند رسمی آن را چاپ کنید یا به‌صورت PDF ذخیره کنید.
-                  </>
-                )
+              {pis.length > 1 ? (
+                <>
+                  <span className="font-bold text-foreground">{toFa(pis.length)} پیش‌فاکتور</span>{" "}
+                  به‌ازای هر آیتم صادر شد — هر سند را می‌توانید ویرایش کنید،
+                  پر کنید و هر وقت خواستید چاپ کنید.
+                </>
+              ) : pis.length === 1 ? (
+                <>
+                  پیش‌فاکتور{" "}
+                  <span className="font-bold text-foreground">#{toFa(pis[0].number)}</span>{" "}
+                  به‌صورت خودکار صادر شد — می‌توانید همین اولی را
+                  چاپ کنید یا ابتدا ویرایش کنید و سپس چاپ.
+                </>
               ) : (
                 "از دکمه‌های زیر برای ادامه استفاده کنید."
               )}
             </p>
           </div>
-
-          {success.preInvoice && (
-            <Button size="lg" onClick={() => setPiModalOpen(true)} className="gap-2 w-full sm:w-auto">
-              <Icon name="print" size={17} /> چاپ پیش‌فاکتور / ذخیره PDF
-            </Button>
-          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
             <Button variant="outline" onClick={resetWizard} className="gap-2 w-full sm:w-auto">
@@ -505,12 +503,78 @@ export function OrderWizardPage() {
           </div>
         </Card>
 
-        {/* مودال پیش‌فاکتور — مستقیم روی سند چاپی باز می‌شود */}
+        {/* مدیریت پیش‌فاکتورها — به تفکیک مشتری/آیتم یا کل گروه */}
+        {pis.length > 0 && (
+          <Card className="overflow-hidden">
+            <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center gap-2.5 flex-wrap">
+              <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 grid place-items-center">
+                <Icon name="receipt" size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm">
+                  پیش‌فاکتورهای این ثبت
+                  {multiCustomer && " (به تفکیک مشتری)"}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {toFa(pis.length)} سند · جمع مبلغ:{" "}
+                  <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(piTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y">
+              {customerEntries.map(([cid, rows]) => (
+                <div key={cid}>
+                  {multiCustomer && (
+                    <div className="px-5 py-2 bg-muted/20 text-xs font-semibold flex items-center gap-1.5">
+                      <Icon name="customers" size={13} className="text-primary" />
+                      {rows[0]?.customerName ?? cid}
+                    </div>
+                  )}
+                  {rows.map((pi) => (
+                    <div key={pi.id} className="px-5 py-3 flex items-center gap-3 flex-wrap hover:bg-accent/20 transition">
+                      <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-black text-xs shrink-0">
+                        {pi.number}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {pi.itemLabel}
+                          {pi.itemId && (
+                            <span className="text-[11px] text-muted-foreground font-normal mr-2">
+                              سفارش #{toFa(pi.orderNumber)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground tabular-nums" dir="ltr">
+                          {formatCurrency(pi.totalAmount)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button size="sm" variant="outline" onClick={() => openPi(pi, "edit")} className="gap-1.5 h-8">
+                          <Icon name="edit" size={13} /> ویرایش پیش‌فاکتور
+                        </Button>
+                        <Button size="sm" onClick={() => openPi(pi, "doc")} className="gap-1.5 h-8">
+                          <Icon name="print" size={13} /> چاپ
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* مودال پیش‌فاکتور — مستقیم روی ویرایش یا سند چاپی باز می‌شود */}
         <PreInvoiceModal
-          orderId={success.orderId}
+          orderId={piModal?.orderId ?? null}
           open={piModalOpen}
-          onOpenChange={setPiModalOpen}
-          initialDocId={success.preInvoice?.id ?? null}
+          onOpenChange={(v) => {
+            setPiModalOpen(v);
+            if (!v) setPiModal(null);
+          }}
+          initialDocId={piModal?.docId ?? null}
+          initialView={piModal?.view ?? "doc"}
         />
       </div>
     );
@@ -629,23 +693,7 @@ export function OrderWizardPage() {
           noEndDate={noEndDate}
           note={note}
           needsDesign={needsDesign}
-          anyCompleted={anyCompleted}
           isEditing={isEditing}
-          editPreInvoices={editPreInvoices}
-          preInvoiceEnabled={preInvoiceEnabled}
-          setPreInvoiceEnabled={setPreInvoiceEnabled}
-          piDiscount={piDiscount}
-          setPiDiscount={setPiDiscount}
-          piTaxRate={piTaxRate}
-          setPiTaxRate={setPiTaxRate}
-          piPrepaid={piPrepaid}
-          setPiPrepaid={setPiPrepaid}
-          piValidDays={piValidDays}
-          setPiValidDays={setPiValidDays}
-          piNotes={piNotes}
-          setPiNotes={setPiNotes}
-          invoiceEnabled={invoiceEnabled}
-          setInvoiceEnabled={setInvoiceEnabled}
         />
       )}
 
@@ -1296,31 +1344,11 @@ function Step4(props: {
   noEndDate: boolean;
   note: string;
   needsDesign: boolean;
-  anyCompleted: boolean;
   isEditing: boolean;
-  editPreInvoices: { id: string; number: number; status: string; totalAmount: number }[];
-  preInvoiceEnabled: boolean;
-  setPreInvoiceEnabled: (v: boolean) => void;
-  piDiscount: string;
-  setPiDiscount: (v: string) => void;
-  piTaxRate: string;
-  setPiTaxRate: (v: string) => void;
-  piPrepaid: string;
-  setPiPrepaid: (v: string) => void;
-  piValidDays: string;
-  setPiValidDays: (v: string) => void;
-  piNotes: string;
-  setPiNotes: (v: string) => void;
-  invoiceEnabled: boolean;
-  setInvoiceEnabled: (v: boolean) => void;
 }) {
   const {
     customers, itemsByCustomer, allCustomers, splitMode, priority, endDate, noEndDate,
-    note, needsDesign, anyCompleted, isEditing, editPreInvoices,
-    preInvoiceEnabled, setPreInvoiceEnabled,
-    piDiscount, setPiDiscount, piTaxRate, setPiTaxRate, piPrepaid, setPiPrepaid,
-    piValidDays, setPiValidDays, piNotes, setPiNotes,
-    invoiceEnabled, setInvoiceEnabled,
+    note, needsDesign, isEditing,
   } = props;
   const [tab, setTab] = React.useState(customers[0] ?? "");
   const activeCid = tab || customers[0] || "";
@@ -1328,23 +1356,10 @@ function Step4(props: {
   const allItems = Object.values(itemsByCustomer).flat();
   const activeCustomer = allCustomers.find((c) => c.id === activeCid);
 
-  // قرارداد Phase 10 — per-item یا گروهی؟
+  // Phase 11 — پیش‌فاکتور همیشگی: مرحلهٔ ۴ فقط اطلاع‌رسانی می‌دهد که پس از ثبت،
+  // سندها خودکار صادر می‌شوند و در صفحهٔ موفقیت ویرایش/چاپ می‌شوند.
   const perItemPI = splitMode === "separated" || customers.length > 1;
   const piDocCount = perItemPI ? allItems.length : customers.length;
-
-  // ─── محاسبهٔ زندهٔ پیش‌فاکتور (همان فرمول سرور — lib/pre-invoice) ──
-  // حالت گروهیِ تک-مشتری: کل سفارش یک سند. حالت per-item: هر آیتم سندی
-  // با مالیات درصدی خودش (تخفیف/پیش‌پرداخت فقط روی اولین سند اعمال می‌شود).
-  const rate = Math.min(Math.max(0, Number(piTaxRate) || 0), 100);
-  const calcDoc = (subtotal: number, applyExtras: boolean) => {
-    const disc = applyExtras ? Math.min(Math.max(0, Number(piDiscount) || 0), subtotal) : 0;
-    const tax = Math.round((subtotal - disc) * (rate / 100));
-    return { subtotal, disc, tax, payable: Math.round(subtotal - disc + tax) };
-  };
-  const grandSubtotal = allItems.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
-  const grand = calcDoc(grandSubtotal, true);
-  const prepaid = Math.min(Math.max(0, Number(piPrepaid) || 0), grand.payable);
-  const remaining = grand.payable - prepaid;
 
   // خلاصهٔ زمان‌بندی گروه (برای پیش‌فاکتور گروهی و کارت‌های بازنگری)
   const groupSchedule = (() => {
@@ -1362,7 +1377,7 @@ function Step4(props: {
     <Card className="p-5 space-y-5">
       <div className="flex items-center gap-2.5">
         <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="checkCircle" size={20} /></div>
-        <div><h2 className="font-semibold">بازنگری و ثبت نهایی</h2><p className="text-xs text-muted-foreground">مرور کامل جزئیات و صدور پیش‌فاکتور در صورت نیاز</p></div>
+        <div><h2 className="font-semibold">بازنگری و ثبت نهایی</h2><p className="text-xs text-muted-foreground">مرور کامل جزئیات — پیش‌فاکتور پس از ثبت خودکار صادر می‌شود</p></div>
       </div>
 
       {/* ═══ ۱. خلاصهٔ سفارش ═══ */}
@@ -1477,126 +1492,23 @@ function Step4(props: {
         </section>
       )}
 
-      {/* ═══ ۵. پیش‌فاکتور ═══ */}
-      {isEditing ? (
-        // Phase 10 — ویرایش: خلاصهٔ فقط-خواندنی؛ مدیریت کامل از مودال جزئیات
-        <section className="rounded-xl border overflow-hidden">
-          <div className="px-4 py-3 bg-muted/30 border-b flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-muted text-muted-foreground grid place-items-center">
-              <Icon name="receipt" size={17} />
+      {/* ═══ ۵. پیش‌فاکتور (Phase 11 — همیشگی) ═══ */}
+      <section className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 overflow-hidden">
+        <div className="px-4 py-3 flex items-center gap-2.5">
+          <div className="size-8 rounded-lg bg-emerald-500/15 text-emerald-600 grid place-items-center">
+            <Icon name="receipt" size={17} />
+          </div>
+          <div>
+            <div className="font-semibold text-sm">
+              پیش‌فاکتور {perItemPI ? `(به‌ازای هر آیتم — ${toFa(piDocCount)} سند)` : "(یک سند برای کل گروه)"}
             </div>
-            <div>
-              <div className="font-semibold text-sm">پیش‌فاکتورهای این سفارش</div>
-              <div className="text-[11px] text-muted-foreground">
-                برای صدور/ویرایش/چاپ، از تب «پیش‌فاکتور» در جزئیات سفارش استفاده کنید
-              </div>
+            <div className="text-[11px] text-muted-foreground">
+              سندها همزمان با ثبت سفارش به‌صورت خودکار صادر می‌شوند — بلافاصله پس از ثبت، همان‌جا ویرایش و چاپ می‌شوند
+              {perItemPI ? "؛ زمان طراحی/چاپ هر آیتم روی سند خودش درج می‌شود" : "؛ زمان‌بندی کل گروه روی سند درج می‌شود"}
             </div>
           </div>
-          <div className="p-4 space-y-2">
-            {editPreInvoices.length === 0 ? (
-              <div className="text-xs text-muted-foreground py-2">
-                برای این سفارش پیش‌فاکتوری صادر نشده است — پس از ذخیره، از جزئیات سفارش صدور کنید.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {editPreInvoices.map((p) => (
-                  <div key={p.id} className="rounded-lg border px-3 py-2 flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">پیش‌فاکتور #{toFa(p.number)}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums" dir="ltr">{formatCurrency(p.totalAmount)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      ) : (
-        <section className={cn("rounded-xl border overflow-hidden transition-colors", preInvoiceEnabled && "border-emerald-300 dark:border-emerald-800")}>
-          <div className="px-4 py-3 bg-muted/30 border-b flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5">
-              <div className={cn("size-8 rounded-lg grid place-items-center", preInvoiceEnabled ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground")}>
-                <Icon name="receipt" size={17} />
-              </div>
-              <div>
-                <div className="font-semibold text-sm">
-                  صدور پیش‌فاکتور {perItemPI ? `(به‌ازای هر آیتم — ${toFa(piDocCount)} سند)` : "(یک سند برای کل گروه)"}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {perItemPI
-                    ? "هر آیتم پیش‌فاکتور مجزای خودش را می‌گیرد؛ زمان طراحی/چاپ همان آیتم روی سندش درج می‌شود"
-                    : "زمان‌بندی طراحی/چاپ کل گروه روی سند درج می‌شود"}
-                </div>
-              </div>
-            </div>
-            <ToggleButton checked={preInvoiceEnabled} onChange={setPreInvoiceEnabled} id="pi" activeColor="emerald" />
-          </div>
-
-          {preInvoiceEnabled && (
-            <div className="p-4 space-y-4">
-              {/* شرایط مالی */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Field label="تخفیف (IQD)" hint={perItemPI ? "فقط روی اولین سند" : undefined}>
-                  <Input type="number" min={0} dir="ltr" value={piDiscount} placeholder="0"
-                    onChange={(e) => setPiDiscount(e.target.value)} />
-                </Field>
-                <Field label="مالیات (٪)">
-                  <Input type="number" min={0} max={100} dir="ltr" value={piTaxRate} placeholder="0"
-                    onChange={(e) => setPiTaxRate(e.target.value)} />
-                </Field>
-                <Field label="پیش‌پرداخت دریافتی" hint={perItemPI ? "فقط روی اولین سند" : undefined}>
-                  <Input type="number" min={0} dir="ltr" value={piPrepaid} placeholder="0"
-                    onChange={(e) => setPiPrepaid(e.target.value)} />
-                </Field>
-                <Field label="اعتبار پیش‌فاکتور (روز)">
-                  <Input type="number" min={1} max={365} dir="ltr" value={piValidDays}
-                    onChange={(e) => setPiValidDays(e.target.value)} />
-                </Field>
-              </div>
-
-              <Field label="توضیحات پیش‌فاکتور" hint="روی سند چاپی نمایش داده می‌شود">
-                <Textarea rows={2} value={piNotes} onChange={(e) => setPiNotes(e.target.value)}
-                  placeholder="مثلاً: تحویل ۵ روز کاری پس از تایید طرح" />
-              </Field>
-
-              {/* محاسبهٔ زنده — کل */}
-              <div className="rounded-xl border bg-muted/20 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
-                <SumCell label="جمع کل اقلام" value={grand.subtotal} />
-                <SumCell label="تخفیف" value={grand.disc} tone="text-amber-600" />
-                <SumCell label={`مالیات${rate ? ` (${toFa(rate)}٪)` : ""}`} value={grand.tax} />
-                <SumCell label="قابل پرداخت (مجموع)" value={grand.payable} tone="text-primary" bold />
-                <SumCell label="باقیمانده" value={remaining} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
-              </div>
-              {perItemPI && (
-                <div className="text-[11px] text-muted-foreground flex items-start gap-1.5">
-                  <Icon name="info" size={13} className="mt-0.5 shrink-0" />
-                  <span>
-                    {toFa(piDocCount)} سند مجزا صادر می‌شود؛ مالیات {toFa(rate)}٪ روی هر سند جداگانه
-                    اعمال می‌شود و تخفیف/پیش‌پرداخت فقط روی «اولین» سند تا مجموع مبالغ
-                    با جمع سفارش همخوان بماند.
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* ═══ ۶. فاکتور نهایی (سفارش تکمیل‌شده) ═══ */}
-      {anyCompleted && !isEditing && (
-        <section className="rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 overflow-hidden">
-          <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-lg bg-blue-500/15 text-blue-600 grid place-items-center">
-                <Icon name="invoice" size={17} />
-              </div>
-              <div>
-                <div className="font-semibold text-sm">صدور فاکتور نهایی</div>
-                <div className="text-[11px] text-muted-foreground">برخی آیتم‌ها تکمیل‌شده‌اند — فاکتور رسمی پس از ثبت صادر می‌شود</div>
-              </div>
-            </div>
-            <ToggleButton checked={invoiceEnabled} onChange={setInvoiceEnabled} id="inv" activeColor="emerald" />
-          </div>
-        </section>
-      )}
+        </div>
+      </section>
     </Card>
   );
 }
@@ -1658,17 +1570,6 @@ function DateRangeCard({ icon, label, from, to, applicable }: {
           {has ? "زمان‌بندی شده" : "مشخص نشده"}
         </span>
       )}
-    </div>
-  );
-}
-
-function SumCell({ label, value, tone, bold }: { label: string; value: number; tone?: string; bold?: boolean }) {
-  return (
-    <div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
-      <div className={cn("text-sm mt-0.5 tabular-nums", bold ? "font-black text-lg" : "font-bold", tone)} dir="ltr">
-        {formatCurrency(value)}
-      </div>
     </div>
   );
 }

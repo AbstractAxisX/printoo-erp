@@ -1,11 +1,15 @@
 // Printoo24 ERP — app constants
 
+// هویت چاپی شرکت — مطابق سایت printoo24.com (طرح ارجاعی سند A4).
+// این مقادیر روی سربرگ پیش‌فاکتور/فاکتور چاپی درج می‌شوند.
 export const COMPANY = {
   name: "Printoo24",
   faName: "پرینتو ۲۴",
   tagline: "سامانه یکپارچه مدیریت چاپ",
-  phone: "+98 21 0000 0000",
+  phone: "776 227 8666",
   email: "info@printoo24.com",
+  website: "printoo24.com",
+  address: "Erbil, Kurdistan Region",
 };
 
 export const CURRENCY = "IQD";

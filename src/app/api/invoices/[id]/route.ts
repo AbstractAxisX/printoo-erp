@@ -6,6 +6,7 @@ import {
   isInvoiceStatus,
   INVOICE_STATUS_TRANSITIONS,
 } from "@/lib/invoice";
+import { redistributePiPaid, recomputeOrderPaidFromPIs } from "@/lib/paid-sync";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Invoices API — Phase 9 ────────────────────────────────────────
@@ -116,14 +117,14 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
         include: INCLUDE,
       });
 
-      // delta پرداخت روی سفارش (قدیمی → جدید)
-      const delta = computed.paidAmount - existing.paidAmount;
-      if (delta !== 0) {
-        await tx.order.update({
-          where: { id: existing.orderId },
-          data: { paidAmount: { increment: delta } },
-        });
-      }
+      // Phase 11 — مدل آینه‌ای: مبلغ پرداخت فاکتور = کل دریافتی.
+      // سفارش و پیش‌فاکتورها همین عدد را می‌گیرند
+      // («اگر تو فاکتور مبلغ پرداختی ادیت شد، تو پیش‌فاکتورم سینک بشه»).
+      await tx.order.update({
+        where: { id: existing.orderId },
+        data: { paidAmount: computed.paidAmount },
+      });
+      await redistributePiPaid(tx, existing.orderId, computed.paidAmount);
       return inv;
     });
 
@@ -167,7 +168,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const data: Record<string, unknown> = { status };
 
       if (status === "paid") {
-        // تسویهٔ کامل: paidAmount → totalAmount + delta روی سفارش
+        // تسویهٔ کامل (Phase 11 مدل آینه‌ای): paidAmount → totalAmount و
+        // کل دریافتی سفارش و پیش‌فاکتورها هم همین می‌شوند
         const diff = existing.totalAmount - existing.paidAmount;
         if (diff > 0) {
           data.paidAmount = existing.totalAmount;
@@ -175,6 +177,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             where: { id: existing.orderId },
             data: { paidAmount: { increment: diff } },
           });
+          await redistributePiPaid(tx, existing.orderId, existing.totalAmount);
         }
         await tx.notification.create({
           data: {
@@ -187,14 +190,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       }
 
       if (status === "cancelled") {
-        // باطل: برگشت پرداخت‌های ثبت‌شده
-        if (existing.paidAmount > 0) {
-          data.paidAmount = 0;
-          await tx.order.update({
-            where: { id: existing.orderId },
-            data: { paidAmount: { decrement: existing.paidAmount } },
-          });
-        }
+        // باطل (Phase 11): فاکتور دیگر آینه نیست — کل دریافتی
+        // سفارش به حالت «پیش از فاکتور» برمی‌گردد (Σ پرداخت پیش‌فاڣتورها)
+        data.paidAmount = 0;
+        await recomputeOrderPaidFromPIs(tx, existing.orderId);
       }
 
       const inv = await tx.invoice.update({ where: { id }, data, include: INCLUDE });
@@ -226,12 +225,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
     await db.$transaction(async (tx) => {
       await tx.invoice.delete({ where: { id } });
-      if (existing.paidAmount > 0) {
-        await tx.order.update({
-          where: { id: existing.orderId },
-          data: { paidAmount: { decrement: existing.paidAmount } },
-        });
-      }
+      // Phase 11: برگشت به حالت «پیش از فاکتور» — کل دریافتی = Σ پیش‌فاڣتورها
+      await recomputeOrderPaidFromPIs(tx, existing.orderId);
     });
 
     return NextResponse.json({ ok: true });

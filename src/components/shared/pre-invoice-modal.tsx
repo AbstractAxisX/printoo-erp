@@ -1,12 +1,18 @@
 "use client";
 
-// Printoo24 ERP — PreInvoiceModal (Phase 7 rebuild — از صفر)
+// Printoo24 ERP — PreInvoiceModal (Phase 11 rebuild)
 //
-// مدیریت عملیاتی پیش‌فاکتور سفارش در سه نما:
-//   1) list  → فهرست پیش‌فاکتورهای سفارش + وضعیت + اقدام‌ها + صدور جدید
-//   2) issue → فرم صدور: اقلام (قیمت واحد/تخفیف ردیف) + تخفیف کل + مالیات +
-//              پیش‌پرداخت + اعتبار + توضیحات — با محاسبهٔ زندهٔ مبالغ
-//   3) doc   → سند قابل چاپ (A4) + دکمه‌های چرخهٔ وضعیت و تبدیل به فاکتور
+// مودال مدیریت پیش‌فاکتور سفارش در چهار نما:
+//   1) list  → فهرست سندهای سفارش + وضعیت + اقدام‌ها + صدور جدید (fallback)
+//   2) issue → فرم صدور جدید (per-item یا کل گروه)
+//   3) edit  → ویرایش سند موجود (draft/sent/rejected) — «مودال تمیز و عریض
+//              با جزئیات پیش‌فاکتور که پر می‌شود و ثبت می‌شود» (خواستهٔ ۱)
+//   4) doc   → سند چاپی A4 با تم P24 + چرخهٔ وضعیت + چاپ/ذخیره PDF
+//
+// پیش‌فاکتور «همیشگی» است: با ثبت سفارش خودکار ساخته می‌شود (POST
+// /api/orders فاز ۱۱) — این مودال همان اولی را چاپ/ادیت می‌کند یا
+// بعد از ادیت چاپ می‌کند. از جدول سفارشات (آیکون) و تب «پیش‌فاکتور»
+// مودال جزئیات هم همین مودال باز می‌شود.
 //
 // چرخهٔ وضعیت: draft → sent → approved → converted (یا rejected)
 // چاپ: window.print() + کلاس print-doc در globals.css (فقط سند چاپ می‌شود)
@@ -25,11 +31,10 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { P24Doc, type P24DocItem } from "@/components/shared/p24-doc";
 import { COMPANY } from "@/lib/constants";
-import { formatCurrency, formatDate } from "@/lib/format";
 import {
   STATUS_META,
-  STATUS_TRANSITIONS,
   type PreInvoiceStatus,
   type PreInvoiceItem,
 } from "@/lib/pre-invoice";
@@ -57,6 +62,8 @@ export type PreInvoiceRow = {
     number: number;
     items?: {
       id: string;
+      note?: string | null;
+      description?: string | null;
       designStartDate: string | null;
       designEndDate: string | null;
       printStartDate: string | null;
@@ -69,21 +76,14 @@ export type PreInvoiceRow = {
   itemId?: string | null;
   item?: {
     id: string;
+    note?: string | null;
+    description?: string | null;
     designStartDate?: string | null;
     designEndDate?: string | null;
     printStartDate?: string | null;
     printEndDate?: string | null;
     product?: { name?: string | null } | null;
   } | null;
-  orderItems?: {
-    id: string;
-    designStartDate: string | null;
-    designEndDate: string | null;
-    printStartDate: string | null;
-    printEndDate: string | null;
-    designCompletedAt?: string | null;
-    printCompletedAt?: string | null;
-  }[];
 };
 
 type OrderRow = {
@@ -95,6 +95,8 @@ type OrderRow = {
   customer: { name: string; phone?: string | null } | null;
   items: {
     id: string;
+    note?: string | null;
+    description?: string | null;
     quantity: number;
     pricePerUnit: number;
     designStartDate?: string | null;
@@ -110,11 +112,11 @@ type PreInvoiceModalProps = {
   customerName?: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  /** Phase 8 — اگر داده شود، مودال مستقیم روی سند چاپی همین پیش‌فاکتور باز می‌شود (چاپ بلافاصله پس از ثبت سفارش) */
+  /** مستقیم روی سند چاپی این پیش‌فاکتور باز می‌شود */
   initialDocId?: string | null;
-  /** Phase 9 — نمای آغازین: تب پیش‌فاکتورِ مودال سفارش مستقیم فرم صدور را باز می‌کند */
-  initialView?: "list" | "issue" | "doc";
-  /** Phase 10 — صدور برای آیتم مشخص (سند per-item)؛ null/undefined = کل گروه */
+  /** نمای آغازین — Phase 11: "edit" برای دکمهٔ «ویرایش پیش‌فاکتور» صفحهٔ موفقیت */
+  initialView?: "list" | "issue" | "doc" | "edit";
+  /** صدور برای آیتم مشخص (سند per-item)؛ null/undefined = کل گروه */
   initialItemId?: string | null;
 };
 
@@ -130,24 +132,32 @@ const jShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
   day: "2-digit",
 });
 
-export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, initialView, initialItemId }: PreInvoiceModalProps) {
+function fmt(n: number) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+export function PreInvoiceModal({
+  orderId,
+  open,
+  onOpenChange,
+  initialDocId,
+  initialView,
+  initialItemId,
+}: PreInvoiceModalProps) {
   const invalidate = useInvalidate();
   const queryClient = useQueryClient();
-  const [view, setView] = React.useState<"list" | "issue" | "doc">("list");
+  const [view, setView] = React.useState<"list" | "issue" | "doc" | "edit">("list");
   const [docId, setDocId] = React.useState<string | null>(null);
-  // Phase 10 — آیتم هدف صدور (null = کل گروه)
+  // آیتم هدف صدور (null = کل گروه)
   const [issueItemId, setIssueItemId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (open) {
-      // Phase 8 — شروع مستقیم روی سند (مثلاً پس از ثبت سفارش برای چاپ PDF)
       if (initialDocId) {
-        setView("doc");
+        setView(initialView === "edit" ? "edit" : "doc");
         setDocId(initialDocId);
         setIssueItemId(null);
       } else if (initialView === "issue") {
-        // Phase 9 — تب پیش‌فاکتور: مستقیم فرم صدور
-        // Phase 10 — برای آیتم مشخص یا کل گروه
         setView("issue");
         setDocId(null);
         setIssueItemId(initialItemId ?? null);
@@ -157,7 +167,7 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
         setIssueItemId(null);
       }
     }
-  }, [open, orderId, initialDocId, initialView, initialItemId]);
+  }, [open, orderId]);
 
   // سفارش + اقلام برای فرم صدور
   const { data: orderData } = useQuery({
@@ -174,16 +184,17 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
     enabled: !!orderId && open && view === "list",
   });
 
-  // سند انتخاب‌شده
+  // سند انتخاب‌شده (doc + edit)
   const { data: docData } = useQuery({
     queryKey: ["pre-invoice", docId],
     queryFn: () => api<{ preInvoice: PreInvoiceRow }>(`/api/pre-invoices/${docId}`),
-    enabled: !!docId && view === "doc" && open,
+    enabled: !!docId && open,
   });
 
   const refresh = React.useCallback(() => {
     invalidate(["pre-invoices"]);
     invalidate(["order"]);
+    invalidate(["orders"]);
     queryClient.invalidateQueries({ queryKey: ["pre-invoice", docId] });
   }, [invalidate, queryClient, docId]);
 
@@ -196,10 +207,13 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
       }),
     onSuccess: (_d, v) => {
       toast.success(
-        v.status === "sent" ? "پیش‌فاکتور ارسال شد" :
-        v.status === "approved" ? "پیش‌فاکتور تایید شد" :
-        v.status === "rejected" ? "پیش‌فاکتور رد شد" :
-        "بازگشت به پیش‌نویس"
+        v.status === "sent"
+          ? "پیش‌فاکتور ارسال شد"
+          : v.status === "approved"
+          ? "پیش‌فاکتور تایید شد"
+          : v.status === "rejected"
+          ? "پیش‌فاکتور رد شد"
+          : "بازگشت به پیش‌نویس"
       );
       refresh();
     },
@@ -249,7 +263,10 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
               setIssueItemId(itemId);
               setView("issue");
             }}
-            onOpenDoc={(id) => { setDocId(id); setView("doc"); }}
+            onOpenDoc={(id) => {
+              setDocId(id);
+              setView("doc");
+            }}
           />
         )}
 
@@ -266,14 +283,30 @@ export function PreInvoiceModal({ orderId, open, onOpenChange, initialDocId, ini
           />
         )}
 
+        {view === "edit" && docData && (
+          <EditView
+            pi={docData.preInvoice}
+            onBack={() => {
+              setView("doc");
+              refresh();
+            }}
+          />
+        )}
+
         {view === "doc" && docData && (
           <DocView
             pi={docData.preInvoice}
-            onBack={() => { setView("list"); setDocId(null); }}
+            onBack={() => {
+              setView("list");
+              setDocId(null);
+            }}
+            onEdit={() => setView("edit")}
             onStatus={(status) => statusMut.mutate({ id: docData.preInvoice.id, status })}
             onConvert={() => convertMut.mutate(docData.preInvoice.id)}
             onDelete={() => deleteMut.mutate(docData.preInvoice.id)}
-            busy={statusMut.isPending || convertMut.isPending || deleteMut.isPending}
+            busy={
+              statusMut.isPending || convertMut.isPending || deleteMut.isPending
+            }
           />
         )}
       </DialogContent>
@@ -307,12 +340,12 @@ function ListView({
           <div>
             <h2 className="font-bold">پیش‌فاکتورهای سفارش</h2>
             <p className="text-xs text-muted-foreground">
-              صدور، ارسال، تایید و تبدیل به فاکتور نهایی
+              ویرایش، چاپ، ارسال، تایید و تبدیل به فاکتور نهایی
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          {/* Phase 10 — صدور برای آیتم‌های بدون سند */}
+          {/* صدور برای آیتم‌های بدون سند (fallback — پیش‌فاکتور همیشگی است) */}
           {(order?.items ?? []).some(
             (it) => !rows.some((pi) => (pi as { itemId?: string | null }).itemId === it.id)
           ) && (
@@ -341,7 +374,6 @@ function ListView({
           {rows.map((pi) => {
             const meta = STATUS_META[pi.status as PreInvoiceStatus] ?? STATUS_META.draft;
             const remaining = pi.totalAmount - pi.paidAmount;
-            // Phase 10 — سند مرتبط با کدام آیتم؟
             const piItemId = (pi as { itemId?: string | null }).itemId ?? null;
             const linkedItem = piItemId
               ? (order?.items ?? []).find((it) => it.id === piItemId)
@@ -384,12 +416,12 @@ function ListView({
                   </div>
                   <div className="text-left shrink-0">
                     <div className="text-sm font-bold tabular-nums" dir="ltr">
-                      {formatCurrency(pi.totalAmount)}
+                      {fmt(pi.totalAmount)}
                     </div>
                     <div className="text-[11px] text-muted-foreground tabular-nums">
-                      پیش‌پرداخت: <span className="text-emerald-600" dir="ltr">{formatCurrency(pi.paidAmount)}</span>
+                      پیش‌پرداخت: <span className="text-emerald-600" dir="ltr">{fmt(pi.paidAmount)}</span>
                       {" · "}
-                      مانده: <span className="text-rose-600" dir="ltr">{formatCurrency(remaining)}</span>
+                      مانده: <span className="text-rose-600" dir="ltr">{fmt(Math.max(0, remaining))}</span>
                     </div>
                   </div>
                   <Icon name="chevronLeft" size={15} className="text-muted-foreground group-hover:text-primary transition shrink-0" />
@@ -403,49 +435,49 @@ function ListView({
   );
 }
 
-// ═══════════════════════ 2) ISSUE VIEW ═══════════════════════════════
+// ═══════════════════ 2/3) FORM (issue + edit) ═══════════════════════
 type IssueItem = { key: string; name: string; unit: string; quantity: number; unitPrice: number; discount: number };
 
-function IssueView({
-  order,
-  itemId,
-  onBack,
-  onIssued,
+/** فرم مشترک صدور/ویرایش — «مودال تمیز و عریض با جزئیات پیش‌فاکتور» */
+function PiForm({
+  title,
+  subtitle,
+  initial,
+  scheduleHint,
+  submitLabel,
+  pending,
+  onSubmit,
+  onCancel,
 }: {
-  order: OrderRow | null;
-  /** Phase 10 — سند برای این آیتم صادر می‌شود؛ null = کل گروه؛ "__first__" = اولین آیتم بدون سند */
-  itemId: string | null;
-  onBack: () => void;
-  onIssued: (id: string) => void;
+  title: string;
+  subtitle: string;
+  initial: {
+    items: IssueItem[];
+    discountAmount: string;
+    taxRate: string;
+    paidAmount: string;
+    validDays: string;
+    notes: string;
+  };
+  scheduleHint?: React.ReactNode;
+  submitLabel: string;
+  pending: boolean;
+  onSubmit: (v: {
+    items: { name: string; quantity: number; unit: string; unitPrice: number; discount: number }[];
+    discountAmount: number;
+    taxRate: number;
+    paidAmount: number;
+    validDays: number;
+    notes: string | null;
+  }) => void;
+  onCancel: () => void;
 }) {
-  // اقلام: برای آیتم مشخص فقط همان آیتم؛ وگرنه همهٔ اقلام سفارش
-  const targetItems = React.useMemo(() => {
-    if (!order) return [];
-    if (itemId && itemId !== "__first__")
-      return order.items.filter((it) => it.id === itemId);
-    return order.items;
-  }, [order, itemId]);
-  const targetItem = itemId && itemId !== "__first__" ? targetItems[0] : null;
-
-  const [items, setItems] = React.useState<IssueItem[]>([]);
-  const [discountAmount, setDiscountAmount] = React.useState("");
-  const [taxRate, setTaxRate] = React.useState("");
-  const [paidAmount, setPaidAmount] = React.useState("");
-  const [validDays, setValidDays] = React.useState("15");
-  const [notes, setNotes] = React.useState("");
-
-  React.useEffect(() => {
-    setItems(
-      targetItems.map((it, i) => ({
-        key: `${it.id}-${i}`,
-        name: it.product?.name ?? "آیتم",
-        unit: it.product?.unit ?? "عدد",
-        quantity: it.quantity,
-        unitPrice: it.pricePerUnit,
-        discount: 0,
-      }))
-    );
-  }, [targetItems]);
+  const [items, setItems] = React.useState<IssueItem[]>(initial.items);
+  const [discountAmount, setDiscountAmount] = React.useState(initial.discountAmount);
+  const [taxRate, setTaxRate] = React.useState(initial.taxRate);
+  const [paidAmount, setPaidAmount] = React.useState(initial.paidAmount);
+  const [validDays, setValidDays] = React.useState(initial.validDays);
+  const [notes, setNotes] = React.useState(initial.notes);
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice - i.discount, 0);
   const disc = Math.min(Math.max(0, Number(discountAmount) || 0), subtotal);
@@ -458,70 +490,29 @@ function IssueView({
   const patchItem = (key: string, patch: Partial<IssueItem>) =>
     setItems((arr) => arr.map((i) => (i.key === key ? { ...i, ...patch } : i)));
 
-  const createMut = useMutation({
-    mutationFn: () =>
-      api<{ preInvoice: { id: string } }>("/api/pre-invoices", {
-        method: "POST",
-        body: JSON.stringify({
-          orderId: order?.id,
-          // Phase 10 — لینک به آیتم (per-item) یا null (کل گروه)
-          itemId: targetItem?.id ?? null,
-          items: items.map((i) => ({
-            name: i.name,
-            quantity: i.quantity,
-            unit: i.unit,
-            unitPrice: i.unitPrice,
-            discount: i.discount,
-          })),
-          discountAmount: disc,
-          taxRate: rate,
-          paidAmount: paid,
-          validDays: Number(validDays) || 15,
-          notes: notes || null,
-        }),
-      }),
-    onSuccess: (d) => {
-      toast.success(
-        targetItem ? "پیش‌فاکتور آیتم صادر شد" : "پیش‌فاکتور صادر شد"
-      );
-      onIssued(d.preInvoice.id);
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  if (!order) {
-    return <div className="p-10 text-center text-sm text-muted-foreground">در حال بارگذاری سفارش…</div>;
-  }
-
   return (
     <div className="p-5 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <button onClick={onBack} className="size-8 rounded-lg border grid place-items-center hover:bg-accent">
-            <Icon name="arrowRight" size={15} />
-          </button>
+          <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center">
+            <Icon name="receipt" size={19} />
+          </div>
           <div>
-            <h2 className="font-bold">
-              صدور پیش‌فاکتور{targetItem ? " آیتم" : ""}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              سفارش #{order.number} — {order.customer?.name}
-              {targetItem && ` — آیتم: ${targetItem.product?.name ?? "—"}`}
-            </p>
+            <h2 className="font-bold">{title}</h2>
+            <p className="text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
       </div>
 
-      {/* Phase 10 — زمان‌بندی طراحی/چاپِ همان آیتم یا کل گروه (خواستهٔ ۳) */}
-      <ScheduleChips item={targetItem ?? null} orderItems={order.items} />
+      {scheduleHint}
 
-      {/* اقلام — قیمت واحد و تخفیف ردیف قابل ویرایش */}
+      {/* اقلام — نام/تعداد/قیمت واحد/تخفیف ردیف قابل ویرایش */}
       <div className="rounded-xl border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>
               <th className="text-right font-medium px-3 py-2">شرح</th>
-              <th className="text-center font-medium px-2 py-2 w-16">تعداد</th>
+              <th className="text-center font-medium px-2 py-2 w-20">تعداد</th>
               <th className="text-center font-medium px-2 py-2 w-28">قیمت واحد</th>
               <th className="text-center font-medium px-2 py-2 w-24">تخفیف ردیف</th>
               <th className="text-center font-medium px-2 py-2 w-28">مبلغ کل</th>
@@ -530,25 +521,37 @@ function IssueView({
           <tbody className="divide-y">
             {items.map((i) => (
               <tr key={i.key}>
-                <td className="px-3 py-2 font-medium">{i.name}</td>
-                <td className="px-2 py-2 text-center tabular-nums">{i.quantity}</td>
+                <td className="px-3 py-2">
+                  <Input
+                    value={i.name}
+                    onChange={(e) => patchItem(i.key, { name: e.target.value })}
+                    className="h-8"
+                  />
+                </td>
                 <td className="px-2 py-2">
                   <Input
-                    type="number" min={0} dir="ltr" className="h-8 text-center"
+                    type="number" min={1} dir="ltr" className="h-8 text-center tabular-nums"
+                    value={i.quantity}
+                    onChange={(e) => patchItem(i.key, { quantity: Math.max(1, Number(e.target.value) || 1) })}
+                  />
+                </td>
+                <td className="px-2 py-2">
+                  <Input
+                    type="number" min={0} dir="ltr" className="h-8 text-center tabular-nums"
                     value={i.unitPrice}
                     onChange={(e) => patchItem(i.key, { unitPrice: Number(e.target.value) || 0 })}
                   />
                 </td>
                 <td className="px-2 py-2">
                   <Input
-                    type="number" min={0} dir="ltr" className="h-8 text-center"
+                    type="number" min={0} dir="ltr" className="h-8 text-center tabular-nums"
                     value={i.discount || ""}
                     placeholder="0"
                     onChange={(e) => patchItem(i.key, { discount: Number(e.target.value) || 0 })}
                   />
                 </td>
                 <td className="px-2 py-2 text-center font-semibold tabular-nums" dir="ltr">
-                  {formatCurrency(i.quantity * i.unitPrice - i.discount)}
+                  {fmt(i.quantity * i.unitPrice - i.discount)}
                 </td>
               </tr>
             ))}
@@ -566,7 +569,7 @@ function IssueView({
           <Input type="number" min={0} max={100} dir="ltr" value={taxRate} placeholder="0"
             onChange={(e) => setTaxRate(e.target.value)} />
         </Field>
-        <Field label="پیش‌پرداخت دریافتی">
+        <Field label="پیش‌پرداخت دریافتی" hint="با فاکتور و سفارش سینک می‌شود">
           <Input type="number" min={0} dir="ltr" value={paidAmount} placeholder="0"
             onChange={(e) => setPaidAmount(e.target.value)} />
         </Field>
@@ -591,13 +594,169 @@ function IssueView({
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-1">
-        <Button variant="outline" onClick={onBack}>انصراف</Button>
-        <Button onClick={() => createMut.mutate()} disabled={createMut.isPending || items.length === 0} className="gap-1.5">
-          {createMut.isPending ? <Icon name="loading" size={15} className="animate-spin" /> : <Icon name="check" size={15} />}
-          صدور پیش‌فاکتور
+        <Button variant="outline" onClick={onCancel}>انصراف</Button>
+        <Button
+          onClick={() =>
+            onSubmit({
+              items: items.map((i) => ({
+                name: i.name,
+                quantity: i.quantity,
+                unit: i.unit,
+                unitPrice: i.unitPrice,
+                discount: i.discount,
+              })),
+              discountAmount: disc,
+              taxRate: rate,
+              paidAmount: paid,
+              validDays: Number(validDays) || 15,
+              notes: notes || null,
+            })
+          }
+          disabled={pending || items.length === 0}
+          className="gap-1.5"
+        >
+          {pending ? <Icon name="loading" size={15} className="animate-spin" /> : <Icon name="check" size={15} />}
+          {submitLabel}
         </Button>
       </div>
     </div>
+  );
+}
+
+// ─── 2) ISSUE — صدور جدید ───────────────────────────────────────────
+function IssueView({
+  order,
+  itemId,
+  onBack,
+  onIssued,
+}: {
+  order: OrderRow | null;
+  /** سند برای این آیتم صادر می‌شود؛ null = کل گروه؛ "__first__" = اولین آیتم بدون سند */
+  itemId: string | null;
+  onBack: () => void;
+  onIssued: (id: string) => void;
+}) {
+  const targetItems = React.useMemo(() => {
+    if (!order) return [];
+    if (itemId && itemId !== "__first__")
+      return order.items.filter((it) => it.id === itemId);
+    return order.items;
+  }, [order, itemId]);
+  const targetItem = itemId && itemId !== "__first__" ? targetItems[0] : null;
+
+  const createMut = useMutation({
+    mutationFn: (v: {
+      items: { name: string; quantity: number; unit: string; unitPrice: number; discount: number }[];
+      discountAmount: number;
+      taxRate: number;
+      paidAmount: number;
+      validDays: number;
+      notes: string | null;
+    }) =>
+      api<{ preInvoice: { id: string } }>("/api/pre-invoices", {
+        method: "POST",
+        body: JSON.stringify({
+          orderId: order?.id,
+          itemId: targetItem?.id ?? null,
+          ...v,
+        }),
+      }),
+    onSuccess: (d) => {
+      toast.success(targetItem ? "پیش‌فاکتور آیتم صادر شد" : "پیش‌فاکتور صادر شد");
+      onIssued(d.preInvoice.id);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!order) {
+    return <div className="p-10 text-center text-sm text-muted-foreground">در حال بارگذاری سفارش…</div>;
+  }
+
+  return (
+    <PiForm
+      title={`صدور پیش‌فاکتور${targetItem ? " آیتم" : ""}`}
+      subtitle={`سفارش #${order.number} — ${order.customer?.name ?? "—"}${targetItem ? ` — آیتم: ${targetItem.product?.name ?? "—"}` : ""}`}
+      initial={{
+        items: targetItems.map((it, i) => ({
+          key: `${it.id}-${i}`,
+          name: it.product?.name ?? "آیتم",
+          unit: it.product?.unit ?? "عدد",
+          quantity: it.quantity,
+          unitPrice: it.pricePerUnit,
+          discount: 0,
+        })),
+        discountAmount: "",
+        taxRate: "",
+        paidAmount: "",
+        validDays: "15",
+        notes: "",
+      }}
+      scheduleHint={<ScheduleChips item={targetItem ?? null} orderItems={order.items} />}
+      submitLabel="صدور پیش‌فاکتور"
+      pending={createMut.isPending}
+      onSubmit={(v) => createMut.mutate(v)}
+      onCancel={onBack}
+    />
+  );
+}
+
+// ─── 3) EDIT — ویرایش سند موجود (Phase 11) ──────────────────────────
+function EditView({ pi, onBack }: { pi: PreInvoiceRow; onBack: () => void }) {
+  const parsed: PreInvoiceItem[] = React.useMemo(() => {
+    try {
+      return JSON.parse(pi.items);
+    } catch {
+      return [];
+    }
+  }, [pi.items]);
+
+  const saveMut = useMutation({
+    mutationFn: (v: {
+      items: { name: string; quantity: number; unit: string; unitPrice: number; discount: number }[];
+      discountAmount: number;
+      taxRate: number;
+      paidAmount: number;
+      validDays: number;
+      notes: string | null;
+    }) =>
+      api(`/api/pre-invoices/${pi.id}`, {
+        method: "PUT",
+        body: JSON.stringify(v),
+      }),
+    onSuccess: () => {
+      toast.success("پیش‌فاکتور به‌روزرسانی شد");
+      onBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <PiForm
+      title={`ویرایش پیش‌فاکتور #${pi.number}`}
+      subtitle={`${pi.customer?.name ?? "—"} — سفارش #${pi.order?.number ?? "—"}${
+        pi.item?.product?.name ? ` — آیتم: ${pi.item.product.name}` : ""
+      }`}
+      initial={{
+        items: parsed.map((it, i) => ({
+          key: `${pi.id}-${i}`,
+          name: it.name,
+          unit: it.unit,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          discount: it.discount,
+        })),
+        discountAmount: pi.discountAmount ? String(pi.discountAmount) : "",
+        taxRate: pi.taxRate ? String(pi.taxRate) : "",
+        paidAmount: pi.paidAmount ? String(pi.paidAmount) : "",
+        validDays: "15",
+        notes: pi.notes ?? "",
+      }}
+      scheduleHint={<ScheduleChips item={pi.item ?? null} orderItems={pi.order?.items ?? null} />}
+      submitLabel="ثبت تغییرات"
+      pending={saveMut.isPending}
+      onSubmit={(v) => saveMut.mutate(v)}
+      onCancel={onBack}
+    />
   );
 }
 
@@ -606,14 +765,13 @@ function SumBox({ label, value, tone }: { label: string; value: number; tone?: s
     <div>
       <div className="text-[10px] text-muted-foreground">{label}</div>
       <div className={cn("text-sm font-bold mt-0.5 tabular-nums", tone)} dir="ltr">
-        {formatCurrency(value)}
+        {fmt(value)}
       </div>
     </div>
   );
 }
 
-// ═══ Phase 10 — زمان‌بندی طراحی/چاپ روی پیش‌فاکتور (خواستهٔ ۳) ═══
-// سند per-item → تاریخ‌های همان آیتم؛ سند گروهی → خلاصهٔ min/max کل گروه.
+// ─── زمان‌بندی برای فرم (چیپ‌های حالت اپ) ────────────────────────────
 type SchedItem = {
   designStartDate?: string | null;
   designEndDate?: string | null;
@@ -623,7 +781,7 @@ type SchedItem = {
   printCompletedAt?: string | null;
 };
 
-function piSchedule(
+export function piSchedule(
   item: SchedItem | null,
   orderItems: readonly SchedItem[] | null | undefined
 ): {
@@ -660,7 +818,6 @@ function piSchedule(
   };
 }
 
-/** چیپ‌های زمان‌بندی برای فرم صدور (حالت اپ — نه چاپ) */
 function ScheduleChips({
   item,
   orderItems,
@@ -697,10 +854,11 @@ function ScheduleChips({
   );
 }
 
-// ═══════════════════════ 3) DOC VIEW (printable) ═════════════════════
+// ═══════════════════ 4) DOC VIEW (printable — P24 design) ═══════════
 function DocView({
   pi,
   onBack,
+  onEdit,
   onStatus,
   onConvert,
   onDelete,
@@ -708,30 +866,50 @@ function DocView({
 }: {
   pi: PreInvoiceRow;
   onBack: () => void;
+  onEdit: () => void;
   onStatus: (s: PreInvoiceStatus) => void;
   onConvert: () => void;
   onDelete: () => void;
   busy: boolean;
 }) {
   const items: PreInvoiceItem[] = React.useMemo(() => {
-    try { return JSON.parse(pi.items); } catch { return []; }
+    try {
+      return JSON.parse(pi.items);
+    } catch {
+      return [];
+    }
   }, [pi.items]);
 
-  // Phase 10 — زمان‌بندی روی سند (خواستهٔ ۳: «برای پیش‌فاکتور هم زمان طراحی
-  // و چاپ اینارو بیاره»): سند per-item → تاریخ همان آیتم؛ سند گروهی → کل گروه.
+  // زمان‌بندی روی سند: per-item → تاریخ همان آیتم؛ گروهی → min/max کل گروه
   const schedule = React.useMemo(
     () => piSchedule(pi.item ?? null, pi.order?.items ?? null),
     [pi.item, pi.order]
   );
-  const scheduleHas = !!(
-    schedule.designFrom || schedule.designTo ||
-    schedule.printFrom || schedule.printTo
-  );
+
+  // جزئیات هر ردیف: توضیح/یادداشت آیتم مرتبط (per-item با لینک مستقیم،
+  // گروهی با تطبیق ایندکسی اقلام سند با آیتم‌های سفارش)
+  const docItems: P24DocItem[] = React.useMemo(() => {
+    const oi = pi.order?.items ?? [];
+    return items.map((it, idx) => {
+      const linked = pi.item ?? (oi.length === items.length ? oi[idx] : null);
+      const details: string[] = [];
+      if (linked?.description?.trim()) details.push(linked.description.trim());
+      if (linked?.note?.trim()) details.push(`یادداشت: ${linked.note.trim()}`);
+      return {
+        name: it.name,
+        details,
+        quantity: it.quantity,
+        unit: it.unit,
+        unitPrice: it.unitPrice,
+        discount: it.discount,
+        total: it.total,
+      };
+    });
+  }, [items, pi.item, pi.order]);
 
   const status = pi.status as PreInvoiceStatus;
   const meta = STATUS_META[status] ?? STATUS_META.draft;
-  const remaining = pi.totalAmount - pi.paidAmount;
-  const isExpired = pi.validUntil ? new Date(pi.validUntil) < new Date() : false;
+  const editable = status === "draft" || status === "sent" || status === "rejected";
 
   return (
     <div className="flex flex-col">
@@ -742,6 +920,12 @@ function DocView({
         </button>
         <span className={cn("text-[11px] font-medium px-2.5 py-1 rounded-full", meta.badge)}>{meta.label}</span>
         <div className="flex-1" />
+        {/* ویرایش (خواستهٔ ۱: «دکمه ویرایش پیش فاکتور… پر کنه و ثبت کنه») */}
+        {editable && (
+          <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 h-8">
+            <Icon name="edit" size={13} /> ویرایش
+          </Button>
+        )}
         {/* چرخهٔ وضعیت */}
         {status === "draft" && (
           <Button size="sm" variant="outline" disabled={busy} onClick={() => onStatus("sent")} className="gap-1.5 h-8">
@@ -778,194 +962,35 @@ function DocView({
         </Button>
       </div>
 
-      {/* ─── سند چاپی ─── */}
-      <div className="print-doc bg-white text-slate-900 p-6 md:p-8" dir="rtl">
-        {/* سربرگ */}
-        <div className="flex items-start justify-between gap-4 border-b-2 border-slate-800 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="size-14 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-400 grid place-items-center text-white font-black text-xl">
-              P24
-            </div>
-            <div>
-              <div className="font-black text-lg">{COMPANY.faName} — {COMPANY.name}</div>
-              <div className="text-[11px] text-slate-500">{COMPANY.tagline}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5" dir="ltr">{COMPANY.phone} · {COMPANY.email}</div>
-            </div>
-          </div>
-          <div className="text-left">
-            <div className="font-black text-xl">پیش‌فاکتور فروش</div>
-            <div className="mt-1 text-sm">
-              شماره: <span className="font-bold tabular-nums">#{pi.number}</span>
-            </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
-              تاریخ صدور: {jDate.format(new Date(pi.issueDate))}
-            </div>
-            {pi.validUntil && (
-              <div className={cn("text-[11px] mt-0.5", isExpired ? "text-rose-600 font-bold" : "text-slate-500")}>
-                اعتبار تا: {jShort.format(new Date(pi.validUntil))}
-                {isExpired && " (منقضی)"}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* اطلاعات طرفین */}
-        <div className="grid grid-cols-2 gap-3 mt-5">
-          <div className="rounded-lg border border-slate-200 p-3">
-            <div className="text-[10px] font-bold text-slate-400 mb-1.5">مشخصات فروشنده</div>
-            <div className="font-bold text-sm">{COMPANY.faName}</div>
-            <div className="text-[11px] text-slate-500 mt-0.5" dir="ltr">{COMPANY.phone}</div>
-            <div className="text-[11px] text-slate-500" dir="ltr">{COMPANY.email}</div>
-          </div>
-          <div className="rounded-lg border border-slate-200 p-3">
-            <div className="text-[10px] font-bold text-slate-400 mb-1.5">مشخصات خریدار</div>
-            <div className="font-bold text-sm">{pi.customer?.name ?? orderCustomerFallback(pi)}</div>
-            {pi.customer?.phone && (
-              <div className="text-[11px] text-slate-500 mt-0.5" dir="ltr">{pi.customer.phone}</div>
-            )}
-            {pi.order && (
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                سفارش مرتبط: <span className="font-medium tabular-nums">#{pi.order.number}</span>
-              </div>
-            )}
-            {pi.item?.product?.name && (
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                آیتم سفارش: <span className="font-medium">{pi.item.product.name}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* زمان‌بندی اجرا (خواستهٔ ۳) — روی سند چاپی */}
-        {scheduleHas && (
-          <div className="mt-4 rounded-lg border border-slate-200 overflow-hidden">
-            <div className="bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-600">
-              {schedule.perItem ? "زمان‌بندی اجرای این آیتم" : "زمان‌بندی اجرای سفارش (کل گروه)"}
-            </div>
-            <div className="grid grid-cols-2 divide-x divide-x-reverse divide-slate-200 text-[11px] text-center">
-              <div className="px-2 py-2">
-                <div className="text-slate-400 text-[10px] mb-0.5">طراحی</div>
-                <div className="font-medium tabular-nums" dir="rtl">
-                  {schedule.designFrom ? jShort.format(new Date(schedule.designFrom)) : "—"}
-                  {" تا "}
-                  {schedule.designTo ? jShort.format(new Date(schedule.designTo)) : "بدون پایان"}
-                </div>
-                {!schedule.perItem && schedule.designDone && (
-                  <div className="text-[10px] text-emerald-700 mt-0.5">
-                    (تکمیل طراحی: {jShort.format(new Date(schedule.designDone))})
-                  </div>
-                )}
-              </div>
-              <div className="px-2 py-2">
-                <div className="text-slate-400 text-[10px] mb-0.5">چاپ</div>
-                <div className="font-medium tabular-nums" dir="rtl">
-                  {schedule.printFrom ? jShort.format(new Date(schedule.printFrom)) : "—"}
-                  {" تا "}
-                  {schedule.printTo ? jShort.format(new Date(schedule.printTo)) : "بدون پایان"}
-                </div>
-                {!schedule.perItem && schedule.printDone && (
-                  <div className="text-[10px] text-emerald-700 mt-0.5">
-                    (تکمیل چاپ: {jShort.format(new Date(schedule.printDone))})
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* اقلام */}
-        <table className="w-full mt-5 text-sm border border-slate-200 border-collapse">
-          <thead>
-            <tr className="bg-slate-100 text-[11px]">
-              <th className="border border-slate-200 px-2 py-2 w-8">#</th>
-              <th className="border border-slate-200 px-2 py-2 text-right">شرح کالا / خدمات</th>
-              <th className="border border-slate-200 px-2 py-2 w-14">تعداد</th>
-              <th className="border border-slate-200 px-2 py-2 w-14">واحد</th>
-              <th className="border border-slate-200 px-2 py-2 w-24">قیمت واحد</th>
-              <th className="border border-slate-200 px-2 py-2 w-20">تخفیف</th>
-              <th className="border border-slate-200 px-2 py-2 w-24">مبلغ کل</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i}>
-                <td className="border border-slate-200 px-2 py-2 text-center text-[11px] text-slate-500">{i + 1}</td>
-                <td className="border border-slate-200 px-2 py-2 font-medium">{it.name}</td>
-                <td className="border border-slate-200 px-2 py-2 text-center tabular-nums">{it.quantity}</td>
-                <td className="border border-slate-200 px-2 py-2 text-center text-[11px] text-slate-500">{it.unit}</td>
-                <td className="border border-slate-200 px-2 py-2 text-center tabular-nums" dir="ltr">{fmt(it.unitPrice)}</td>
-                <td className="border border-slate-200 px-2 py-2 text-center tabular-nums text-amber-700" dir="ltr">{it.discount ? fmt(it.discount) : "—"}</td>
-                <td className="border border-slate-200 px-2 py-2 text-center font-bold tabular-nums" dir="ltr">{fmt(it.total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* جمع‌بندی */}
-        <div className="flex justify-start mt-4">
-          <div className="w-full sm:w-80 rounded-lg border border-slate-200 overflow-hidden text-sm">
-            <Row label="جمع کل اقلام" value={fmt(pi.subtotal)} />
-            {pi.discountAmount > 0 && (
-              <Row label="تخفیف" value={`− ${fmt(pi.discountAmount)}`} tone="text-amber-700" />
-            )}
-            {pi.taxRate > 0 && (
-              <Row label={`مالیات بر ارزش افزوده (${pi.taxRate}٪)`} value={fmt(pi.taxAmount)} />
-            )}
-            <div className="flex items-center justify-between px-3 py-2.5 bg-slate-100 font-black">
-              <span>مبلغ قابل پرداخت</span>
-              <span className="tabular-nums" dir="ltr">{fmt(pi.totalAmount)} {CURRENCY_LABEL}</span>
-            </div>
-            <Row label="پیش‌پرداخت دریافتی" value={fmt(pi.paidAmount)} tone="text-emerald-700" />
-            <div className="flex items-center justify-between px-3 py-2.5 border-t font-bold">
-              <span>باقیمانده</span>
-              <span className={cn("tabular-nums", remaining > 0 ? "text-rose-700" : "text-emerald-700")} dir="ltr">
-                {fmt(remaining)} {CURRENCY_LABEL}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* توضیحات و شرایط */}
-        {(pi.notes || pi.terms) && (
-          <div className="mt-4 rounded-lg border border-slate-200 border-dashed p-3 text-[11px] text-slate-600 space-y-1">
-            {pi.notes && <div><span className="font-bold">توضیحات: </span>{pi.notes}</div>}
-            {pi.terms && <div><span className="font-bold">شرایط: </span>{pi.terms}</div>}
-          </div>
-        )}
-
-        {/* امضا */}
-        <div className="grid grid-cols-2 gap-8 mt-10 text-center text-[11px] text-slate-500">
-          <div>
-            <div className="border-t border-slate-300 pt-2 mx-8">مهر و امضای فروشنده</div>
-          </div>
-          <div>
-            <div className="border-t border-slate-300 pt-2 mx-8">مهر و امضای خریدار</div>
-          </div>
-        </div>
-
-        <div className="text-center text-[10px] text-slate-400 mt-6">
-          این پیش‌فاکتور پس از تایید مشتری به فاکتور نهایی تبدیل می‌شود · {COMPANY.name}
-        </div>
+      {/* ─── سند چاپی A4 — تم P24 ─── */}
+      <div className="doc-frame bg-muted/30 p-4" dir="rtl">
+        <P24Doc
+          title="Quotation"
+          faTitle="پیش‌فاکتور فروش"
+          number={pi.number}
+          issueDate={pi.issueDate}
+          customerName={pi.customer?.name ?? "—"}
+          customerPhone={pi.customer?.phone ?? null}
+          orderNumber={pi.order?.number ?? null}
+          validUntil={pi.validUntil ?? null}
+          items={docItems}
+          subtotal={pi.subtotal}
+          discount={pi.discountAmount}
+          taxRate={pi.taxRate}
+          taxAmount={pi.taxAmount}
+          total={pi.totalAmount}
+          paid={pi.paidAmount}
+          paidLabel="پیش‌پرداخت دریافتی"
+          schedule={
+            schedule.designFrom || schedule.designTo || schedule.printFrom || schedule.printTo
+              ? schedule
+              : null
+          }
+          notes={pi.notes ?? null}
+          terms={pi.terms ?? null}
+          closingNote={`این پیش‌فاکتور پس از تایید مشتری به فاکتور نهایی تبدیل می‌شود · ${COMPANY.name}`}
+        />
       </div>
-    </div>
-  );
-}
-
-function orderCustomerFallback(pi: PreInvoiceRow) {
-  return pi.customer?.name ?? "—";
-}
-
-const CURRENCY_LABEL = "IQD";
-
-function fmt(n: number) {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
-}
-
-function Row({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
-      <span className="text-slate-600">{label}</span>
-      <span className={cn("font-bold tabular-nums", tone)} dir="ltr">{value}</span>
     </div>
   );
 }

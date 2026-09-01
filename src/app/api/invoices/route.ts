@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { computeInvoice, isInvoiceStatus } from "@/lib/invoice";
-import { canIssueInvoice, INVOICE_ELIGIBLE_STATUSES } from "@/lib/order-flow";
+import { redistributePiPaid } from "@/lib/paid-sync";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -12,7 +12,7 @@ import { jsonError } from "@/lib/api-error";
 // POST /api/invoices  — صدور فاکتور نهایی برای سفارش
 //
 // گیت صدور: سفارش باید در «انبار و لجستیک» یا «پایان‌یافته» باشد
-// (INVOICE_ELIGIBLE_STATUSES). هر سفارش فقط یک فاکتور نهایی دارد
+// (Phase 11: آزاد — هر زمان کارفرما بخواهد). هر سفارش فقط یک فاکتور نهایی دارد
 // (orderId یکتا → 409). paidAmount به‌صورت افزایشی روی order.paidAmount.
 
 const INCLUDE = {
@@ -102,16 +102,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // گیت مرحله: فقط انبار/لجستیک به بعد
-    if (!canIssueInvoice(order.status)) {
-      return NextResponse.json(
-        {
-          error: `صدور فاکتور فقط در مرحلهٔ «انبار و لجستیک» یا «پایان‌یافته» ممکن است — وضعیت فعلی: ${order.status}`,
-          eligible: INVOICE_ELIGIBLE_STATUSES,
-        },
-        { status: 409 }
-      );
-    }
+    // Phase 11: گیت مرحله حذف شد — فاکتور آزاد است (خواستهٔ صریح:
+    // «خود فاکتورم بزن و ازاد باشه فاکتور رو هرموقت کارفرما دلش خواست
+    // صادر کنه»). قفل فقط تایید صریح در UI است.
 
     // یکتایی: هر سفارش یک فاکتور
     const conflict = await db.invoice.findUnique({
@@ -166,13 +159,14 @@ export async function POST(req: NextRequest) {
         include: INCLUDE,
       });
 
-      // قرارداد افزایشی paidAmount (مشترک با پیش‌فاکتور)
-      if (computed.paidAmount > 0) {
-        await tx.order.update({
-          where: { id: orderId },
-          data: { paidAmount: { increment: computed.paidAmount } },
-        });
-      }
+      // قرارداد آینه‌ای (مدل آینه‌ای فاز 11): paidAmount فاکتور =
+      // کل دریافتی → order.paidAmount همان می‌شود و پیش‌فاکتورهای
+      // سفارش از نو توزیع می‌شوند تا هر دو سند همیشه هم‌عدد باشند.
+      await tx.order.update({
+        where: { id: orderId },
+        data: { paidAmount: computed.paidAmount },
+      });
+      await redistributePiPaid(tx, orderId, computed.paidAmount);
 
       await tx.notification.create({
         data: {

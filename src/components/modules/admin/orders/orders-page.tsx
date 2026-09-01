@@ -24,6 +24,8 @@ import { Icon } from "@/lib/icons";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useOrderDetail } from "@/lib/use-order-detail";
 import { useAppStore } from "@/stores/app-store";
+import { PreInvoiceModal } from "@/components/shared/pre-invoice-modal";
+import { InvoiceModal } from "@/components/shared/invoice-modal";
 import {
   useOrdersFilters,
   OrdersFilterBar,
@@ -62,6 +64,9 @@ export function OrdersPage() {
   const [noteOrder, setNoteOrder] = React.useState<Order | null>(null);
   const [statusOrder, setStatusOrder] = React.useState<Order | null>(null);
   const [deleteOrder, setDeleteOrder] = React.useState<Order | null>(null);
+  // Phase 11 — مودال‌های مستقل پیش‌فاکتور/فاکتور (آیکون‌های ردیف جدول)
+  const [piOrder, setPiOrder] = React.useState<Order | null>(null);
+  const [invOrder, setInvOrder] = React.useState<Order | null>(null);
 
   // Columns: action callbacks are stable (setState setters + useCallback'd
   // openOrder/navigate), so identity churns only when they do.
@@ -71,9 +76,10 @@ export function OrdersPage() {
     onOpenStatus: (o) => setStatusOrder(o),
     onOpenDelete: (o) => setDeleteOrder(o),
     onEdit: (o) => navigate("admin", "orders-new", o.id),
-    // Phase 9 — دکمهٔ ردیف: مودال جزئیات مستقیم روی تب پیش‌فاکتور/فاکتور
-    onOpenPreInvoice: (o) => openOrder(o.id, "preInvoice"),
-    onOpenInvoice: (o) => openOrder(o.id, "invoice"),
+    // Phase 11 — دکمه‌های ردیف: مودال مستقل پیش‌فاکتور/فاکتور (مدیریت
+    // کامل همان‌جا — ویرایش/چاپ/چرخهٔ وضعیت — بدون رفتن به جزئیات)
+    onOpenPreInvoice: (o) => setPiOrder(o),
+    onOpenInvoice: (o) => setInvOrder(o),
   });
 
   return (
@@ -145,6 +151,19 @@ export function OrdersPage() {
         <OrderNoteModal order={noteOrder} onClose={() => setNoteOrder(null)} />
         <OrderStatusModal order={statusOrder} onClose={() => setStatusOrder(null)} />
         <OrderDeleteDialog order={deleteOrder} onClose={() => setDeleteOrder(null)} />
+
+        {/* Phase 11 — مودال‌های مستقل: آیکون پیش‌فاکتور/فاکتور ردیف */}
+        <PreInvoiceModal
+          orderId={piOrder?.id ?? null}
+          customerName={piOrder?.customer?.name}
+          open={!!piOrder}
+          onOpenChange={(v) => { if (!v) setPiOrder(null); }}
+        />
+        <InvoiceModal
+          orderId={invOrder?.id ?? null}
+          open={!!invOrder}
+          onOpenChange={(v) => { if (!v) setInvOrder(null); }}
+        />
 
         {modal}
       </div>

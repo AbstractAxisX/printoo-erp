@@ -7,6 +7,7 @@ import {
   isPreInvoiceStatus,
   itemsFromOrderItems,
 } from "@/lib/pre-invoice";
+import { mirrorInvoicePaid } from "@/lib/paid-sync";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -193,11 +194,14 @@ export async function POST(req: NextRequest) {
       });
 
       // همگام‌سازی افزایشی paidAmount سفارش (نه بازنویسی)
+      // Phase 11: اگر فاکتور نهایی صادر شده باشد، مبلغ آن هم آینه می‌شود
+      // («اگر مبلغ پرداختی ادیت شود، در پیش‌فاکتور/فاکتور سینک شود»).
       if (paid > 0) {
         await tx.order.update({
           where: { id: orderId },
           data: { paidAmount: { increment: paid } },
         });
+        await mirrorInvoicePaid(tx, orderId);
       }
       return pi;
     });

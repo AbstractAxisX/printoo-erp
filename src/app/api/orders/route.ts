@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import {
-  normalizeItems,
   computeTotals,
   itemsFromOrderItems,
   isPerItemInvoice,
@@ -45,23 +44,17 @@ type CreateBody = {
   noEndDate?: boolean;
   note?: string | null;
   moduleDates?: ModuleDates;
+  // Phase 11: پیش‌فاکتور «همیشگی» است — همیشه با سفارش ساخته می‌شود.
+  // پارامترهای مالی اختیاری‌اند (پیش‌فرض صفر/۱۵ روز) و پس از ثبت از
+  // صفحهٔ موفقیت قابل ویرایش/چاپ‌اند. فاکتور دیگر از ویزارد صادر نمی‌شود
+  // (هر زمان کارفرما بخواهد، از تب فاکتور/آیکون جدول).
   preInvoice?: {
-    // Phase 10: اقلام از خود آیتم‌های واقعی سفارش در سرور ساخته می‌شوند
-    // (payload مشتری فقط پارامترهای مالی است — باگ «payload مشترک آیتم‌های
-    // مشتری اول به همهٔ سفارش‌ها» رفع شد). آرایهٔ items فقط برای compat است.
-    items?: { name: string; quantity: number; unit?: string; unitPrice: number; discount?: number }[];
     discountAmount?: number;
     taxRate?: number;
     paidAmount?: number;
     validDays?: number;
     notes?: string | null;
     terms?: string | null;
-  } | null;
-  invoice?: {
-    items: { name: string; quantity: number; total: number; paid: number }[];
-    totalAmount: number;
-    paidAmount: number;
-    discountAmount: number;
   } | null;
   markCompleted?: boolean;
   createdBy?: string | null;
@@ -146,7 +139,6 @@ export async function POST(req: NextRequest) {
       note,
       moduleDates,
       preInvoice,
-      invoice,
       markCompleted,
       createdBy,
     } = body;
@@ -172,20 +164,39 @@ export async function POST(req: NextRequest) {
     // ─── R4 fix: atomic all-or-nothing via a single transaction ──────────
     // Pre-Phase-3, if createPreInvoice/createInvoice failed AFTER order.create,
     // the order was orphaned (paidAmount never bumped, invoice missing).
-    // Now the entire creation (order + pre-invoice + invoice + paidAmount
-    // bump) happens inside one Prisma transaction → any failure rolls back
+    // Now the entire creation (order + pre-invoices + paidAmount bump)
+    // happens inside one Prisma transaction → any failure rolls back
     // everything. nextNumber also runs inside tx → R3 race fixed.
     const created = await db.$transaction(async (tx) => {
       const result: { id: string; number: number; customerId: string }[] = [];
-      // اولین پیش‌فاکتور ساخته‌شده — برای «چاپ بلافاصله پس از ثبت» به کلاینت برمی‌گردد
-      let firstPreInvoice: { id: string; number: number } | null = null;
+      // Phase 11: همهٔ پیش‌فاکتورهای صادرشده با متادیتای کامل — صفحهٔ
+      // موفقیت با همین لیست مدیریت per-item/per-customer/گروهی را می‌سازد.
+      const preInvoices: {
+        id: string;
+        number: number;
+        orderId: string;
+        orderNumber: number;
+        customerId: string;
+        customerName: string;
+        itemId: string | null;
+        itemLabel: string;
+        totalAmount: number;
+      }[] = [];
       // Phase 10: شمارش کل پیش‌فاکتورهای صادرشده + کنترل تخصیص پیش‌پرداخت
       // (پیش‌پرداخت فقط روی «اولین» سند این ثبت اعمال می‌شود — نه به‌ازای هر سند).
-      let piCount = 0;
       let prepaidAssigned = false;
       // قرارداد Phase 10: مجزا یا چند-مشتری → پیش‌فاکتور per-item؛
       // گروهیِ تک-مشتری → یک پیش‌فاکتور برای کل گروه.
       const perItemPI = isPerItemInvoice(splitMode, customers.length);
+      // نام مشتری‌ها برای پاسخ (از tx)
+      const customerNames = new Map<string, string>();
+      for (const cid of customers) {
+        const c = await tx.customer.findUnique({
+          where: { id: cid },
+          select: { name: true },
+        });
+        if (c) customerNames.set(cid, c.name);
+      }
 
       for (const customerId of customers) {
         const items = itemsByCustomer[customerId] || [];
@@ -246,38 +257,53 @@ export async function POST(req: NextRequest) {
             include: { items: { include: { product: true } } },
           });
           result.push({ id: order.id, number: order.number, customerId });
-          if (preInvoice) {
-            if (perItemPI) {
-              // چند-مشتری گروهی: هر آیتمِ این مشتری پیش‌فاکتور خودش را می‌گیرد
-              for (const it of order.items) {
-                const pi = await createPreInvoice(
-                  tx,
-                  order,
-                  customerId,
-                  [itemsFromOrderItems([it])[0]],
-                  preInvoice,
-                  { itemId: it.id, assignPrepaid: !prepaidAssigned }
-                );
-                piCount++;
-                prepaidAssigned = prepaidAssigned || pi.paid > 0;
-                if (!firstPreInvoice) firstPreInvoice = { id: pi.id, number: pi.number };
-              }
-            } else {
-              // تک-مشتری گروهی: یک پیش‌فاکتور برای کل گروه
+          // Phase 11: پیش‌فاکتور همیشگی — بدون تابعیت به فلگ کاربر
+          if (perItemPI) {
+            // چند-مشتری گروهی: هر آیتمِ این مشتری پیش‌فاکتور خودش را می‌گیرد
+            for (const it of order.items) {
               const pi = await createPreInvoice(
                 tx,
                 order,
                 customerId,
-                itemsFromOrderItems(order.items),
+                [itemsFromOrderItems([it])[0]],
                 preInvoice,
-                { itemId: null, assignPrepaid: true }
+                { itemId: it.id, assignPrepaid: !prepaidAssigned }
               );
-              piCount++;
-              if (!firstPreInvoice) firstPreInvoice = { id: pi.id, number: pi.number };
+              prepaidAssigned = prepaidAssigned || pi.paid > 0;
+              preInvoices.push({
+                id: pi.id,
+                number: pi.number,
+                orderId: order.id,
+                orderNumber: order.number,
+                customerId,
+                customerName: customerNames.get(customerId) ?? "—",
+                itemId: it.id,
+                itemLabel: it.product?.name ?? "آیتم",
+                totalAmount: pi.total,
+              });
             }
+          } else {
+            // تک-مشتری گروهی: یک پیش‌فاکتور برای کل گروه
+            const pi = await createPreInvoice(
+              tx,
+              order,
+              customerId,
+              itemsFromOrderItems(order.items),
+              preInvoice,
+              { itemId: null, assignPrepaid: true }
+            );
+            preInvoices.push({
+              id: pi.id,
+              number: pi.number,
+              orderId: order.id,
+              orderNumber: order.number,
+              customerId,
+              customerName: customerNames.get(customerId) ?? "—",
+              itemId: null,
+              itemLabel: `کل گروه (${order.items.length} آیتم)`,
+              totalAmount: pi.total,
+            });
           }
-          if (invoice && markCompleted)
-            await createInvoice(tx, order.id, customerId, invoice);
         } else {
           // separated: one order per item
           for (const it of items) {
@@ -320,35 +346,41 @@ export async function POST(req: NextRequest) {
               include: { items: { include: { product: true } } },
             });
             result.push({ id: order.id, number: order.number, customerId });
-            if (preInvoice) {
-              // مجزا: هر آیتم = سفارش خودش = پیش‌فاکتور تک-آیتمیِ خودش
-              const pi = await createPreInvoice(
-                tx,
-                order,
-                customerId,
-                itemsFromOrderItems(order.items),
-                preInvoice,
-                { itemId: order.items[0]?.id ?? null, assignPrepaid: !prepaidAssigned }
-              );
-              piCount++;
-              prepaidAssigned = prepaidAssigned || pi.paid > 0;
-              if (!firstPreInvoice) firstPreInvoice = { id: pi.id, number: pi.number };
-            }
-            if (invoice && markCompleted)
-              await createInvoice(tx, order.id, customerId, invoice);
+            // مجزا: هر آیتم = سفارش خودش = پیش‌فاکتور تک‌آیتمیِ خودش
+            // (Phase 11: همیشه ساخته می‌شود — «پیش‌فاکتور همیشگی»)
+            const pi = await createPreInvoice(
+              tx,
+              order,
+              customerId,
+              itemsFromOrderItems(order.items),
+              preInvoice,
+              { itemId: order.items[0]?.id ?? null, assignPrepaid: !prepaidAssigned }
+            );
+            prepaidAssigned = prepaidAssigned || pi.paid > 0;
+            preInvoices.push({
+              id: pi.id,
+              number: pi.number,
+              orderId: order.id,
+              orderNumber: order.number,
+              customerId,
+              customerName: customerNames.get(customerId) ?? "—",
+              itemId: order.items[0]?.id ?? null,
+              itemLabel: order.items[0]?.product?.name ?? "آیتم",
+              totalAmount: pi.total,
+            });
           }
         }
       }
 
-      return { orders: result, preInvoice: firstPreInvoice, preInvoiceCount: piCount };
+      return { orders: result, preInvoices };
     });
 
     return NextResponse.json(
       {
         created: created.orders,
         count: created.orders.length,
-        preInvoice: created.preInvoice,
-        preInvoiceCount: created.preInvoiceCount,
+        preInvoices: created.preInvoices,
+        preInvoiceCount: created.preInvoices.length,
       },
       { status: 201 }
     );
@@ -384,17 +416,19 @@ async function createPreInvoice(
   order: { id: string; items: unknown[] },
   customerId: string,
   piItems: PreInvoiceItem[],
-  pi: NonNullable<CreateBody["preInvoice"]>,
+  pi: CreateBody["preInvoice"],
   opts: { itemId: string | null; assignPrepaid: boolean }
-): Promise<{ id: string; number: number; paid: number }> {
-  const items = piItems.length ? piItems : normalizeItems(pi.items ?? []);
-  const totals = computeTotals(items, pi.discountAmount ?? 0, pi.taxRate ?? 0);
+): Promise<{ id: string; number: number; paid: number; total: number }> {
+  const items = piItems.length
+    ? piItems
+    : itemsFromOrderItems(order.items as Parameters<typeof itemsFromOrderItems>[0]);
+  const totals = computeTotals(items, Number(pi?.discountAmount) || 0, Number(pi?.taxRate) || 0);
   const paid = opts.assignPrepaid
-    ? Math.min(Math.max(0, Number(pi.paidAmount) || 0), totals.totalAmount)
+    ? Math.min(Math.max(0, Number(pi?.paidAmount) || 0), totals.totalAmount)
     : 0;
 
   const num = await nextNumber(tx, "preInvoice");
-  const days = Math.max(1, Math.min(365, Number(pi.validDays) || 15));
+  const days = Math.max(1, Math.min(365, Number(pi?.validDays) || 15));
   const validUntil = new Date();
   validUntil.setDate(validUntil.getDate() + days);
 
@@ -413,8 +447,8 @@ async function createPreInvoice(
       taxAmount: totals.taxAmount,
       totalAmount: totals.totalAmount,
       paidAmount: paid,
-      notes: pi.notes || null,
-      terms: pi.terms || null,
+      notes: pi?.notes || null,
+      terms: pi?.terms || null,
     },
   });
   // همگام‌سازی افزایشی paidAmount سفارش (چند پیش‌فاکتور جمع می‌شود)
@@ -424,68 +458,5 @@ async function createPreInvoice(
       data: { paidAmount: { increment: paid } },
     });
   }
-  return { id: row.id, number: row.number, paid };
-}
-
-async function createInvoice(
-  tx: Prisma.TransactionClient,
-  orderId: string,
-  customerId: string,
-  inv: NonNullable<CreateBody["invoice"]>
-) {
-  const num = await nextNumber(tx, "invoice");
-  // Phase 9: فاکتور با قرارداد جدید (اقلام نرمال + تخفیف + مالیات).
-  // ورودی legacy فقط total/paid دارد — اقلام از خود سفارش ساخته می‌شوند
-  // تا سند همیشه محتوای واقعی داشته باشد.
-  const order = await tx.order.findUnique({
-    where: { id: orderId },
-    include: { items: { include: { product: true } } },
-  });
-  const items =
-    Array.isArray(inv.items) && inv.items.length
-      ? inv.items.map((it) => ({
-          name: String((it as { name?: string }).name ?? "قلم فاکتور"),
-          quantity: Number((it as { quantity?: number }).quantity ?? 1),
-          unit: "عدد",
-          unitPrice: Number((it as { unitPrice?: number }).unitPrice ?? 0),
-          discount: 0,
-          total:
-            Number((it as { total?: number }).total ?? 0) ||
-            Number((it as { quantity?: number }).quantity ?? 1) * 0,
-        }))
-      : (order?.items ?? []).map((it) => ({
-          name: it.product?.name ?? "قلم سفارش",
-          quantity: it.quantity,
-          unit: "عدد",
-          unitPrice: it.pricePerUnit,
-          discount: 0,
-          total: it.totalAmount,
-        }));
-
-  const totals = computeTotals(items, 0, 0);
-  const paid = Math.min(Math.max(0, Number(inv.paidAmount) || 0), totals.totalAmount);
-
-  await tx.invoice.create({
-    data: {
-      number: num,
-      orderId,
-      customerId,
-      status: "issued",
-      items: JSON.stringify(items),
-      subtotal: totals.subtotal,
-      discountAmount: Number(inv.discountAmount) || 0,
-      taxRate: 0,
-      taxAmount: totals.taxAmount,
-      totalAmount: totals.totalAmount,
-      paidAmount: paid,
-      source: "manual",
-    },
-  });
-  // paidAmount افزایشی — قرارداد مشترک با پیش‌فاکتور
-  if (paid > 0) {
-    await tx.order.update({
-      where: { id: orderId },
-      data: { paidAmount: { increment: paid } },
-    });
-  }
+  return { id: row.id, number: row.number, paid, total: totals.totalAmount };
 }
