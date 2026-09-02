@@ -3564,3 +3564,26 @@ Stage Summary:
 - سند چاپی A4 با هویت/تم printoo24.com (P24، تیره+آبی، Georgia، مهر، فوتر) — چاپ واقعی A4 لبه‌به‌لبه با @page تزریقی.
 - یافته‌های فنی مهم: Tailwind v4 translate property vs @media print دستی (فیکس: print: variants)؛ Lightning CSS حذف @page size از بیلد (فیکس: style tag JSX)؛ نمایش اپ باید در چاپ display:none شود.
 - کامیت 8e817dd پوش شد. کاربر: git pull → npm install → npm run dev.
+
+---
+Task ID: hotfix-fk-gregorian
+Agent: orchestrator (main)
+Task: رفع دو باگ فوری کاربر — ۱) خطای 500/P2003 «Foreign key constraint violated» در ساخت سفارش ۲) تاریخ‌های شمسی در مرحلهٔ ۴ ویزارد (کل سیستم باید میلادی باشد)
+
+Work Log:
+- ریشه‌یابی FK: tx.order.create با productId خالی (آیتمِ بدون محصول انتخاب‌شده — SearchSelect مقدار "" می‌ماند) یا customerId کهنه (صفحهٔ باز + reseed) → P2003 خام 500. مسیر دوم: PUT سفارش هم همان ریسک را روی update/create آیتم‌ها داشت.
+- POST /api/orders: گارد اعتبارسنجی قبل از تراکنش — همهٔ customerIds با findMany چک می‌شوند (400 فارسی «مشتری موجود نیست… رفرش کنید») + همهٔ productIds آیتم‌ها (400 فارسی «محصول آیتم N برای مشتری X انتخاب نشده…»).
+- PUT /api/orders/[id]: همین دو گارد (customerId + items) قبل از تراکنش.
+- ویزارد: canGoNext مرحلهٔ ۲ حالا productId غیرخالی برای «هر» آیتم را الزامی می‌کند؛ toast تفکیکی (محصول/آیتم)؛ badge قرمز «محصول انتخاب نشده» + نام آیتم رز در ItemRow؛ گارد پیش از submit در mutationFn.
+- میلادی‌سازی (حذف کامل fa-IR-u-ca-persian): order-wizard.tsx (faDateFmt/faDateShort → gregISO بدون Date/Intl → yyyy/MM/dd بدون ریسک تایم‌زون)؛ pre-invoice-modal.tsx (jDate/jShort → formatDate از lib/format + dir=ltr/tabular-nums)؛ p24-doc.tsx (تاریخ صدور/اعتبار/سررسید + باکس زمان‌بندی اجرا + مهرهای تکمیل → formatDate)؛ day-detail-modal.tsx (عدد بزرگ روز = format(d,"d")، زیرش yyyy/MM، کنار نام روز فارسی yyyy/MM/dd؛ حذف jDayFmt/jMonthYearFmt).
+- بازبینی کل سیستم: فقط این ۴ فایل جلالی داشتند — lib/format (formatDate) از قبل میلادی بود؛ DatePicker/ui/calendar ذاتاً میلادی‌اند؛ بقیهٔ fa-IR فقط اعداد فارسی (مثل «۱۲ آیتم») که طبق خواسته دست‌نخورده ماند. weekdays فارسی ماند (زبان ≠ تقویم).
+- E2E (agent-browser با لاگین admin): گارد مرحلهٔ ۲ آیتم بدون محصول را بلاک کرد (badge + toast، ماندن در مرحله ۲) ✓؛ سفارش کامل: فرم ثبت‌نام A4 ×۵ @550 → POST 201 → صفحهٔ موفقیت #۴۴ + ۱ سند پیش‌فاکتور 2,750 IQD ✓؛ مرحلهٔ ۴: «2026/09/10 → 2026/09/16 (طراحی)» و «2026/09/17 → 2026/09/24 (چاپ)» — صفر شهریور/مهر ✓؛ سند P24: تاریخ صدور 2026/09/02 + اعتبار تا 2026/09/17 + زمان‌بندی اجرا کامل میلادی ✓؛ مودال روز تقویم: «16 / 2026/09 / چهارشنبه / 2026/09/16» ✓.
+- تست API گاردها با fetch از خود اپ: مشتری جعلی → 400 «مشتری انتخاب‌شده در سیستم موجود نیست…» ✓؛ productId="" با مشتری واقعی → 400 «محصول آیتم 1 برای مشتری «شرکت آفتاب» انتخاب نشده است…» ✓؛ PUT ادیت معتبر #۴۴ → 200 (بدون رگرسیون) ✓؛ PUT با productId خالی → 400 فارسی ✓.
+- tsc: صفر خطای src؛ lint: 0 error (۵ warning قدیمی react-compiler)؛ کنسول مرورگر: صفر خطا؛ VLM اسکرین‌شات مرحلهٔ ۴: «All dates Gregorian, layout clean, no glitches».
+- نکتهٔ عملیاتی: سرور dev سندباکس هنگ کرده بود (RAM) → ری‌استارت با bun run dev:log؛ dev.log پاک و بازسازی شد.
+- کامیت e491bf8 پوش شد (6 files, +150/−55).
+
+Stage Summary:
+- «نمیتونم سفارش بسازم» حل شد: مسیر ایجاد/ویرایش سفارش دیگر هرگز با P2003 کرش نمی‌کند؛ ریشهٔ رایج (آیتم بدون محصول) در UI قبل از submit گرفته می‌شود و در سرور هم 400 فارسی برمی‌گردد.
+- کل سیستم تاریخ میلادی yyyy/MM/dd شد (ویزارد ۳/۴، مودال پیش‌فاکتور، سند چاپی A4، تقویم) — نام روزها فارسی ماند.
+- کاربر: git pull → npm install → npm run dev (اگر دیتای محلی عوض شده و خطای «مشتری موجود نیست» دید → صفحه را رفرش کند).
