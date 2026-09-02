@@ -2,25 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
-import { isUserRole } from "@/lib/user-validation";
+import { isModuleKey, isOnline } from "@/lib/access";
 
-// GET  /api/users  → active users for assignment UIs (task assignee pickers).
-//                ?all=1 (master only) → includes INACTIVE users + status field,
-//                for the Users & Roles management page.
-// POST /api/users  → create a user (master only) — the "نمی‌توانم نقش بسازم" fix.
+// GET  /api/users → کاربران فعال برای pickers
+//                ?module=designer → فقط کاربرانی که این ماژول را تیک خورده‌اند
+//                ?all=1 (master) → شامل غیرفعال‌ها + آمار حضور (صفحهٔ مدیریت)
+// POST /api/users → ایجاد کاربر (master) — با «چند ماژول» (Phase 12)
 //
-// GET contract (unchanged): { users: { id, name, email, role, phone, avatar }[] }
-//   - Auth-gated, ACTIVE users only, password never selected.
-//   - Optional ?role= filter for module-scoped pickers.
-//
-// POST body: { name, email, password, role, phone?, status? }
-//   - role is validated against USER_ROLE keys (server-side fence — a typoed
-//     role would silently break the user's sidebar/module access).
-//   - email must be unique (checked before insert, Persian error message).
-//   - password hashed with bcrypt before storage.
-//   - Master-only: creating operators/roles is an admin-plane action.
+// POST body: { name, email, password, phone?, modules: string[] }
+//   - modules: حداقل یک ماژول معتبر (designer/print/qc/...) — هر تعداد.
+//     نمونهٔ کاربر: هم QC هم چاپ. role ستون اول برای compat نمایش می‌شود.
+//   - سازگاری: اگر modules نفرستاد ولی role آمد → تک-ماژول همان role.
 
-const ASSIGNABLE_SELECT = {
+const BASE_SELECT = {
   id: true,
   name: true,
   email: true,
@@ -29,29 +23,66 @@ const ASSIGNABLE_SELECT = {
   avatar: true,
 } as const;
 
+function modulesOf(u: { role: string; modules: { module: string }[] }): string[] {
+  if (u.role === "master") return [];
+  return u.modules.map((m) => m.module);
+}
+
 export async function GET(req: NextRequest) {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
 
   try {
     const { searchParams } = new URL(req.url);
-    const role = searchParams.get("role");
+    const moduleFilter = searchParams.get("module") ?? searchParams.get("role");
     // Management mode: masters can list everyone, including inactive accounts.
     const wantAll = searchParams.get("all") === "1" && user.role === "master";
 
     const users = await db.user.findMany({
       where: {
         ...(wantAll ? {} : { status: "active" }),
-        ...(role ? { role } : {}),
+        ...(moduleFilter ? { modules: { some: { module: moduleFilter } } } : {}),
       },
       select: {
-        ...ASSIGNABLE_SELECT,
-        ...(wantAll ? { status: true, createdAt: true } : {}),
+        ...BASE_SELECT,
+        modules: { select: { module: true } },
+        ...(wantAll
+          ? {
+              status: true,
+              createdAt: true,
+              lastSeenAt: true,
+              lastLoginAt: true,
+              loginCount: true,
+            }
+          : {}),
       },
       orderBy: [{ status: "asc" }, { name: "asc" }],
     });
 
-    return NextResponse.json({ users });
+    // master (کاربر سیستمی) در pickerهای تخصیص نمی‌آید — اپراتورها ماژول‌دارند
+    const filtered = moduleFilter ? users.filter((u) => u.role !== "master") : users;
+
+    return NextResponse.json({
+      users: filtered.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        phone: u.phone,
+        avatar: u.avatar,
+        modules: modulesOf(u),
+        ...(wantAll
+          ? {
+              status: u.status,
+              createdAt: u.createdAt,
+              lastSeenAt: u.lastSeenAt,
+              lastLoginAt: u.lastLoginAt,
+              loginCount: u.loginCount,
+              online: isOnline(u.lastSeenAt),
+            }
+          : {}),
+      })),
+    });
   } catch {
     return NextResponse.json(
       { error: "خطا در دریافت فهرست کاربران" },
@@ -74,7 +105,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, email, password, role, phone, status } = body ?? {};
+    const { name, email, password, phone, status, modules, role } = body ?? {};
 
     // name — required
     if (typeof name !== "string" || !name.trim()) {
@@ -101,13 +132,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // role — validated against USER_ROLE (R12-style enum fence)
-    if (!isUserRole(role)) {
+    // ─── Phase 12: ماژول‌ها (حداقل یک، همه معتبر) ───────────────────
+    // سازگاری: modules آرایه؛ اگر نیامود، role قبلی به‌عنوان تک-ماژول.
+    let mods: string[] = [];
+    if (Array.isArray(modules)) {
+      mods = modules.map((m: unknown) => String(m)).filter(Boolean);
+    } else if (typeof role === "string" && role && role !== "master") {
+      mods = [role];
+    }
+    if (mods.length === 0) {
       return NextResponse.json(
-        { error: `نقش نامعتبر: ${role}` },
+        { error: "حداقل یک ماژول (سطح دسترسی) برای کاربر انتخاب کنید" },
         { status: 400 }
       );
     }
+    const bad = mods.find((m) => !isModuleKey(m));
+    if (bad) {
+      return NextResponse.json(
+        { error: `ماژول نامعتبر: ${bad}` },
+        { status: 400 }
+      );
+    }
+    const uniqueMods = Array.from(new Set(mods));
 
     // uniqueness — friendly Persian error instead of raw P2002
     const existing = await db.user.findUnique({ where: { email: emailNorm } });
@@ -123,14 +169,20 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         email: emailNorm,
         password: await hashPassword(password),
-        role,
+        role: uniqueMods[0], // آینهٔ ماژول اول (compat نمایش/فیلترهای قدیمی)
         phone: phone ? String(phone).trim() : null,
         status: status === "inactive" ? "inactive" : "active",
+        modules: {
+          create: uniqueMods.map((m) => ({ module: m })),
+        },
       },
-      select: ASSIGNABLE_SELECT,
+      select: { ...BASE_SELECT, modules: { select: { module: true } } },
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    return NextResponse.json(
+      { user: { ...user, modules: modulesOf(user) } },
+      { status: 201 }
+    );
   } catch {
     return NextResponse.json(
       { error: "خطا در ایجاد کاربر" },

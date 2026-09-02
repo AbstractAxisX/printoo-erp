@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireManager } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
 
 // ─── PUT /api/orders/[id]/item-dates — Phase 10 ─────────────────────
@@ -22,11 +22,9 @@ type ItemDatesUpdate = {
   printEnd?: string | null;
 };
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const user = await requireUser();
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Phase 12: ویرایش زمان‌بندی = عملیات مدیریتی
+  const user = await requireManager();
   if (user instanceof NextResponse) return user;
 
   const { id } = await params;

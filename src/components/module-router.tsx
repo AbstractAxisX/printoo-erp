@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/stores/app-store";
-import { findModule } from "@/lib/nav";
+import { allowedModuleKeys, findModule } from "@/lib/nav";
 import { PageHeader, EmptyState } from "@/components/shared";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,7 @@ import { ProductsPage } from "@/components/modules/admin/products-page";
 import { ArchivePage } from "@/components/modules/admin/archive-page";
 import { ExpenseTypesPage } from "@/components/modules/admin/expense-types-page";
 import { SettingsUsersGuard } from "@/components/modules/settings/settings-users-guard";
+import { EmployeesPage } from "@/components/modules/settings/employees-page";
 
 // CRM pages
 import { CRMDashboard } from "@/components/modules/crm/crm-dashboard";
@@ -81,10 +82,11 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       default: return null;
     }
   }
-  // ── تنظیمات سیستم (ادمین سراسری) — کاربران و نقش‌ها ──
+  // ── تنظیمات سیستم (ادمین سراسری) ──
   if (moduleKey === "settings") {
     switch (page) {
       case "users": return SettingsUsersGuard;
+      case "employees": return EmployeesPage; // Phase 12: مدیریت کارمندان
       default: return null;
     }
   }
@@ -172,12 +174,31 @@ function PlaceholderPage({ title }: { title: string }) {
  * ModuleRouter with KEEP-ALIVE: all open tabs stay mounted.
  * Only the active tab is visible; others are hidden via CSS (display:none).
  * This preserves each tab's internal state (forms, scroll, filters) when switching.
+ *
+ * Phase 12 — access guard: تب/صفحه‌ای که ماژولش در دسترسی کاربر نیست،
+ * هرگز رندر نمی‌شود (حتی اگر از طریق tab ماندگار localStorage باقی مانده
+ * باشد). لایه‌های امنیت: sidebar فیلترشده + این گارد UI + گاردهای API.
  */
+function AccessDenied() {
+  return (
+    <div>
+      <PageHeader title="دسترسی محدود" icon="shield" />
+      <EmptyState
+        icon="shield"
+        title="به این بخش دسترسی ندارید"
+        description="این ماژول در سطوح دسترسی شما فعال نیست. برای فعال‌سازی با مدیر سیستم تماس بگیرید."
+      />
+    </div>
+  );
+}
+
 export function ModuleRouter() {
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const moduleKey = useAppStore((s) => s.module);
   const page = useAppStore((s) => s.page);
+  const user = useAppStore((s) => s.user);
+  const allowed = allowedModuleKeys(user);
 
   return (
     <div className="tab-keepalive-container">
@@ -185,13 +206,16 @@ export function ModuleRouter() {
         const isActive = tab.id === activeTabId;
         const Comp = getPageComponent(tab.module, tab.page);
         const mod = findModule(tab.module);
+        const tabAllowed = allowed.includes(tab.module);
         return (
           <div
             key={tab.id}
             className={cn(isActive ? "block" : "hidden")}
             aria-hidden={!isActive}
           >
-            {Comp ? (
+            {!tabAllowed ? (
+              <AccessDenied />
+            ) : Comp ? (
               <Comp />
             ) : (
               <PlaceholderPage title={pageTitle(mod, tab.page)} />
@@ -201,6 +225,7 @@ export function ModuleRouter() {
       })}
       {/* If no tabs open (shouldn't happen normally), show current module/page */}
       {tabs.length === 0 && (() => {
+        if (!allowed.includes(moduleKey)) return <AccessDenied />;
         const Comp = getPageComponent(moduleKey, page);
         const mod = findModule(moduleKey);
         return Comp ? <Comp /> : <PlaceholderPage title={pageTitle(mod, page)} />;

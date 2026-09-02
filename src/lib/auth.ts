@@ -31,6 +31,10 @@ export type SessionUser = {
   name: string;
   email: string;
   role: string;
+  // Phase 12: ماژول‌هایی که کاربر به آن‌ها دسترسی دارد (منبع: UserModule).
+  // cookie این را حمل می‌کند ولی هر requireUser از DB تازه می‌خواند تا
+  // تغییر دسترسی بلافاصله اعمال شود (نه ۷ روز بعد).
+  modules: string[];
 };
 
 // ─── Signed session (HMAC) ─────────────────────────────────────
@@ -68,7 +72,10 @@ export async function getSession(): Promise<SessionUser | null> {
     if (!constantTimeEqual(sigB64, expectedSig)) return null;
     const parsed = JSON.parse(b64decode(payloadB64)) as SessionUser;
     if (!parsed.id || !parsed.email) return null;
-    return parsed;
+    return {
+      ...parsed,
+      modules: Array.isArray(parsed.modules) ? parsed.modules : [],
+    };
   } catch {
     return null;
   }
@@ -116,10 +123,18 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
 
   // Re-verify against DB: exists AND active. Stale-but-valid-signature
   // cookies (user deleted / DB reset / deactivated) must NOT pass.
+  // Phase 12: modules هم از DB تازه خوانده می‌شود + presence لمس می‌شود.
   try {
     const fresh = await db.user.findUnique({
       where: { id: user.id },
-      select: { id: true, name: true, email: true, role: true, status: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        modules: { select: { module: true } },
+      },
     });
     if (!fresh || fresh.status !== "active") {
       await clearSession();
@@ -128,13 +143,16 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
         { status: 401 }
       );
     }
-    // Return the FRESH row — role/name changes apply immediately,
+    // presence: هر فراخوانی API یعنی کاربر فعلاست — throttle داخل خود تابع
+    void touchLastSeen(user.id);
+    // Return the FRESH row — role/module changes apply immediately,
     // not 7 days later when the cookie expires.
     return {
       id: fresh.id,
       name: fresh.name,
       email: fresh.email,
       role: fresh.role,
+      modules: fresh.modules.map((m) => m.module),
     };
   } catch {
     // DB unreachable — fail closed.
@@ -148,6 +166,27 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
 // Convenience: boolean form for inline checks.
 export async function isAuthed(): Promise<boolean> {
   return (await getSession()) !== null;
+}
+
+// ─── Phase 12: presence (حضور آنلاین) ──────────────────────────
+// با throttle ۴۵ثانیه‌ای — روی هر requireUser صدا زده می‌شود تا «فعال بودن»
+// واقعی باشد (هر فراخوانی API = کاربر پشت صفحه است)، بی‌آنکه هر GET یک
+// نوشتهٔ DB بگذارد. اینجا مانده تا import-cycle با access.ts نداشته باشیم.
+export async function touchLastSeen(userId: string): Promise<void> {
+  try {
+    const u = await db.user.findUnique({
+      where: { id: userId },
+      select: { lastSeenAt: true },
+    });
+    if (!u) return;
+    if (u.lastSeenAt && Date.now() - u.lastSeenAt.getTime() < 45_000) return;
+    await db.user.update({
+      where: { id: userId },
+      data: { lastSeenAt: new Date() },
+    });
+  } catch {
+    // presence best-effort است — هرگز درخواست اصلی را نمی‌کشد
+  }
 }
 
 // ─── Seed (master admin) ───────────────────────────────────────

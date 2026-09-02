@@ -61,6 +61,7 @@ async function main() {
   await db.qcReport.deleteMany();
   await db.materialCost.deleteMany();
   await db.notification.deleteMany();
+  await db.userActivityLog.deleteMany();
   await db.activity.deleteMany();
   await db.deal.deleteMany();
   await db.dayNote.deleteMany();
@@ -72,25 +73,36 @@ async function main() {
 
   // ═══════════════ 1) کاربران (idempotent) ═══════════════
   console.log("→ کاربران…");
+  // Phase 12 — دسترسی = ماژول‌های تیک‌خورده (چند-ماژوله):
+  // نیما هم QC هم چاپ دارد (دموی «بشه به هر کاربر نقش اضافه کرد»).
   const usersSpec = [
-    { name: "مدیر سیستم", email: "admin@printoo24.com", role: "master", phone: "07700000001", pw: "admin123" },
-    { name: "سارا احمدی", email: "sara@printoo24.com", role: "designer", phone: "07700000002", pw: "employee123" },
-    { name: "مهدی رحیمی", email: "mehdi@printoo24.com", role: "designer", phone: "07700000003", pw: "employee123" },
-    { name: "رضا کریمی", email: "reza@printoo24.com", role: "print", phone: "07700000004", pw: "employee123" },
-    { name: "علی نعمتی", email: "ali@printoo24.com", role: "print", phone: "07700000005", pw: "employee123" },
-    { name: "حسین موسوی", email: "hossein@printoo24.com", role: "warehouse", phone: "07700000006", pw: "employee123" },
-    { name: "نگار رستمی", email: "negar@printoo24.com", role: "finance", phone: "07700000007", pw: "employee123" },
-    { name: "نیما قاسمی", email: "nima@printoo24.com", role: "qc", phone: "07700000008", pw: "employee123" },
-    { name: "مریم کاظمی", email: "maryam@printoo24.com", role: "crm", phone: "07700000009", pw: "employee123" },
-    { name: "امیر صالحی", email: "amir@printoo24.com", role: "srm", phone: "07700000010", pw: "employee123" },
+    { name: "مدیر سیستم", email: "admin@printoo24.com", role: "master", modules: [], phone: "07700000001", pw: "admin123" },
+    { name: "سارا احمدی", email: "sara@printoo24.com", role: "designer", modules: ["designer"], phone: "07700000002", pw: "employee123" },
+    { name: "مهدی رحیمی", email: "mehdi@printoo24.com", role: "designer", modules: ["designer"], phone: "07700000003", pw: "employee123" },
+    { name: "رضا کریمی", email: "reza@printoo24.com", role: "print", modules: ["print"], phone: "07700000004", pw: "employee123" },
+    { name: "علی نعمتی", email: "ali@printoo24.com", role: "print", modules: ["print"], phone: "07700000005", pw: "employee123" },
+    { name: "حسین موسوی", email: "hossein@printoo24.com", role: "warehouse", modules: ["warehouse"], phone: "07700000006", pw: "employee123" },
+    { name: "نگار رستمی", email: "negar@printoo24.com", role: "finance", modules: ["finance"], phone: "07700000007", pw: "employee123" },
+    { name: "نیما قاسمی", email: "nima@printoo24.com", role: "qc", modules: ["qc", "print"], phone: "07700000008", pw: "employee123" },
+    { name: "مریم کاظمی", email: "maryam@printoo24.com", role: "crm", modules: ["crm"], phone: "07700000009", pw: "employee123" },
+    { name: "امیر صالحی", email: "amir@printoo24.com", role: "srm", modules: ["srm"], phone: "07700000010", pw: "employee123" },
   ];
   const users = {};
   for (const u of usersSpec) {
-    const { name, email, role, phone, pw } = u;
+    const { name, email, role, modules, phone, pw } = u;
     users[email.split("@")[0]] = await db.user.upsert({
       where: { email },
-      update: { name, role, status: "active" },
-      create: { name, email, role, phone, password: await hash(pw, 10) },
+      update: {
+        name, role, status: "active",
+        // جایگزینی کامل ماژول‌ها (idempotent)
+        ...(role === "master"
+          ? { modules: { deleteMany: {} } }
+          : { modules: { deleteMany: {}, create: modules.map((m) => ({ module: m })) } }),
+      },
+      create: {
+        name, email, role, phone, password: await hash(pw, 10),
+        ...(role === "master" ? {} : { modules: { create: modules.map((m) => ({ module: m })) } }),
+      },
     });
   }
   const admin = users["admin"], sara = users["sara"], mehdiD = users["mehdi"],
@@ -309,6 +321,8 @@ async function main() {
         note: spec.note ?? null,
         designerNote: spec.designerNote ?? null,
         createdBy: "مدیر سیستم",
+        // Phase 12: ثبت‌کنندهٔ واقعی (آمار روزانهٔ کارمند)
+        createdById: admin.id,
         createdAt: day(spec.createdIn ?? -20),
       },
     });
@@ -663,6 +677,8 @@ async function main() {
     orderId: orderIdx !== undefined ? created[orderIdx].id : null,
     customerId: orderIdx !== undefined ? C[created[orderIdx].customerName] : null,
     description: desc ?? null,
+    // Phase 12: مهر «کی انجام شد» — دیتای فعالیت روزانهٔ کارمندان
+    ...(status === "done" ? { completedAt: day(dueIn) } : {}),
   });
   const tasksSpec = [
     // طراح
@@ -936,6 +952,128 @@ async function main() {
       data: { date: localDayKey(inDay), content, color },
     });
   }
+
+  // ═══════════════ 18) Phase 12 — تخصیص، انتساب و حضور (دموی RBAC) ═══════════════
+  console.log("→ تخصیص طراح/چاپ + انتساب تکمیل + حضور و غیاب…");
+
+  // 18-1) تخصیص سفارش‌ها: pending_design → طراح، in_printing → چاپ‌کار.
+  // الگوی غالبِ دمو: تخصیص هدفمند (سارا/مهدی و رضا/علی) + چند سفارش بدون
+  // تخصیص (استخر عمومی) تا هر دو رفتار قابل آزمایش باشد.
+  let dIdx = 0, pIdx = 0;
+  for (const o of created) {
+    const data = {};
+    if (o.status === "pending_design" || o.status === "in_printing") {
+      if (o.status === "pending_design") {
+        // هر چهارمین سفارشِ در طراحی، بدون طراح می‌ماند (استخر عمومی)
+        data.assignedDesignerId = (o.number % 4 === 0) ? null : (dIdx++ % 2 === 0 ? sara.id : mehdiD.id);
+      }
+      if (o.status === "in_printing") {
+        data.assignedPrinterId = (o.number % 5 === 0) ? null : (pIdx++ % 2 === 0 ? reza.id : ali.id);
+      }
+    } else {
+      // سفارش‌های تکمیل‌شده/انبار: تاریخچهٔ تخصیص برای آمار کارمند
+      data.assignedDesignerId = dIdx++ % 2 === 0 ? sara.id : mehdiD.id;
+      data.assignedPrinterId = pIdx++ % 2 === 0 ? reza.id : ali.id;
+    }
+    if (data.assignedDesignerId !== undefined || data.assignedPrinterId !== undefined) {
+      await db.order.update({ where: { id: o.id }, data });
+    }
+  }
+
+  // 18-2) انتساب تکمیل آیتم‌ها («کی» تکمیل کرد) — طراح/چاپِ همان سفارش
+  const allItems = await db.orderItem.findMany({
+    where: { OR: [{ designCompletedAt: { not: null } }, { printCompletedAt: { not: null } }] },
+    select: { id: true, orderId: true, designCompletedAt: true, printCompletedAt: true },
+  });
+  const orderAssign = await db.order.findMany({
+    select: { id: true, assignedDesignerId: true, assignedPrinterId: true },
+  });
+  const assignMap = new Map(orderAssign.map((o) => [o.id, o]));
+  for (const it of allItems) {
+    const a = assignMap.get(it.orderId);
+    const patch = {};
+    if (it.designCompletedAt && !it.designCompletedBy) {
+      patch.designCompletedBy = a?.assignedDesignerId ?? sara.id;
+    }
+    if (it.printCompletedAt && !it.printCompletedBy) {
+      patch.printCompletedBy = a?.assignedPrinterId ?? reza.id;
+    }
+    if (Object.keys(patch).length) {
+      await db.orderItem.update({ where: { id: it.id }, data: patch });
+    }
+  }
+
+  // 18-3) انتساب QC: گزارش‌دهنده (ماژول مبدأ) + بررسی‌گر (نیما)
+  const qcRows = await db.qcReport.findMany({ select: { id: true, fromModule: true, status: true } });
+  let qcD = 0, qcP = 0;
+  for (const r of qcRows) {
+    const patch = {};
+    if (r.fromModule === "designer") patch.reportedById = qcD++ % 2 === 0 ? sara.id : mehdiD.id;
+    else if (r.fromModule === "print") patch.reportedById = qcP++ % 2 === 0 ? reza.id : ali.id;
+    if (r.status === "approved" || r.status === "rejected") patch.reviewedById = nima.id;
+    await db.qcReport.update({ where: { id: r.id }, data: patch });
+  }
+
+  // 18-4) حضور و غیاب واقعی: lastSeen/lastLogin/loginCount + لاگ ورود/خروج ۷ روز
+  const at = (dayOffset, h, m) => { const d = day(dayOffset); d.setHours(h, m, 0, 0); return d; };
+  const minsAgo = (n) => new Date(Date.now() - n * 60_000);
+  const presenceSpec = {
+    admin:   { logins: 46, lastLogin: at(0, 8, 1),  lastSeen: minsAgo(0.5),  lastDay: 0, onlineToday: true },
+    sara:    { logins: 28, lastLogin: at(0, 8, 34), lastSeen: minsAgo(1),  lastDay: 0, onlineToday: true },
+    mehdi:   { logins: 22, lastLogin: at(-1, 9, 12), lastSeen: at(-1, 17, 40), lastDay: 1, onlineToday: false },
+    reza:    { logins: 31, lastLogin: at(0, 7, 55), lastSeen: minsAgo(1),  lastDay: 0, onlineToday: true },
+    ali:     { logins: 17, lastLogin: at(-2, 10, 5), lastSeen: at(-2, 15, 30), lastDay: 2, onlineToday: false },
+    hossein: { logins: 24, lastLogin: at(0, 9, 20), lastSeen: minsAgo(52), lastDay: 0, onlineToday: false },
+    negar:   { logins: 19, lastLogin: at(0, 8, 10), lastSeen: minsAgo(80), lastDay: 0, onlineToday: false },
+    nima:    { logins: 15, lastLogin: at(-1, 10, 44), lastSeen: at(-1, 14, 50), lastDay: 1, onlineToday: false },
+    maryam:  { logins: 13, lastLogin: at(0, 8, 5),  lastSeen: minsAgo(55), lastDay: 0, onlineToday: false },
+    amir:    { logins: 9,  lastLogin: at(-4, 11, 30), lastSeen: at(-4, 12, 10), lastDay: 4, onlineToday: false },
+  };
+  for (const [key, spec] of Object.entries(presenceSpec)) {
+    const u = users[key];
+    await db.user.update({
+      where: { id: u.id },
+      data: {
+        loginCount: spec.logins,
+        lastLoginAt: spec.lastLogin,
+        lastSeenAt: spec.lastSeen,
+      },
+    });
+    // خط زمانی ورود/خروج: از ۶ روز پیش تا آخرین روزِ فعالِ او
+    const logs = [];
+    for (let d = Math.max(6, spec.lastDay); d >= spec.lastDay; d--) {
+      const loginH = 8 + ((d + key.length) % 2); // ۸ یا ۹ صبح
+      const loginM = (15 + d * 11 + key.length * 7) % 60;
+      const logoutH = 16 + (d % 2); // ۱۶ یا ۱۷
+      const logoutM = (25 + d * 9 + key.length * 5) % 60;
+      logs.push({ userId: u.id, action: "login", createdAt: at(d, loginH, loginM) });
+      // امروزِ آنلاین‌ها هنوز خارج نشده‌اند
+      if (d !== 0 || !spec.onlineToday) {
+        logs.push({ userId: u.id, action: "logout", createdAt: at(d, logoutH, logoutM) });
+      }
+    }
+    if (logs.length) await db.userActivityLog.createMany({ data: logs });
+  }
+
+  // 18-5) اعلان‌های هدفمند نمونه (تخصیص سفارش به سارا و رضا)
+  await db.notification.createMany({
+    data: [
+      {
+        userId: sara.id,
+        title: "سفارش جدید به شما تخصیص یافت",
+        message: "سفارش #1 (رستوران باران) برای طراحی به شما واگذار شد.",
+        type: "info",
+        link: "designer:orders",
+      },
+      {
+        userId: reza.id,
+        title: "سفارش به چاپ شما رسید",
+        message: "طراحی سفارش #14 (گالری رنگین‌کمان) کامل شد — آمادهٔ چاپ است.",
+        type: "success",
+        link: "print:orders",
+      },
+    ],
+  });
 
   // ═══════════════ گزارش نهایی ═══════════════
   const [orders, tasks, pis, invs, customers, products, suppliers, services, priceLists] =

@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isOrderAssigneeAllowed, hasModule } from "@/lib/access";
 import { recomputeOrderStatus } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
 
-// ─── Print actions — Phase 9 rebuild ───────────────────────────────
+// ─── Print actions — Phase 12 rebuild ───────────────────────────────
 //
 // گردش کار چاپ روی سفارش:
 //   complete_item {itemId} — تکمیل چاپ «یک» آیتم:
-//     item.stage: print → warehouse + مهر printCompletedAt.
+//     item.stage: print → warehouse + مهر printCompletedAt + printCompletedBy.
 //     سفارش وقتی به warehouse_logistics می‌رود که همهٔ آیتم‌های چاپ
 //     تمام شده باشند (recomputeOrderStatus).
 //   confirm_material — تایید تأمین متریال (همهٔ آیتم‌های سفارش).
 //   send_warehouse — تکمیل گروهی همهٔ آیتم‌های چاپ + ارسال به انبار.
 //   report_qc {description} — گزارش کنترل کیفیت.
 //
-// گیت: چاپ فقط روی سفارش in_printing کار می‌کند — سفارش گروهی تا
-// طراحیِ همهٔ آیتم‌هایش تمام نشده اصلاً به این مرحله نمی‌رسد.
+// گیت‌های Phase 12:
+//   ۱) ماژول print (یا master/admin).
+//   ۲) تخصیص: سفارشِ چاپِ تخصیص‌یافته به چاپ‌کار دیگری → 403.
+//      «وقتی طراح زد تکمیل، سفارش واقعاً به همون کاربر چاپی می‌ره که
+//       ادمین حین ایجاد انتخاب کرد» — اینجا همان دیوار است.
+//   ۳) انتساب تکمیل (printCompletedBy) برای آمار کارمند.
+//   ۴) نوتیف عمومی رسیدن به انبار.
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -27,12 +33,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json();
     const { action, description, itemId } = body;
 
+    // ── Gate 1: دسترسی ماژول چاپ ──
+    if (!hasModule(user, "print")) {
+      return NextResponse.json(
+        { error: "اقدام روی مرحلهٔ چاپ مخصوص کاربران ماژول چاپ است" },
+        { status: 403 }
+      );
+    }
+
     const order = await db.order.findUnique({
       where: { id },
-      include: { items: { select: { id: true, stage: true } } },
+      include: {
+        items: { select: { id: true, stage: true } },
+        customer: { select: { name: true } },
+      },
     });
     if (!order)
       return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+
+    // ── Gate 2: تخصیص — فقط چاپ‌کارِ خودِ سفارش (مدیر همیشه مجاز) ──
+    if (action !== "report_qc") {
+      const allowed = isOrderAssigneeAllowed(user, order, "print");
+      if (!allowed.ok) {
+        return NextResponse.json({ error: allowed.message }, { status: 403 });
+      }
+    }
 
     // ── Gate: چاپ فقط روی سفارش در مرحلهٔ چاپ ──
     if (action !== "report_qc" && order.status !== "in_printing") {
@@ -67,10 +92,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const result = await db.$transaction(async (tx) => {
         await tx.orderItem.update({
           where: { id: itemId },
-          data: { stage: "warehouse", printCompletedAt: new Date() },
+          data: { stage: "warehouse", printCompletedAt: new Date(), printCompletedBy: user.id },
         });
         return recomputeOrderStatus(tx, id);
       });
+
+      if (result.status === "warehouse_logistics") {
+        await notifyWarehouse(order.number, order.customer?.name);
+      }
 
       return NextResponse.json({
         ok: true,
@@ -89,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await db.notification.create({
         data: {
           title: "تایید تأمین متریال",
-          message: `متریال سفارش تأمین شد و به چاپ منتقل شد.`,
+          message: `متریال سفارش #${order.number} تأمین شد و به چاپ منتقل شد.`,
           type: "success",
           link: "print:orders",
         },
@@ -109,10 +138,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const result = await db.$transaction(async (tx) => {
         await tx.orderItem.updateMany({
           where: { orderId: id, stage: "print" },
-          data: { stage: "warehouse", printCompletedAt: new Date() },
+          data: { stage: "warehouse", printCompletedAt: new Date(), printCompletedBy: user.id },
         });
         return recomputeOrderStatus(tx, id);
       });
+
+      if (result.status === "warehouse_logistics") {
+        await notifyWarehouse(order.number, order.customer?.name);
+      }
 
       return NextResponse.json({
         ok: true,
@@ -135,6 +168,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           fromModule: "print",
           description: String(description).trim(),
           reportedBy: "print",
+          reportedById: user.id,
         },
       });
       await db.notification.create({
@@ -151,5 +185,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "action نامعتبر" }, { status: 400 });
   } catch (e) {
     return jsonError(e, "خطا در اقدام چاپ");
+  }
+}
+
+async function notifyWarehouse(orderNumber: number, customerName?: string) {
+  try {
+    await db.notification.create({
+      data: {
+        title: "سفارش به انبار رسید",
+        message: `چاپ سفارش #${orderNumber}${
+          customerName ? ` (${customerName})` : ""
+        } کامل شد — آمادهٔ انبار و لجستیک است.`,
+        type: "info",
+        link: "warehouse:orders",
+      },
+    });
+  } catch {
+    // best-effort
   }
 }

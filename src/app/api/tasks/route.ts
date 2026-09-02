@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { isManager, hasModule } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
 import {
   isTaskStatus,
@@ -10,10 +11,15 @@ import {
   TASK_INCLUDE,
 } from "@/lib/task-validation";
 
-// ─── Tasks API — Phase 4 rebuild ──────────────────────────────────
+// ─── Tasks API — Phase 12 rebuild ─────────────────────────────────
 //
 // GET  /api/tasks            → list (filters: ?module=&status=&assignedTo=&orderId=)
-// POST /api/tasks            → create (validated)
+//                              Phase 12: برای غیرمدیرها:
+//                                • ?module=X → باید ماژول X را داشته باشد (403)
+//                                • تسک‌های آن ماژول فقط «خودش یا بی‌مسئول»
+//                                  (تسکِ تخصیص‌یافته به طراح دیگر در پنل او نمی‌آید)
+//                                • بدون module → فقط ماژول‌های خودش + همان قاعده
+// POST /api/tasks            → create (validated) — Phase 12: عملیات مدیریتی
 //
 // Fixes landing here:
 // - R12: server-side enum validation — a typoed `module` ORPHANS a task
@@ -21,13 +27,8 @@ import {
 // - R9:  assignedTo is validated against real, ACTIVE users (FK wired in
 //   schema this phase) and echoed back as `assignedUser` object.
 // - R26: requireUser() gate on both verbs.
-//
-// Contract preserved (§5.1): POST body shape unchanged —
-// { title, description?, priority?, dueDate?, module?, orderId?, customerId?, assignedTo? }
-// Response ADDS task.assignedUser (additive, no breaking change).
-//
-// The `module` query-param filter is load-bearing: designer-tasks and
-// print-tasks panels depend on it (cross-panel routing).
+// - Phase 12: assignedTo باید ماژولِ تسک را هم داشته باشد + completedAt
+//   (مهر «کی انجام شد» — آمار روزانهٔ کارمند).
 
 // ─── GET ──────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
@@ -57,8 +58,27 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // ─── Phase 12: module access + self-assignment scoping ──
+    const manager = isManager(user);
     const where: Record<string, unknown> = {};
-    if (mod) where.module = mod;
+    if (mod) {
+      if (!manager && !hasModule(user, mod)) {
+        return NextResponse.json(
+          { error: "شما به تسک‌های این ماژول دسترسی ندارید" },
+          { status: 403 }
+        );
+      }
+      where.module = mod;
+    } else if (!manager) {
+      // بدون module: فقط ماژول‌های خودش
+      const mods = user.modules.filter((m) => isTaskModule(m));
+      where.module = { in: mods.length ? mods : ["__none__"] };
+    }
+    if (!manager) {
+      // «هر کسی چه تسکی دستش است»: تسکِ دیگری را نمی‌بیند
+      where.OR = [{ assignedTo: null }, { assignedTo: user.id }];
+    }
+
     if (status) where.status = status;
     if (assignedTo) where.assignedTo = assignedTo;
     if (orderId) where.orderId = orderId;
@@ -78,6 +98,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
+
+  // Phase 12: ایجاد تسک = عملیات مدیریتی (boards مدیریت)
+  if (!isManager(user)) {
+    return NextResponse.json(
+      { error: "ایجاد تسک مخصوص مدیریت است" },
+      { status: 403 }
+    );
+  }
 
   try {
     const body = await req.json();
@@ -142,10 +170,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // assignedTo — R9: validate the user exists AND is active.
+    // assignedTo — R9 + Phase 12: وجود + فعال + «داشتن ماژول تسک»
     let assigneeId: string | null = null;
     try {
-      assigneeId = await resolveAssignee(assignedTo);
+      const effectiveModule =
+        isTaskModule(module) ? module : "admin";
+      assigneeId = await resolveAssignee(assignedTo, effectiveModule);
     } catch (e) {
       return NextResponse.json(
         { error: (e as Error).message },
@@ -165,20 +195,41 @@ export async function POST(req: NextRequest) {
       dueDateValue = d;
     }
 
+    const finalStatus = isTaskStatus(status) ? status : "todo";
     const task = await db.task.create({
       data: {
         title: title.trim(),
         description: description ? String(description) : null,
         priority: isTaskPriority(priority) ? priority : "normal",
-        status: isTaskStatus(status) ? status : "todo",
+        status: finalStatus,
         module: isTaskModule(module) ? module : "admin",
         dueDate: dueDateValue,
         orderId: orderId || null,
         customerId: customerId || null,
         assignedTo: assigneeId,
+        // Phase 12: مهر «کی انجام شد» — تسکِ از ابتده done
+        completedAt: finalStatus === "done" ? new Date() : null,
       },
       include: TASK_INCLUDE,
     });
+
+    // اعلان هدفمند به مسئولِ جدید
+    if (assigneeId) {
+      try {
+        await db.notification.create({
+          data: {
+            userId: assigneeId,
+            title: "تسک جدید به شما واگذار شد",
+            message: `«${task.title}» به شما ارجاع شد.`,
+            type: "info",
+            link: `${task.module}:tasks`,
+          },
+        });
+      } catch {
+        // best-effort
+      }
+    }
+
     return NextResponse.json({ task }, { status: 201 });
   } catch (e) {
     return jsonError(e, "خطا در ایجاد تسک");

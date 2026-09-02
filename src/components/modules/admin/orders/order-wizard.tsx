@@ -57,6 +57,11 @@ type OrderEditData = {
   endDate: string | null;
   noEndDate: boolean;
   note: string | null;
+  // Phase 12: تخصیص‌های فعلی سفارش (برای پیش‌فرم در ویرایش)
+  assignedDesignerId: string | null;
+  assignedPrinterId: string | null;
+  assignedDesigner?: { id: string; name: string } | null;
+  assignedPrinter?: { id: string; name: string } | null;
   items: {
     id: string;
     productId: string;
@@ -98,7 +103,7 @@ const STAGES: { value: ItemDraft["stage"]; label: string }[] = [
 const STEPS = [
   { n: 1, label: "انتخاب مشتری", icon: "customers" as const },
   { n: 2, label: "آیتم‌های سفارش", icon: "orders" as const },
-  { n: 3, label: "زمان‌دهی و اولویت", icon: "calendar" as const },
+  { n: 3, label: "زمان‌دهی و تخصیص", icon: "calendar" as const },
   { n: 4, label: "بازنگری و ثبت", icon: "checkCircle" as const },
 ];
 
@@ -119,6 +124,40 @@ export function OrderWizardPage() {
   const [note, setNote] = React.useState("");
   // Phase 10: تاریخ‌های طراحی/چاپ per-item شدند (در ItemDraft هر آیتم) —
   // این‌ها فقط ابزار «اعمال روی همه» در مرحلهٔ ۳ هستند.
+
+  // ─── Phase 12: تخصیص مسئوِِستان (طراح/چاپ اختصاصی) ───
+  // «اگر سیستم بیش از یک نقش طراح داشته باشه بگه این سفارش به کدوم کاربر بره»
+  // — بیش از یک کاربر → انتخاب الزامی؛ یک کاربر → پیش‌فرض خودکار؛ صفر → استخر عمومی.
+  const [assignedDesignerId, setAssignedDesignerId] = React.useState<string>("");
+  const [assignedPrinterId, setAssignedPrinterId] = React.useState<string>("");
+  const { data: designerUsersData } = useQuery({
+    queryKey: ["users", "module", "designer"],
+    queryFn: () =>
+      api<{ users: { id: string; name: string; email: string }[] }>(
+        "/api/users?module=designer"
+      ),
+  });
+  const { data: printerUsersData } = useQuery({
+    queryKey: ["users", "module", "print"],
+    queryFn: () =>
+      api<{ users: { id: string; name: string; email: string }[] }>(
+        "/api/users?module=print"
+      ),
+  });
+  const designerUsers = designerUsersData?.users ?? [];
+  const printerUsers = printerUsersData?.users ?? [];
+
+  // تک‌کاربره → پیش‌فرض خودکار (مدیر می‌تواند عوض کند)
+  React.useEffect(() => {
+    if (designerUsers.length === 1 && !assignedDesignerId) {
+      setAssignedDesignerId(designerUsers[0].id);
+    }
+  }, [designerUsers, assignedDesignerId]);
+  React.useEffect(() => {
+    if (printerUsers.length === 1 && !assignedPrinterId) {
+      setAssignedPrinterId(printerUsers[0].id);
+    }
+  }, [printerUsers, assignedPrinterId]);
 
   // Phase 11 — پیش‌فاکتور دیگر در مرحلهٔ ۴ ویزارد نیست — «همیشگی» است و
   // خودکار با سفارش ساخته می‌شود؛ مدیریت آن دقیقاً پس از ثبت کامل
@@ -201,6 +240,9 @@ export function OrderWizardPage() {
     setEndDate(order.endDate ? order.endDate.slice(0, 10) : "");
     setNoEndDate(!!order.noEndDate);
     setNote(order.note ?? "");
+    // Phase 12: تخصیص‌های فعلی
+    setAssignedDesignerId(order.assignedDesignerId ?? "");
+    setAssignedPrinterId(order.assignedPrinterId ?? "");
 
     setLoadedOrderId(param);
   }, [param, editData, loadedOrderId]);
@@ -219,6 +261,8 @@ export function OrderWizardPage() {
     setEndDate("");
     setNoEndDate(false);
     setNote("");
+    setAssignedDesignerId("");
+    setAssignedPrinterId("");
     setSuccess(null);
     setPiModal(null);
     setPiModalOpen(false);
@@ -299,6 +343,10 @@ export function OrderWizardPage() {
   // determine if any item across customers needs design (R20: useMemo — was recomputed every render)
   const allItemsFlat = React.useMemo(() => Object.values(itemsByCustomer).flat(), [itemsByCustomer]);
   const needsDesign = React.useMemo(() => allItemsFlat.some((i) => i.stage === "design"), [allItemsFlat]);
+  const needsPrint = React.useMemo(
+    () => allItemsFlat.some((i) => i.stage === "design" || i.stage === "print"),
+    [allItemsFlat]
+  );
   const anyCompleted = React.useMemo(() => allItemsFlat.some((i) => i.stage === "completed"), [allItemsFlat]);
 
   function canGoNext(): boolean {
@@ -310,6 +358,12 @@ export function OrderWizardPage() {
         const arr = itemsByCustomer[c] ?? [];
         return arr.length > 0 && arr.every((i) => !!i.productId);
       });
+    }
+    if (step === 3) {
+      // Phase 12: تخصیص الزامی وقتی بیش از یک کاربر همان ماژول موجود است —
+      // «این سفارش به کدوم کاربر بره؟» باید صریح پاسخ داده شود.
+      if (needsDesign && designerUsers.length > 1 && !assignedDesignerId) return false;
+      if (needsPrint && printerUsers.length > 1 && !assignedPrinterId) return false;
     }
     return true;
   }
@@ -365,6 +419,9 @@ export function OrderWizardPage() {
           endDate: noEndDate ? null : endDate || null,
           noEndDate,
           note: note || null,
+          // Phase 12: تخصیص‌ها (PUT صریحاً مقدار می‌دهد — null هم معتبر است)
+          assignedDesignerId: assignedDesignerId || null,
+          assignedPrinterId: assignedPrinterId || null,
         };
         return api(`/api/orders/${param}`, { method: "PUT", body: JSON.stringify(body) });
       }
@@ -381,6 +438,9 @@ export function OrderWizardPage() {
         noEndDate,
         note: note || null,
         markCompleted: anyCompleted,
+        // Phase 12: تخصیص طراح/چاپ اختصاصی
+        assignedDesignerId: assignedDesignerId || null,
+        assignedPrinterId: assignedPrinterId || null,
       };
       // Phase 11: پیش‌فاکتور در مرحلهٔ ۴ ایجاد نمی‌شود — سرور خودکار
       // با سفارش می‌سازد (مجزا/چند-مشتری → per-item؛ گروهی تک-مشتری →
@@ -691,6 +751,14 @@ export function OrderWizardPage() {
           updateItem={updateItem}
           applyDatesToAll={applyDatesToAll}
           customerCount={customers.length}
+          needsDesign={needsDesign}
+          needsPrint={needsPrint}
+          designerUsers={designerUsers}
+          printerUsers={printerUsers}
+          assignedDesignerId={assignedDesignerId}
+          setAssignedDesignerId={setAssignedDesignerId}
+          assignedPrinterId={assignedPrinterId}
+          setAssignedPrinterId={setAssignedPrinterId}
         />
       )}
 
@@ -706,6 +774,8 @@ export function OrderWizardPage() {
           note={note}
           needsDesign={needsDesign}
           isEditing={isEditing}
+          designerName={designerUsers.find((u) => u.id === assignedDesignerId)?.name}
+          printerName={printerUsers.find((u) => u.id === assignedPrinterId)?.name}
         />
       )}
 
@@ -728,6 +798,18 @@ export function OrderWizardPage() {
                       ? "برای هر آیتم یک محصول انتخاب کنید (ردیف‌های قرمز)"
                       : "هر مشتری باید حداقل یک آیتم داشته باشد"
                   );
+                }
+                if (step === 3) {
+                  // Phase 12: تخصیص الزامی — پیام دقیق
+                  if (needsDesign && designerUsers.length > 1 && !assignedDesignerId) {
+                    toast.error(
+                      `${designerUsers.length} کاربر طراحی دارید — مشخص کنید این سفارش به کدام کاربر برود`
+                    );
+                  } else if (needsPrint && printerUsers.length > 1 && !assignedPrinterId) {
+                    toast.error(
+                      `${printerUsers.length} کاربر چاپ دارید — مشخص کنید این سفارش برای چاپ به کدام کاربر برود`
+                    );
+                  }
                 }
                 return;
               }
@@ -1155,6 +1237,121 @@ function NoteItemModal({ open, onOpenChange, note, onSave }: { open: boolean; on
   );
 }
 
+// ─── Phase 12: انتخاب مسئوِِ مرحله (طراح/چاپ) ───────────────────
+function AssigneeSelect({
+  icon, accent, label, users, value, onChange, required, applicable, notApplicableText, emptyText,
+}: {
+  icon: Parameters<typeof Icon>[0]["name"];
+  accent: "violet" | "amber";
+  label: string;
+  users: { id: string; name: string; email: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  applicable?: boolean;
+  notApplicableText?: string;
+  emptyText?: string;
+}) {
+  const accentCls =
+    accent === "violet"
+      ? "text-violet-600 bg-violet-500/10"
+      : "text-amber-600 bg-amber-500/10";
+
+  if (applicable === false) {
+    return (
+      <div className="rounded-lg border bg-muted/20 p-3.5 space-y-1.5">
+        <div className="flex items-center gap-1.5 text-xs font-bold">
+          <span className={cn("size-7 rounded-lg grid place-items-center", accentCls)}>
+            <Icon name={icon} size={14} />
+          </span>
+          {label}
+        </div>
+        <p className="text-[11px] text-muted-foreground">{notApplicableText ?? "—"}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn(
+      "rounded-lg border p-3.5 space-y-2",
+      required && !value ? "border-rose-400/70 bg-rose-50/40 dark:bg-rose-950/10" : "bg-card"
+    )}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-bold">
+          <span className={cn("size-7 rounded-lg grid place-items-center", accentCls)}>
+            <Icon name={icon} size={14} />
+          </span>
+          {label}
+          {users.length > 1 && (
+            <span className="text-[10px] font-normal text-muted-foreground">
+              ({toFa(users.length)} کاربر)
+            </span>
+          )}
+        </div>
+        {required && !value && (
+          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">انتخاب کنید</span>
+        )}
+      </div>
+
+      {users.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground leading-relaxed">{emptyText}</p>
+      ) : (
+        <div className="space-y-1.5 max-h-44 overflow-y-auto scrollbar-thin pl-0.5">
+          {users.map((u) => {
+            const active = value === u.id;
+            return (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => onChange(active ? "" : u.id)}
+                className={cn(
+                  "w-full text-right rounded-lg border p-2.5 transition flex items-center gap-2.5",
+                  active
+                    ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
+                    : "hover:bg-accent/40"
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-3.5 rounded-full border-2 shrink-0 grid place-items-center",
+                    active ? "border-primary" : "border-muted-foreground/40"
+                  )}
+                >
+                  {active && <span className="size-1.5 rounded-full bg-primary" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-medium truncate">{u.name}</span>
+                  <span className="block text-[10px] text-muted-foreground truncate" dir="ltr">
+                    {u.email}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* گزینهٔ بدون تخصیص — غیرفعال وقتی انتخاب الزامی است */}
+      <button
+        type="button"
+        onClick={() => !required && onChange("")}
+        disabled={required}
+        className={cn(
+          "w-full text-right rounded-lg border border-dashed p-2 text-[11px] transition",
+          !value && !required
+            ? "border-primary/40 text-primary font-medium bg-primary/5"
+            : "text-muted-foreground",
+          required ? "opacity-50 cursor-not-allowed" : "hover:bg-accent/40"
+        )}
+      >
+        {required
+          ? "— برای این ماژول انتخاب الزامی است —"
+          : "بدون تخصیص (نمایش در استخر عمومی همهٔ کاربران همان ماژول)"}
+      </button>
+    </div>
+  );
+}
+
 // ─── STEP 3: Timing & priority ────────────────────────────────
 // Phase 10: زمان‌بندی per-item — هر آیتم ۴ تاریخ خودش را دارد
 // (شروع/پایان طراحی + شروع/پایان چاپ). ابزار «اعمال روی همه» برای
@@ -1171,19 +1368,85 @@ function Step3(props: {
   updateItem: (cid: string, itemId: string, patch: Partial<ItemDraft>) => void;
   applyDatesToAll: (patch: Partial<Pick<ItemDraft, "designStart" | "designEnd" | "printStart" | "printEnd">>) => void;
   customerCount: number;
+  // Phase 12: تخصیص مسئوِِستان
+  needsDesign: boolean;
+  needsPrint: boolean;
+  designerUsers: { id: string; name: string; email: string }[];
+  printerUsers: { id: string; name: string; email: string }[];
+  assignedDesignerId: string;
+  setAssignedDesignerId: (v: string) => void;
+  assignedPrinterId: string;
+  setAssignedPrinterId: (v: string) => void;
 }) {
-  const { splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate, note, setNote, customers, allCustomers, itemsByCustomer, updateItem, applyDatesToAll, customerCount } = props;
+  const {
+    splitMode, setSplitMode, priority, setPriority, endDate, setEndDate, noEndDate, setNoEndDate,
+    note, setNote, customers, allCustomers, itemsByCustomer, updateItem, applyDatesToAll, customerCount,
+    needsDesign, needsPrint, designerUsers, printerUsers,
+    assignedDesignerId, setAssignedDesignerId, assignedPrinterId, setAssignedPrinterId,
+  } = props;
   const allItems = Object.values(itemsByCustomer).flat();
   // ابزار اعمال-روی-همه (وضعیت محلی، جدا از آیتم‌ها)
   const [bulkDesign, setBulkDesign] = React.useState<{ start: string; end: string }>({ start: "", end: "" });
   const [bulkPrint, setBulkPrint] = React.useState<{ start: string; end: string }>({ start: "", end: "" });
   const scheduledCount = allItems.filter((i) => i.designStart || i.designEnd || i.printStart || i.printEnd).length;
 
+  // آیا انتخاب الزامی است؟ (بیش از یک کاربر همان ماژول)
+  const designerRequired = needsDesign && designerUsers.length > 1;
+  const printerRequired = needsPrint && printerUsers.length > 1;
+
   return (
     <Card className="p-5 space-y-5">
       <div className="flex items-center gap-2.5">
         <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="calendar" size={20} /></div>
-        <div><h2 className="font-semibold">زمان‌دهی و اولویت</h2><p className="text-xs text-muted-foreground">زمان‌بندی هر آیتم جداگانه است — این مرحله اختیاری است</p></div>
+        <div><h2 className="font-semibold">زمان‌دهی، اولویت و تخصیص</h2><p className="text-xs text-muted-foreground">زمان‌بندی هر آیتم جداگانه است + تعیین مسئول طراحی و چاپ</p></div>
+      </div>
+
+      {/* ═══ Phase 12: تخصیص مسئوِستان ═══ */}
+      <div className="rounded-xl border border-violet-200/60 dark:border-violet-900/60 bg-violet-50/40 dark:bg-violet-950/15 p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Icon name="user" size={17} className="text-primary" />
+            <h3 className="font-medium text-sm">تخصیص مسئولان (گردش کار هدفمند)</h3>
+          </div>
+          {(designerRequired || printerRequired) && (
+            <span className="text-[10px] px-2 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-medium">
+              انتخاب الزامی
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          سفارش فقط در پنل کاربرِ انتخاب‌شده ظاهر می‌شود و پس از تکمیل طراحی، دقیقاً به
+          همان چاپ‌کارِ انتخاب‌شده می‌رسد — نه پنل هیچ‌کس دیگر. بدون انتخاب، سفارش در
+          استخر عمومی همان ماژول برای همه قابل مشاهده است.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* طراح */}
+          <AssigneeSelect
+            icon="design"
+            accent="violet"
+            label="مسئول طراحی"
+            users={designerUsers}
+            value={assignedDesignerId}
+            onChange={setAssignedDesignerId}
+            required={designerRequired}
+            applicable={needsDesign}
+            notApplicableText="در این سفارش آیتم نیازمند طراحی نیست"
+            emptyText="کاربری با ماژول طراحی وجود ندارد — سفارش در استخر عمومی طراح‌ها نمایش داده می‌شود"
+          />
+          {/* چاپ */}
+          <AssigneeSelect
+            icon="print"
+            accent="amber"
+            label="مسئول چاپ"
+            users={printerUsers}
+            value={assignedPrinterId}
+            onChange={setAssignedPrinterId}
+            required={printerRequired}
+            applicable={needsPrint}
+            notApplicableText="آیتمی از مسیر چاپ عبور نمی‌کند"
+            emptyText="کاربری با ماژول چاپ وجود ندارد — سفارش در استخر عمومی چاپ‌ها نمایش داده می‌شود"
+          />
+        </div>
       </div>
 
       {/* Split mode */}
@@ -1369,10 +1632,13 @@ function Step4(props: {
   note: string;
   needsDesign: boolean;
   isEditing: boolean;
+  // Phase 12: نام مسئوِِستان برای بازنگری نهایی
+  designerName?: string;
+  printerName?: string;
 }) {
   const {
     customers, itemsByCustomer, allCustomers, splitMode, priority, endDate, noEndDate,
-    note, needsDesign, isEditing,
+    note, needsDesign, isEditing, designerName, printerName,
   } = props;
   const [tab, setTab] = React.useState(customers[0] ?? "");
   const activeCid = tab || customers[0] || "";
@@ -1411,6 +1677,13 @@ function Step4(props: {
           <InfoCell icon="customers" label="مشتری اصلی" value={allCustomers.find((c) => c.id === customers[0])?.name ?? "—"}
             sub={customers.length > 1 ? `+${customers.length - 1} مشتری دیگر (سفارش تفکیکی)` : undefined} />
           <InfoCell icon="layers" label="نوع ثبت" value={splitMode === "grouped" ? "گروهی (یک سفارش)" : "تفکیک‌شده (هر آیتم یک سفارش)"} />
+          {/* Phase 12: تخصیص‌ها در بازنگری نهایی */}
+          <InfoCell icon="design" label="مسئول طراحی"
+            value={designerName ?? "—"}
+            sub={designerName ? "سفارش فقط در پنل او" : needsDesign ? "استخر عمومی طراح‌ها" : "بدون مرحلهٔ طراحی"} />
+          <InfoCell icon="print" label="مسئول چاپ"
+            value={printerName ?? "—"}
+            sub={printerName ? "پس از طراحی به پنل او" : "استخر عمومی چاپ‌کارها"} />
           <InfoCell icon={priority === "urgent" ? "alertTriangle" : "tag"} label="اولویت"
             value={priority === "urgent" ? "فوری" : "معمولی"}
             tone={priority === "urgent" ? "text-rose-600" : undefined} />

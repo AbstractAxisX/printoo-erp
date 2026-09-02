@@ -3587,3 +3587,33 @@ Stage Summary:
 - «نمیتونم سفارش بسازم» حل شد: مسیر ایجاد/ویرایش سفارش دیگر هرگز با P2003 کرش نمی‌کند؛ ریشهٔ رایج (آیتم بدون محصول) در UI قبل از submit گرفته می‌شود و در سرور هم 400 فارسی برمی‌گردد.
 - کل سیستم تاریخ میلادی yyyy/MM/dd شد (ویزارد ۳/۴، مودال پیش‌فاکتور، سند چاپی A4، تقویم) — نام روزها فارسی ماند.
 - کاربر: git pull → npm install → npm run dev (اگر دیتای محلی عوض شده و خطای «مشتری موجود نیست» دید → صفحه را رفرش کند).
+
+---
+Task ID: Phase-12
+Agent: orchestrator (main)
+Task: فاز ۱۲ — RBAC چند-ماژوله + گردش کار تخصیصی (طراح/چاپ هدفمند) + مدیریت کارمندان (حضور و غیاب واقعی + آمار عملکرد)
+
+Work Log:
+- تحلیل و معماری: منبع حقیقت دسترسی = جدول UserModule (many-to-many). master = ادمین سراسری (تنظیمات سیستم)؛ ماژول admin = مدیر داخلی (بدون فیلتر تخصیص)؛ بقیه = دقیقاً ماژول‌های تیک‌خورده. lib/access.ts تنها نقطهٔ تصمیم (isManager/hasModule/orderScopeWhere/canUserViewOrder/isOrderAssigneeAllowed/validateAssigneeForModule/touchLastSeen) تا sidebar و API هرگز ناهمخوان نباشند.
+- Schema (db:push شد): UserModule(userId,module,@@unique) + UserActivityLog(login/logout) + User.lastSeenAt/lastLoginAt/loginCount + Order.assignedDesignerId/assignedPrinterId/createdById (SetNull) + OrderItem.designCompletedBy/printCompletedBy (SetNull) + Task.completedAt + QcReport.reportedById/reviewedById + Notification.@@index([userId,createdAt]) (اعلان هدفمند).
+- backfill-access.mjs: ردیف UserModule از role قدیمی + completedAt برای تسک‌های done + migrated createdById — idempotent، اجرا شد (۹ ردیف).
+- Auth: SessionUser الان modules دارد (cookie حمل می‌کند ولی requireUser/me از DB تازه می‌خواند — تغییر دسترسی فوری اعمال می‌شود). login → lastLoginAt/lastSeenAt/loginCount++ + لاگ login؛ logout → لاگ logout؛ /api/auth/heartbeat جدید (throttle 45s) + useHeartbeat در AppShell (هر ۴۵s فقط tab مرئی) + touchLastSeen روی هر requireUser. آنلاین = lastSeenAt < ۳ دقیقه.
+- users API: GET ?module=designer → فقط دارنده‌های ماژول (pickerها)؛ all=1 → + حضور/آمار. POST/PUT ماژول‌های آرایه‌ای (جایگزینی کامل در تراکنش، حداقل یکی، role = ماژول اول compat).
+- orders API: POST/PUT/status/item-dates → requireManager (۴۰۳ فارسی)؛ POST تخصیص‌ها را validate می‌کند (موجود/فعال/دارندهٔ ماژول) + createdById + نوتیف هدفمند به مسئوِستان؛ GET → implicit board scoping (غیرمدیر: سفارش‌های خودش + استخر عمومیِ ماژول‌دارش + مالکیت تاریخی آیتم‌ها)؛ [id] GET (قبلاً بدون auth!) → requireUser + canUserViewOrder.
+- designer-action/print-action: گیت ماژول + گیت تخصیص («این سفارش به کارمند دیگری تخصیص یافته» ۴۰۳) + مهر designCompletedBy/printCompletedBy + نوتیف چاپ‌کار تخصیصی هنگام رسیدن به چاپ + نوتیف انبار.
+- tasks API: GET module-scoped (غیرمدیر: تسک خودش/بی‌مسئول فقط در ماژول‌هایش)؛ POST مدیریتی؛ resolveAssignee با module → کاربر بدون ماژول تسک ۴۰۰ فارسی؛ PUT: مجری فقط status (completedAt گذار به done) — بقیهٔ فیلدها ۴۰۳؛ نوتیف «تسک به شما واگذار شد».
+- notifications: GET برای غیرمدیر فقط عمومی+خودش؛ POST مدیریتی؛ [id] مالکیت. qc-reports: auth + reportedById/reviewedById + نوتیف بازگشت هدفمند به مسئوِ مرحله. dashboard: requireManager.
+- employees API: /api/employees/stats (master — حضور+طراحی/چاپ/تسک/QC ریز با تاخیر فعال/دیرکرد) و /daily?userId&date (خط زمانی: ورود/خروج، تکمیل طراحی/چاپ با سفارش#، تسک‌ها، ثبت سفارش، QC + خلاصهٔ روز).
+- Frontend shell: nav.visibleModules(user) بر اساس ماژول‌ها (settings فقط master)؛ app-store setUser ناوبری را sanitize می‌کند (تب‌های حساب قبلی حذف — ریشهٔ «سایدبار همه را داشت»)؛ ModuleRouter گارد AccessDenied (تب ماندگار localStorage هم رندر نمی‌شود)؛ CommandPalette فیلتر + «سفارش جدید» فقط مدیر؛ me هر ۶۰s رفرش (تغییر دسترسی بدون reload)؛ sidebar-user-footer: نقطهٔ آنلاین + برچسب ماژول‌ها.
+- users-page: کاتالوگ ماژول‌ها با شمار اعضا + ردیف‌ها با چیپ ماژول/نقطهٔ حضور/آخرین بازدید + دیالوگ ساخت/ویرایش با چک‌باکس چند-ماژوله (هشدار «حذف ماژول تخصیص‌های قبلی را نمی‌بندد»).
+- ویزارد: مرحلهٔ ۳ = «زمان‌دهی و تخصیص» — کارت تخصیص با AssigneeSelect (رادیو کاربران همان ماژول + «بدون تخصیص»؛ بیش از یک کاربر → الزامی + بلاک مرحله با toast شمار precise)؛ تک‌کاربره auto-select؛ ویرایش prefill می‌شود؛ مرحلهٔ ۴ مسئولین را در بازنگری نشان می‌دهد؛ submit/edit оба فیلدها را می‌فرستند.
+- tasks-page: picker مسئول بر اساس ماژولِ فرم (کوئری keyed) + hint؛ admin module = همه.
+- EmployeesPage (تنظیمات → مدیریت کارمندان): KPI (کارمندان/آنلاین/تاخیر کل/تسک‌ها) + جدول ریز (حضور + سلول‌های طراحی/چاپ/تسک/QC/ورود با tone رنگی) + دیالوگ drill-down (تاریخ انتخابی، خلاصهٔ روز، خط زمانی مرتب با آیکون/ساعت).
+- seed: usersSpec با modules (نیما = qc+print دموی چند-ماژوله)؛ sweep تخصیص سفارش‌ها (۲ عمومی در هر مرحله برای تست استخر)؛ انتساب تکمیل آیتم‌ها به مسئوِ همان سفارش؛ QC attribution؛ presence (loginCount/lastLogin/lastSeen — ۳ آنلاین) + UserActivityLog ۷ روز (login/logout ساعت‌دار)؛ completedAt تسک‌های done؛ ۲ نوتیف هدفدار. backfill-access.mjs هم اجرا شد.
+- E2E (agent-browser + fetch-in-page): master → همهٔ ماژول‌ها + settings(کاربران/کارمندان) ✓؛ ساخت کاربر qc+print از UI → sidebar او فقط چاپ+QC (نه ادمین/طراح/…) ✓؛ سفارش #۳۳ با سارا+رضا → سارا می‌بیند/مهدی نه ✓؛ سارا تکمیل → in_printing + رضا notified + چاپ پنل رضا ✓، علی نه ✓؛ علی: GET ۴۰۳ «تخصیص ندارد» + print-action ۴۰۳ «کارمند دیگری» + POST سفارش/تسک/dashboard ۴۰۳ + tasks?module=designer ۴۰۳ ✓؛ رضا send_warehouse → warehouse_logistics + printCompletedBy=رضا ✓؛ PUT ویرایش تخصیص‌ها حفظ ✓؛ تسک طراح به علی ۴۰۰ فارسی، به مهدی ساخته شد و مهدی فقط ۵ تسک خودش را می‌بیند ✓؛ اعلان‌های هدفمند فقط در پنل گیرنده ✓؛ employees stats/daily (رضا: ۳ ورود امروز + QC×۳ + «تکمیل چاپ سفارش #33» ۱۳:۲۰) ✓؛ VLM صفحه‌های users/employees/موبایل: بدون glitch ✓؛ tsc صفر خطا، lint ۰ error، کنسول پاک.
+
+Stage Summary:
+- «فقط همون نقشی که بهم داده وارد شه» حل شد: دسترسی = ماژول‌های تیک‌خورده (هر ترکیبی، حتی QC+چاپ) — sidebar، پالت، ModuleRouter و همهٔ APIها از یک منبع تغذیه می‌شوند + گاردهای ۴۰۳ فارسی.
+- گردش کار هدفمند واقعی شد: مدیر هنگام ثبت، طراح و چاپ‌کارِ مشخص را انتخاب می‌کند (بیش از یک نفر → الزامی)؛ سفارش فقط در پنل همان کاربر ظاهر می‌شود، دیگری نه در UI نه با API مستقیم (۴۰۳)؛ انتقال طراحی→چاپ دقیقاً به چاپ‌کار انتخابی می‌رسد + اعلان هدفمند؛ تکمیل‌ها با «کی» مهر می‌خورند.
+- «مدیریت کارمندان» (تنظیمات، master) جایگزین حضور و غیاب شد: آنلاین/آخرین بازدید/ورودها + آمار ریز سفارش/تسک/QC با تاخیرها + خط زمانی روزانهٔ هر کارمند (ورود/خروج/کارهای انجام‌شده).
+- دادهٔ دمو کامل بازسازی شد (ماژول‌ها، تخصیص‌ها، حضور ۷روزه)؛ کاربر تست multi@printoo24.com/test12345 (qc+print) برای بازبینی مانده است.

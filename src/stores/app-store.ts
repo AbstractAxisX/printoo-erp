@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { allowedModuleKeys } from "@/lib/nav";
 
 // Client-side navigation: (module, page) since we only expose "/" route.
 export type NavTarget = { module: string; page: string; param?: string };
@@ -14,10 +15,19 @@ export type Tab = {
   icon: string;
 };
 
+type AppUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  // Phase 12: ماژول‌های تیک‌خوردهٔ کاربر — منبع فیلتر sidebar/naوبری
+  modules: string[];
+};
+
 type AppState = {
   // auth (client mirror)
-  user: { id: string; name: string; email: string; role: string } | null;
-  setUser: (u: AppState["user"]) => void;
+  user: AppUser | null;
+  setUser: (u: AppUser | null) => void;
   logout: () => void;
 
   // navigation
@@ -63,8 +73,34 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       user: null,
-      setUser: (u) => set({ user: u }),
-      logout: () => set({ user: null, module: "admin", page: "dashboard", tabs: [], activeTabId: null }),
+      // Phase 12: setUser = ورود/تعویض هویت — navigation را هم «بهداشتی»
+      // می‌کنیم: تب‌های بازِ حساب قبلی (localStorage مشترک بین کاربران)
+      // حذف می‌شوند و ماژول فعال روی اولین ماژولِ مجازِ کاربر جدید می‌نشیند.
+      // بدون این، بعد از logout مدیر و login طراح، پنل ادمین با تب‌های
+      // ماندگار رندر می‌شد (قبلاً دقیقاً همین باگ: «سایدبار کل منوها را داشت»).
+      setUser: (u) =>
+        set((s) => {
+          if (!u) return { ...s, user: null };
+          const allowed = allowedModuleKeys(u);
+          const sanitizedTabs = s.tabs.filter((t) => allowed.includes(t.module));
+          const activeOk =
+            s.activeTabId != null &&
+            sanitizedTabs.some((t) => t.id === s.activeTabId);
+          const currentOk = allowed.includes(s.module);
+          const fallbackModule = allowed[0] ?? "admin";
+          return {
+            ...s,
+            user: { ...u, modules: u.modules ?? [] },
+            tabs: sanitizedTabs,
+            activeTabId: activeOk
+              ? s.activeTabId
+              : sanitizedTabs[0]?.id ?? null,
+            module: currentOk ? s.module : fallbackModule,
+            page: currentOk ? s.page : "dashboard",
+            param: currentOk ? s.param : undefined,
+          };
+        }),
+      logout: () => set({ user: null, module: "admin", page: "dashboard", tabs: [], activeTabId: null, param: undefined }),
 
       module: "admin",
       page: "dashboard",

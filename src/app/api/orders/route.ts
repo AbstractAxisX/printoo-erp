@@ -4,6 +4,11 @@ import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import {
+  orderScopeWhere,
+  requireManager,
+  validateAssigneeForModule,
+} from "@/lib/access";
+import {
   computeTotals,
   itemsFromOrderItems,
   isPerItemInvoice,
@@ -58,6 +63,11 @@ type CreateBody = {
   } | null;
   markCompleted?: boolean;
   createdBy?: string | null;
+  // ─── Phase 12: تخصیص مسئوِِستان (گردش کار هدفمند) ──
+  // طراح/چاپ اختصاصی این سفارش — null = استخر عمومی همان ماژول.
+  // اعتبارسنجی: کاربر باید وجود داشته باشد، فعال باشد و ماژول مربوطه را داشته باشد.
+  assignedDesignerId?: string | null;
+  assignedPrinterId?: string | null;
 };
 
 // ─── R3 fix: atomic Counter upsert (replaces aggregate _max + 1) ───────────
@@ -108,8 +118,15 @@ export async function GET(req: NextRequest) {
     where.totalAmount = totalAmount;
   }
 
+  // ─── Phase 12: implicit board scoping ──
+  // برای غیرمدیرها (طراح/چاپ بدون ماژول admin): سفارش فقط اگر «مال او»
+  // باشد (تخصیص/تکمیل) یا در استخر عمومیِ مرحله‌ای باشد که ماژولش را دارد.
+  // مدیر (master/admin) همه‌چیز را می‌بیند — بدون تغییر رفتار پنل مدیریت.
+  const scope = orderScopeWhere(user);
+  const scoped = scope ? { AND: [where, scope] } : where;
+
   const orders = await db.order.findMany({
-    where,
+    where: scoped,
     orderBy: { createdAt: "desc" },
     include: {
       customer: true,
@@ -121,7 +138,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireUser();
+  // Phase 12: ثبت سفارش = عملیات مدیریتی (ویزارد در پنل ادمین است).
+  const user = await requireManager();
   if (user instanceof NextResponse) return user;
 
   // R3: شمارنده‌ها قبل از تراکنش ترمیم/سید می‌شوند (idempotent)
@@ -140,7 +158,8 @@ export async function POST(req: NextRequest) {
       moduleDates,
       preInvoice,
       markCompleted,
-      createdBy,
+      assignedDesignerId,
+      assignedPrinterId,
     } = body;
 
     if (!customers?.length) {
@@ -212,6 +231,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ─── Phase 12: اعتبارسنجی تخصیص طراح/چاپ قبل از تراکنش ──────
+    // کاربر تخصیص‌یافته باید: وجود داشته باشد + فعال باشد + ماژول مربوطه را داشته باشد.
+    const designerCheck = await validateAssigneeForModule(assignedDesignerId, "designer");
+    if (!designerCheck.ok) {
+      return NextResponse.json({ error: designerCheck.error }, { status: 400 });
+    }
+    const printerCheck = await validateAssigneeForModule(assignedPrinterId, "print");
+    if (!printerCheck.ok) {
+      return NextResponse.json({ error: printerCheck.error }, { status: 400 });
+    }
+    const assignDesignerId =
+      assignedDesignerId && designerCheck.user.id ? designerCheck.user.id : null;
+    const assignPrinterId =
+      assignedPrinterId && printerCheck.user.id ? printerCheck.user.id : null;
+
     // ─── R4 fix: atomic all-or-nothing via a single transaction ──────────
     // Pre-Phase-3, if createPreInvoice/createInvoice failed AFTER order.create,
     // the order was orphaned (paidAmount never bumped, invoice missing).
@@ -271,6 +305,10 @@ export async function POST(req: NextRequest) {
             data: {
               number: num,
               customerId,
+              // Phase 12: تخصیص مسئوِستان + ثبت‌کنندهٔ واقعی
+              assignedDesignerId: assignDesignerId,
+              assignedPrinterId: assignPrinterId,
+              createdById: user.id,
               // Phase 9: وضعیت سفارش = تجمیع مرحله‌های آیتم‌ها — سفارش گروهی
               // با هر آیتم طراحی → در گیت طراحی می‌ماند (خواستهٔ صریح:
               // «حتی اگر یکی از آیتم‌ها مال چاپ باشد، تا طراحی همه تمام
@@ -287,7 +325,6 @@ export async function POST(req: NextRequest) {
               totalAmount: total,
               paidAmount: 0,
               note: note || null,
-              createdBy: createdBy || null,
               items: {
                 create: items.map((it) => ({
                   productId: it.productId,
@@ -365,6 +402,10 @@ export async function POST(req: NextRequest) {
               data: {
                 number: num,
                 customerId,
+                // Phase 12: تخصیص مسئوِستان + ثبت‌کنندهٔ واقعی
+                assignedDesignerId: assignDesignerId,
+                assignedPrinterId: assignPrinterId,
+                createdById: user.id,
                 status: markCompleted
                   ? "completed"
                   : it.stage === "archive"
@@ -377,7 +418,6 @@ export async function POST(req: NextRequest) {
                 totalAmount: total,
                 paidAmount: 0,
                 note: note || null,
-                createdBy: createdBy || null,
                 items: {
                   create: [
                     {
@@ -425,6 +465,40 @@ export async function POST(req: NextRequest) {
 
       return { orders: result, preInvoices };
     });
+
+    // ─── Phase 12: اعلان هدفمند برای مسئوِِِستان‌ها ──────────────────
+    // «سفارش #N به شما رسید» — فقط در پنل همان کاربر (Notification.userId).
+    try {
+      const firstNum = created.orders[0]?.number;
+      const numTail =
+        created.orders.length > 1
+          ? ` و ${created.orders.length - 1} سفارش دیگر`
+          : "";
+      const notifs: { userId: string; title: string; message: string; type: string; link: string }[] = [];
+      if (assignDesignerId) {
+        notifs.push({
+          userId: assignDesignerId,
+          title: "سفارش جدید به شما تخصیص یافت",
+          message: `سفارش #${firstNum}${numTail} برای طراحی به شما واگذار شد.`,
+          type: "info",
+          link: "designer:orders",
+        });
+      }
+      if (assignPrinterId) {
+        notifs.push({
+          userId: assignPrinterId,
+          title: "سفارش جدید به شما تخصیص یافت",
+          message: `سفارش #${firstNum}${numTail} پس از طراحی برای چاپ به شما واگذار شد.`,
+          type: "info",
+          link: "print:orders",
+        });
+      }
+      if (notifs.length) {
+        await db.notification.createMany({ data: notifs });
+      }
+    } catch {
+      // اعلان نباید ثبت سفارش را خراب کند — best-effort
+    }
 
     return NextResponse.json(
       {

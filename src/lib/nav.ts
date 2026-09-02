@@ -271,15 +271,36 @@ export const NAV: ModuleNav[] = [
         icon: "gear",
         items: [
           { id: "users", label: "کاربران و نقش‌ها", icon: "user", page: "users" },
+          // Phase 12: حضور و غیاب واقعی + آمار عملکرد هر کارمند
+          { id: "employees", label: "مدیریت کارمندان", icon: "checkList", page: "employees" },
         ],
       },
     ],
   },
 ];
 
-/** ماژول‌های قابل مشاهده برای نقش فعلی (تنظیمات سیستم فقط برای master). */
-export function visibleModules(role?: string | null): ModuleNav[] {
-  return NAV.filter((m) => !m.masterOnly || role === "master");
+/** ماژول‌های قابل مشاهده برای کاربر فعلی.
+ *
+ * Phase 12 — RBAC چند-ماژوله:
+ *   master      → همهٔ ماژول‌ها + تنظیمات سیستم
+ *   غیر-master → دقیقاً ماژول‌های تیک‌خوردهٔ او (UserModule) — نه یک مورد بیشتر
+ *   «فقط باید همون نقشی که بهم داده وارد شه» — خواستهٔ صریح کاربر.
+ */
+export type NavUser = { role: string; modules?: string[] } | null | undefined;
+
+export function visibleModules(user?: NavUser): ModuleNav[] {
+  if (!user) return [];
+  if (user.role === "master") {
+    // master: همه + تنظیمات (masterOnly)
+    return NAV.filter((m) => !m.masterOnly || user.role === "master");
+  }
+  const mods = new Set(user.modules ?? []);
+  return NAV.filter((m) => !m.masterOnly && mods.has(m.key));
+}
+
+/** کلیدهای ماژول‌های مجاز برای گاردهای سمت کلاینت (ModuleRouter/palette). */
+export function allowedModuleKeys(user?: NavUser): string[] {
+  return visibleModules(user).map((m) => m.key);
 }
 
 export function findModule(key: string) {

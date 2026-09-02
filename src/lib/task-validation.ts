@@ -1,4 +1,4 @@
-// Printoo24 ERP — Task validation helpers (Phase 4, R12)
+// Printoo24 ERP — Task validation helpers (Phase 4, R12 → Phase 12)
 //
 // Single source of truth for task enum validation, shared by
 // /api/tasks and /api/tasks/[id] route handlers.
@@ -9,6 +9,10 @@
 //
 // Values MUST mirror lib/constants.ts (TASK_STATUS / PRIORITY / MODULES).
 // Do NOT change enum values — they are part of the API contract (§5.2).
+//
+// Phase 12: resolveAssignee(v, module?) — کاربرِ تخصیص‌یافته باید ماژولِ
+// تسک را هم داشته باشد («تسک طراح فقط به کسی داده شود که ماژول طراح
+// برایش تیک خورده» — خواستهٔ صریح کاربر).
 
 import { db } from "@/lib/db";
 
@@ -43,18 +47,43 @@ export function isTaskModule(v: unknown): v is (typeof TASK_MODULES)[number] {
  * Throws a Persian Error (surfaced as 400 by callers) when the user does
  * not exist / is inactive — the roadmap edge case: ارجاع تسک به کاربر حذف‌شده
  * must FAIL loudly, never silently orphan the task.
+ *
+ * Phase 12 — `module?`: when provided, the assignee must ALSO hold that
+ * module (master exempt — implicit access). Otherwise the task would land
+ * in a panel the assignee never sees.
  */
-export async function resolveAssignee(v: unknown): Promise<string | null> {
+export async function resolveAssignee(
+  v: unknown,
+  module?: string
+): Promise<string | null> {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v !== "string") {
     throw new Error("مقدار مسئول انجام نامعتبر است");
   }
-  const user = await db.user.findUnique({ where: { id: v } });
+  const user = await db.user.findUnique({
+    where: { id: v },
+    include: { modules: { select: { module: true } } },
+  });
   if (!user) {
     throw new Error("کاربر مورد نظر یافت نشد (ممکن است حذف شده باشد)");
   }
   if (user.status !== "active") {
     throw new Error("این کاربر غیرفعال است و قابل ارجاع نیست");
+  }
+  if (module && user.role !== "master" && !user.modules.some((m) => m.module === module)) {
+    const labels: Record<string, string> = {
+      admin: "ادمین",
+      designer: "طراحی",
+      print: "چاپ",
+      warehouse: "انبار",
+      finance: "مالی",
+      qc: "کنترل کیفی",
+      crm: "ارتباط با مشتری",
+      srm: "ارتباط با تامین‌کننده",
+    };
+    throw new Error(
+      `کاربر «${user.name}» به ماژول ${labels[module] ?? module} دسترسی ندارد — تسک در پنل او دیده نمی‌شود`
+    );
   }
   return user.id;
 }

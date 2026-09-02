@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireManager } from "@/lib/access";
 import { syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
 
@@ -8,7 +8,8 @@ import { jsonError } from "@/lib/api-error";
 // Phase 9: تغییر دستی وضعیت → stage آیتم‌ها همگام می‌شود
 // (syncItemsToStatus) تا سفارش و آیتم‌هایش هرگز ناهمخوان نباشند.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  // Phase 12: تغییر دستی وضعیت = عملیات مدیریتی
+  const user = await requireManager();
   if (user instanceof NextResponse) return user;
 
   const { id } = await params;

@@ -68,10 +68,10 @@ export function AppSidebar() {
 
       <SidebarContent className="scrollbar-thin">
         {/* درخت ناوبری: هر ماژول یک TreeModule (کشوی سطح بالا) —
-            ماژول‌های masterOnly (تنظیمات سیستم) فقط برای ادمین سراسری */}
+            Phase 12: فقط ماژول‌های تیک‌خوردهٔ کاربر (master همه + تنظیمات) */}
         <SidebarGroup className="px-1">
           <SidebarMenu>
-            {visibleModules(user?.role).map((m) => {
+            {visibleModules(user).map((m) => {
               const isActiveModule = m.key === moduleKey;
               return (
                 <TreeModule

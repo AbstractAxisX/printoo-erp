@@ -49,6 +49,22 @@ export function SidebarUserFooter() {
   }
 
   const isMaster = user?.role === "master";
+  // Phase 12: نقش‌نمایی بر اساس ماژول‌ها — «طراح»، «چاپ + کنترل کیفی»، ...
+  const moduleLabel = React.useMemo(() => {
+    if (isMaster) return "مدیر کل";
+    const labels: Record<string, string> = {
+      admin: "ادمین داخلی",
+      designer: "طراح",
+      print: "چاپ",
+      warehouse: "انبار",
+      finance: "مالی",
+      qc: "کنترل کیفی",
+      crm: "ارتباط با مشتری",
+      srm: "ارتباط با تامین‌کننده",
+    };
+    const mods = (user?.modules ?? []).map((m) => labels[m] ?? m);
+    return mods.length ? mods.slice(0, 2).join(" + ") + (mods.length > 2 ? " +…" : "") : "کاربر";
+  }, [isMaster, user?.modules]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -61,23 +77,30 @@ export function SidebarUserFooter() {
           )}
           aria-label="منوی کاربر"
         >
-          {/* آواتار با گرادیانت emerald برای نقش master */}
-          <Avatar className="size-8 shrink-0">
-            <AvatarFallback
-              className={cn(
-                "text-xs font-bold",
-                isMaster
-                  ? "bg-gradient-to-br from-primary to-emerald-700 text-primary-foreground"
-                  : "bg-primary text-primary-foreground",
-              )}
-            >
-              {user?.name?.charAt(0) ?? "A"}
-            </AvatarFallback>
-          </Avatar>
+          {/* آواتار با گرادیانت emerald برای نقش master + نقطهٔ حضور آنلاین */}
+          <span className="relative shrink-0">
+            <Avatar className="size-8">
+              <AvatarFallback
+                className={cn(
+                  "text-xs font-bold",
+                  isMaster
+                    ? "bg-gradient-to-br from-primary to-emerald-700 text-primary-foreground"
+                    : "bg-primary text-primary-foreground",
+                )}
+              >
+                {user?.name?.charAt(0) ?? "A"}
+              </AvatarFallback>
+            </Avatar>
+            <span
+              className="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar"
+              title="آنلاین"
+              aria-label="آنلاین"
+            />
+          </span>
           <div className="min-w-0 flex-1 text-right group-data-[collapsible=icon]:hidden">
             <div className="text-xs font-medium truncate">{user?.name ?? "کاربر"}</div>
             <div className="text-[10px] text-muted-foreground truncate">
-              {isMaster ? "مدیر کل" : user?.email}
+              {moduleLabel}
             </div>
           </div>
           <Icon

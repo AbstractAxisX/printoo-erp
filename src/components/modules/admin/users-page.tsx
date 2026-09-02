@@ -1,18 +1,17 @@
 "use client";
 
-// Printoo24 ERP — Users & Roles management page (admin, master-only)
+// Printoo24 ERP — Users & Roles management page (master-only, Phase 12)
 //
-// The missing "نمی‌توانم نقش بسازم" surface:
-// - User list (active + inactive) with role badges, status toggle
-// - Create-user dialog: name / email / password / role / phone
-// - Edit-user dialog: rename, change role/phone, reset password
-// - Role catalog strip: every USER_ROLE with live member counts
+// بازسازی فاز ۱۲ — «چند ماژول به هر کاربر»:
+// - کاتالوگ ماژول‌ها (با شمار اعضای زنده) به‌جای کاتالوگ نقش‌های تکی
+// - ساخت کاربر: چک‌باکس چند-ماژوله (طراح + چاپ + QC + ... هر ترکیبی)
+// - ویرایش کاربر: همان چک‌باکس‌ها (جایگزینی کامل دسترسی‌ها) + رمز/وضعیت
+// - نمایش چیپ ماژول‌های هر کاربر در فهرست + نقطهٔ حضور آنلاین
 //
 // Cognitive-UX:
-// - Role catalog on top → the admin SEES the org structure before acting.
-// - One primary action («کاربر جدید») — the page's single obvious next step.
-// - Inline status switch instead of a buried menu — destructive-ish action
-//   with instant visual confirmation (and API-side self-lockout guards).
+// - کاتالوگ روی صفحه → مدیر «ساختار سازمان» را قبل از اقدام می‌بیند.
+// - یک اکشن اصلی («کاربر جدید») — مسیر بعدیِ بدیهی صفحه.
+// - سوییچ وضعیت درجا (با گاردهای self-lockout سمت API).
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,20 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { USER_ROLE } from "@/lib/constants";
+import { MODULES, type ModuleKey } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -51,29 +44,33 @@ type ManagedUser = {
   role: string;
   phone: string | null;
   avatar: string | null;
+  modules: string[];
   status?: string;
   createdAt?: string;
+  lastSeenAt?: string | null;
+  lastLoginAt?: string | null;
+  loginCount?: number;
+  online?: boolean;
 };
 
 type FormState = {
   name: string;
   email: string;
   password: string;
-  role: string;
   phone: string;
+  modules: string[];
 };
 
 const EMPTY_FORM: FormState = {
   name: "",
   email: "",
   password: "",
-  role: "designer",
   phone: "",
+  modules: ["designer"],
 };
 
-// Role accent colors — consistent with MODULE_TAG palette across the app.
-const ROLE_COLORS: Record<string, string> = {
-  master: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
+// رنگ چیپ ماژول — هم‌خانوادهٔ MODULE_TAG در کل سیستم
+const MODULE_COLORS: Record<string, string> = {
   admin: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300",
   designer: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
   print: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
@@ -90,17 +87,30 @@ function initials(name: string): string {
   return parts[0].slice(0, 1) + parts[1].slice(0, 1);
 }
 
-function RoleBadge({ role }: { role: string }) {
+function ModuleChip({ module }: { module: string }) {
+  const meta = (MODULES as Record<string, { faLabel: string }>)[module];
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-        ROLE_COLORS[role] ?? "bg-muted text-muted-foreground"
+        MODULE_COLORS[module] ?? "bg-muted text-muted-foreground"
       )}
     >
-      {USER_ROLE[role]?.label ?? role}
+      {meta?.faLabel ?? module}
     </span>
   );
+}
+
+function presenceText(u: ManagedUser): string {
+  if (u.online) return "آنلاین";
+  if (u.lastSeenAt) {
+    const mins = Math.floor((Date.now() - new Date(u.lastSeenAt).getTime()) / 60000);
+    if (mins < 60) return `${mins} دقیقه پیش`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} ساعت پیش`;
+    return `آخرین بازدید: ${formatDate(u.lastSeenAt)}`;
+  }
+  return "بدون بازدید";
 }
 
 // ─── Main page ────────────────────────────────────────────────────
@@ -158,8 +168,8 @@ export function UsersPage() {
       name: u.name,
       email: u.email,
       password: "",
-      role: u.role,
       phone: u.phone ?? "",
+      modules: u.role === "master" ? [] : (u.modules ?? []),
     });
     setNewPassword("");
   }
@@ -170,6 +180,8 @@ export function UsersPage() {
     if (!createForm.email.trim()) return toast.error("ایمیل الزامی است");
     if (createForm.password.length < 6)
       return toast.error("رمز عبور باید حداقل ۶ کاراکتر باشد");
+    if (createForm.modules.length === 0)
+      return toast.error("حداقل یک ماژول (سطح دسترسی) انتخاب کنید");
     createMut.mutate(createForm);
   }
 
@@ -177,12 +189,14 @@ export function UsersPage() {
     e.preventDefault();
     if (!editUser) return;
     if (!editForm.name.trim()) return toast.error("نام نمی‌تواند خالی باشد");
+    if (editUser.role !== "master" && editForm.modules.length === 0)
+      return toast.error("حداقل یک ماژول (سطح دسترسی) باید فعال بماند");
     updateMut.mutate(
       {
         id: editUser.id,
         name: editForm.name,
-        role: editForm.role,
         phone: editForm.phone || null,
+        ...(editUser.role !== "master" ? { modules: editForm.modules } : {}),
         ...(newPassword ? { password: newPassword } : {}),
       },
       {
@@ -191,21 +205,26 @@ export function UsersPage() {
     );
   }
 
-  // Role catalog: count members per role.
-  const roleCounts = React.useMemo(() => {
+  // Module catalog: count members per module.
+  const moduleCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const u of users) counts[u.role] = (counts[u.role] ?? 0) + 1;
+    for (const u of users) {
+      if (u.role === "master") continue;
+      for (const m of u.modules ?? []) counts[m] = (counts[m] ?? 0) + 1;
+    }
     return counts;
   }, [users]);
 
+  const masterCount = users.filter((u) => u.role === "master").length;
   const activeCount = users.filter((u) => u.status !== "inactive").length;
+  const onlineCount = users.filter((u) => u.online).length;
 
   // ── Render ──
   return (
     <div className="space-y-5">
       <PageHeader
-        title="کاربران و نقش‌ها"
-        description="تنظیمات سیستم — مدیریت کاربران، نقش‌ها و دسترسی‌ها (ادمین سراسری)"
+        title="کاربران و دسترسی‌ها"
+        description="تنظیمات سیستم — ساخت کاربر و تعیین ماژول‌های دسترسی (هر کاربر می‌تواند چند ماژول داشته باشد)"
         icon="user"
         actions={
           <Button
@@ -222,24 +241,33 @@ export function UsersPage() {
         }
       />
 
-      {/* ── Role catalog strip ── */}
+      {/* ── Module catalog strip ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {Object.entries(USER_ROLE).map(([key, meta]) => (
+        {(Object.keys(MODULES) as ModuleKey[]).map((key) => (
           <Card key={key} className="p-4 gap-1">
             <div className="flex items-center justify-between gap-2">
-              <RoleBadge role={key} />
+              <ModuleChip module={key} />
               <span className="text-lg font-bold tabular-nums">
-                {roleCounts[key] ?? 0}
+                {moduleCounts[key] ?? 0}
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              {key === "master" ? "دسترسی کامل به همه بخش‌ها" : `پنل ${meta.label}`}
+              پنل {MODULES[key].faLabel}
             </p>
           </Card>
         ))}
+        <Card className="p-4 gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+              مدیر ارشد
+            </span>
+            <span className="text-lg font-bold tabular-nums">{masterCount}</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">دسترسی کامل به همه بخش‌ها</p>
+        </Card>
       </div>
 
-      {/* ── Users table (plain card list — small roster, no virtualization) ── */}
+      {/* ── Users table ── */}
       {isLoading ? (
         <LoadingState />
       ) : users.length === 0 ? (
@@ -264,29 +292,44 @@ export function UsersPage() {
                 {activeCount} فعال از {users.length}
               </span>
             </span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              {onlineCount} آنلاین
+            </span>
           </div>
-          <div className="divide-y max-h-[520px] overflow-y-auto scrollbar-thin">
+          <div className="divide-y max-h-[560px] overflow-y-auto scrollbar-thin">
             {users.map((u) => {
               const isSelf = u.id === me?.id;
               const inactive = u.status === "inactive";
+              const isMasterRow = u.role === "master";
               return (
                 <div
                   key={u.id}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors",
+                    "flex items-center gap-3 px-4 py-3 hover:bg-accent/40 transition-colors flex-wrap",
                     inactive && "opacity-60"
                   )}
                 >
                   {/* Avatar + name */}
-                  <span
-                    className={cn(
-                      "size-10 rounded-full grid place-items-center text-xs font-bold shrink-0",
-                      u.role === "master"
-                        ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white"
-                        : "bg-primary/10 text-primary"
-                    )}
-                  >
-                    {initials(u.name)}
+                  <span className="relative shrink-0">
+                    <span
+                      className={cn(
+                        "size-10 rounded-full grid place-items-center text-xs font-bold shrink-0",
+                        isMasterRow
+                          ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white"
+                          : "bg-primary/10 text-primary"
+                      )}
+                    >
+                      {initials(u.name)}
+                    </span>
+                    <span
+                      className={cn(
+                        "absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full ring-2 ring-card",
+                        u.online ? "bg-emerald-500" : "bg-muted-foreground/40"
+                      )}
+                      title={presenceText(u)}
+                      aria-label={presenceText(u)}
+                    />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -316,9 +359,22 @@ export function UsersPage() {
                           <span>عضویت: {formatDate(u.createdAt)}</span>
                         </>
                       )}
+                      <span className="opacity-50">•</span>
+                      <span className={u.online ? "text-emerald-600 dark:text-emerald-400 font-medium" : ""}>
+                        {presenceText(u)}
+                      </span>
                     </div>
                   </div>
-                  <RoleBadge role={u.role} />
+                  {/* ماژول‌ها یا نشان master */}
+                  <div className="flex items-center gap-1.5 flex-wrap max-w-[280px] justify-end">
+                    {isMasterRow ? (
+                      <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-full px-2 py-0.5">
+                        مدیر ارشد — همه ماژول‌ها
+                      </span>
+                    ) : (
+                      (u.modules ?? []).map((m) => <ModuleChip key={m} module={m} />)
+                    )}
+                  </div>
                   {/* Status toggle (not for self — API blocks it anyway) */}
                   {isMaster && !isSelf ? (
                     <Switch
@@ -390,6 +446,11 @@ export function UsersPage() {
               <Input value={editForm.email} disabled dir="ltr" />
             </Field>
             <UserFormFields form={editForm} setForm={setEditForm} />
+            {editUser?.role === "master" ? (
+              <p className="text-xs text-muted-foreground rounded-lg border border-dashed p-3">
+                مدیر ارشد دسترسی ضمنی به همهٔ ماژول‌ها دارد — سطح دسترسی تکی ندارد.
+              </p>
+            ) : null}
             <Field label="رمز عبور جدید (اختیاری)">
               <Input
                 type="password"
@@ -399,6 +460,13 @@ export function UsersPage() {
                 dir="ltr"
               />
             </Field>
+            {editUser && editUser.role !== "master" && (editUser.modules ?? []).length > 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5 leading-relaxed">
+                <Icon name="info" size={12} className="inline ml-1" />
+                اگر ماژولی را برمی‌دارید، سفارش‌ها/تسک‌های تخصیص‌یافتهٔ قبلی او حذف
+                نمی‌شوند؛ اما پنل آن ماژول دیگر برایش نمایش داده نمی‌شود.
+              </p>
+            )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)}>
                 انصراف
@@ -429,6 +497,15 @@ function UserFormFields({
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   withPassword?: boolean;
 }) {
+  function toggleModule(key: string, checked: boolean) {
+    setForm((f) => ({
+      ...f,
+      modules: checked
+        ? Array.from(new Set([...f.modules, key]))
+        : f.modules.filter((m) => m !== key),
+    }));
+  }
+
   return (
     <div className="space-y-4">
       <Field label="نام و نام خانوادگی" required>
@@ -461,33 +538,48 @@ function UserFormFields({
           />
         </Field>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="نقش" required>
-          <Select
-            value={form.role}
-            onValueChange={(v) => setForm((f) => ({ ...f, role: v }))}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(USER_ROLE).map(([key, meta]) => (
-                <SelectItem key={key} value={key}>
-                  {meta.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field label="شماره تماس">
-          <Input
-            value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            placeholder="0912..."
-            dir="ltr"
-          />
-        </Field>
-      </div>
+      <Field label="شماره تماس">
+        <Input
+          value={form.phone}
+          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          placeholder="0770..."
+          dir="ltr"
+        />
+      </Field>
+
+      {/* Phase 12 — انتخاب چند ماژول (چک‌باکس) */}
+      <Field label="ماژول‌های دسترسی (چند انتخاب)" required>
+        <div className="grid grid-cols-2 gap-2">
+          {(Object.keys(MODULES) as ModuleKey[]).map((key) => {
+            const checked = form.modules.includes(key);
+            return (
+              <label
+                key={key}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer transition-colors select-none",
+                  checked
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-border hover:bg-accent/40"
+                )}
+              >
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(v) => toggleModule(key, v === true)}
+                  aria-label={MODULES[key].faLabel}
+                />
+                <span className="text-xs font-medium flex items-center gap-1.5">
+                  <span className={cn("size-2 rounded-full", checked ? "bg-primary" : "bg-muted-foreground/30")} />
+                  {MODULES[key].faLabel}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+          کاربر فقط پنل ماژول‌های تیک‌خورده را می‌بیند — مثلاً هم «کنترل کیفی» هم «چاپ»
+          را تیک بزنید تا هر دو پنل برایش باز شود.
+        </p>
+      </Field>
     </div>
   );
 }

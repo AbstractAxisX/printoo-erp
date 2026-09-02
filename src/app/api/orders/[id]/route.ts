@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
+import { requireUser } from "@/lib/auth";
+import { canUserViewOrder, requireManager, validateAssigneeForModule } from "@/lib/access";
 import { TASK_INCLUDE } from "@/lib/task-validation";
 import { aggregateStatus, syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
@@ -38,9 +40,17 @@ type UpdateBody = {
   splitMode?: string;
   items?: ItemDraft[];
   moduleDates?: ModuleDates;
+  // Phase 12: تغییر تخصیص مسئوِستان از ویرایش سفارش
+  assignedDesignerId?: string | null;
+  assignedPrinterId?: string | null;
 };
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Phase 12: auth + scoping — قبلاً این endpoint بدون احراز هویت بود و هر
+  // کاربر لاگین‌شده‌ای جزئیات هر سفارشی (قیمت/تلفن/پیش‌فاکتور) را می‌دید.
+  const user = await requireUser();
+  if (user instanceof NextResponse) return user;
+
   const { id } = await params;
   try {
     const order = await db.order.findUnique({
@@ -53,9 +63,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         preInvoices: { orderBy: { number: "desc" }, include: { item: true } },
         invoice: true,
         tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
+        // Phase 12: نام مسئوِِستان برای نمایش در مودال‌ها
+        assignedDesigner: { select: { id: true, name: true, phone: true } },
+        assignedPrinter: { select: { id: true, name: true, phone: true } },
+        createdByUser: { select: { id: true, name: true } },
       },
     });
     if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+
+    // غیرمدیر: فقط سفارشِ خودش / استخر عمومی مرحله‌اش / مالکیت تاریخی
+    if (!canUserViewOrder(user, order)) {
+      return NextResponse.json(
+        { error: "این سفارش به شما تخصیص ندارد — دسترسی محدود" },
+        { status: 403 }
+      );
+    }
     return NextResponse.json({ order });
   } catch (e) {
     // این همان endpoint مودال جزئیات سفارش در ماژول طراح/چاپ است —
@@ -65,6 +87,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Phase 12: حذف سفارش = عملیات مدیریتی
+  const user = await requireManager();
+  if (user instanceof NextResponse) return user;
   const { id } = await params;
   try {
     await db.order.delete({ where: { id } });
@@ -86,8 +111,30 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 //   • مهرهای تکمیل هرگز از این مسیر نوشته نمی‌شوند (audit فقط از
 //     گردش کار طراح/چاپ یا syncItemsToStatus).
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Phase 12: ویرایش سفارش = عملیات مدیریتی
+  const user = await requireManager();
+  if (user instanceof NextResponse) return user;
+
   const { id } = await params;
   const body = (await req.json()) as UpdateBody;
+
+  // ─── Phase 12: اعتبارسنجی تخصیص‌های جدید (قبل از تراکنش) ──
+  const hasDesignKey =
+    Object.prototype.hasOwnProperty.call(body, "assignedDesignerId");
+  const hasPrintKey =
+    Object.prototype.hasOwnProperty.call(body, "assignedPrinterId");
+  let newDesigner: string | null | undefined;
+  let newPrinter: string | null | undefined;
+  if (hasDesignKey) {
+    const check = await validateAssigneeForModule(body.assignedDesignerId, "designer");
+    if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+    newDesigner = body.assignedDesignerId || null;
+  }
+  if (hasPrintKey) {
+    const check = await validateAssigneeForModule(body.assignedPrinterId, "print");
+    if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+    newPrinter = body.assignedPrinterId || null;
+  }
 
   // ─── FK guards (همان P2003-گیری POST) ────────────────────────────
   // customerId کهنه یا productId خالی/نامعتبر → 400 فارسی به‌جای 500.
@@ -138,6 +185,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (typeof body.status === "string") data.status = body.status;
       if (typeof body.customerId === "string") data.customerId = body.customerId;
       if (typeof body.splitMode === "string") data.splitMode = body.splitMode;
+      // Phase 12: تخصیص‌ها (فقط وقتی صریحاً فرستاده شده‌اند)
+      if (newDesigner !== undefined) data.assignedDesignerId = newDesigner;
+      if (newPrinter !== undefined) data.assignedPrinterId = newPrinter;
 
       // 2) Smart-merge items if provided
       const hasItems = Array.isArray(body.items);

@@ -21,12 +21,20 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { user } = await api<{ user: { id: string; name: string; email: string; role: string } | null }>(
-        "/api/auth/login",
-        { method: "POST", body: JSON.stringify({ email, password }) }
-      );
+      const { user } = await api<{
+        user: {
+          id: string;
+          name: string;
+          email: string;
+          role: string;
+          modules?: string[];
+        } | null;
+      }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
       if (!user) throw new Error("ورود ناموفق");
-      setUser(user);
+      setUser({ ...user, modules: user.modules ?? [] }); // Phase 12: sanitize ناوبری بر اساس ماژول‌ها
       toast.success(`خوش آمدید، ${user.name}`);
       router.refresh();
     } catch (err) {

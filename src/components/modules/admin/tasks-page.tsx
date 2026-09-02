@@ -533,7 +533,6 @@ export function TasksPage() {
             <TaskFormFields
               form={createForm}
               setForm={setCreateForm}
-              assigneeOptions={assigneeOptions}
             />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
@@ -562,7 +561,6 @@ export function TasksPage() {
             <TaskFormFields
               form={editForm}
               setForm={setEditForm}
-              assigneeOptions={assigneeOptions}
               withStatus
             />
             <div className="flex items-center justify-between gap-2 pt-2">
@@ -870,14 +868,32 @@ function TaskCardOverlay({ task }: { task: Task }) {
 function TaskFormFields({
   form,
   setForm,
-  assigneeOptions,
   withStatus,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
-  assigneeOptions: { value: string; label: string; sub?: string }[];
   withStatus?: boolean;
 }) {
+  // Phase 12 — «کاربرهایی که ماژولِ تسک برایشان تیک خورده» در لیست مسئول‌ها.
+  // تغییر ماژول فرم → لیست تازه (کوئری keyed به ماژول). ماژول admin = همه
+  // (تسک ادمینی بین همه تقسیم می‌شود).
+  const { data: moduleUsersData } = useQuery({
+    queryKey: ["users", "module", form.module],
+    queryFn: () =>
+      api<{ users: { id: string; name: string; role: string; modules: string[] }[] }>(
+        form.module === "admin" ? "/api/users" : `/api/users?module=${form.module}`
+      ),
+    staleTime: 60_000,
+  });
+  const assigneeOptions = (moduleUsersData?.users ?? []).map((u) => ({
+    value: u.id,
+    label: u.name,
+    sub:
+      form.module === "admin"
+        ? (u.modules ?? []).map((m) => MODULES[m as ModuleKey]?.faLabel ?? m).join(" + ") || USER_ROLE[u.role]?.label
+        : MODULES[form.module]?.faLabel,
+  }));
+
   return (
     <div className="space-y-4">
       <Field label="عنوان" required>
@@ -900,7 +916,10 @@ function TaskFormFields({
       <Field
         label="مسئول انجام"
         hint={
-          <>تسک علاوه بر این پنل، در پنل «{MODULES[form.module]?.faLabel}» هم دیده می‌شود.</>
+          <>
+            فقط کاربرانی که ماژول «{MODULES[form.module]?.faLabel}» برایشان فعال است
+            در این لیست می‌آیند — تسک در پنل آن‌ها دیده می‌شود.
+          </>
         }
       >
         <SearchSelect

@@ -9,11 +9,13 @@ import { CommandPalette } from "@/components/layout/command-palette";
 import { ModuleRouter } from "@/components/module-router";
 import { useAutoTabs } from "@/lib/use-auto-tabs";
 import { useCrossTabSync } from "@/lib/cross-tab";
+import { useHeartbeat } from "@/lib/use-heartbeat";
 import { useAppStore } from "@/stores/app-store";
 
 export function AppShell() {
   useAutoTabs();
   useCrossTabSync();
+  useHeartbeat(); // Phase 12: نبض حضور — هر ۴۵ث وقتی tab مرئی است
   const headerCollapsed = useAppStore((s) => s.headerCollapsed);
   const toggleHeader = useAppStore((s) => s.toggleHeader);
 

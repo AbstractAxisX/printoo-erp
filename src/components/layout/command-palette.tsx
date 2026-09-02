@@ -4,14 +4,15 @@ import * as React from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@/lib/icons";
-import { NAV, visibleModules } from "@/lib/nav";
+import { visibleModules } from "@/lib/nav";
 import { useAppStore } from "@/stores/app-store";
 
 export function CommandPalette() {
   const open = useAppStore((s) => s.commandOpen);
   const setOpen = useAppStore((s) => s.setCommandOpen);
   const navigate = useAppStore((s) => s.navigate);
-  const role = useAppStore((s) => s.user?.role);
+  // Phase 12: فیلتر بر اساس ماژول‌های واقعی کاربر (نه فقط role)
+  const user = useAppStore((s) => s.user);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,7 +34,7 @@ export function CommandPalette() {
           <CommandInput placeholder="جستجوی صفحه یا ماژول..." />
           <CommandList className="max-h-[400px] scrollbar-thin">
             <CommandEmpty>نتیجه‌ای یافت نشد.</CommandEmpty>
-            {visibleModules(role).map((mod) => (
+            {visibleModules(user).map((mod) => (
               <CommandGroup key={mod.key} heading={mod.faLabel}>
                 {mod.groups.map((g) =>
                   g.items.map((item) => (
@@ -55,15 +56,18 @@ export function CommandPalette() {
               </CommandGroup>
             ))}
             <CommandSeparator />
-            <CommandGroup heading="سفارش جدید">
-              <CommandItem
-                onSelect={() => { navigate("admin", "orders-new"); setOpen(false); }}
-                className="gap-2"
-              >
-                <Icon name="plusCircle" size={16} className="text-primary" />
-                <span>ایجاد سفارش جدید</span>
-              </CommandItem>
-            </CommandGroup>
+            {/* Phase 12: «سفارش جدید» فقط برای مدیران (ویزارد در پنل ادمین است) */}
+            {(user?.role === "master" || user?.modules?.includes("admin")) && (
+              <CommandGroup heading="سفارش جدید">
+                <CommandItem
+                  onSelect={() => { navigate("admin", "orders-new"); setOpen(false); }}
+                  className="gap-2"
+                >
+                  <Icon name="plusCircle" size={16} className="text-primary" />
+                  <span>ایجاد سفارش جدید</span>
+                </CommandItem>
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </DialogContent>

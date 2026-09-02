@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireManager } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
 
 function getRange(req: NextRequest): { from: Date; to: Date } {
@@ -24,6 +25,10 @@ function dayKey(d: Date): string {
 }
 
 export async function GET(req: NextRequest) {
+  // Phase 12: داشبورد جامع مدیریت — عملیات مدیریتی
+  const user = await requireManager();
+  if (user instanceof NextResponse) return user;
+
   try {
   const { from, to } = getRange(req);
   const prev = prevRange(from, to);

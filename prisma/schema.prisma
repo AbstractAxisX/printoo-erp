@@ -11,18 +11,65 @@ datasource db {
 }
 
 // ─── Users / Auth ───────────────────────────────────────────────
+// Phase 12 — RBAC چند-ماژوله:
+//   role: "master" = ادمین سراسری (دسترسی ضمنی به همه‌چیز + تنظیمات سیستم).
+//   برای بقیهٔ کاربران «منبع حقیقتِ دسترسی» = ردیف‌های UserModule است
+//   (هر کاربر می‌تواند چند ماژول داشته باشد: مثلاً QC + چاپ).
+//   role برای کاربران غیر-master فقط «ماژول اول» را آینه می‌کند (compat نمایش).
+//   lastSeenAt/lastLoginAt/loginCount + UserActivityLog = حضور و غیابِ واقعی
+//   (جایگزین سیستم حضورغیاب) — آنلاین = lastSeenAt جدیدتر از ۳ دقیقه.
 model User {
   id             String   @id @default(cuid())
   name           String
   email          String   @unique
   password       String
-  role           String   @default("master") // master | admin | designer | print | warehouse | finance | qc | crm | srm
+  role           String   @default("operator") // master | (ماژول اول برای نمایش)
   phone          String?
   avatar         String?
   status         String   @default("active") // active | inactive
+  lastSeenAt     DateTime?
+  lastLoginAt    DateTime?
+  loginCount     Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   assignedTasks  Task[]   @relation("TaskAssignee")
+  modules        UserModule[]
+  activityLogs   UserActivityLog[]
+  // Phase 12: تخصیص/تکمیل — SetNull تا حذف کاربر، تاریخچه را نبکشد
+  designAssignments     Order[]     @relation("OrderDesigner")
+  printAssignments      Order[]     @relation("OrderPrinter")
+  createdOrders         Order[]     @relation("OrderCreator")
+  designCompletedItems  OrderItem[] @relation("ItemDesignCompleter")
+  printCompletedItems   OrderItem[] @relation("ItemPrintCompleter")
+  qcReported            QcReport[]  @relation("QcReporter")
+  qcReviewed            QcReport[]  @relation("QcReviewer")
+}
+
+// ─── Phase 12: دسترسی کاربر به ماژول‌ها (many-to-many) ───────────
+// module ∈ admin | designer | print | warehouse | finance | qc | crm | srm
+// (هم‌ارز ModuleKey در lib/constants.ts). master ردیف نیاز ندارد — همه‌چیز را
+// می‌بیند. sidebar، پالت فرمان و همهٔ گاردهای API از همین جدول تغذیه می‌شوند.
+model UserModule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, module])
+  @@index([module])
+}
+
+// ─── Phase 12: لاگ ورود/خروج — غذای «مدیریت کارمندان» ────────────
+// action ∈ login | logout. روزانه: اولین/آخرین اکشن + تعداد ورود.
+model UserActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // login | logout
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // ─── CRM: Customers ─────────────────────────────────────────────
@@ -133,6 +180,16 @@ model Order {
   note        String?
   designerNote String? // note from designer, visible to all modules
   createdBy   String?
+  // ─── Phase 12: تخصیص مسئوِستان + ثبت‌کننده ──
+  // طراح/چاپ «اختصاصی» این سفارش — null = استخر عمومی (همهٔ همان ماژول می‌بینند).
+  // وقتی مدیر هنگام ثبت، کاربر X را انتخاب می‌کند، سفارش فقط در پنل X ظاهر
+  // می‌شود و X تنها مجری مجاز آن مرحله است (گاردهای 403 در action routes).
+  assignedDesignerId String?
+  assignedDesigner   User?  @relation("OrderDesigner", fields: [assignedDesignerId], references: [id], onDelete: SetNull)
+  assignedPrinterId  String?
+  assignedPrinter    User?  @relation("OrderPrinter", fields: [assignedPrinterId], references: [id], onDelete: SetNull)
+  createdById        String?
+  createdByUser      User?  @relation("OrderCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   items       OrderItem[]
@@ -155,6 +212,11 @@ model QcReport {
   reviewedBy    String?
   reviewedAt    DateTime?
   reportedBy    String?
+  // ─── Phase 12: انتساب واقعی گزارش/بررسی به کاربر (آمار کارمند) ──
+  reportedById  String?
+  reportedByUser User? @relation("QcReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  reviewedById  String?
+  reviewedByUser User? @relation("QcReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   createdAt     DateTime @default(now())
 }
 
@@ -208,6 +270,11 @@ model OrderItem {
   // Phase 9: لحظهٔ واقعی تکمیل هر مرحله توسط طراح/چاپ (audit)
   designCompletedAt DateTime?
   printCompletedAt  DateTime?
+  // Phase 12: «کی» تکمیل کرد — آمار فعالیت کارمند + مالکیت تاریخی آیتم.
+  designCompletedBy String?
+  designCompletedByUser User? @relation("ItemDesignCompleter", fields: [designCompletedBy], references: [id], onDelete: SetNull)
+  printCompletedBy  String?
+  printCompletedByUser  User? @relation("ItemPrintCompleter", fields: [printCompletedBy], references: [id], onDelete: SetNull)
   // Phase 10: پیش‌فاکتورهای به‌ازای همین آیتم (SetNull → حذف آیتم، سند را نمی‌کشد)
   preInvoices    PreInvoice[]
   createdAt      DateTime @default(now())
@@ -298,6 +365,8 @@ model Task {
   // integrity is enforced by SQLite; API validates the user exists + active.
   assignedTo    String?
   assignedUser  User?    @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  // Phase 12: مهر زمانی «انجام شد» — آمار روزانهٔ کارمند (چه کسی، چه روزی)
+  completedAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -309,9 +378,12 @@ model Notification {
   message   String
   type      String   @default("info") // info | success | warning | error
   read      Boolean  @default(false)
+  // Phase 12: اعلان هدفمند — null = عمومی (همه)، غیر-null = فقط همان کاربر
   userId    String?
   link      String? // nav target e.g. "admin:orders"
   createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // ─── Finance: Expenses & Payments ───────────────────────────────
