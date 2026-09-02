@@ -161,6 +161,57 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ─── FK guards (رفع P2003 «Foreign key constraint violated») ───────
+    // ریشهٔ خطای 500 در ساخت سفارش: productId خالی/نامعتبر در یکی از آیتم‌ها
+    // یا مشتری‌ای که ID‌اش در دیتابیس نیست (صفحهٔ باز + reseed دیتابیس).
+    // قبل از تراکنش اعتبارسنجی می‌شوند تا به‌جای کرش Prisma، 400 فارسی
+    // و قابل‌اقدام برگردد.
+    const foundCustomers = await db.customer.findMany({
+      where: { id: { in: customers } },
+      select: { id: true, name: true },
+    });
+    const foundCustomerIds = new Set(foundCustomers.map((c) => c.id));
+    if (foundCustomerIds.size !== customers.length) {
+      return NextResponse.json(
+        {
+          error:
+            "مشتری انتخاب‌شده در سیستم موجود نیست (داده‌ها تغییر کرده‌اند) — صفحه را رفرش کنید و مشتری را دوباره انتخاب کنید.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const allDrafts = customers.flatMap((cid) =>
+      (itemsByCustomer[cid] ?? []).map((it, i) => ({ cid, i, it }))
+    );
+    const productIds = Array.from(
+      new Set(
+        allDrafts
+          .map(({ it }) => it.productId)
+          .filter((p): p is string => typeof p === "string" && p.length > 0)
+      )
+    );
+    const foundProducts = productIds.length
+      ? await db.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true },
+        })
+      : [];
+    const foundProductIds = new Set(foundProducts.map((p) => p.id));
+    const badItem = allDrafts.find(
+      ({ it }) => !it.productId || !foundProductIds.has(it.productId)
+    );
+    if (badItem) {
+      const custName =
+        foundCustomers.find((c) => c.id === badItem.cid)?.name ?? badItem.cid;
+      return NextResponse.json(
+        {
+          error: `محصول آیتم ${badItem.i + 1} برای مشتری «${custName}» انتخاب نشده است — در مرحلهٔ «آیتم‌های سفارش» محصول آن ردیف را انتخاب کنید.`,
+        },
+        { status: 400 }
+      );
+    }
+
     // ─── R4 fix: atomic all-or-nothing via a single transaction ──────────
     // Pre-Phase-3, if createPreInvoice/createInvoice failed AFTER order.create,
     // the order was orphaned (paidAmount never bumped, invoice missing).

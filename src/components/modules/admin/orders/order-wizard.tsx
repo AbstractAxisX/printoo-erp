@@ -304,7 +304,12 @@ export function OrderWizardPage() {
   function canGoNext(): boolean {
     if (step === 1) return customers.length > 0;
     if (step === 2) {
-      return customers.every((c) => (itemsByCustomer[c]?.length ?? 0) > 0);
+      // هر مشتری باید حداقل یک آیتم داشته باشد و «هر آیتم» هم باید محصول
+      // انتخاب‌شده داشته باشد — productId خالی = خطای FK در سرور (P2003).
+      return customers.every((c) => {
+        const arr = itemsByCustomer[c] ?? [];
+        return arr.length > 0 && arr.every((i) => !!i.productId);
+      });
     }
     return true;
   }
@@ -322,6 +327,13 @@ export function OrderWizardPage() {
 
   const createMut = useMutation<unknown, Error, void>({
     mutationFn: async (): Promise<unknown> => {
+      // FK guard سمت کلاینت: هیچ آیتمی بدون محصول نباشد (خطای 500/P2003)
+      const missingProduct = Object.values(itemsByCustomer).some((arr) =>
+        arr.some((i) => !i.productId)
+      );
+      if (missingProduct) {
+        throw new Error("برای هر آیتم سفارش یک محصول انتخاب کنید (ردیف‌های قرمز)");
+      }
       // Build items payload (shared by create & edit) — Phase 10: per-item
       // dates + dbId (merge هوشمند سرور: آیتم موجود درجا آپدیت می‌شود و
       // مهرها/تاریخ‌های تکمیل هرگز نمی‌پرند).
@@ -707,7 +719,16 @@ export function OrderWizardPage() {
             onClick={() => {
               if (!canGoNext()) {
                 if (step === 1) toast.error("حداقل یک مشتری انتخاب کنید");
-                if (step === 2) toast.error("هر مشتری باید حداقل یک آیتم داشته باشد");
+                if (step === 2) {
+                  const hasEmptyProduct = customers.some((c) =>
+                    (itemsByCustomer[c] ?? []).some((i) => !i.productId)
+                  );
+                  toast.error(
+                    hasEmptyProduct
+                      ? "برای هر آیتم یک محصول انتخاب کنید (ردیف‌های قرمز)"
+                      : "هر مشتری باید حداقل یک آیتم داشته باشد"
+                  );
+                }
                 return;
               }
               setStep(step + 1);
@@ -1039,7 +1060,10 @@ function ItemRow({
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <div className="size-7 rounded-md bg-primary/10 text-primary grid place-items-center text-xs font-bold shrink-0">{index + 1}</div>
-          <span className="text-sm font-semibold truncate">{item.productName || "آیتم جدید"}</span>
+          <span className={cn("text-sm font-semibold truncate", !item.productId && "text-rose-600 dark:text-rose-400")}>{item.productName || "آیتم جدید"}</span>
+          {!item.productId && (
+            <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full shrink-0">محصول انتخاب نشده</span>
+          )}
           {item.needsMaterial && (
             <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full shrink-0">نیازمند متریال</span>
           )}
@@ -1574,13 +1598,18 @@ function DateRangeCard({ icon, label, from, to, applicable }: {
   );
 }
 
-const faDateFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { year: "numeric", month: "long", day: "numeric" });
-const faDateShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { year: "2-digit", month: "2-digit", day: "2-digit" });
+// ─── Gregorian date fmt (کل سیستم میلادی است) ────────────────────
+// ورودی yyyy-MM-dd (یا ISO کامل) → خروجی yyyy/MM/dd میلادی.
+// بدون Date/Intl → بدون ریسک تایم‌زون و بدون تقویم شمسی.
+function gregISO(iso: string): string {
+  const s = (iso ?? "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.replace(/-/g, "/") : (iso || "—");
+}
 function fmtDate(iso: string) {
-  try { return faDateFmt.format(new Date(iso)); } catch { return iso; }
+  return gregISO(iso);
 }
 function fmtShort(iso: string) {
-  try { return faDateShort.format(new Date(iso)); } catch { return iso; }
+  return gregISO(iso);
 }
 function toFa(n: number) { return n.toLocaleString("fa-IR"); }
 

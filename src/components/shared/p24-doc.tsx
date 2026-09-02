@@ -18,18 +18,7 @@
 
 import * as React from "react";
 import { COMPANY, CURRENCY } from "@/lib/constants";
-
-// ─── Jalali date fmt (روی سند فارسی) ──────────────────────────────
-const jDate = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
-const jShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+import { formatDate } from "@/lib/format";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
@@ -254,9 +243,9 @@ export function P24Doc(props: P24DocProps) {
             <MetaRow label="خریدار">{customerName}</MetaRow>
             <div className="h-px bg-slate-200" />
             <MetaRow label={`شماره ${faTitle}`} tone="brand">#{number}</MetaRow>
-            <MetaRow label="تاریخ صدور">{jDate.format(new Date(issueDate))}</MetaRow>
-            {validUntil && <MetaRow label="اعتبار تا">{jShort.format(new Date(validUntil))}</MetaRow>}
-            {dueDate && <MetaRow label="سررسید پرداخت">{jShort.format(new Date(dueDate))}</MetaRow>}
+            <MetaRow label="تاریخ صدور"><span className="tabular-nums" dir="ltr">{formatDate(issueDate)}</span></MetaRow>
+            {validUntil && <MetaRow label="اعتبار تا"><span className="tabular-nums" dir="ltr">{formatDate(validUntil)}</span></MetaRow>}
+            {dueDate && <MetaRow label="سررسید پرداخت"><span className="tabular-nums" dir="ltr">{formatDate(dueDate)}</span></MetaRow>}
             {orderNumber != null && <MetaRow label="سفارش مرتبط" tone="muted">#{orderNumber}</MetaRow>}
             {customerPhone && <MetaRow label="تلفن" tone="muted"><span dir="ltr">{customerPhone}</span></MetaRow>}
           </div>
@@ -322,23 +311,23 @@ export function P24Doc(props: P24DocProps) {
                 <div>
                   <span className="text-slate-400 font-medium">طراحی: </span>
                   <span className="text-slate-700 font-medium tabular-nums">
-                    {schedule.designFrom ? jShort.format(new Date(schedule.designFrom)) : "—"}
+                    {schedule.designFrom ? <span className="tabular-nums" dir="ltr">{formatDate(schedule.designFrom)}</span> : "—"}
                     {" تا "}
-                    {schedule.designTo ? jShort.format(new Date(schedule.designTo)) : "بدون پایان"}
+                    {schedule.designTo ? <span className="tabular-nums" dir="ltr">{formatDate(schedule.designTo)}</span> : "بدون پایان"}
                   </span>
                   {!schedule.perItem && schedule.designDone && (
-                    <span className="text-emerald-700"> (تکمیل: {jShort.format(new Date(schedule.designDone))})</span>
+                    <span className="text-emerald-700" dir="rtl"> (تکمیل: <span className="tabular-nums" dir="ltr">{formatDate(schedule.designDone)}</span>)</span>
                   )}
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium">چاپ: </span>
                   <span className="text-slate-700 font-medium tabular-nums">
-                    {schedule.printFrom ? jShort.format(new Date(schedule.printFrom)) : "—"}
+                    {schedule.printFrom ? <span className="tabular-nums" dir="ltr">{formatDate(schedule.printFrom)}</span> : "—"}
                     {" تا "}
-                    {schedule.printTo ? jShort.format(new Date(schedule.printTo)) : "بدون پایان"}
+                    {schedule.printTo ? <span className="tabular-nums" dir="ltr">{formatDate(schedule.printTo)}</span> : "بدون پایان"}
                   </span>
                   {!schedule.perItem && schedule.printDone && (
-                    <span className="text-emerald-700"> (تکمیل: {jShort.format(new Date(schedule.printDone))})</span>
+                    <span className="text-emerald-700" dir="rtl"> (تکمیل: <span className="tabular-nums" dir="ltr">{formatDate(schedule.printDone)}</span>)</span>
                   )}
                 </div>
               </div>

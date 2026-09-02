@@ -89,6 +89,43 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = (await req.json()) as UpdateBody;
 
+  // ─── FK guards (همان P2003-گیری POST) ────────────────────────────
+  // customerId کهنه یا productId خالی/نامعتبر → 400 فارسی به‌جای 500.
+  if (typeof body.customerId === "string" && body.customerId) {
+    const c = await db.customer.findUnique({
+      where: { id: body.customerId },
+      select: { id: true },
+    });
+    if (!c) {
+      return NextResponse.json(
+        { error: "مشتری انتخاب‌شده در سیستم موجود نیست — صفحه را رفرش کنید و دوباره تلاش کنید." },
+        { status: 400 }
+      );
+    }
+  }
+  if (Array.isArray(body.items)) {
+    const drafts = body.items as ItemDraft[];
+    const productIds = Array.from(
+      new Set(
+        drafts
+          .map((it) => it.productId)
+          .filter((p): p is string => typeof p === "string" && p.length > 0)
+      )
+    );
+    const found = productIds.length
+      ? await db.product.findMany({ where: { id: { in: productIds } }, select: { id: true } })
+      : [];
+    const foundIds = new Set(found.map((p) => p.id));
+    const bad = drafts.find((it) => !it.productId || !foundIds.has(it.productId));
+    if (bad) {
+      const idx = drafts.indexOf(bad);
+      return NextResponse.json(
+        { error: `محصول آیتم ${idx + 1} انتخاب نشده است — در ویرایش سفارش، محصول هر ردیف را انتخاب کنید.` },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     const result = await db.$transaction(async (tx) => {
       // 1) Build base scalar data

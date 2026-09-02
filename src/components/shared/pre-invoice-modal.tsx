@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { P24Doc, type P24DocItem } from "@/components/shared/p24-doc";
 import { COMPANY } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 import {
   STATUS_META,
   type PreInvoiceStatus,
@@ -120,17 +121,8 @@ type PreInvoiceModalProps = {
   initialItemId?: string | null;
 };
 
-// ─── Jalali date fmt ─────────────────────────────────────────────────
-const jDate = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
-const jShort = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+// ─── Gregorian date fmt (کل سیستم میلادی است) ────────────────────
+// formatDate از lib/format: yyyy/MM/dd میلادی با ارقام لاتین.
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
@@ -404,12 +396,12 @@ function ListView({
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                       <span className="flex items-center gap-1">
-                        <Icon name="calendar" size={11} /> {jDate.format(new Date(pi.issueDate))}
+                        <Icon name="calendar" size={11} /> <span className="tabular-nums" dir="ltr">{formatDate(pi.issueDate)}</span>
                       </span>
                       {pi.validUntil && (
                         <span className={cn("flex items-center gap-1",
                           new Date(pi.validUntil) < new Date() && "text-rose-500 font-medium")}>
-                          <Icon name="clock" size={11} /> اعتبار تا {jShort.format(new Date(pi.validUntil))}
+                          <Icon name="clock" size={11} /> اعتبار تا <span className="tabular-nums" dir="ltr">{formatDate(pi.validUntil)}</span>
                         </span>
                       )}
                     </div>
@@ -837,17 +829,17 @@ function ScheduleChips({
       {(s.designFrom || s.designTo) && (
         <span className="text-muted-foreground flex items-center gap-1">
           <Icon name="design" size={11} className="text-violet-500" />
-          {s.designFrom ? jShort.format(new Date(s.designFrom)) : "…"}
+          {s.designFrom ? <span className="tabular-nums" dir="ltr">{formatDate(s.designFrom)}</span> : "…"}
           <span className="text-muted-foreground/50">تا</span>
-          {s.designTo ? jShort.format(new Date(s.designTo)) : "بدون پایان"}
+          {s.designTo ? <span className="tabular-nums" dir="ltr">{formatDate(s.designTo)}</span> : "بدون پایان"}
         </span>
       )}
       {(s.printFrom || s.printTo) && (
         <span className="text-muted-foreground flex items-center gap-1">
           <Icon name="print" size={11} className="text-amber-500" />
-          {s.printFrom ? jShort.format(new Date(s.printFrom)) : "…"}
+          {s.printFrom ? <span className="tabular-nums" dir="ltr">{formatDate(s.printFrom)}</span> : "…"}
           <span className="text-muted-foreground/50">تا</span>
-          {s.printTo ? jShort.format(new Date(s.printTo)) : "بدون پایان"}
+          {s.printTo ? <span className="tabular-nums" dir="ltr">{formatDate(s.printTo)}</span> : "بدون پایان"}
         </span>
       )}
     </div>

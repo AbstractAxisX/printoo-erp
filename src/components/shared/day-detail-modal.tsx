@@ -37,9 +37,7 @@ type DayDetailModalProps = {
 
 type DayNote = { id: string; date: string; content: string; color: string };
 
-// ─── Jalali helpers (native Intl — بدون وابستگی) ──────────────────────
-const jDayFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { day: "numeric" });
-const jMonthYearFmt = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { month: "long", year: "numeric" });
+// ─── Gregorian helpers (کل سیستم میلادی است) ────────────────────────────
 const weekdayFmt = new Intl.DateTimeFormat("fa-IR", { weekday: "long" });
 const faNum = (n: number) => n.toLocaleString("fa-IR");
 
@@ -156,23 +154,22 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
       >
         <DialogTitle className="sr-only">جزئیات روز {format(date, "yyyy/MM/dd")}</DialogTitle>
 
-        {/* ─── هدر تمام‌عرض: تاریخ شمسی + اطلاعات روز ─────────────── */}
+        {/* ─── هدر تمام‌عرض: تاریخ میلادی + اطلاعات روز ────────── */}
         <div className="shrink-0 flex items-center gap-4 px-6 pt-4 pb-3.5 pr-14 border-b bg-gradient-to-l from-primary/10 via-primary/5 to-transparent">
-          {/* عدد بزرگ شمسی */}
+          {/* عدد بزرگ روز (میلادی) */}
           <div className="text-center shrink-0 -my-1">
-            <div className="text-4xl font-black tabular-nums leading-none bg-gradient-to-b from-primary to-primary/60 bg-clip-text text-transparent">
-              {jDayFmt.format(date)}
+            <div className="text-4xl font-black tabular-nums leading-none bg-gradient-to-b from-primary to-primary/60 bg-clip-text text-transparent" dir="ltr">
+              {format(date, "d")}
             </div>
+            <div className="text-[10px] font-bold text-muted-foreground tracking-wide mt-1" dir="ltr">{format(date, "yyyy/MM")}</div>
           </div>
           <div className="h-10 w-px bg-border shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold flex items-baseline gap-2 flex-wrap">
               <span>{weekdayFmt.format(date)}</span>
-              <span className="text-muted-foreground font-medium">{jMonthYearFmt.format(date)}</span>
+              <span className="text-muted-foreground font-medium tabular-nums" dir="ltr">{format(date, "yyyy/MM/dd")}</span>
             </div>
             <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-              <span className="tabular-nums">{format(date, "yyyy/MM/dd")}</span>
-              <span>•</span>
               <span>{faNum(totalEvents)} رویداد</span>
             </div>
           </div>
