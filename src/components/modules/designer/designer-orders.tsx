@@ -53,7 +53,7 @@ export function DesignerOrders() {
   const { data, isLoading } = useQuery({
     queryKey: ["orders", "designer", "pending_design", "list"],
     queryFn: () =>
-      api<{ orders: DesignerOrder[] }>("/api/orders?status=pending_design"),
+      api<{ orders: DesignerOrder[] }>("/api/orders?status=pending_design&board=designer"),
     refetchInterval: 30000,
   });
 

@@ -255,34 +255,58 @@ export const NAV: ModuleNav[] = [
       },
     ],
   },
-  // ─────────── SETTINGS (System-wide — master only) ───────────
-  // «کاربران و نقش‌ها» مال کل سیستم است، نه پنل ادمین داخلی:
-  // ساخت/حذف کاربر و تغییر نقش = اختیارات ادمین سراسری (master).
+  // ─────────── SYSADMIN (مدیر سیستم — master only) ───────────
+  // Phase 13: ماژول جدید «مدیر سیستم» — همان ادمین مستر. تنظیمات
+  // زیرمجموعهٔ این ماژول است؛ «مدیریت کاربران» از تنظیمات به بخش
+  // «مانیتورینگ» منتقل شد (مانیتورینگ کاربران + مانیتورینگ ماژول).
   {
-    key: "settings",
-    label: "Settings",
-    faLabel: "تنظیمات سیستم",
-    icon: "settings",
+    key: "sysadmin",
+    label: "SysAdmin",
+    faLabel: "مدیر سیستم",
+    icon: "shield",
     masterOnly: true,
     groups: [
       {
-        id: "main",
-        label: "مدیریت سیستم",
+        id: "monitoring",
+        label: "مانیتورینگ",
+        icon: "analytics",
+        items: [
+          // Phase 13: کاربران + مدیریت کاربران (ساخت/ویرایش/ماژول‌ها) +
+          // حضور و آمار — دابل‌کلیک روی هر کاربر → صفحهٔ اختصاصی او.
+          { id: "users", label: "مانیتورینگ کاربران", icon: "userGroup", page: "users" },
+          // Phase 13: برد هر ماژول — «کی سرش شلوغ‌تره، کی تا کی کار داره،
+          // کی خلوت میشه، کی کم‌کاری کرده» برای انتخاب مسئول جدید.
+          { id: "modules", label: "مانیتورینگ ماژول", icon: "chartColumn", page: "modules" },
+        ],
+      },
+      {
+        id: "settings",
+        label: "تنظیمات",
         icon: "gear",
         items: [
-          { id: "users", label: "کاربران و نقش‌ها", icon: "user", page: "users" },
-          // Phase 12: حضور و غیاب واقعی + آمار عملکرد هر کارمند
-          { id: "employees", label: "مدیریت کارمندان", icon: "checkList", page: "employees" },
+          { id: "settings", label: "تنظیمات سیستم", icon: "settings", page: "settings" },
         ],
       },
     ],
   },
 ];
 
+// ─── Phase 13: ماژول مجازی «پروفایل» ───────────────────────────────
+// هر کاربری پروفایل دارد و می‌تواند خودش را ببیند (+ مانیتورینگ خودش).
+// در NAV نیست (سایدبار ماژولی ندارد) — از فوتر سایدبار/پالت باز می‌شود.
+export const PROFILE_MODULE = "profile";
+
+// صفحات «مخفی» — برنامه‌ای قابل پیمایش‌اند ولی در سایدبار نیستند.
+// (برچسب/آیکون تب‌ها از اینجا تغذیه می‌شود)
+export const HIDDEN_PAGES: Record<string, { label: string; icon: IconName }> = {
+  "sysadmin:user": { label: "مانیتورینگ کاربر", icon: "userCircle" },
+  "profile:view": { label: "پروفایل", icon: "userCircle" },
+};
+
 /** ماژول‌های قابل مشاهده برای کاربر فعلی.
  *
  * Phase 12 — RBAC چند-ماژوله:
- *   master      → همهٔ ماژول‌ها + تنظیمات سیستم
+ *   master      → همهٔ ماژول‌ها + مدیر سیستم (sysadmin)
  *   غیر-master → دقیقاً ماژول‌های تیک‌خوردهٔ او (UserModule) — نه یک مورد بیشتر
  *   «فقط باید همون نقشی که بهم داده وارد شه» — خواستهٔ صریح کاربر.
  */
@@ -291,7 +315,6 @@ export type NavUser = { role: string; modules?: string[] } | null | undefined;
 export function visibleModules(user?: NavUser): ModuleNav[] {
   if (!user) return [];
   if (user.role === "master") {
-    // master: همه + تنظیمات (masterOnly)
     return NAV.filter((m) => !m.masterOnly || user.role === "master");
   }
   const mods = new Set(user.modules ?? []);
@@ -300,7 +323,8 @@ export function visibleModules(user?: NavUser): ModuleNav[] {
 
 /** کلیدهای ماژول‌های مجاز برای گاردهای سمت کلاینت (ModuleRouter/palette). */
 export function allowedModuleKeys(user?: NavUser): string[] {
-  return visibleModules(user).map((m) => m.key);
+  // Phase 13: «profile» همیشه مجاز است — پروفایلِ خود، حقِ همه است.
+  return [...visibleModules(user).map((m) => m.key), PROFILE_MODULE];
 }
 
 export function findModule(key: string) {

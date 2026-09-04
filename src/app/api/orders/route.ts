@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import {
+  boardScopeWhere,
   orderScopeWhere,
   requireManager,
   validateAssigneeForModule,
@@ -33,6 +34,10 @@ type ItemDraft = {
   designEndDate?: string | null;
   printStartDate?: string | null;
   printEndDate?: string | null;
+  // ─── Phase 13: مجری اختصاصی همین آیتم ──
+  // «هر ایتم جدا کارمند بهش تنظیم شه» — طراح/چاپ این آیتم specifically.
+  designAssigneeId?: string | null;
+  printAssigneeId?: string | null;
 };
 
 type ModuleDates = {
@@ -63,9 +68,8 @@ type CreateBody = {
   } | null;
   markCompleted?: boolean;
   createdBy?: string | null;
-  // ─── Phase 12: تخصیص مسئوِِستان (گردش کار هدفمند) ──
-  // طراح/چاپ اختصاصی این سفارش — null = استخر عمومی همان ماژول.
-  // اعتبارسنجی: کاربر باید وجود داشته باشد، فعال باشد و ماژول مربوطه را داشته باشد.
+  // Phase 13: فال‌بک آیتم‌های بدون مجری صریح — هر آیتم مجری خودش را
+  // می‌تواند بفرستد (ItemDraft.designAssigneeId / printAssigneeId).
   assignedDesignerId?: string | null;
   assignedPrinterId?: string | null;
 };
@@ -122,8 +126,19 @@ export async function GET(req: NextRequest) {
   // برای غیرمدیرها (طراح/چاپ بدون ماژول admin): سفارش فقط اگر «مال او»
   // باشد (تخصیص/تکمیل) یا در استخر عمومیِ مرحله‌ای باشد که ماژولش را دارد.
   // مدیر (master/admin) همه‌چیز را می‌بیند — بدون تغییر رفتار پنل مدیریت.
-  const scope = orderScopeWhere(user);
-  const scoped = scope ? { AND: [where, scope] } : where;
+  // ─── Phase 13: board param ──
+  // board=designer|print → اسکوپ «همان برد» حتی برای مدیر داخلی:
+  // در برد طراحی فقط آیتم‌های طراحیِ خودت می‌آید (مستر همه را می‌بیند).
+  // این ریشهٔ «هر دو طراح سفارش را می‌دیدند» را می‌بندد.
+  const board = searchParams.get("board");
+  let scoped: Prisma.OrderWhereInput;
+  if (board === "designer" || board === "print") {
+    const bscope = boardScopeWhere(user, board);
+    scoped = { AND: [where, bscope] };
+  } else {
+    const scope = orderScopeWhere(user);
+    scoped = scope ? { AND: [where, scope] } : where;
+  }
 
   const orders = await db.order.findMany({
     where: scoped,
@@ -231,8 +246,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── Phase 12: اعتبارسنجی تخصیص طراح/چاپ قبل از تراکنش ──────
-    // کاربر تخصیص‌یافته باید: وجود داشته باشد + فعال باشد + ماژول مربوطه را داشته باشد.
+    // ─── Phase 13: اعتبارسنجی مجری‌های per-item + سطح سفارش ──────
+    // «هر آیتم مجری خودش را دارد» — همهٔ مجری‌ها باید: موجود + فعال +
+    // دارندهٔ ماژول مربوطه باشند (صرفه‌جویی: فقط شناسه‌های یکتا چک می‌شوند).
+    const itemDesignerIds = Array.from(
+      new Set(
+        allDrafts
+          .map(({ it }) => it.designAssigneeId)
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+      )
+    );
+    for (const uid of itemDesignerIds) {
+      const check = await validateAssigneeForModule(uid, "designer");
+      if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+    }
+    const itemPrinterIds = Array.from(
+      new Set(
+        allDrafts
+          .map(({ it }) => it.printAssigneeId)
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+      )
+    );
+    for (const uid of itemPrinterIds) {
+      const check = await validateAssigneeForModule(uid, "print");
+      if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+    }
     const designerCheck = await validateAssigneeForModule(assignedDesignerId, "designer");
     if (!designerCheck.ok) {
       return NextResponse.json({ error: designerCheck.error }, { status: 400 });
@@ -245,6 +283,15 @@ export async function POST(req: NextRequest) {
       assignedDesignerId && designerCheck.user.id ? designerCheck.user.id : null;
     const assignPrinterId =
       assignedPrinterId && printerCheck.user.id ? printerCheck.user.id : null;
+
+    // Phase 13: مجری سطح-سفارش وقتی نفرستاده شده از آیتم‌ها مشتق می‌شود
+    // (نمایش در لیست‌ها + فال‌بک آیتم‌های بی‌مسئول). مسیر روتینگ per-item است.
+    const firstItemDesignerId =
+      allDrafts.find(({ it }) => it.designAssigneeId)?.it.designAssigneeId ?? null;
+    const firstItemPrinterId =
+      allDrafts.find(({ it }) => it.printAssigneeId)?.it.printAssigneeId ?? null;
+    const finalDesignerId = assignDesignerId ?? firstItemDesignerId;
+    const finalPrinterId = assignPrinterId ?? firstItemPrinterId;
 
     // ─── R4 fix: atomic all-or-nothing via a single transaction ──────────
     // Pre-Phase-3, if createPreInvoice/createInvoice failed AFTER order.create,
@@ -286,12 +333,15 @@ export async function POST(req: NextRequest) {
       for (const customerId of customers) {
         const items = itemsByCustomer[customerId] || [];
         const md = moduleDates ?? {};
-        // تاریخ per-item با fallback به moduleDates مشترک (compat)
+        // تاریخ per-item با fallback به moduleDates مشترک (compat) +
+        // Phase 13: مجری per-item با fallback به مجری سفارش
         const itemDates = (it: ItemDraft) => ({
           designStartDate: toISO(it.designStartDate ?? md.design?.start),
           designEndDate: toISO(it.designEndDate ?? md.design?.end),
           printStartDate: toISO(it.printStartDate ?? md.print?.start),
           printEndDate: toISO(it.printEndDate ?? md.print?.end),
+          designAssigneeId: it.designAssigneeId ?? finalDesignerId,
+          printAssigneeId: it.printAssigneeId ?? finalPrinterId,
         });
 
         if (splitMode === "grouped") {
@@ -403,8 +453,8 @@ export async function POST(req: NextRequest) {
                 number: num,
                 customerId,
                 // Phase 12: تخصیص مسئوِستان + ثبت‌کنندهٔ واقعی
-                assignedDesignerId: assignDesignerId,
-                assignedPrinterId: assignPrinterId,
+                assignedDesignerId: finalDesignerId,
+                assignedPrinterId: finalPrinterId,
                 createdById: user.id,
                 status: markCompleted
                   ? "completed"
@@ -475,18 +525,32 @@ export async function POST(req: NextRequest) {
           ? ` و ${created.orders.length - 1} سفارش دیگر`
           : "";
       const notifs: { userId: string; title: string; message: string; type: string; link: string }[] = [];
-      if (assignDesignerId) {
+      // Phase 13: اعلان به «همهٔ» مجری‌های per-item (نه فقط سطح سفارش) —
+      // هر آیتم فقط در پنل مجری خودش می‌آید، پس او باید بداند.
+      const designerTargets = new Set<string>(
+        allDrafts
+          .map(({ it }) => it.designAssigneeId)
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+      );
+      if (finalDesignerId) designerTargets.add(finalDesignerId);
+      for (const uid of designerTargets) {
         notifs.push({
-          userId: assignDesignerId,
+          userId: uid,
           title: "سفارش جدید به شما تخصیص یافت",
           message: `سفارش #${firstNum}${numTail} برای طراحی به شما واگذار شد.`,
           type: "info",
           link: "designer:orders",
         });
       }
-      if (assignPrinterId) {
+      const printerTargets = new Set<string>(
+        allDrafts
+          .map(({ it }) => it.printAssigneeId)
+          .filter((v): v is string => typeof v === "string" && v.length > 0)
+      );
+      if (finalPrinterId) printerTargets.add(finalPrinterId);
+      for (const uid of printerTargets) {
         notifs.push({
-          userId: assignPrinterId,
+          userId: uid,
           title: "سفارش جدید به شما تخصیص یافت",
           message: `سفارش #${firstNum}${numTail} پس از طراحی برای چاپ به شما واگذار شد.`,
           type: "info",

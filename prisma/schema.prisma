@@ -41,8 +41,32 @@ model User {
   createdOrders         Order[]     @relation("OrderCreator")
   designCompletedItems  OrderItem[] @relation("ItemDesignCompleter")
   printCompletedItems   OrderItem[] @relation("ItemPrintCompleter")
+  // Phase 13: تخصیص per-item (هر آیتم مجری خودش را دارد)
+  designItemAssignments OrderItem[] @relation("ItemDesignAssignee")
+  printItemAssignments  OrderItem[] @relation("ItemPrintAssignee")
   qcReported            QcReport[]  @relation("QcReporter")
   qcReviewed            QcReport[]  @relation("QcReviewer")
+  // Phase 13: مرخصی‌ها (جایگزین حضورغیاب برای برنامهٔ حقوق/ارزیابی)
+  leaves                UserLeave[]
+  leavesGranted         UserLeave[] @relation("LeaveCreator")
+}
+
+// ─── Phase 13: مرخصی (leave) ────────────────────────────────────
+// ادمین از پروفایل کاربر بازهٔ مرخصی ثبت می‌کند (yyyy-MM-dd لوکال —
+// مثل DayNote بدون تایم‌زون). برای «امروز فلان طراح نیست» و گزارش
+// حقوق/ارزیابی آینده. حذف کاربر → Cascade (مرخصی بی‌صاحب بی‌معناست).
+model UserLeave {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate   String   // "yyyy-MM-dd" local day key
+  endDate     String   // "yyyy-MM-dd" local day key (شامل خود روز)
+  note        String?
+  createdById String?
+  createdByUser User?  @relation("LeaveCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, startDate])
 }
 
 // ─── Phase 12: دسترسی کاربر به ماژول‌ها (many-to-many) ───────────
@@ -275,6 +299,13 @@ model OrderItem {
   designCompletedByUser User? @relation("ItemDesignCompleter", fields: [designCompletedBy], references: [id], onDelete: SetNull)
   printCompletedBy  String?
   printCompletedByUser  User? @relation("ItemPrintCompleter", fields: [printCompletedBy], references: [id], onDelete: SetNull)
+  // ─── Phase 13: مجری اختصاصی «همین آیتم» ──
+  // مسیر حقیقت روتینگ: هر آیتم طراح/چاپ خودش را دارد. null → فال‌بک
+  // به تخصیص سفارش (assignedDesignerId/assignedPrinterId) → استخر عمومی.
+  designAssigneeId String?
+  designAssigneeUser User? @relation("ItemDesignAssignee", fields: [designAssigneeId], references: [id], onDelete: SetNull)
+  printAssigneeId  String?
+  printAssigneeUser  User? @relation("ItemPrintAssignee", fields: [printAssigneeId], references: [id], onDelete: SetNull)
   // Phase 10: پیش‌فاکتورهای به‌ازای همین آیتم (SetNull → حذف آیتم، سند را نمی‌کشد)
   preInvoices    PreInvoice[]
   createdAt      DateTime @default(now())

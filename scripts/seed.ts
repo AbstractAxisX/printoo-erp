@@ -51,7 +51,7 @@ async function main() {
     { name: "فروشگاه نگین", phone: "09128889900" },
     { name: "علی محمدی", phone: "09124445566" },
   ];
-  const customers = [];
+  const customers: { id: string; name: string; phone: string }[] = [];
   for (const c of custNames) {
     const existing = await db.customer.findFirst({ where: { phone: c.phone } });
     customers.push(existing ?? await db.customer.create({ data: c }));
@@ -77,7 +77,7 @@ async function main() {
     { name: "کارت ویزیت", unit: "ست", basePrice: 80000 },
     { name: "پوستر A3", unit: "عدد", basePrice: 15000 },
   ];
-  const products = [];
+  const products: { id: string; name: string }[] = [];
   for (const p of prodNames) {
     const existing = await db.product.findFirst({ where: { name: p.name } });
     products.push(existing ?? await db.product.create({ data: p }));

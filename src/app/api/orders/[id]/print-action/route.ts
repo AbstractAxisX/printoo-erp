@@ -1,28 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { isOrderAssigneeAllowed, hasModule } from "@/lib/access";
+import { isItemActionAllowed, isManager, hasModule } from "@/lib/access";
 import { recomputeOrderStatus } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
 
-// ─── Print actions — Phase 12 rebuild ───────────────────────────────
+// ─── Print actions — Phase 13 rebuild (per-item) ────────────────
 //
-// گردش کار چاپ روی سفارش:
-//   complete_item {itemId} — تکمیل چاپ «یک» آیتم:
-//     item.stage: print → warehouse + مهر printCompletedAt + printCompletedBy.
-//     سفارش وقتی به warehouse_logistics می‌رود که همهٔ آیتم‌های چاپ
-//     تمام شده باشند (recomputeOrderStatus).
+//   complete_item {itemId} — تکمیل چاپ «یک» آیتم (گیت مجری per-item).
 //   confirm_material — تایید تأمین متریال (همهٔ آیتم‌های سفارش).
-//   send_warehouse — تکمیل گروهی همهٔ آیتم‌های چاپ + ارسال به انبار.
+//   send_warehouse — تکمیل گروهی آیتم‌های چاپِ «خودِ کاربر».
 //   report_qc {description} — گزارش کنترل کیفیت.
-//
-// گیت‌های Phase 12:
-//   ۱) ماژول print (یا master/admin).
-//   ۲) تخصیص: سفارشِ چاپِ تخصیص‌یافته به چاپ‌کار دیگری → 403.
-//      «وقتی طراح زد تکمیل، سفارش واقعاً به همون کاربر چاپی می‌ره که
-//       ادمین حین ایجاد انتخاب کرد» — اینجا همان دیوار است.
-//   ۳) انتساب تکمیل (printCompletedBy) برای آمار کارمند.
-//   ۴) نوتیف عمومی رسیدن به انبار.
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -44,18 +32,34 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const order = await db.order.findUnique({
       where: { id },
       include: {
-        items: { select: { id: true, stage: true } },
+        items: {
+          select: {
+            id: true,
+            stage: true,
+            designAssigneeId: true,
+            printAssigneeId: true,
+          },
+        },
         customer: { select: { name: true } },
       },
     });
     if (!order)
       return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
-    // ── Gate 2: تخصیص — فقط چاپ‌کارِ خودِ سفارش (مدیر همیشه مجاز) ──
-    if (action !== "report_qc") {
-      const allowed = isOrderAssigneeAllowed(user, order, "print");
-      if (!allowed.ok) {
-        return NextResponse.json({ error: allowed.message }, { status: 403 });
+    // ── Gate 2: تخصیص per-item — فقط مجریِ خودِ آیتم (مدیر همیشه مجاز) ──
+    if (action !== "report_qc" && !isManager(user)) {
+      const printItemsNow = order.items.filter((i) => i.stage === "print");
+      const mine = printItemsNow.filter(
+        (i) => isItemActionAllowed(user, i, order, "print").ok
+      );
+      if (mine.length === 0 && printItemsNow.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "آیتم‌های چاپ این سفارش به چاپ‌کار دیگری تخصیص یافته است — از پنل او قابل اقدام است",
+          },
+          { status: 403 }
+        );
       }
     }
 
@@ -88,6 +92,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           },
           { status: 409 }
         );
+
+      // Phase 13: گیت مجری همین آیتم
+      const gate = isItemActionAllowed(user, item, order, "print");
+      if (!gate.ok) {
+        return NextResponse.json({ error: gate.message }, { status: 403 });
+      }
 
       const result = await db.$transaction(async (tx) => {
         await tx.orderItem.update({
@@ -127,6 +137,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (action === "send_warehouse") {
+      // تکمیل همهٔ آیتم‌های چاپِ «قابل-اقدام توسط این کاربر» — آیتم‌های
+      // تخصیص‌یافته به چاپ‌کار دیگر دست‌نخورده می‌مانند.
       const printItems = order.items.filter((i) => i.stage === "print");
       if (printItems.length === 0) {
         return NextResponse.json(
@@ -134,10 +146,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           { status: 409 }
         );
       }
+      const actionable = printItems.filter(
+        (i) => isItemActionAllowed(user, i, order, "print").ok
+      );
+      if (actionable.length === 0) {
+        return NextResponse.json(
+          {
+            error: `همهٔ ${printItems.length} آیتم چاپ این سفارش به چاپ‌کار دیگری تخصیص یافته است`,
+          },
+          { status: 403 }
+        );
+      }
 
       const result = await db.$transaction(async (tx) => {
         await tx.orderItem.updateMany({
-          where: { orderId: id, stage: "print" },
+          where: { id: { in: actionable.map((i) => i.id) }, stage: "print" },
           data: { stage: "warehouse", printCompletedAt: new Date(), printCompletedBy: user.id },
         });
         return recomputeOrderStatus(tx, id);
@@ -151,7 +174,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ok: true,
         action: "send_warehouse",
         orderStatus: result.status,
-        completedItems: printItems.length,
+        completedItems: actionable.length,
+        skippedForeignItems: printItems.length - actionable.length,
+        remainingPrint: result.remaining.print,
       });
     }
 

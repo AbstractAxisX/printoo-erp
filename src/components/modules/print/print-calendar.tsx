@@ -104,7 +104,7 @@ export function PrintCalendar() {
   const { data: ordersData } = useQuery({
     queryKey: ["orders", "print", "in_printing", "calendar"],
     queryFn: () =>
-      api<{ orders: PrintOrder[] }>("/api/orders?status=in_printing"),
+      api<{ orders: PrintOrder[] }>("/api/orders?status=in_printing&board=print"),
     refetchInterval: 30000,
   });
 

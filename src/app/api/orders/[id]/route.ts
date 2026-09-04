@@ -22,6 +22,10 @@ type ItemDraft = {
   designEndDate?: string | null;
   printStartDate?: string | null;
   printEndDate?: string | null;
+  // Phase 13: مجری per-item — با کلید صریح در payload اعمال می‌شود
+  // (undefined = دست‌نخورده؛ null = پاک‌کردن به استخر عمومی/فال‌بک سفارش)
+  designAssigneeId?: string | null;
+  printAssigneeId?: string | null;
 };
 
 type ModuleDates = {
@@ -40,7 +44,7 @@ type UpdateBody = {
   splitMode?: string;
   items?: ItemDraft[];
   moduleDates?: ModuleDates;
-  // Phase 12: تغییر تخصیص مسئوِستان از ویرایش سفارش
+  // Phase 12/13: تغییر تخصیص مسئوِستان از ویرایش سفارش + مجری‌های per-item
   assignedDesignerId?: string | null;
   assignedPrinterId?: string | null;
 };
@@ -57,7 +61,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       where: { id },
       include: {
         customer: true,
-        items: { include: { product: true } },
+        items: {
+          include: {
+            product: true,
+            // Phase 13: مجری per-item برای نمایش در مودال جزئیات
+            designAssigneeUser: { select: { id: true, name: true } },
+            printAssigneeUser: { select: { id: true, name: true } },
+          },
+        },
         // Phase 9: پیش‌فاکتورها مرتب + فاکتور کامل — تب‌های مودال جزئیات
         // Phase 10: itemId برای تفکیک پیش‌فاکتور per-item / کل گروه
         preInvoices: { orderBy: { number: "desc" }, include: { item: true } },
@@ -118,7 +129,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = (await req.json()) as UpdateBody;
 
-  // ─── Phase 12: اعتبارسنجی تخصیص‌های جدید (قبل از تراکنش) ──
+  // ─── Phase 13: اعتبارسنجی مجری‌های per-item قبل از تراکنش ──
+  const itemDrafts = Array.isArray(body.items) ? (body.items as ItemDraft[]) : [];
+  const itemDesignerIds = Array.from(
+    new Set(
+      itemDrafts
+        .map((it) => it.designAssigneeId)
+        .filter((v): v is string => typeof v === "string" && v.length > 0)
+    )
+  );
+  for (const uid of itemDesignerIds) {
+    const check = await validateAssigneeForModule(uid, "designer");
+    if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+  }
+  const itemPrinterIds = Array.from(
+    new Set(
+      itemDrafts
+        .map((it) => it.printAssigneeId)
+        .filter((v): v is string => typeof v === "string" && v.length > 0)
+    )
+  );
+  for (const uid of itemPrinterIds) {
+    const check = await validateAssigneeForModule(uid, "print");
+    if (!check.ok) return NextResponse.json({ error: check.error }, { status: 400 });
+  }
+
+  // ─── Phase 12/13: اعتبارسنجی تخصیص سطح سفارش (قبل از تراکنش) ──
   const hasDesignKey =
     Object.prototype.hasOwnProperty.call(body, "assignedDesignerId");
   const hasPrintKey =
@@ -174,6 +210,42 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   try {
+    // ─── Phase 13: snapshot قبل از تغییر — برای نوتیفِ تغییر مجری ──
+    // «اگر عوض میشه حتما از تو پنل کارمند قبلی برداشته شه و براش نوتیف بیاد»
+    // (برداشتن از پنل خودکار با اسکوپ per-item اتفاق می‌افتد؛ اعلان اینجاست)
+    const before = await db.order.findUnique({
+      where: { id },
+      select: {
+        number: true,
+        customer: { select: { name: true } },
+        assignedDesignerId: true,
+        assignedPrinterId: true,
+        items: {
+          select: {
+            id: true,
+            stage: true,
+            designAssigneeId: true,
+            printAssigneeId: true,
+          },
+        },
+      },
+    });
+    if (!before) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+    const effBefore = (stage: "design" | "print") => {
+      const m = new Map<string, string | null>();
+      for (const it of before.items) {
+        if (stage === "design" && it.stage === "design") {
+          m.set(it.id, it.designAssigneeId ?? before.assignedDesignerId ?? null);
+        }
+        if (stage === "print" && (it.stage === "print" || it.stage === "design")) {
+          m.set(it.id, it.printAssigneeId ?? before.assignedPrinterId ?? null);
+        }
+      }
+      return m;
+    };
+    const designBefore = effBefore("design");
+    const printBefore = effBefore("print");
+
     const result = await db.$transaction(async (tx) => {
       // 1) Build base scalar data
       const data: Record<string, unknown> = {};
@@ -237,6 +309,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               ...(it.designEndDate ? { designEndDate: toISO(it.designEndDate) } : {}),
               ...(it.printStartDate ? { printStartDate: toISO(it.printStartDate) } : {}),
               ...(it.printEndDate ? { printEndDate: toISO(it.printEndDate) } : {}),
+              // Phase 13: مجری per-item — فقط با کلید صریح (null معتبر = پاک‌کردن)
+              ...(Object.prototype.hasOwnProperty.call(it, "designAssigneeId")
+                ? { designAssigneeId: it.designAssigneeId || null }
+                : {}),
+              ...(Object.prototype.hasOwnProperty.call(it, "printAssigneeId")
+                ? { printAssigneeId: it.printAssigneeId || null }
+                : {}),
             },
           });
           mergedItems.push({ id: upd.id, totalAmount: total, stage: upd.stage });
@@ -268,6 +347,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               printEndDate: toISO(
                 it.printEndDate ?? moduleDateFallback.printEnd ?? null
               ),
+              // Phase 13: مجری per-item با فال‌بک به مجری جدید سفارش
+              designAssigneeId: it.designAssigneeId ?? newDesigner ?? null,
+              printAssigneeId: it.printAssigneeId ?? newPrinter ?? null,
             },
           });
           mergedItems.push({ id: created.id, totalAmount: total, stage: created.stage });
@@ -297,6 +379,94 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       return { order, items: mergedItems };
     });
+
+    // ─── Phase 13: اعلان تغییر مجری — «براش نوتیف بیاد» ──────────────
+    // مقایسهٔ مجری مؤثر هر آیتم قبل/بعد → کاربرِ جدید «واگذار شد»،
+    // کاربرِ قبلی «از شما گرفته شد». best-effort (خطا ویرایش را خراب نمی‌کند).
+    try {
+      const after = await db.order.findUnique({
+        where: { id },
+        select: {
+          number: true,
+          assignedDesignerId: true,
+          assignedPrinterId: true,
+          items: {
+            select: { id: true, stage: true, designAssigneeId: true, printAssigneeId: true },
+          },
+        },
+      });
+      if (after) {
+        const effAfter = (stage: "design" | "print") => {
+          const m = new Map<string, string | null>();
+          for (const it of after.items) {
+            if (stage === "design" && it.stage === "design") {
+              m.set(it.id, it.designAssigneeId ?? after.assignedDesignerId ?? null);
+            }
+            if (stage === "print" && (it.stage === "print" || it.stage === "design")) {
+              m.set(it.id, it.printAssigneeId ?? after.assignedPrinterId ?? null);
+            }
+          }
+          return m;
+        };
+        const designAfter = effAfter("design");
+        const printAfter = effAfter("print");
+        const removed = new Map<string, string>(); // userId → stage label
+        const added = new Map<string, string>();
+        for (const [itemId, oldU] of designBefore) {
+          const newU = designAfter.get(itemId) ?? null;
+          if (oldU && newU !== oldU) {
+            removed.set(oldU, removed.get(oldU) ?? "design");
+            if (newU) added.set(newU, added.get(newU) ?? "design");
+          } else if (!oldU && newU) {
+            added.set(newU, added.get(newU) ?? "design");
+          }
+        }
+        for (const [itemId, oldU] of printBefore) {
+          const newU = printAfter.get(itemId) ?? null;
+          if (oldU && newU !== oldU) {
+            removed.set(oldU, removed.get(oldU) ?? "print");
+            if (newU) added.set(newU, added.get(newU) ?? "print");
+          } else if (!oldU && newU) {
+            added.set(newU, added.get(newU) ?? "print");
+          }
+        }
+        const num = before.number;
+        const custName = before.customer?.name;
+        const notifs: {
+          userId: string;
+          title: string;
+          message: string;
+          type: string;
+          link: string;
+        }[] = [];
+        for (const [uid, stage] of added) {
+          notifs.push({
+            userId: uid,
+            title: "سفارش به شما واگذار شد",
+            message: `تخصیص ${stage === "design" ? "طراحی" : "چاپ"} سفارش #${num}${
+              custName ? ` (${custName})` : ""
+            } در ویرایش به شما تغییر کرد.`,
+            type: "info",
+            link: stage === "design" ? "designer:orders" : "print:orders",
+          });
+        }
+        for (const [uid, stage] of removed) {
+          if (added.has(uid)) continue; // جایگزینی، نه حذف — کاربر جدید خودش نوتیف دارد
+          notifs.push({
+            userId: uid,
+            title: "تخصیص سفارش از شما گرفته شد",
+            message: `سفارش #${num}${
+              custName ? ` (${custName})` : ""
+            } دیگر به شما تخصیص ندارد — از پنل شما برداشته شد.`,
+            type: "warning",
+            link: stage === "design" ? "designer:orders" : "print:orders",
+          });
+        }
+        if (notifs.length) await db.notification.createMany({ data: notifs });
+      }
+    } catch {
+      // best-effort
+    }
 
     return NextResponse.json({ order: result.order, items: result.items });
   } catch (e) {

@@ -19,8 +19,15 @@ import { SuppliersPage } from "@/components/modules/admin/suppliers-page";
 import { ProductsPage } from "@/components/modules/admin/products-page";
 import { ArchivePage } from "@/components/modules/admin/archive-page";
 import { ExpenseTypesPage } from "@/components/modules/admin/expense-types-page";
-import { SettingsUsersGuard } from "@/components/modules/settings/settings-users-guard";
-import { EmployeesPage } from "@/components/modules/settings/employees-page";
+
+// Phase 13: ماژول «مدیر سیستم» (sysadmin) — جایگزین settings
+import { MonitoringUsersPage } from "@/components/modules/sysadmin/monitoring-users-page";
+import { UserMonitoringPage } from "@/components/modules/sysadmin/user-monitoring-page";
+import { ModuleMonitoringPage } from "@/components/modules/sysadmin/module-monitoring-page";
+import { SysadminSettingsPage } from "@/components/modules/sysadmin/sysadmin-settings-page";
+
+// Phase 13: پروفایل (ماژول مجازی — هر کاربر خودش را می‌بیند)
+import { ProfilePage } from "@/components/modules/profile/profile-page";
 
 // CRM pages
 import { CRMDashboard } from "@/components/modules/crm/crm-dashboard";
@@ -82,12 +89,22 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       default: return null;
     }
   }
-  // ── تنظیمات سیستم (ادمین سراسری) ──
-  if (moduleKey === "settings") {
+  // ── مدیر سیستم (master) — Phase 13: مانیتورینگ + تنظیمات ──
+  if (moduleKey === "sysadmin") {
     switch (page) {
-      case "users": return SettingsUsersGuard;
-      case "employees": return EmployeesPage; // Phase 12: مدیریت کارمندان
+      case "users": return MonitoringUsersPage;
+      case "modules": return ModuleMonitoringPage;
+      case "settings": return SysadminSettingsPage;
+      // صفحهٔ اختصاصی کاربر (دابل‌کلیک از مانیتورینگ کاربران) — param = userId
+      case "user": return UserMonitoringPage;
       default: return null;
+    }
+  }
+  // ── پروفایل (ماژول مجازی — همهٔ کاربران) ──
+  if (moduleKey === "profile") {
+    switch (page) {
+      case "view": return ProfilePage;
+      default: return ProfilePage;
     }
   }
   if (moduleKey === "crm") {

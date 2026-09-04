@@ -1,30 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { isOrderAssigneeAllowed, hasModule } from "@/lib/access";
+import { isItemActionAllowed, isManager, hasModule } from "@/lib/access";
 import { recomputeOrderStatus } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
 
-// ─── Designer actions — Phase 12 rebuild ─────────────────────────────
+// ─── Designer actions — Phase 13 rebuild (per-item) ─────────────
 //
-// گردش کار طراح روی سفارش (به‌ویژه گروهی):
+// گردش کار طراح روی سفارش:
 //   complete_item {itemId} — تکمیل طراحی «یک» آیتم:
 //     item.stage: design → print + مهر designCompletedAt + designCompletedBy.
-//     سفارش فقط وقتی به in_printing می‌رود که «همهٔ» آیتم‌های طراحی
-//     تمام شده باشند (recomputeOrderStatus). تا آن لحظه هیچ ماژول
-//     دیگری حق کار روی سفارش را ندارد.
-//   send_next {note} — تکمیل گروهی: همهٔ آیتم‌های design یک‌جا + ارسال
-//     (برای سفارش‌های تک‌آیتم همان complete_item است).
-//   report_qc {description} — گزارش کنترل کیفیت (وضعیت دست‌نخورده).
+//     گیت: مجریِ مؤثر همین آیتم باید خودش باشد (یا استخر عمومی).
+//   send_next {note} — تکمیل گروهی: همهٔ آیتم‌های designِ «خودِ کاربر»
+//     (آیتم دیگران دست‌نخورده می‌ماند و remaining گزارش می‌شود).
+//   report_qc {description} — گزارش کنترل کیفیت.
 //
-// گیت‌های Phase 12 (امنیت و تخصیص):
-//   ۱) ماژول: کاربر باید ماژول designer را داشته باشد (یا master/admin باشد).
-//   ۲) تخصیص: اگر سفارش به طراح دیگری تخصیص یافته → 403 — «این سفارش
-//      فقط از پنل همان طراح قابل اقدام است» (خواستهٔ صریح کاربر).
-//   ۳) انتساب: هر آیتمی که این کاربر تکمیل می‌کند با designCompletedBy
-//      مهر می‌خورد — آمار «مدیریت کارمندان» از همین تغذیه می‌شود.
-//   ۴) نوتیف: وقتی سفارش به چاپ رسید، کاربرِ چاپِ تخصیص‌یافته اعلان
-//      هدفمند می‌گیرد (Notification.userId).
+// نوتیف: وقتی سفارش به چاپ رسید، «همهٔ چاپ‌کارهای مؤثرِ آیتم‌های چاپ»
+// اعلان هدفمند می‌گیرند (per-item، نه فقط سطح سفارش).
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -46,7 +38,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const order = await db.order.findUnique({
       where: { id },
       include: {
-        items: { select: { id: true, stage: true } },
+        items: {
+          select: {
+            id: true,
+            stage: true,
+            designAssigneeId: true,
+            printAssigneeId: true,
+            product: { select: { name: true } },
+          },
+        },
         customer: { select: { name: true } },
         assignedPrinter: { select: { id: true, name: true } },
       },
@@ -54,16 +54,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!order)
       return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
-    // ── Gate 2: تخصیص — فقط طراحِ خودِ سفارش (مدیر همیشه مجاز) ──
-    if (action !== "report_qc") {
-      const allowed = isOrderAssigneeAllowed(user, order, "design");
-      if (!allowed.ok) {
-        return NextResponse.json({ error: allowed.message }, { status: 403 });
+    // ── Gate 2: تخصیص per-item — فقط مجریِ خودِ آیتم (مدیر همیشه مجاز) ──
+    // فاز ۱۳: چک در خود اکشن انجام می‌شود (هر آیتم مجری خودش را دارد).
+    if (action !== "report_qc" && !isManager(user)) {
+      const designItemsNow = order.items.filter((i) => i.stage === "design");
+      const mine = designItemsNow.filter(
+        (i) => isItemActionAllowed(user, i, order, "design").ok
+      );
+      if (mine.length === 0 && designItemsNow.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "آیتم‌های طراحی این سفارش به طراح دیگری تخصیص یافته است — از پنل او قابل اقدام است",
+          },
+          { status: 403 }
+        );
       }
     }
 
     // ── Gate: فقط سفارش در مرحلهٔ طراحی قابل اقدام است ──
-    const designItems = order.items.filter((i) => i.stage === "design");
     if (action !== "report_qc" && order.status !== "pending_design") {
       return NextResponse.json(
         {
@@ -88,6 +97,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           { status: 409 }
         );
 
+      // Phase 13: گیت مجری همین آیتم
+      const gate = isItemActionAllowed(user, item, order, "design");
+      if (!gate.ok) {
+        return NextResponse.json({ error: gate.message }, { status: 403 });
+      }
+
       const result = await db.$transaction(async (tx) => {
         // Phase 12: مهر «کی» + «کی»
         await tx.orderItem.update({
@@ -100,9 +115,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return recomputeOrderStatus(tx, id);
       });
 
-      // اعلان چاپ‌کار تخصیص‌یافته وقتی سفارش به چاپ رسید
-      if (result.status === "in_printing" && order.assignedPrinterId) {
-        await notifyPrinter(order.assignedPrinterId, order.number, order.customer?.name);
+      // اعلان چاپ‌کارهای مؤثر وقتی سفارش به چاپ رسید
+      if (result.status === "in_printing") {
+        await notifyEffectivePrinters(order);
       }
 
       return NextResponse.json({
@@ -115,17 +130,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (action === "send_next") {
-      // تکمیل همهٔ آیتم‌های باقی‌ماندهٔ طراحی + بازمحاسبه
+      // تکمیل همهٔ آیتم‌های باقی‌ماندهٔ طراحی «قابل-اقدام توسط این کاربر» +
+      // بازمحاسبه — آیتم‌های تخصیص‌یافته به طراح دیگر دست‌نخورده می‌مانند.
+      const designItems = order.items.filter((i) => i.stage === "design");
       if (designItems.length === 0) {
         return NextResponse.json(
           { error: "آیتمی در مرحلهٔ طراحی باقی نمانده است" },
           { status: 409 }
         );
       }
+      const actionable = designItems.filter(
+        (i) => isItemActionAllowed(user, i, order, "design").ok
+      );
+      if (actionable.length === 0) {
+        return NextResponse.json(
+          {
+            error: `همهٔ ${designItems.length} آیتم طراحی این سفارش به طراح دیگری تخصیص یافته است`,
+          },
+          { status: 403 }
+        );
+      }
 
       const result = await db.$transaction(async (tx) => {
         await tx.orderItem.updateMany({
-          where: { orderId: id, stage: "design" },
+          where: { id: { in: actionable.map((i) => i.id) }, stage: "design" },
           data: { stage: "print", designCompletedAt: new Date(), designCompletedBy: user.id },
         });
         await tx.order.update({
@@ -135,15 +163,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         return recomputeOrderStatus(tx, id);
       });
 
-      if (result.status === "in_printing" && order.assignedPrinterId) {
-        await notifyPrinter(order.assignedPrinterId, order.number, order.customer?.name);
+      if (result.status === "in_printing") {
+        await notifyEffectivePrinters(order);
       }
 
       return NextResponse.json({
         ok: true,
         action: "send_next",
         orderStatus: result.status,
-        completedItems: designItems.length,
+        completedItems: actionable.length,
+        skippedForeignItems: designItems.length - actionable.length,
+        remainingDesign: result.remaining.design,
       });
     }
 
@@ -180,19 +210,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-async function notifyPrinter(printerId: string, orderNumber: number, customerName?: string) {
+async function notifyEffectivePrinters(order: {
+  number: number;
+  customer?: { name: string } | null;
+  assignedPrinterId: string | null;
+  items: { stage: string; printAssigneeId: string | null }[];
+}) {
   try {
-    await db.notification.create({
-      data: {
-        userId: printerId,
-        title: "سفارش به چاپ شما رسید",
-        message: `طراحی سفارش #${orderNumber}${
-          customerName ? ` (${customerName})` : ""
-        } کامل شد — آمادهٔ چاپ است.`,
-        type: "success",
-        link: "print:orders",
-      },
-    });
+    // Phase 13: همهٔ چاپ‌کارهای مؤثر آیتم‌های چاپ (per-item + سطح سفارش)
+    const targets = new Set<string>();
+    for (const it of order.items) {
+      const eff = it.printAssigneeId ?? order.assignedPrinterId ?? null;
+      if (eff) targets.add(eff);
+    }
+    for (const uid of targets) {
+      await db.notification.create({
+        data: {
+          userId: uid,
+          title: "سفارش به چاپ شما رسید",
+          message: `طراحی سفارش #${order.number}${
+            order.customer?.name ? ` (${order.customer.name})` : ""
+          } کامل شد — آمادهٔ چاپ است.`,
+          type: "success",
+          link: "print:orders",
+        },
+      });
+    }
   } catch {
     // best-effort
   }

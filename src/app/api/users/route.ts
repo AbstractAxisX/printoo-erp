@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
-import { isModuleKey, isOnline } from "@/lib/access";
+import { activeLeaveToday, isModuleKey, isOnline, localDayKey, type LeaveSpan } from "@/lib/access";
 
 // GET  /api/users → کاربران فعال برای pickers
 //                ?module=designer → فقط کاربرانی که این ماژول را تیک خورده‌اند
@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
       select: {
         ...BASE_SELECT,
         modules: { select: { module: true } },
+        // Phase 13: مرخصی برای هشدار picker («امروز فلان طراح نیست»)
+        leaves: { select: { startDate: true, endDate: true, note: true } },
         ...(wantAll
           ? {
               status: true,
@@ -63,25 +65,33 @@ export async function GET(req: NextRequest) {
     const filtered = moduleFilter ? users.filter((u) => u.role !== "master") : users;
 
     return NextResponse.json({
-      users: filtered.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        phone: u.phone,
-        avatar: u.avatar,
-        modules: modulesOf(u),
-        ...(wantAll
-          ? {
-              status: u.status,
-              createdAt: u.createdAt,
-              lastSeenAt: u.lastSeenAt,
-              lastLoginAt: u.lastLoginAt,
-              loginCount: u.loginCount,
-              online: isOnline(u.lastSeenAt),
-            }
-          : {}),
-      })),
+      users: filtered.map((u) => {
+        const spans: LeaveSpan[] = u.leaves ?? [];
+        const onLeave = activeLeaveToday(spans);
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          phone: u.phone,
+          avatar: u.avatar,
+          modules: modulesOf(u),
+          // Phase 13: هشدار مرخصی در pickerهای تخصیص
+          onLeaveToday: !!onLeave,
+          leaveNote: onLeave?.note ?? null,
+          ...(wantAll
+            ? {
+                status: u.status,
+                createdAt: u.createdAt,
+                lastSeenAt: u.lastSeenAt,
+                lastLoginAt: u.lastLoginAt,
+                loginCount: u.loginCount,
+                online: isOnline(u.lastSeenAt),
+                todayKey: localDayKey(),
+              }
+            : {}),
+        };
+      }),
     });
   } catch {
     return NextResponse.json(

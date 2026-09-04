@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useAppStore, type Tab } from "@/stores/app-store";
-import { findModule } from "@/lib/nav";
+import { findModule, HIDDEN_PAGES } from "@/lib/nav";
 
 /**
  * Auto-opens a tab whenever the active page changes.
@@ -18,12 +18,19 @@ export function useAutoTabs() {
     const mod = findModule(moduleKey);
     let label = page;
     let icon = "dashboard";
-    for (const g of mod.groups) {
-      const item = g.items.find((i) => i.page === page);
-      if (item) {
-        label = item.label;
-        icon = item.icon;
-        break;
+    // Phase 13: صفحات مخفی (مانیتورینگ کاربر / پروفایل) — از HIDDEN_PAGES
+    const hidden = HIDDEN_PAGES[`${moduleKey}:${page}`];
+    if (hidden) {
+      label = hidden.label;
+      icon = hidden.icon;
+    } else {
+      for (const g of mod.groups) {
+        const item = g.items.find((i) => i.page === page);
+        if (item) {
+          label = item.label;
+          icon = item.icon;
+          break;
+        }
       }
     }
     const tab: Tab = { id: `${moduleKey}:${page}`, module: moduleKey, page, label, icon };

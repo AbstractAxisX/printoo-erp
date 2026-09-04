@@ -104,7 +104,7 @@ export function DesignerCalendar() {
   const { data: ordersData } = useQuery({
     queryKey: ["orders", "designer", "pending_design", "calendar"],
     queryFn: () =>
-      api<{ orders: DesignerOrder[] }>("/api/orders?status=pending_design"),
+      api<{ orders: DesignerOrder[] }>("/api/orders?status=pending_design&board=designer"),
     refetchInterval: 30000,
   });
 

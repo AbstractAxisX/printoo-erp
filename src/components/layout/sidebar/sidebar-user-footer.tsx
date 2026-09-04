@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
  */
 export function SidebarUserFooter() {
   const { user, logout } = useAppStore();
+  const navigate = useAppStore((s) => s.navigate);
   const [open, setOpen] = React.useState(false);
 
   async function handleLogout() {
@@ -120,6 +121,14 @@ export function SidebarUserFooter() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {/* Phase 13: پروفایل خودم — هر کاربری پروفایل دارد */}
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => navigate("profile", "view")}
+        >
+          <Icon name="userCircle" size={16} />
+          <span>پروفایل من</span>
+        </DropdownMenuItem>
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
           onClick={handleLogout}

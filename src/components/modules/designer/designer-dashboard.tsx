@@ -133,7 +133,7 @@ export function DesignerDashboard() {
     queryKey: ["orders", "designer", "pending_design"],
     queryFn: () =>
       api<{ orders: DesignerOrder[] }>(
-        "/api/orders?status=pending_design"
+        "/api/orders?status=pending_design&board=designer"
       ),
     refetchInterval: 30000,
   });

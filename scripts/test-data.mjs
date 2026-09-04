@@ -62,6 +62,7 @@ async function main() {
   await db.materialCost.deleteMany();
   await db.notification.deleteMany();
   await db.userActivityLog.deleteMany();
+  await db.userLeave.deleteMany(); // Phase 13
   await db.activity.deleteMany();
   await db.deal.deleteMany();
   await db.dayNote.deleteMany();
@@ -94,6 +95,8 @@ async function main() {
       where: { email },
       update: {
         name, role, status: "active",
+        // دیتای دمو: رمز هم ریست می‌شود تا همیشه قابل-پیش‌بینی باشد
+        password: await hash(pw, 10),
         // جایگزینی کامل ماژول‌ها (idempotent)
         ...(role === "master"
           ? { modules: { deleteMany: {} } }
@@ -1002,6 +1005,58 @@ async function main() {
       await db.orderItem.update({ where: { id: it.id }, data: patch });
     }
   }
+
+  // 18-2b) Phase 13: مجری per-item — «هر آیتم مجری خودش را دارد»
+  // الگو: آیتم → مجری سفارش (فال‌بک)؛ ولی در سفارش‌های چند-آیتمیِ در جریان،
+  // هر سومین آیتم به مجری «دیگرِ» همان ماژول می‌رود تا روتینگ per-item دمو شود
+  // (سفارش در پنل هر دو مجری می‌آید ولی هر کدام فقط آیتم خودش را می‌بیند/می‌زند).
+  const designerPool = [sara.id, mehdiD.id];
+  const printerPool = [reza.id, ali.id];
+  const allItems2 = await db.orderItem.findMany({
+    select: { id: true, orderId: true, stage: true, designAssigneeId: true, printAssigneeId: true },
+  });
+  const splitCount = new Map(); // orderId → items seen
+  for (const it of allItems2) {
+    const a = assignMap.get(it.orderId);
+    const patch = {};
+    const seen = (splitCount.get(it.orderId) ?? 0);
+    splitCount.set(it.orderId, seen + 1);
+    const split = seen % 2 === 1; // آیتم‌های زوجِ سفارش → مجری دیگر (دموی per-item)
+    // سفارشِ استخر عمومی (بدون مجری سطح سفارش) → آیتم‌ها هم بی‌مسئول می‌مانند
+    if (it.stage === "design" && !it.designAssigneeId && a?.assignedDesignerId) {
+      patch.designAssigneeId = split
+        ? designerPool.find((d) => d !== a.assignedDesignerId) ?? a.assignedDesignerId
+        : a.assignedDesignerId;
+    }
+    if ((it.stage === "design" || it.stage === "print") && !it.printAssigneeId && a?.assignedPrinterId) {
+      patch.printAssigneeId = split
+        ? printerPool.find((d) => d !== a.assignedPrinterId) ?? a.assignedPrinterId
+        : a.assignedPrinterId;
+    }
+    if (Object.keys(patch).length) {
+      await db.orderItem.update({ where: { id: it.id }, data: patch });
+    }
+  }
+
+  // 18-6) Phase 13: مرخصی‌های دمو (گذشته + جاری + آینده)
+  const dayKey = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  };
+  await db.userLeave.createMany({
+    data: [
+      // نیما: مرخصی گذشته ۳ روزه (برای آمار)
+      { userId: nima.id, startDate: dayKey(-12), endDate: dayKey(-10), note: "مرخصی استعلاجی" },
+      // سارا: مرخصی جاری امروز (هشدار در pickerها + مانیتورینگ)
+      { userId: sara.id, startDate: dayKey(0), endDate: dayKey(1), note: "مرخصی ساعتی تمدید شده" },
+      // علی: مرخصی آینده (هشدار پیش‌رو)
+      { userId: ali.id, startDate: dayKey(4), endDate: dayKey(6), note: "سفر کاری" },
+    ],
+  });
 
   // 18-3) انتساب QC: گزارش‌دهنده (ماژول مبدأ) + بررسی‌گر (نیما)
   const qcRows = await db.qcReport.findMany({ select: { id: true, fromModule: true, status: true } });

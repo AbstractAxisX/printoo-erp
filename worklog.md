@@ -3617,3 +3617,118 @@ Stage Summary:
 - گردش کار هدفمند واقعی شد: مدیر هنگام ثبت، طراح و چاپ‌کارِ مشخص را انتخاب می‌کند (بیش از یک نفر → الزامی)؛ سفارش فقط در پنل همان کاربر ظاهر می‌شود، دیگری نه در UI نه با API مستقیم (۴۰۳)؛ انتقال طراحی→چاپ دقیقاً به چاپ‌کار انتخابی می‌رسد + اعلان هدفمند؛ تکمیل‌ها با «کی» مهر می‌خورند.
 - «مدیریت کارمندان» (تنظیمات، master) جایگزین حضور و غیاب شد: آنلاین/آخرین بازدید/ورودها + آمار ریز سفارش/تسک/QC با تاخیرها + خط زمانی روزانهٔ هر کارمند (ورود/خروج/کارهای انجام‌شده).
 - دادهٔ دمو کامل بازسازی شد (ماژول‌ها، تخصیص‌ها، حضور ۷روزه)؛ کاربر تست multi@printoo24.com/test12345 (qc+print) برای بازبینی مانده است.
+
+---
+Task ID: Phase-13
+Agent: orchestrator (main)
+Task: فاز ۱۳ — روتینگ per-item (رفع باگ «هر دو طراح سفارش را می‌بینند») + ماژول «مدیر سیستم» (مانیتورینگ کاربر/ماژول) + مرخصی + پروفایل
+
+Work Log:
+- تحلیل باگ: API-scoping فاز ۱۲ سالم بود (تست fetch: سفارش تخصیصی فقط در پنل مجری)؛ ریشهٔ نشت = مدل تخصیص «سطح-سفارش» + bypass با isManager (هر کاربرِ دارای ماژول admin همهٔ بُردها را در پنل خودش می‌دید).
+- Schema (db:push + generate شد): OrderItem.designAssigneeId/printAssigneeId (SetNull + رابطه ItemDesignAssignee/ItemPrintAssignee) + UserLeave (بازه yyyy-MM-dd لوکال، createdById، index) + User.leaves/leavesGranted + relations.
+- scripts/backfill-phase13.mjs (idempotent, اجرا شد): آیتم‌های موجود از تخصیص سفارش ارث بردند (15 طراحی/13 چاپ) + دمو مرخصی سارا.
+- lib/access.ts بازنویسی شد: effectiveDesign/PrintAssigneeId (item → order → pool)، isItemActionAllowed (گیت per-item)، boardScopeWhere (board=designer|print — حتی مدیر داخلی در برد ماژول فقط آیتم‌های خودش؛ مستر همه)، orderScopeWhere/canUserViewOrder آیتم-محور، isSysAdmin، localDayKey/activeLeaveToday/upcomingLeave.
+- POST /api/orders: ItemDraft مجری per-item + اعتبارسنجی همهٔ مجری‌ها + فال‌بک item→order + derived سطح سفارش + اعلان به همهٔ مجری‌های یکتا.
+- PUT /api/orders/[id]: merge مجری per-item (کلید صریح، null=پاک) + snapshot قبل/بعد → نوتیف «واگذار شد»/«از شما گرفته شد» (خواستهٔ صریح کاربر).
+- designer-action/print-action: گیت per-item روی complete_item و send_next/send_warehouse (آیتم دیگران دست‌نخورده + skippedForeignItems در پاسخ) + نوتیف همهٔ چاپ‌کارهای مؤثر.
+- GET /api/orders: board param (designer|print) → اسکوپ برد ماژول.
+- lib/monitoring.ts (هستهٔ محاسبات): monitorUsersList (presence + stats ریز + مرخصی)، monitorUserDetail (KPI بازه، delayOverview سفارش/تسک، openOrders، today events، timeline، activitySeries، onlineHours برآوردی، activeDays)، monitorModuleBoard (openItems/busyUntil/delayed/عملکرد/روند).
+- APIهای جدید: /api/monitoring/users (مستر+admin)، /api/monitoring/users/[id]?from&to (مستر+admin+خود کاربر)، /api/monitoring/modules?module&from&to، /api/leaves (GET/POST، هم‌پوشانی 409، نوتیف)، /api/leaves/[id] DELETE.
+- /api/users: فیلدهای onLeaveToday/leaveNote برای هشدار pickerها.
+- nav.ts: ماژول settings حذف → sysadmin (masterOnly: مانیتورینگ کاربران/ماژول + تنظیمات) + PROFILE_MODULE («profile» همیشه مجاز) + HIDDEN_PAGES (sysadmin:user، profile:view).
+- module-router: sysadmin(users/modules/settings/user) + profile(view) — settings-users-guard و employees-page حذف شدند.
+- use-auto-tabs: برچسب/آیکون صفحات مخفی از HIDDEN_PAGES.
+- sidebar-user-footer: دکمهٔ «پروفایل من».
+- order-wizard: ItemDraft.designAssignee/printAssignee + auto-select تک‌کاربره per-item + اعتبارسنجی/توست per-item + کارت‌های آیتم مرحله-آگاه (design→4 تاریخ+2 مجری، print→2 تاریخ+چاپ‌کار، ردشده→هیچ) + ItemAssigneePicker فشرده با هشدار مرخصی + ابزار «طراح/چاپ همه» + جدول بازنگری با ستون مجری‌ها + derived سطح سفارش.
+
+Stage Summary:
+- قرارداد API برای فرانت‌ها: GET /api/monitoring/users → {users:[{id,name,email,phone,role,status,modules[],online,lastSeenAt,lastLoginAt,loginCount,onLeaveToday,leaveUntil,leaveNote,stats:{design:{open,completed,delayed,delayedDays},print:{...},tasks:{open,done,overdue,overdueDays},qc:{reported,reviewed},createdOrders}}],summary:{total,active,onlineNow,onLeaveNow,delayedOrders,delayedTasks}}.
+- GET /api/monitoring/users/[id]?from&to → {user,online,onLeaveToday,leaves[],range,kpis,delayOverview:{orders:{count,totalDays,items[]},tasks:{...}},openOrders[],today:{events[]},timeline[],activitySeries[]}.
+- GET /api/monitoring/modules?module&from&to → {module,range,employees:[{userId,name,online,onLeaveToday,leaveUntil,openItems,busyUntil,delayedOpen,delayedDays,completedInRange,lateCompletions,tasksOpen,tasksDoneInRange,tasksOverdue}],totals,completedTrend[]}.
+- /api/leaves: GET ?userId → {leaves:[{...,activeToday,isFuture}]}؛ POST {userId,startDate,endDate,note} → 201|400|409.
+- فرانت باقی‌مانده (به روند سپرده شد): monitoring-users-page، user-monitoring-page، module-monitoring-page، sysadmin-settings-page (ساخته شد)، profile-page + board=designer/print در پنل‌های طراح/چاپ.
+
+---
+Task ID: 13-9-a
+Agent: general-purpose (monitoring-users-page)
+Task: ساخت صفحهٔ مانیتورینگ کاربران (فهرست + CRUD + KPI + فیلتر)
+Work Log:
+- worklog (Phase-12/13) و مراجع خوانده شد: users-page (دیالوگ CRUD چند-ماژول)، api/users و api/users/[id] (قرارداد دقیق POST/PUT)، orders-page (فیلتر+جدول)، kpi-cards (الگوی KPI)، shared (PageHeader/EmptyState/StatusBadge)، format/constants/app-store/module-router/monitoring.ts (lib).
+- فایل جدید: src/components/modules/sysadmin/monitoring-users-page.tsx — export MonitoringUsersPage (همان نام/مسیری که module-router خط ۲4 ایمپورت می‌کند).
+- داده: useQuery(["monitoring","users"]) → GET /api/monitoring/users با refetchInterval ۳۰s؛ تایپ‌های MonitorUser/MonitorSummary/UserStats مطابق lib/monitoring.ts.
+- KPI row (grid-cols-2/4/6): کاربران (+فعال)، آنلاین الان (نقطهٔ emerald pulse)، در مرخصی امروز (amber)، سفارش‌های تاخیری و تسک‌های تاخیری (rose)، ورودها (جمع loginCount) — اعداد فارسی fa-IR.
+- نوار فیلتر داخل Card: جستجوی name/email سمت کلاینت، چیپ‌های چند-انتخابی ماژول (MODULES + چیپ «مدیر سیستم»=master)، toggle حضور (همه/آنلاین/آفلاین/مرخصی)، سوییچ «فقط فعال‌ها»، شمار «X کاربر از Y» + دکمهٔ پاک‌کردن فیلترها.
+- جدول سفارشی (Table ui داخل overflow-x-auto داخلی): ستون‌های کاربر (آواتار initials + گرادیان master + نشان‌ها)، ماژول‌ها (چیپ رنگی MODULE_COLORS + شمار؛ hidden lg)، حضور (نقطهٔ pulse + «آخرین بازدید: formatDate(lastSeenAt,true)» + loginCount؛ «بدون بازدید» اگر null)، مرخصی (badge amber «مرخصی تا …» + tooltip یادداشت؛ hidden xl)، طراحی/چاپ/تسک (WorkStatCell «N باز · M تاخیر» رز + خط تکمیل + title دیرکرد؛ hidden md)، اقدامات («مانیتورینگ» → navigate(sysadmin,user,id) و «ویرایش» → دیالوگ، stopPropagation دابل‌کلیک).
+- دابل‌کلیک ردیف (خواستهٔ صریح کاربر) + Enter → navigate("sysadmin","user",row.id)؛ ردیف tabIndex=0 و title راهنما.
+- مرتب‌سازی سرستونی (SortableHead): name (پیش‌فرض asc) + modules/presence/leave/design/print/tasks (desc پیش‌فرض؛ ترکیب open*100+delayed برای آمار) + tie-break نام fa-locale.
+- دیالوگ‌های CRUD (کپی الگوی users-page): create (name/email/password/phone/status + گرید چک‌باکس ۸ ماژول با نقطهٔ رنگ هم‌خانوادهٔ چیپ) و edit (ایمیل قفل، رمز جدید اختیاری، سوییچ status — غیرفعال برای خود، ماژول‌ها فقط غیر-master + هشدار حذف ماژول + نُت master)؛ اعتبارسنجی فارسی (نام/ایمیل/رمز ۶+/حداقل یک ماژول)؛ toast‌های موفقیت/خطا (پیام فارسی API).
+- success → invalidate(["monitoring","users"]) + ["users"] + ["me"].
+- EmptyState دو حالته (بدون کاربر / فیلتر خالی) + حالت خطا با «تلاش دوباره» + LoadingState؛ سربرگ جدول: شمار + آنلاین زنده + رفرش دستی (spin هنگام fetch) + «به‌روزرسانی هر ۳۰ ثانیه».
+- tsc --noEmit: ۰ خطا در فایل جدید (خطاهای باقی‌مانده متعلق به فایل‌های دیگر: module-router برای user-monitoring-page/profile-page که عامل‌های دیگر می‌سازند + خطاهای پیش‌ موجود monitoring.ts/designer-action/seed)؛ eslint روی فایل: پاک.
+Stage Summary:
+- «مانیتورینگ کاربران» (صفحهٔ اصلی sysadmin، master) ساخته شد: KPI سازمان + فیلتر ماژول/حضور/وضعیت + جدول حضور و آمار per-item (طراحی/چاپ/تسک با تاخیر رز) + مرخصی با tooltip + CRUD کامل کاربر (POST /api/users، PUT /api/users/[id] با status+modules+password اختیاری — هر دو قرارداد بررسی و رعایت شد) + دابل‌کلیک→صفحهٔ اختصاصی کاربر.
+- تصمیم‌ها: جدول سفارشی به‌جای DataTable چون دابل‌کلیک ردیف + سلول‌های ریچ لازم بود (DataTable فقط onRowClick دارد)؛ مرتب‌سازی دستی با tie-break نام؛ کاربر master بدون ماژول تکی (badge «مدیر سیستم»، modules در PUT ارسال نمی‌شود چون API 400 می‌دهد)؛ کمبود دادهٔ سری زمانی در endpoint لیست → KPI عددی بدون نمودار (recharts لازم نشد).
+- API mismatch یافت نشد — قرارداد worklog با lib/monitoring.ts و api/users یکسان بود. تیک آخر فاز ۱۳ برای این صفحه: user-monitoring-page و profile-page توسط عامل‌های دیگر.
+
+---
+Task ID: 13-9-b
+Agent: general-purpose (user-monitoring-page)
+Task: صفحهٔ اختصاصی مانیتورینگ کاربر (KPI + گزارش امروز + تاخیر + چارت + خط زمانی + مرخصی)
+
+Work Log:
+- قرارداد مطالعه شد: UserDetailReport/TimelineEvent از src/lib/monitoring.ts (فقط import type — بدون وابستگی ران‌تایم به lib/db) + GET /api/monitoring/users/[id] و /api/leaves (POST/DELETE، 409 هم‌پوشانی) از routeها.
+- نوع JSON مشترک: type Json<T> (Date→string توزیعی) → UserDetail/UserEvent/LeaveRow — دقیقاً همان قرارداد سرور بعد از سریالایز.
+- فایل ساخته شد: src/components/modules/sysadmin/user-monitoring-page.tsx (export UserMonitoringPage — با import موجود module-router «sysadmin:user» هم‌خوان).
+- سوییچ بازه بالای صفحه: چیپ‌های امروز/این هفته (شنبه‌شروع)/این ماه/۳ ماه/بازهٔ دلخواه (۲ DatePicker + اعمال؛ validate پایان≥شروع با toast). پیش‌فرض این هفته؛ queryKey = ["monitoring","user",param,from,to] + refetchInterval 60s. برچسب بازه («از 2026/09/01 تا …») هم در description هدر هم در کارت فیلتر.
+- userId از s.param (بدون param → EmptyState «کاربری انتخاب نشده»)؛ دکمهٔ بازگشت → sysadmin:users برای مدیران، profile:view برای خودنمایی کاربر عادی.
+- سکشن‌ها به‌ترتیب: PageHeader(userCircle+بازگشت+رفرش چرخان) → کارت پروفایل (آواتار initials گرادیانی برای master، نقطهٔ آنلاین pulse، بج «مرخصی تا …»، چیپ ماژول‌ها از MODULES، تماس ltr، عضویت/آخرین ورود/آخرین بازدید/مجموع ورودها) → KPI گرید 2/3/6 (طراحیِ باز+تاخیر rose، چاپِ باز+تاخیر، تسکِ باز+تاخیری، تکمیل‌شده در بازه، ~X ساعت آنلاین، روزهای فعال+ورودها) → «گزارش امروز» (کارت متمایز border-primary/30 bg-primary/5: چیپ‌های شمارش + تایم‌لاین عمودی ترتیب صبح→شب، آیکون per-kind ۱۰گانه، HH:mm تابولار) → اوورویو تاخیر (۲ کارت: «X سفارش تاخیری · مجموع Y روز» + جدول فشرده سفارش/تسک، رز برای روزهای تاخیر، پیام مثبت emerald وقتی صفر) → چارت BI (BarChart انباشته recharts: logins/itemsDone/tasksDone/qc با emerald/violet/amber/sky، راهنمای چیپ تعاملی toggle سری، تولتیپ فارسی fa-IR + labelFormatter yyyy/MM/dd، XAxis interval تطبیقی، جمع QC/ثبت‌سفارش در هدر) → سفارش‌های باز (جدول #/مشتری/چیپ مرحله طراحی·چاپ·انبار/موعد؛ کلیک ردیف→admin:orders فقط مدیر) → خط زمانی بازه (max-h-96 scroll + scrollbar-thin، هدر روز sticky، فیلتر چیپ نوع رویداد: همه/ورود‌وخروج/کارها/تسک‌ها/QC/مرخصی) → مرخصی‌ها (لیست بازه+روز+یادداشت+بج جاری/آینده؛ CRUD فقط مدیر: Dialog ثبت با ۲ DatePicker+note→POST /api/leaves {userId:param}، 409 با toast؛ AlertDialog تایید حذف→DELETE؛ بعد از هر دو refetch + invalidate(["monitoring"])).
+- همهٔ تاریخ‌ها میلادی (formatDate / fmtDayKey بدون تایم‌زون)، اعداد فارسی fa-IR، RTL موبایل-اول.
+- tsc --noEmit: صفر خطا در این فایل (۱۶ خطای باقی‌مانده: examples/scripts/skills/designer-action API/monitoring.ts — فایل‌های دیگر). eslint روی فایل: پاک.
+
+Stage Summary:
+- صفحهٔ اختصاصی مانیتورینگ کاربر کامل شد: بازه‌های امروز/هفته/ماه/۳ماه/دلخواه، KPI بازه‌محور با تاخیر رز، «گزارش امروز» (خواستهٔ مهم کاربر) با تایم‌لاین عمودی، اوورویو تاخیر سفارش+تسک («۴ سفارش · مجموع ۵ روز»)، چارت BI انباشتهٔ تعاملی با toggle سری و تولتیپ فارسی، سفارش‌های باز، خط زمانی گروه‌بندی روزانه با فیلتر نوع، و مدیریت مرخصی (ثبت بازه در تقویم + حذف، مدیر-فقط، خطای 409 هم‌پوشانی با toast).
+- تصمیم‌ها: نوع Json<T> برای قرارداد سریالایز؛ بازگشت هوشمند (مدیر→کاربران، خودنمایی→پروفایل)؛ کلیک ردیف سفارش فقط برای مدیر (گارد AccessDenied پرهیز)؛ ترتیب رویدادهای امروز صبح→شب و بازه جدیدترین‌اول.
+---
+Task ID: 13-9-c
+Agent: general-purpose (module-monitoring + profile)
+Task: صفحهٔ مانیتورینگ ماژول + صفحهٔ پروفایل
+
+Work Log:
+- worklog Phase-13 + قراردادهای API خوانده شد؛ monitoring.ts (ModuleBoardReport/ModuleEmployeeRow/UserDetailReport/TimelineEvent)، routes мониторing/modules و monitoring/users/[id] و leaves (GET/POST/DELETE) بررسی شد؛ رفرنس‌ها: kpi-cards (الگوی recharts/تولتیپ)، shared/index (PageHeader/EmptyState)، sysadmin-settings-page (الگوی chip)، date-picker، app-store (navigate/param/user).
+- src/components/modules/sysadmin/module-monitoring-page.tsx (۷۳۲ خط، export ModuleMonitoringPage) ساخته شد: GET /api/monitoring/modules?module&from&to با queryKey ["monitoring","modules",module,from,to]؛ چیپ‌های ماژول از MODULES (۸ ماژول، پیش‌فرض designer، پالت emerald/violet/amber/rose/sky بدون blue/indigo)؛ سوئیچ بازهٔ این هفته/این ماه (پیش‌فرض)/۳ ماه/بازهٔ دلخواه (دو DatePicker، سوئاپ خودکار from>to)؛ کلیدهای روز yyyy-MM-dd لوکال (localDayKey/presetRange).
+- قاتل صفحه — بنر «پیشنهاد تخصیص»: مرتب‌سازی [!onLeaveToday → online → openItems → delayedDays]؛ کارت سبز «پیشنهاد تخصیص: {name} — کمترین ظرف کار (X آیتم)» + وضعیت آنلاین/تاخیر/کار تا + دکمهٔ مانیتورینگ کاربر؛ حالت «همهٔ اعضا در مرخصی‌اند» (هشدار amber)؛ بدون عضو → EmptyState.
+- KPI ردیف (کارمندان/آیتم‌های باز/تاخیری/تکمیل در بازه از totals) + مقایسهٔ کارمندان با مرتب‌سازی ظرف کار (desc، پیش‌فرض)/تاخیر/عملکرد: هر کارمند = کارت با نقطهٔ آنلاین، بج مرخصی amber «مرخصی تا …»، ظرف کار (عدد بزرگ + نوار پیشرفت نسبت به پرمشغول‌ترین، قرمز برای دارای تاخیر)، «تا کی کار دارد» (busyUntil با رنگ‌بندی روزها: گذشته rose / ≤۳روز amber / بقیه muted)، تاخیر (delayedOpen + «مجموع X روز» + تسک معوق)، عملکرد بازه (completedInRange + «X دیر» + تسک‌ها) و دکمهٔ navigate("sysadmin","user",userId). نشان‌ها: «پرمشغول‌ترین» (border-rose-300) و «خالی‌ترین» فعال (border-emerald-300).
+- دو نمودار recharts با تولتیپ فارسی سفارشی (کامپوننت content): BarChart ظرف کار هر کارمند (Cell قرمز برای delayedOpen>0، رنگ = تن ماژول) + AreaChart «روند تکمیل ماژول» (completedTrend، گرادیان emerald، tick MM/dd)؛ اسکلت لودینگ + EmptyState برای خطا/خالی.
+- src/components/modules/profile/profile-page.tsx (۵۸۹+ خط، export ProfilePage) ساخته شد: param از app-store (بدون param = خودِ کاربر؛ مدیرها userId دیگران)؛ GET /api/monitoring/users/{id}?from&to با چیپ‌های هفته/ماه (پیش‌فرض)/۳ ماه؛ خطا (403) → EmptyState «دسترسی محدود».
+- کارت هویت: آواتار gradient با حروف اول نام، بج نقش (master = «مدیر سیستم» گرادیان violet→rose)، چیپ‌های ماژول (master = «همهٔ ماژول‌ها»)، ایمیل/تلفن ltr، «عضویت از» formatDate(createdAt)، نقطهٔ آنلاین + آخرین ورود + مجموع ورودها + بج «در مرخصی» + بج «غیرفعال».
+- آمار سریع (کارهای باز/تاخیری/تکمیل در بازه/ساعت آنلاین ~ با زیرمتن تفکیک طراحی/چاپ/تسک)؛ «گزارش امروز» (today.events، max-h-72 اسکرول) و «آخرین فعالیت‌ها» (timeline.slice(0,12)) با آیکون/رنگ per-kind (EVENT_META)؛ بخش «مرخصی‌های من/مرخصی‌ها»: لیست فقط‌خواندنی با بج «جاری/پیش‌رو» (محاسبهٔ سمت کلاینت با localDayKey)؛ مدیرِ ناظرِ پروفایلِ دیگری: فرم ثبت (POST /api/leaves: دو DatePicker + یادداشت + اعتبارسنجی) و حذف (DELETE /api/leaves/{id}) با toast سانر + invalidate(["monitoring"])؛ خودِ کاربرِ غیرمدیر → راهنمای «ثبت مرخصی توسط مدیر انجام می‌شود».
+- دکمهٔ «مانیتورینگ کامل من» → navigate("sysadmin","user",targetId) — فقط برای مالکِ غیر master (خودکار مخفی برای مستر).
+- تاریخ‌ها همیشه میلادی (formatDate)؛ کلیدهای روز yyyy-MM-dd با formatDayKey لوکال (بدون خطای تایم‌زونِ new Date(string))؛ اعداد فارسی fa-IR؛ ایمپورت type-only از @/lib/monitoring؛ بدون any؛ "use client".
+- تایپ‌چک: `bunx tsc --noEmit | grep -E "module-monitoring|profile-page"` → خالی (۰ خطا برای هر دو فایل)؛ eslint هم پاک. خطای باقی‌ماندهٔ پروژه: فقط user-monitoring-page مفقود (فایل ایجنت موازی 13-9-b — انتظار می‌رود) + خطاهای از قبل موجود در examples/scripts/api-designer-action و lib/monitoring (مال مالک پروژه، دست نخورده).
+
+Stage Summary:
+- مانیتورینگ ماژول (sysadmin:modules) و پروفایل (profile:view) کامل شد و با module-router موجود سیم‌کشی بود (ایمپورت‌ها resolve شدند).
+- تصمیم‌ها: پیشنهاد تخصیص = اولویتِ «حاضر → آنلاین → خالی‌تر → کم‌تاخیرتر»؛ پرمشغول‌ترین/خالی‌ترین فقط با ≥۲ عضو و متمایز؛ بازهٔ دلخواه با fallback شروع ماه/امروز؛ leaveUntil/busyTrend/مرخصی‌ها همه کلید روز → formatDayKey لوکال؛ مدیریت مرخصی فقط مدیرِ ناظرِ غیرخودی (API هم الزام می‌کند)؛ دکمهٔ مانیتورینگ کامل برای هر مالکِ غیرمستر (خودکارگیری خودشان مجاز است).
+- باقی‌مانده برای ایجنت 13-9-b: user-monitoring-page.tsx (ایمپورت router فعلاً error TS2307 دارد).
+
+---
+Task ID: Phase-13-FINAL
+Agent: orchestrator (main)
+Task: تکمیل و تست جامع فاز ۱۳ — روتینگ per-item + ماژول مدیر سیستم + مانیتورینگ + مرخصی + پروفایل
+
+Work Log:
+- فرانت صفحات (سه زیراینت موازی): monitoring-users-page.tsx (~1310 خط: KPI + فیلتر + جدول دابل‌کلیک + CRUD کامل)؛ user-monitoring-page.tsx (~1000 خط: بازه‌ها، KPI، گزارش امروز، اوورویو تاخیر، چارت BI با toggle سری‌ها، خط زمانی با فیلتر نوع، CRUD مرخصی)؛ module-monitoring-page.tsx (~730 خط: چیپ ماژول/بازه، «پیشنهاد تخصیص» خودکار، مقایسه کارمندان با نوار پیشرفت، Bar+Area)؛ profile-page.tsx (~600 خط: هویت، آمار، امروز، مرخصی، دکمهٔ مانیتورینگ خود)؛ sysadmin-settings-page.tsx (KPI + نقشهٔ ماژول‌ها + سطوح دسترسی).
+- باگ runtime پیدا و رفع شد: بلوک derivedDesignerId بعد از return لند شده بود (TDZ) → جابه‌جا به بعد از needsPrint.
+- lint error رفع شد (no-assign-module-variable در monitoring/modules).
+- پنل‌های طراح/چاپ: board=designer|print به همهٔ ۶ ویو (orders/dashboard/calendar × طراح/چاپ) اضافه شد — «هر دو طراح سفارش را می‌بینند» بسته شد (حتی کاربر دارای ماژول admin در برد ماژول فقط آیتم‌های خودش).
+- seed/test-data.mjs: مجری per-item (هر آیتم دومِ سفارش چند-آیتمی → مجری دیگر، ۴ سفارش دمو چند-مجری + سفارش استخر عمومی) + مرخصی‌های دمو (نیما گذشته/سارا جاری/علی آینده) + ریست رمز در upsert.
+- تست E2E API (۵۱/۵۱ پاس): اسکوپ برد سارا/مهدی، split per-item (#6/#35)، استخر عمومی #8، ساخت per-item، اکشن 403 روی آیتم دیگران، send با skippedForeignItems، نوتیف چاپ به دو چاپ‌کار per-item، PUT تغییر مجری (نوتیف واگذار/گرفته شد + برداشته/اضافه شدن از پنل)، مانیتورینگ‌ها + 403های دسترسی، مرخصی (ثبت/409 هم‌پوشانی/خود-دید/403/حذف).
+- تست مرورگر (agent-browser): master login → sysadmin در سایدبار → مانیتورینگ کاربران (KPI زنده: ۱۱ کاربر/۶ آنلاین/۱ مرخصی) → دابل‌کلیک سارا → صفحهٔ اختصاصی (بازه‌ها، گزارش امروز، تاخیر، خط زمانی، دیالوگ مرخصی) → مانیتورینگ ماژول (پیشنهاد: مهدی ۸ آیتم — سارا مرخصی رد شد!) → تنظیمات سیستم → پروفایل (فوتر سایدبار) → ویزارد کامل ۴ مرحله با تخصیص per-item (سارا+رضا / مهدی+علی) → ثبت سفارش #35 موفق → پنل سارا و مهدی هر دو #35 را می‌بینند (هرکدام آیتم خودش) → موبایل 390px بدون glitch (VLM) → کنسول پاک (فقط warningهای قدیمی).
+- tsc: ۰ خطای src؛ lint: ۰ error (۵ warning قدیمی)؛ سرور dev روشن و سالم (dev.sh — از reaper سندباکس جان سالم به در می‌برد؛ nohup مستقیم کشته می‌شود).
+- tmp-scripts پاک شد؛ dev.log بازسازی شد.
+
+Stage Summary:
+- «هر دو طراح این سفارش هارو میبینن» حل شد: روتینگ per-item (designAssigneeId/printAssigneeId با فال‌بک سفارش→استخر) + board param برای پنل‌ها + گیت 403 روی اکشن آیتم دیگران.
+- ماژول «مدیر سیستم» (master): مانیتورینگ کاربران (CRUD + حضور + آمار ریز + دابل‌کلیک به صفحهٔ اختصاصی)، مانیتورینگ ماژول (پیشنهاد تخصیص هوشمند + مقایسهٔ ظرف کار/تاخیر/عملکرد + چارت)، تنظیمات سیستم.
+- مرخصی با تقویم بازه‌ای (409 هم‌پوشانی) + هشدار در pickerها/مانیتورینگ؛ پروفایل برای همه + مانیتورینگ خود.
+- تغییر مجری از ویرایش: نوتیف به دو طرف + جابه‌جایی پنل خودکار.

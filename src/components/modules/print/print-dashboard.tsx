@@ -137,7 +137,7 @@ export function PrintDashboard() {
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ["orders", "print", "in_printing"],
     queryFn: () =>
-      api<{ orders: PrintOrder[] }>("/api/orders?status=in_printing"),
+      api<{ orders: PrintOrder[] }>("/api/orders?status=in_printing&board=print"),
     refetchInterval: 30000,
   });
 
