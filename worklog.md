@@ -3732,3 +3732,18 @@ Stage Summary:
 - ماژول «مدیر سیستم» (master): مانیتورینگ کاربران (CRUD + حضور + آمار ریز + دابل‌کلیک به صفحهٔ اختصاصی)، مانیتورینگ ماژول (پیشنهاد تخصیص هوشمند + مقایسهٔ ظرف کار/تاخیر/عملکرد + چارت)، تنظیمات سیستم.
 - مرخصی با تقویم بازه‌ای (409 هم‌پوشانی) + هشدار در pickerها/مانیتورینگ؛ پروفایل برای همه + مانیتورینگ خود.
 - تغییر مجری از ویرایش: نوتیف به دو طرف + جابه‌جایی پنل خودکار.
+
+---
+Task ID: GIT-SYNC
+Agent: orchestrator (main)
+Task: User demanded: push to git after EVERY change («قانون اینه بعد از هر تغییر پوش کنی»)
+
+Work Log:
+- Found branch diverged from origin/main (3 local vs 1 remote commits) + 13 uncommitted modified files (Phase 13 fixes: monitoring/leaves/profile).
+- Committed pending changes as "Phase 13 fixes: monitoring/leaves/profile refinements".
+- Rebased onto origin/main — resolved conflicts: trivial .zscripts/dev.pid (took theirs), 7 identical-content AA files (git add), settings/employees-page.tsx (git rm — superseded by sysadmin module in Phase 13).
+- Pushed 0b5f288..6a7cb19 to origin/main. Working tree clean, in sync.
+
+Stage Summary:
+- **NEW MANDATORY RULE: after every code change, `git add -A && git commit && git push origin main` immediately.**
+- Remote URL: AbstractAxisX/printoo-erp.git (PAT embedded in remote URL).
