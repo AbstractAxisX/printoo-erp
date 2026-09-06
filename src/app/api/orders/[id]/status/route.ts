@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireManager } from "@/lib/access";
 import { syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
+import { logOrderEvent } from "@/lib/order-events";
 
 // Change order status + optionally set module dates
 // Phase 9: تغییر دستی وضعیت → stage آیتم‌ها همگام می‌شود
@@ -65,6 +66,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           type: "info",
           link: `admin:orders`,
         },
+      });
+
+      // Phase 14: تاریخچه — تغییر دستی وضعیت توسط مدیر
+      await logOrderEvent(tx, {
+        orderId: id,
+        type: "status_changed",
+        stage: null,
+        actorId: user.id,
+        actorName: user.name,
+        title: `وضعیت سفارش از «${order.status}» به «${status}» تغییر کرد`,
+        description: `تغییر دستی توسط ${user.name}`,
       });
     });
 

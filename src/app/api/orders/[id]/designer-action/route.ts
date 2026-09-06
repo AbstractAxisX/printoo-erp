@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isItemActionAllowed, isManager, hasModule } from "@/lib/access";
 import { recomputeOrderStatus } from "@/lib/order-flow";
+import { logOrderEvent } from "@/lib/order-events";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Designer actions — Phase 13 rebuild (per-item) ─────────────
@@ -112,12 +113,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (note) {
           await tx.order.update({ where: { id }, data: { designerNote: note } });
         }
+        // Phase 14: تاریخچه — طراحی این آیتم کامل شد
+        await logOrderEvent(tx, {
+          orderId: id,
+          type: "design_completed",
+          stage: "design",
+          actorId: user.id,
+          actorName: user.name,
+          title: `طراحی آیتم «${item.product?.name ?? "—"}» تکمیل شد`,
+          description: note ? `یادداشت طراح: ${note}` : null,
+        });
         return recomputeOrderStatus(tx, id);
       });
 
       // اعلان چاپ‌کارهای مؤثر وقتی سفارش به چاپ رسید
       if (result.status === "in_printing") {
         await notifyEffectivePrinters(order);
+        await logOrderEvent(db, {
+          orderId: id,
+          type: "sent_to_print",
+          stage: "print",
+          actorId: user.id,
+          actorName: user.name,
+          title: `سفارش به مرحلهٔ چاپ ارسال شد`,
+          description: `توسط ${user.name} — طراحی کامل شد`,
+        });
       }
 
       return NextResponse.json({
@@ -160,11 +180,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           where: { id },
           data: { designerNote: note || null },
         });
+        // Phase 14: تاریخچه — تکمیل گروهی طراحی
+        await logOrderEvent(tx, {
+          orderId: id,
+          type: "design_completed",
+          stage: "design",
+          actorId: user.id,
+          actorName: user.name,
+          title: `طراحی ${actionable.length} آیتم سفارش تکمیل شد`,
+          description: note ? `یادداشت طراح: ${note}` : null,
+        });
         return recomputeOrderStatus(tx, id);
       });
 
       if (result.status === "in_printing") {
         await notifyEffectivePrinters(order);
+        await logOrderEvent(db, {
+          orderId: id,
+          type: "sent_to_print",
+          stage: "print",
+          actorId: user.id,
+          actorName: user.name,
+          title: `سفارش به مرحلهٔ چاپ ارسال شد`,
+          description: `توسط ${user.name} — طراحی کامل شد`,
+        });
       }
 
       return NextResponse.json({
@@ -192,6 +231,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           reportedBy: "designer",
           reportedById: user.id,
         },
+      });
+      await logOrderEvent(db, {
+        orderId: id,
+        type: "qc_reported",
+        stage: "qc",
+        actorId: user.id,
+        actorName: user.name,
+        title: `گزارش به کنترل کیفیت از مرحلهٔ طراحی`,
+        description: String(description).trim(),
       });
       await db.notification.create({
         data: {

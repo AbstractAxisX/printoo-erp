@@ -78,9 +78,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         assignedDesigner: { select: { id: true, name: true, phone: true } },
         assignedPrinter: { select: { id: true, name: true, phone: true } },
         createdByUser: { select: { id: true, name: true } },
+        // Phase 14: رویدادهای گردش کار برای تب تاریخچه
+        events: { orderBy: { createdAt: "desc" } },
       },
     });
     if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
+
+    // Phase 14: رویدادهای مالی (sensitive) فقط برای مالی/مستر —
+    // «ادمین داخلی نباید از اسناد مالی خبردار بشه»
+    const canSeeSensitive =
+      user.role === "master" || user.modules.includes("finance");
+    if (!canSeeSensitive) {
+      (order as { events?: { sensitive: boolean }[] }).events = (order.events ?? []).filter(
+        (e) => !e.sensitive
+      );
+    }
 
     // غیرمدیر: فقط سفارشِ خودش / استخر عمومی مرحله‌اش / مالکیت تاریخی
     if (!canUserViewOrder(user, order)) {
@@ -463,6 +475,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           });
         }
         if (notifs.length) await db.notification.createMany({ data: notifs });
+
+        // Phase 14: تاریخچه — تغییر مجری (reassign)
+        if (removed.size > 0 || added.size > 0) {
+          const stageWord = (st: string | undefined) =>
+            st === "design" ? "طراحی" : st === "print" ? "چاپ" : "—";
+          const parts: string[] = [];
+          for (const [, st] of removed) parts.push(`حذف از ${stageWord(st)}`);
+          for (const [, st] of added) parts.push(`واگذاری ${stageWord(st)}`);
+          await logOrderEvent(db, {
+            orderId: id,
+            type: "reassigned",
+            stage: null,
+            actorId: user.id,
+            actorName: user.name,
+            title: "تغییر مجری سفارش در ویرایش",
+            description: parts.join("، "),
+          });
+        }
       }
     } catch {
       // best-effort

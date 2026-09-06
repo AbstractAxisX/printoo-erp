@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { logOrderEvent } from "@/lib/order-events";
 
 // GET a single QC report by id (with order + customer + items)
 // Phase 12: auth gate — قبلاً بدون احراز هویت بود.
@@ -69,6 +70,33 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { id: report.orderId },
         data: { status: newStatus },
       });
+      // Phase 14: تاریخچه — بررسی QC + بازگشت به مرحله
+      const stageLabel: Record<string, string> = {
+        design: "طراحی",
+        print: "چاپ",
+        warehouse: "انبار و لجستیک",
+      };
+      await logOrderEvent(db, {
+        orderId: report.orderId,
+        type: "qc_reviewed",
+        stage: "qc",
+        actorId: user.id,
+        actorName: user.name,
+        title: `کنترل کیفیت گزارش «${report.fromModule === "designer" ? "طراحی" : report.fromModule === "print" ? "چاپ" : "انبار"}» را تأیید کرد`,
+        description: returnStage
+          ? `سفارش به مرحلهٔ ${stageLabel[returnStage] ?? returnStage} بازگشت`
+          : null,
+      });
+      if (returnStage) {
+        await logOrderEvent(db, {
+          orderId: report.orderId,
+          type: "qc_returned",
+          stage: returnStage,
+          actorId: user.id,
+          actorName: user.name,
+          title: `سفارش از کنترل کیفیت به مرحلهٔ ${stageLabel[returnStage] ?? returnStage} برگشت`,
+        });
+      }
       // اعلان هدفمند به مسئوِ مرحله‌ای که سفارش به آن برگشت
       try {
         if (newStatus === "pending_design" && report.order.assignedDesignerId) {
@@ -109,6 +137,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await db.qcReport.update({
         where: { id },
         data: { status: "rejected", reviewedAt: new Date(), reviewedById: user.id },
+      });
+      await logOrderEvent(db, {
+        orderId: report.orderId,
+        type: "qc_reviewed",
+        stage: "qc",
+        actorId: user.id,
+        actorName: user.name,
+        title: `کنترل کیفیت گزارش «${report.fromModule === "designer" ? "طراحی" : report.fromModule === "print" ? "چاپ" : "انبار"}» را رد کرد`,
       });
       return NextResponse.json({ ok: true, action: "reject" });
     }

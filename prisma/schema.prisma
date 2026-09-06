@@ -49,6 +49,8 @@ model User {
   // Phase 13: مرخصی‌ها (جایگزین حضورغیاب برای برنامهٔ حقوق/ارزیابی)
   leaves                UserLeave[]
   leavesGranted         UserLeave[] @relation("LeaveCreator")
+  // Phase 14: رویدادهای سفارش که این کاربر انجام داده (تاریخچه)
+  orderEvents           OrderEvent[] @relation("OrderEventActor")
 }
 
 // ─── Phase 13: مرخصی (leave) ────────────────────────────────────
@@ -222,6 +224,31 @@ model Order {
   tasks         Task[]
   qcReports     QcReport[]
   materialCosts MaterialCost[]
+  // Phase 14: رویدادهای گردش کار (تاریخچهٔ واقعی سفارش)
+  events        OrderEvent[]
+}
+
+// ─── Phase 14: رویدادهای سفارش (audit واقعی گردش کار) ─────────
+// هر اقدام ماژولی روی سفارش با «مرحله + تاریخ + عامل» ثبت می‌شود:
+//   created | design_completed | sent_to_print | material_confirmed |
+//   print_completed | sent_to_warehouse | qc_reported | qc_reviewed |
+//   qc_returned | status_changed | reassigned | cost_registered
+// رویدادهای sensitive (مالی: cost_registered و…) فقط برای مالی/مستر
+// در GET بازگردانده می‌شوند — ادمین داخلی از اسناد مالی خبردار نمی‌شود.
+// actorName اسنپ‌شات است تا حذف کاربر متن را نبکشد (SetNull روی رابطه).
+model OrderEvent {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type        String   // created | design_completed | sent_to_print | material_confirmed | print_completed | sent_to_warehouse | qc_reported | qc_reviewed | qc_returned | status_changed | reassigned | cost_registered
+  stage       String?  // design | print | warehouse | qc — مرحلهٔ مربوط به رویداد
+  actorId     String?
+  actor       User?    @relation("OrderEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorName   String?  // اسنپ‌شات نام عامل
+  title       String   // متن اصلی رویداد
+  description String?  // جزئیات اختیاری
+  sensitive   Boolean  @default(false) // true = مالی — برای ادمین داخلی مخفی
+  createdAt   DateTime @default(now())
 }
 
 // ─── QC Reports (quality control) ──────────────────────────────
@@ -267,8 +294,24 @@ model MaterialCost {
   fileUrl1     String?
   fileUrl2     String?
   status       String       @default("pending") // pending | approved | rejected
-  module       String       @default("print") // print | warehouse
+  module       String       @default("print") // print | material | warehouse
   createdBy    String?
+  createdAt    DateTime     @default(now())
+  // Phase 14: پیوست‌های واقعی (آپلود فایل) — به‌جای دو باکس لینک
+  attachments  CostAttachment[]
+}
+
+// ─── Phase 14: پیوست هزینه (فایل آپلودشده) ─────────────────────
+// url = مسیر عمومی فایل (/uploads/...) — سرو از public/uploads.
+// fileName نام اصلی فایل کاربر؛ mime/size برای آیکون و اعتبارسنجی.
+model CostAttachment {
+  id           String       @id @default(cuid())
+  costId       String
+  cost         MaterialCost @relation(fields: [costId], references: [id], onDelete: Cascade)
+  url          String
+  fileName     String
+  mimeType     String       @default("")
+  size         Int          @default(0)
   createdAt    DateTime     @default(now())
 }
 

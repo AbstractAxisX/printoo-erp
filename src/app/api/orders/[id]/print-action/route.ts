@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isItemActionAllowed, isManager, hasModule } from "@/lib/access";
 import { recomputeOrderStatus } from "@/lib/order-flow";
+import { logOrderEvent } from "@/lib/order-events";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Print actions — Phase 13 rebuild (per-item) ────────────────
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             stage: true,
             designAssigneeId: true,
             printAssigneeId: true,
+            product: { select: { name: true } },
           },
         },
         customer: { select: { name: true } },
@@ -104,11 +106,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           where: { id: itemId },
           data: { stage: "warehouse", printCompletedAt: new Date(), printCompletedBy: user.id },
         });
+        // Phase 14: تاریخچه — چاپ این آیتم تکمیل شد
+        await logOrderEvent(tx, {
+          orderId: id,
+          type: "print_completed",
+          stage: "print",
+          actorId: user.id,
+          actorName: user.name,
+          title: `چاپ آیتم «${item.product?.name ?? "—"}» تکمیل شد`,
+        });
         return recomputeOrderStatus(tx, id);
       });
 
       if (result.status === "warehouse_logistics") {
         await notifyWarehouse(order.number, order.customer?.name);
+        await logOrderEvent(db, {
+          orderId: id,
+          type: "sent_to_warehouse",
+          stage: "warehouse",
+          actorId: user.id,
+          actorName: user.name,
+          title: `سفارش به انبار و لجستیک ارسال شد`,
+          description: `تکمیل چاپ توسط ${user.name}`,
+        });
       }
 
       return NextResponse.json({
@@ -121,9 +141,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     if (action === "confirm_material") {
+      const count = await db.orderItem.count({
+        where: { orderId: id, needsMaterial: true, materialConfirmed: false },
+      });
       await db.orderItem.updateMany({
         where: { orderId: id },
         data: { materialConfirmed: true },
+      });
+      // Phase 14: تاریخچه — متریال خریداری/تأمین شد
+      await logOrderEvent(db, {
+        orderId: id,
+        type: "material_confirmed",
+        stage: "print",
+        actorId: user.id,
+        actorName: user.name,
+        title: `تأمین متریال تأیید شد`,
+        description: count > 0 ? `${count} آیتم متریال خود را دریافت کردند` : null,
       });
       await db.notification.create({
         data: {
@@ -163,11 +196,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           where: { id: { in: actionable.map((i) => i.id) }, stage: "print" },
           data: { stage: "warehouse", printCompletedAt: new Date(), printCompletedBy: user.id },
         });
+        // Phase 14: تاریخچه — تکمیل گروهی چاپ
+        await logOrderEvent(tx, {
+          orderId: id,
+          type: "print_completed",
+          stage: "print",
+          actorId: user.id,
+          actorName: user.name,
+          title: `چاپ ${actionable.length} آیتم سفارش تکمیل شد`,
+        });
         return recomputeOrderStatus(tx, id);
       });
 
       if (result.status === "warehouse_logistics") {
         await notifyWarehouse(order.number, order.customer?.name);
+        await logOrderEvent(db, {
+          orderId: id,
+          type: "sent_to_warehouse",
+          stage: "warehouse",
+          actorId: user.id,
+          actorName: user.name,
+          title: `سفارش به انبار و لجستیک ارسال شد`,
+          description: `تکمیل چاپ توسط ${user.name}`,
+        });
       }
 
       return NextResponse.json({
@@ -195,6 +246,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           reportedBy: "print",
           reportedById: user.id,
         },
+      });
+      await logOrderEvent(db, {
+        orderId: id,
+        type: "qc_reported",
+        stage: "qc",
+        actorId: user.id,
+        actorName: user.name,
+        title: `گزارش به کنترل کیفیت از مرحلهٔ چاپ`,
+        description: String(description).trim(),
       });
       await db.notification.create({
         data: {

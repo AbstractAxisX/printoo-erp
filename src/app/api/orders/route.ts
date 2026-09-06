@@ -18,6 +18,7 @@ import {
 import { aggregateStatus } from "@/lib/order-flow";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
+import { logOrderEvent } from "@/lib/order-events";
 
 type ItemDraft = {
   productId: string;
@@ -515,6 +516,23 @@ export async function POST(req: NextRequest) {
 
       return { orders: result, preInvoices };
     });
+
+    // ─── Phase 14: رویداد «ایجاد سفارش» برای تاریخچه ─────────────
+    try {
+      for (const o of created.orders) {
+        await logOrderEvent(db, {
+          orderId: o.id,
+          type: "created",
+          stage: "design",
+          actorId: user.id,
+          actorName: user.name,
+          title: `سفارش #${o.number} ایجاد شد`,
+          description: `توسط ${user.name}`,
+        });
+      }
+    } catch {
+      // best-effort
+    }
 
     // ─── Phase 12: اعلان هدفمند برای مسئوِِِستان‌ها ──────────────────
     // «سفارش #N به شما رسید» — فقط در پنل همان کاربر (Notification.userId).
