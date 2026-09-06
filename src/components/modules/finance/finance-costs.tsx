@@ -28,10 +28,15 @@ const MODULE_META: Record<
     icon: "print",
     color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
   },
+  material: {
+    label: "متریال",
+    icon: "boxes",
+    color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
+  },
   warehouse: {
     label: "انبار",
     icon: "warehouse",
-    color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
+    color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   },
 };
 
@@ -65,9 +70,11 @@ export function FinanceCosts() {
   });
   const [moduleFilters, setModuleFilters] = React.useState<{
     print: boolean;
+    material: boolean;
     warehouse: boolean;
   }>({
     print: true,
+    material: true,
     warehouse: true,
   });
 
@@ -90,7 +97,10 @@ export function FinanceCosts() {
         if (!num.includes(q) && !desc.includes(q)) return false;
       }
       if (!statusFilters[c.status as keyof typeof statusFilters]) return false;
-      if (moduleFilters[c.module as keyof typeof moduleFilters] === false) return false;
+      // ماژول‌های شناخته‌شده: طبق toggle؛ ناشناخته: فقط وقتی همه خاموشند مخفی شود
+      const known = c.module in moduleFilters;
+      if (known && !moduleFilters[c.module as keyof typeof moduleFilters]) return false;
+      if (!known && Object.values(moduleFilters).every((v) => !v)) return false;
       return true;
     });
   }, [allCosts, search, statusFilters, moduleFilters]);
@@ -309,6 +319,13 @@ export function FinanceCosts() {
             checked={moduleFilters.print}
             onChange={(v) => setModuleFilters((p) => ({ ...p, print: v }))}
             label="چاپ"
+            size="sm"
+            activeColor="primary"
+          />
+          <ToggleButton
+            checked={moduleFilters.material}
+            onChange={(v) => setModuleFilters((p) => ({ ...p, material: v }))}
+            label="متریال"
             size="sm"
             activeColor="primary"
           />

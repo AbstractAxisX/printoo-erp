@@ -16,6 +16,15 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────
+export type CostAttachment = {
+  id: string;
+  url: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+};
+
 export type MaterialCost = {
   id: string;
   orderId: string;
@@ -30,6 +39,7 @@ export type MaterialCost = {
   createdAt: string;
   supplier: { name: string } | null;
   expenseType: { name: string } | null;
+  attachments?: CostAttachment[];
   order: { id: string; number: number; customer: { name: string } } | null;
 };
 
@@ -42,6 +52,11 @@ const MODULE_META: Record<
     label: "چاپ",
     icon: "print",
     color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  },
+  material: {
+    label: "متریال",
+    icon: "boxes",
+    color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   },
   warehouse: {
     label: "انبار",
@@ -79,6 +94,21 @@ function fileName(url: string): string {
   } catch {
     return url.split("/").pop() || url;
   }
+}
+
+function formatSize(bytes: number): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileIconFor(name: string): IconName {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext)) return "file2";
+  if (["xls", "xlsx", "csv"].includes(ext)) return "grid";
+  if (["doc", "docx", "txt"].includes(ext)) return "file";
+  return "file";
 }
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -175,10 +205,17 @@ export function FinanceCostDetailModal({
   const canAct = cost.status === "pending";
   const actionPending = approveMut.isPending || rejectMut.isPending;
 
-  // File attachments
-  const files = [cost.fileUrl1, cost.fileUrl2].filter(
-    (f): f is string => !!f && f.trim() !== ""
-  );
+  // File attachments — Phase 14: پیوست‌های واقعی + legacy fileUrl1/2
+  const attachedFiles: { url: string; name: string; size?: number }[] = [];
+  for (const a of cost.attachments ?? []) {
+    attachedFiles.push({ url: a.url, name: a.fileName, size: a.size });
+  }
+  for (const legacy of [cost.fileUrl1, cost.fileUrl2]) {
+    if (legacy && legacy.trim()) {
+      attachedFiles.push({ url: legacy, name: fileName(legacy) });
+    }
+  }
+  const files = attachedFiles;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -317,7 +354,7 @@ export function FinanceCostDetailModal({
               <Icon name="file" size={13} /> پیوست‌ها
               {files.length > 0 && (
                 <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
-                  {files.length}
+                  {files.length.toLocaleString("fa-IR")}
                 </span>
               )}
             </div>
@@ -329,28 +366,28 @@ export function FinanceCostDetailModal({
               <div className="space-y-1.5">
                 {files.map((f, i) => (
                   <a
-                    key={i}
-                    href={f}
+                    key={`${f.url}-${i}`}
+                    href={f.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 rounded-lg border p-2.5 hover:bg-accent/40 transition group"
+                    download={f.name}
+                    className="flex items-center gap-2.5 rounded-lg border p-2.5 hover:bg-accent/40 hover:border-primary/30 transition group"
                   >
-                    <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0">
-                      <Icon name="file" size={14} />
+                    <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0">
+                      <Icon name={fileIconFor(f.name)} size={15} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate" dir="ltr">
-                        {fileName(f)}
+                        {f.name}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        پیوست {i + 1}
+                        {f.size ? `${formatSize(f.size)} • ` : ""}پیوست{" "}
+                        {(i + 1).toLocaleString("fa-IR")}
                       </div>
                     </div>
-                    <Icon
-                      name="download"
-                      size={14}
-                      className="text-muted-foreground group-hover:text-primary shrink-0"
-                    />
+                    <div className="size-7 rounded-md grid place-items-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition shrink-0">
+                      <Icon name="download" size={14} />
+                    </div>
                   </a>
                 ))}
               </div>
