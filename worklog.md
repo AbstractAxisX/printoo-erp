@@ -3747,3 +3747,26 @@ Work Log:
 Stage Summary:
 - **NEW MANDATORY RULE: after every code change, `git add -A && git commit && git push origin main` immediately.**
 - Remote URL: AbstractAxisX/printoo-erp.git (PAT embedded in remote URL).
+
+---
+Task ID: PHASE-14
+Agent: orchestrator (main)
+Task: UX/production hardening of designer+print modules: clickable KPI cards, time filters, RTL fix, tooltips, modal redesign, cost form with real file upload, real history tab, finance attachments
+
+Work Log:
+- Root-caused LTR bug: TableHead hardcoded text-left vs cells start → changed to text-start in ui/table.tsx (system-wide fix, DOM-verified).
+- Tooltips: ui/tooltip.tsx redesigned from bg-primary to popover surface (border+shadow+padding+max-w); chart contentStyle hardcodes fixed with CSS vars (kpi-cards, user-monitoring).
+- Schema: +OrderEvent (audit with sensitive flag), +CostAttachment (real uploads), MaterialCost.module now print|material|warehouse. db push OK.
+- New API POST /api/uploads (multipart, 10MB, ext whitelist, public/uploads/costs) — file serving verified (HTTP 200, correct MIME).
+- Event logging wired into: orders POST (created), designer-action (design_completed/sent_to_print), print-action (material_confirmed/print_completed/sent_to_warehouse/qc_reported), qc-reports PUT (qc_reviewed/qc_returned), status route (status_changed), orders PUT (reassigned), material-costs POST (cost_registered sensitive=true).
+- GET /api/orders/[id] includes events; sensitive filtered server-side for non-finance/master (internal admin never sees financial events).
+- Dashboards: designer+print get 6 clickable KPI cards (incl. NEW موعد گذشته + موعد امروز) → navigate to orders page with boardFilter (transient store field).
+- Orders pages: time-filter segmented control (همه/موعد گذشته/موعد امروز/نزدیک موعد) with live counts + badge colors; search extended to order number; print page + material column; per-item effective deadline semantics (nearest active-stage date).
+- Print modal: max-w-4xl, 4 metric tiles, 2-col body, cost section with module badges/attachment counts; NEW cost dialog: module selector (متریال/چاپ smart default), big amount input with live grouping, supplier+type grid, drag&drop file upload with list/remove/size, validation. Designer modal widened (max-w-3xl) + polished.
+- HistoryTab rebuilt from real OrderEvents: stage filter chips, tone-coded timeline with actor+datetime; financial events excluded for internal admin.
+- Finance: attachments with icons/sizes/download links (new model + legacy fileUrl fallback), material module filter.
+- E2E verified via agent-browser + curl scenarios: multi-customer grouped (mixed material/design), separated with print-past item (no dates), strict per-user routing (سارا≠مهدی, رضا≠علی), full workflow chain with events, QC report→review→return, cost with attachment upload, finance approval, sensitive filtering, RTL headers, tooltip styles, card→filter navigation, VLM visual reviews all positive. No 500s in dev.log. Lint clean (5 pre-existing warnings).
+
+Stage Summary:
+- Every change committed+pushed immediately (rule). Commits: 5235431, f8867a1, 5a13ec4, 5391fb0, b0b0b65, 3fa7e47, 306fdaf.
+- Designer + print modules now production-ready for daily operations; remaining gaps noted in final report (see chat).
