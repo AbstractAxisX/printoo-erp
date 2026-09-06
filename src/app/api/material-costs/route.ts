@@ -22,7 +22,11 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
   const where: Record<string, unknown> = {};
   if (orderId) where.orderId = orderId;
-  if (mod) where.module = mod;
+  // Phase 14: module می‌تواند comma-separated باشد (print,material)
+  if (mod) {
+    const mods = mod.split(",").map((m) => m.trim()).filter(Boolean);
+    where.module = mods.length === 1 ? mods[0] : { in: mods };
+  }
   if (status) where.status = status;
   const costs = await db.materialCost.findMany({
     where,

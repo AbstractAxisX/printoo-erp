@@ -230,12 +230,12 @@ export function DesignerOrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent aria-describedby={undefined} className="max-w-2xl max-h-[90vh] overflow-hidden p-0 gap-0">
+        <DialogContent aria-describedby={undefined} className="max-w-3xl w-[calc(100%-2rem)] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
           {/* Header */}
           <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-violet-500/5 to-transparent">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="size-12 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 grid place-items-center shrink-0">
+                <div className="size-13 rounded-2xl bg-gradient-to-br from-violet-500/15 to-violet-500/5 text-violet-600 dark:text-violet-400 grid place-items-center shrink-0 border border-violet-500/10 p-3">
                   <Icon name="design" size={22} />
                 </div>
                 <div className="min-w-0">
@@ -270,20 +270,20 @@ export function DesignerOrderDetailModal({
             </div>
 
             {/* Design dates card */}
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              <div className="rounded-lg bg-background/60 p-2.5 border">
+            <div className="grid grid-cols-3 gap-2.5 mt-4">
+              <div className="rounded-xl bg-background/70 backdrop-blur-sm p-2.5 border shadow-sm">
                 <div className="text-[10px] text-muted-foreground">شروع طراحی</div>
                 <div className="text-sm font-bold mt-0.5 tabular-nums">
                   {formatDate(designStart)}
                 </div>
               </div>
-              <div className="rounded-lg bg-background/60 p-2.5 border">
+              <div className="rounded-xl bg-background/70 backdrop-blur-sm p-2.5 border shadow-sm">
                 <div className="text-[10px] text-muted-foreground">پایان طراحی</div>
                 <div className="text-sm font-bold mt-0.5 tabular-nums">
                   {formatDate(designEnd)}
                 </div>
               </div>
-              <div className="rounded-lg bg-background/60 p-2.5 border">
+              <div className="rounded-xl bg-background/70 backdrop-blur-sm p-2.5 border shadow-sm">
                 <div className="text-[10px] text-muted-foreground">باقی‌مانده</div>
                 <div
                   className={cn(
@@ -329,7 +329,7 @@ export function DesignerOrderDetailModal({
           </div>
 
           {/* Body — scrollable */}
-          <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4" style={{ maxHeight: "55vh" }}>
+          <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4" style={{ maxHeight: "60vh" }}>
             {/* آیتم‌های در صف طراحی (فعال) */}
             <div>
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
