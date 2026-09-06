@@ -1171,6 +1171,7 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
     print: "چاپ",
     warehouse: "انبار",
     qc: "کنترل کیفیت",
+    material: "متریال",
   };
 
   if (events.length === 0) {
