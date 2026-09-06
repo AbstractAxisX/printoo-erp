@@ -68,6 +68,18 @@ export type OrderDetailTab =
   | "invoice"
   | "history";
 
+export type OrderEventLite = {
+  id: string;
+  type: string;
+  stage: string | null;
+  actorId: string | null;
+  actorName: string | null;
+  title: string;
+  description: string | null;
+  sensitive: boolean;
+  createdAt: string;
+};
+
 export type OrderDetail = {
   id: string;
   number: number;
@@ -116,6 +128,8 @@ export type OrderDetail = {
     itemId?: string | null;
   }[];
   invoice: InvoiceFull | null;
+  // Phase 14: رویدادهای واقعی گردش کار (audit) — sensitiveها سرور-side فیلتر شده‌اند
+  events?: OrderEventLite[];
   // Extended (additive — GET /api/orders/[id] already includes these)
   tasks?: {
     id: string;

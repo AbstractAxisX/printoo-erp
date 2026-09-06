@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime, daysRemaining } from "@/lib/format";
 import {
   ORDER_STATUS,
   ITEM_STAGE,
@@ -1103,55 +1103,60 @@ function toFaLocal(n: number) {
   return n.toLocaleString("fa-IR");
 }
 
-// ─── 6. History tab (reconstructed timeline; AuditLog deferred) ──
+// ─── 6. History tab — Phase 14: رویدادهای واقعی OrderEvent ──
 type TimelineEvent = {
   date: string;
   icon: Parameters<typeof Icon>[0]["name"];
   title: string;
   subtitle?: string;
   tone: "neutral" | "emerald" | "amber" | "rose" | "violet";
+  stage?: string;
+  type?: string;
 };
 
 export function HistoryTab({ order }: { order: OrderDetail }) {
-  const events: TimelineEvent[] = [];
+  // ─── Phase 14: تاریخچهٔ واقعی از OrderEvent (audit گردش کار) ──
+  // هر اقدام ماژولی روی سفارش با «مرحله + تاریخ + عامل» ثبت شده و
+  // اینجا نمایش داده می‌شود. رویدادهای مالی (sensitive) سمت سرور برای
+  // ادمین داخلی فیلتر شده‌اند — اسناد مالی دیده نمی‌شوند.
+  const [stageFilter, setStageFilter] = React.useState<string>("all");
 
-  events.push({
-    date: order.createdAt,
-    icon: "plus",
-    title: `سفارش #${order.number} ایجاد شد`,
-    subtitle: order.createdBy ? `توسط ${order.createdBy}` : undefined,
-    tone: "neutral",
+  const events: TimelineEvent[] = (order.events ?? []).map((ev) => {
+    const meta = EVENT_META[ev.type] ?? {
+      icon: "info" as Parameters<typeof Icon>[0]["name"],
+      tone: "neutral" as TimelineEvent["tone"],
+      label: ev.type,
+    };
+    return {
+      date: ev.createdAt,
+      icon: meta.icon,
+      title: ev.title,
+      subtitle:
+        [ev.description, ev.actorName ? `توسط ${ev.actorName}` : null]
+          .filter(Boolean)
+          .join(" — ") || undefined,
+      tone: meta.tone,
+      stage: ev.stage ?? undefined,
+      type: ev.type,
+    };
   });
 
-  for (const t of order.tasks ?? []) {
-    events.push({
-      date: t.createdAt,
-      icon: "task",
-      title: `تسک «${t.title}» ثبت شد`,
-      subtitle: t.assignedTo ? `ارجاع به ${t.assignedTo}` : undefined,
-      tone: "violet",
-    });
-  }
-  for (const pi of order.preInvoices ?? []) {
-    events.push({
-      date: pi.date ?? pi.id,
-      icon: "receipt",
-      title: `پیش‌فاکتور #${pi.number} صادر شد`,
-      subtitle: `مبلغ: ${formatCurrency(pi.totalAmount)}`,
-      tone: "emerald",
-    });
-  }
-  if (order.invoice) {
-    events.push({
-      date: order.invoice.issueDate ?? order.invoice.id,
-      icon: "invoice",
-      title: `فاکتور نهایی #${order.invoice.number} صادر شد`,
-      subtitle: `مبلغ: ${formatCurrency(order.invoice.totalAmount)}`,
-      tone: "emerald",
-    });
-  }
+  // فیلتر مرحله
+  const stageOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const ev of events) if (ev.stage) set.add(ev.stage);
+    return ["all", ...Array.from(set)];
+  }, [events]);
 
-  events.sort((a, b) => (new Date(a.date).getTime() - new Date(b.date).getTime()));
+  const filtered =
+    stageFilter === "all"
+      ? events
+      : events.filter((ev) => (ev.stage ?? null) === stageFilter);
+
+  // نمایش: جدیدترین در بالا (سفرداده‌شده desc از سرور)
+  const shown = [...filtered].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
 
   const toneClass: Record<TimelineEvent["tone"], string> = {
     neutral: "bg-muted text-muted-foreground",
@@ -1161,45 +1166,115 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
     violet: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
   };
 
+  const stageLabel: Record<string, string> = {
+    design: "طراحی",
+    print: "چاپ",
+    warehouse: "انبار",
+    qc: "کنترل کیفیت",
+  };
+
   if (events.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        رویدادی برای نمایش وجود ندارد.
+      <div className="py-10 text-center space-y-2">
+        <div className="mx-auto size-12 rounded-2xl bg-muted grid place-items-center">
+          <Icon name="route" size={22} className="text-muted-foreground" />
+        </div>
+        <div className="text-sm font-medium">رویدادی ثبت نشده است</div>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+          اقدام‌های ماژول‌ها (طراحی، چاپ، متریال، کنترل کیفیت و…) روی این
+          سفارش به‌مرور در این تب با ذکر مرحله و تاریخ نمایش داده می‌شوند.
+        </p>
       </div>
     );
   }
+
   return (
-    <div className="relative pr-4">
-      <div className="absolute right-[7px] top-2 bottom-2 w-px bg-border" />
-      <div className="space-y-3">
-        {events.map((ev, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="relative flex items-start gap-3"
-          >
-            <span
+    <div className="space-y-3">
+      {/* فیلتر مرحله */}
+      {stageOptions.length > 2 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Icon name="filter" size={12} /> مرحله:
+          </span>
+          {stageOptions.map((st) => (
+            <button
+              key={st}
+              onClick={() => setStageFilter(st)}
               className={cn(
-                "size-3.5 rounded-full grid place-items-center shrink-0 mt-0.5 ring-4 ring-background",
-                toneClass[ev.tone]
+                "text-[11px] px-2.5 py-1 rounded-full border transition",
+                stageFilter === st
+                  ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                  : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <Icon name={ev.icon} size={8} className="opacity-80" />
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium">{ev.title}</div>
-              {ev.subtitle && (
-                <div className="text-xs text-muted-foreground">{ev.subtitle}</div>
-              )}
-              <div className="text-[10px] text-muted-foreground/70 mt-0.5">
-                {formatDate(ev.date)}
+              {st === "all" ? "همه" : stageLabel[st] ?? st}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Timeline */}
+      <div className="relative pr-5 pt-1">
+        <div className="absolute right-[9px] top-3 bottom-3 w-px bg-border" />
+        <div className="space-y-3">
+          {shown.map((ev, i) => (
+            <motion.div
+              key={`${ev.date}-${i}`}
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: Math.min(i * 0.04, 0.4) }}
+              className="relative flex items-start gap-3"
+            >
+              <span
+                className={cn(
+                  "size-4 rounded-full grid place-items-center shrink-0 mt-1 ring-4 ring-background",
+                  toneClass[ev.tone]
+                )}
+              >
+                <Icon name={ev.icon} size={9} className="opacity-90" />
+              </span>
+              <div className="flex-1 min-w-0 bg-muted/20 rounded-lg border px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-sm font-medium">{ev.title}</div>
+                  {ev.stage && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                      {stageLabel[ev.stage] ?? ev.stage}
+                    </span>
+                  )}
+                </div>
+                {ev.subtitle && (
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    {ev.subtitle}
+                  </div>
+                )}
+                <div className="text-[10px] text-muted-foreground/70 mt-1 tabular-nums flex items-center gap-1">
+                  <Icon name="clock" size={9} />
+                  {formatDateTime(ev.date)}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+// ─── Phase 14: متادیتای رویدادها (آیکون + رنگ + برچسب) ──────────
+const EVENT_META: Record<
+  string,
+  { icon: Parameters<typeof Icon>[0]["name"]; tone: TimelineEvent["tone"]; label: string }
+> = {
+  created: { icon: "plus", tone: "neutral", label: "ایجاد" },
+  design_completed: { icon: "design", tone: "violet", label: "تکمیل طراحی" },
+  sent_to_print: { icon: "print", tone: "amber", label: "ارسال به چاپ" },
+  material_confirmed: { icon: "boxes", tone: "amber", label: "تأمین متریال" },
+  print_completed: { icon: "checkCircle", tone: "amber", label: "تکمیل چاپ" },
+  sent_to_warehouse: { icon: "warehouse", tone: "emerald", label: "ارسال به انبار" },
+  qc_reported: { icon: "shield", tone: "rose", label: "گزارش QC" },
+  qc_reviewed: { icon: "shield", tone: "rose", label: "بررسی QC" },
+  qc_returned: { icon: "route", tone: "rose", label: "بازگشت از QC" },
+  status_changed: { icon: "edit", tone: "neutral", label: "تغییر وضعیت" },
+  reassigned: { icon: "customers", tone: "violet", label: "تغییر مجری" },
+  cost_registered: { icon: "money", tone: "emerald", label: "ثبت هزینه" },
+};
