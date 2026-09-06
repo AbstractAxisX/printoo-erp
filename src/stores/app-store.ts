@@ -67,6 +67,11 @@ type AppState = {
   shortcuts: string[];
   addShortcut: (key: string) => void;
   removeShortcut: (key: string) => void;
+
+  // Phase 14: فیلتر انتقالی داشبورد→صفحهٔ سفارشات (کارت کلیک‌شون)
+  // transient — persist نشده؛ فقط برای همان پرش ناوبری است.
+  boardFilter: { module: string; value: string } | null;
+  setBoardFilter: (module: string, value: string | null) => void;
 };
 
 export const useAppStore = create<AppState>()(
@@ -177,6 +182,10 @@ export const useAppStore = create<AppState>()(
         ),
       removeShortcut: (key) =>
         set((s) => ({ shortcuts: s.shortcuts.filter((k) => k !== key) })),
+
+      boardFilter: null,
+      setBoardFilter: (module, value) =>
+        set({ boardFilter: value ? { module, value } : null }),
     }),
     {
       name: "printoo24-app",

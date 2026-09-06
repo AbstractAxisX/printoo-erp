@@ -23,6 +23,7 @@ type PrintOrder = {
   items: {
     id: string;
     product: { name: string };
+    stage: string;
     needsMaterial: boolean;
     materialConfirmed: boolean;
     printStartDate: string | null;
@@ -40,6 +41,40 @@ type Task = {
   createdAt: string;
 };
 
+// ─── Time-filter semantics (shared with print orders page) ──────────
+export type TimeFilter = "all" | "overdue" | "today" | "near";
+
+/** موعد مؤثر = نزدیک‌ترین موعد چاپِ آیتم‌های فعال به امروز */
+export function effectivePrintDeadline(o: PrintOrder): string | null {
+  const active = (o.items ?? []).filter((i) => i.stage === "print");
+  const dates = (active.length > 0 ? active : (o.items ?? []))
+    .map((i) => i.printEndDate)
+    .filter((d): d is string => !!d);
+  if (dates.length === 0) return null;
+  const now = Date.now();
+  const times = dates
+    .map((d) => new Date(d).getTime())
+    .filter((t) => Number.isFinite(t));
+  if (times.length === 0) return null;
+  const nearest = times.reduce((a, b) => (Math.abs(b - now) < Math.abs(a - now) ? b : a));
+  return new Date(nearest).toISOString();
+}
+
+export function orderTimeState(o: PrintOrder): "overdue" | "today" | "near" | "later" | "none" {
+  const end = effectivePrintDeadline(o);
+  if (!end) return "none";
+  const dr = daysRemaining(end);
+  if (dr.status === "overdue") return "overdue";
+  if (dr.status === "today") return "today";
+  if (dr.status === "remaining" && dr.days <= 2) return "near";
+  return "later";
+}
+
+export function matchesTimeFilter(o: PrintOrder, f: TimeFilter): boolean {
+  if (f === "all") return true;
+  return orderTimeState(o) === f;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────
 /** Order needs material if ANY item has needsMaterial=true AND materialConfirmed=false */
 function needsMaterial(o: PrintOrder): boolean {
@@ -47,24 +82,7 @@ function needsMaterial(o: PrintOrder): boolean {
 }
 
 function isReadyForPrint(o: PrintOrder): boolean {
-  // Ready = doesn't need material (either no items need material, or all confirmed)
   return !needsMaterial(o);
-}
-
-/** Get the first item's printEndDate (used for "near deadline" calc). */
-function printEndDate(o: PrintOrder): string | null {
-  return o.items?.[0]?.printEndDate ?? null;
-}
-
-function isOverdue(o: PrintOrder): boolean {
-  const end = printEndDate(o);
-  if (!end) return false;
-  const dr = daysRemaining(end);
-  return dr.status === "overdue";
-}
-
-function isUrgent(o: PrintOrder): boolean {
-  return o.priority === "urgent";
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────
@@ -79,27 +97,31 @@ type KpiCardProps = {
 
 const KPI_COLOR_MAP: Record<
   KpiCardProps["color"],
-  { bg: string; text: string; ring: string }
+  { bg: string; text: string; ring: string; hoverRing: string }
 > = {
   amber: {
     bg: "bg-amber-500/10",
     text: "text-amber-600 dark:text-amber-400",
     ring: "ring-amber-500/20",
+    hoverRing: "hover:ring-amber-500/50",
   },
   rose: {
     bg: "bg-rose-500/10",
     text: "text-rose-600 dark:text-rose-400",
     ring: "ring-rose-500/20",
+    hoverRing: "hover:ring-rose-500/50",
   },
   emerald: {
     bg: "bg-emerald-500/10",
     text: "text-emerald-600 dark:text-emerald-400",
     ring: "ring-emerald-500/20",
+    hoverRing: "hover:ring-emerald-500/50",
   },
   violet: {
     bg: "bg-violet-500/10",
     text: "text-violet-600 dark:text-violet-400",
     ring: "ring-violet-500/20",
+    hoverRing: "hover:ring-violet-500/50",
   },
 };
 
@@ -110,15 +132,28 @@ function KpiCard({ icon, label, value, hint, color, onClick }: KpiCardProps) {
       className={cn(
         "p-4 ring-1 transition",
         c.ring,
-        onClick && "cursor-pointer hover:shadow-md hover:scale-[1.01]"
+        onClick &&
+          cn("cursor-pointer hover:shadow-md hover:scale-[1.01] focus-visible:ring-2 outline-none", c.hoverRing)
       )}
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
       <div className="flex items-start justify-between">
         <div className={cn("size-10 rounded-lg grid place-items-center", c.bg, c.text)}>
           <Icon name={icon} size={20} />
         </div>
-        <span className="text-3xl font-bold tabular-nums">{value}</span>
+        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("fa-IR")}</span>
       </div>
       <div className="mt-2">
         <div className="text-sm font-medium">{label}</div>
@@ -131,6 +166,7 @@ function KpiCard({ icon, label, value, hint, color, onClick }: KpiCardProps) {
 // ─── Main Dashboard ───────────────────────────────────────────────────
 export function PrintDashboard() {
   const navigate = useAppStore((s) => s.navigate);
+  const setBoardFilter = useAppStore((s) => s.setBoardFilter);
   const { openOrder, modal } = usePrintOrderDetail();
 
   // Print orders: status=in_printing
@@ -151,57 +187,81 @@ export function PrintDashboard() {
   const orders = ordersData?.orders ?? [];
   const tasks = tasksData?.tasks ?? [];
 
-  // KPI computations
+  // KPI computations — Phase 14: موعد گذشته/امروز + کارت‌های کلیک‌شون
   const inPrintCount = orders.length;
   const needsMaterialCount = orders.filter(needsMaterial).length;
-  const urgentCount = orders.filter(isUrgent).length;
+  const urgentCount = orders.filter((o) => o.priority === "urgent").length;
+  const overdueCount = orders.filter((o) => orderTimeState(o) === "overdue").length;
+  const todayCount = orders.filter((o) => orderTimeState(o) === "today").length;
   const activeTasksCount = tasks.filter(
     (t) => t.status === "todo" || t.status === "in_progress"
   ).length;
 
+  // کلیک روی کارت → صفحهٔ سفارشات با همان فیلتر
+  const goWithFilter = (f: TimeFilter) => {
+    setBoardFilter("print", f === "all" ? null : f);
+    navigate("print", "orders");
+  };
+
   // Lists for compact display
   const needsMaterialOrders = orders.filter(needsMaterial).slice(0, 6);
   const readyOrders = orders.filter(isReadyForPrint).slice(0, 6);
-  const overdueOrders = orders.filter(isOverdue);
+  const overdueOrders = orders.filter((o) => orderTimeState(o) === "overdue");
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="داشبورد چاپ"
-        description="نمای کلی سفارشات در حال چاپ، نیازمند متریال و تسک‌ها"
+        description="نمای کلی سفارشات در حال چاپ، موعدها، متریال و تسک‌ها — روی هر کارت کلیک کنید تا همان سفارشات فیلترشده نمایش داده شوند"
         icon="print"
         actions={
-          <Button onClick={() => navigate("print", "orders")} className="gap-2">
+          <Button onClick={() => goWithFilter("all")} className="gap-2">
             <Icon name="orders" size={16} /> سفارشات چاپ
           </Button>
         }
       />
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* KPI cards — همهٔ کارت‌ها کلیک‌شون و فیلترمی‌کنند */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <KpiCard
           icon="print"
-          label="سفارشات در حال چاپ"
+          label="در حال چاپ"
           value={inPrintCount}
           hint="مجموع سفارشات مرحله چاپ"
           color="amber"
-          onClick={() => navigate("print", "orders")}
+          onClick={() => goWithFilter("all")}
         />
         <KpiCard
           icon="alertTriangle"
+          label="موعد گذشته"
+          value={overdueCount}
+          hint="موعد چاپ‌شان رسیده و گذشته"
+          color="rose"
+          onClick={() => goWithFilter("overdue")}
+        />
+        <KpiCard
+          icon="clock"
+          label="موعد امروز"
+          value={todayCount}
+          hint="امروز باید چاپ شوند"
+          color="rose"
+          onClick={() => goWithFilter("today")}
+        />
+        <KpiCard
+          icon="calendar"
+          label="نزدیک موعد"
+          value={orders.filter((o) => orderTimeState(o) === "near").length}
+          hint="۲ روز یا کمتر تا موعد چاپ"
+          color="violet"
+          onClick={() => goWithFilter("near")}
+        />
+        <KpiCard
+          icon="boxes"
           label="نیازمند متریال"
           value={needsMaterialCount}
           hint="در انتظار تأمین متریال"
-          color="rose"
-          onClick={() => navigate("print", "orders")}
-        />
-        <KpiCard
-          icon="alert"
-          label="فوری"
-          value={urgentCount}
-          hint="اولویت فوری در مرحله چاپ"
-          color="violet"
-          onClick={() => navigate("print", "orders")}
+          color="amber"
+          onClick={() => goWithFilter("all")}
         />
         <KpiCard
           icon="task"
@@ -222,14 +282,14 @@ export function PrintDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm">
-                {overdueOrders.length} سفارش با موعد چاپ گذشته
+                {overdueOrders.length.toLocaleString("fa-IR")} سفارش با موعد چاپ گذشته
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 موعد چاپ این سفارشات رسیده است. لطفاً هرچه زودتر اقدام کنید.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {overdueOrders.slice(0, 5).map((o) => {
-                  const dr = daysRemaining(printEndDate(o));
+                  const dr = daysRemaining(effectivePrintDeadline(o));
                   return (
                     <button
                       key={o.id}
@@ -249,7 +309,7 @@ export function PrintDashboard() {
                 })}
                 {overdueOrders.length > 5 && (
                   <button
-                    onClick={() => navigate("print", "orders")}
+                    onClick={() => goWithFilter("overdue")}
                     className="inline-flex items-center gap-1 rounded-lg border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition"
                   >
                     +{overdueOrders.length - 5} مورد دیگر
@@ -267,14 +327,14 @@ export function PrintDashboard() {
         <Card className="p-0 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
             <div className="flex items-center gap-2">
-              <Icon name="alertTriangle" size={18} className="text-rose-500" />
+              <Icon name="box" size={18} className="text-rose-500" />
               <h3 className="font-semibold text-sm">نیازمند متریال</h3>
               <span className="text-[11px] text-muted-foreground">
-                ({orders.filter(needsMaterial).length})
+                ({orders.filter(needsMaterial).length.toLocaleString("fa-IR")})
               </span>
             </div>
             <button
-              onClick={() => navigate("print", "orders")}
+              onClick={() => goWithFilter("all")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
               مشاهده همه <Icon name="arrowLeft" size={12} />
@@ -294,7 +354,7 @@ export function PrintDashboard() {
           ) : (
             <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
               {needsMaterialOrders.map((o) => {
-                const end = printEndDate(o);
+                const end = effectivePrintDeadline(o);
                 const dr = daysRemaining(end);
                 return (
                   <button
@@ -310,7 +370,7 @@ export function PrintDashboard() {
                         <span className="font-medium text-sm truncate">
                           {o.customer?.name ?? "—"}
                         </span>
-                        {isUrgent(o) && (
+                        {o.priority === "urgent" && (
                           <Icon
                             name="alertTriangle"
                             size={12}
@@ -366,11 +426,11 @@ export function PrintDashboard() {
               <Icon name="print" size={18} className="text-amber-500" />
               <h3 className="font-semibold text-sm">آماده چاپ</h3>
               <span className="text-[11px] text-muted-foreground">
-                ({orders.filter(isReadyForPrint).length})
+                ({orders.filter(isReadyForPrint).length.toLocaleString("fa-IR")})
               </span>
             </div>
             <button
-              onClick={() => navigate("print", "orders")}
+              onClick={() => goWithFilter("all")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
               مشاهده همه <Icon name="arrowLeft" size={12} />
@@ -390,7 +450,7 @@ export function PrintDashboard() {
           ) : (
             <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
               {readyOrders.map((o) => {
-                const end = printEndDate(o);
+                const end = effectivePrintDeadline(o);
                 const dr = daysRemaining(end);
                 return (
                   <button
@@ -406,7 +466,7 @@ export function PrintDashboard() {
                         <span className="font-medium text-sm truncate">
                           {o.customer?.name ?? "—"}
                         </span>
-                        {isUrgent(o) && (
+                        {o.priority === "urgent" && (
                           <Icon
                             name="alertTriangle"
                             size={12}

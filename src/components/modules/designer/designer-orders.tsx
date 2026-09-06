@@ -10,7 +10,7 @@ import {
   EmptyState,
 } from "@/components/shared";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
-import { Icon } from "@/lib/icons";
+import { Icon, type IconName } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ToggleButton } from "@/components/ui/toggle-button";
@@ -32,14 +32,52 @@ type DesignerOrder = {
   items: {
     id: string;
     product: { name: string };
+    stage: string;
     designStartDate: string | null;
     designEndDate: string | null;
   }[];
 };
 
+// ─── Time filter (هم‌ semantics با داشبورد طراح) ────────────────────
+type TimeFilter = "all" | "overdue" | "today" | "near";
+
+const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: string }[] = [
+  { value: "all", label: "همه", icon: "inbox", color: "" },
+  { value: "overdue", label: "موعد گذشته", icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
+  { value: "today", label: "موعد امروز", icon: "clock", color: "text-amber-600 dark:text-amber-400" },
+  { value: "near", label: "نزدیک موعد (۲روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
+];
+
+function effectiveDesignDeadline(o: DesignerOrder): string | null {
+  const active = (o.items ?? []).filter((i) => i.stage === "design");
+  const dates = (active.length > 0 ? active : (o.items ?? []))
+    .map((i) => i.designEndDate)
+    .filter((d): d is string => !!d);
+  if (dates.length === 0) return null;
+  const now = Date.now();
+  const times = dates
+    .map((d) => new Date(d).getTime())
+    .filter((t) => Number.isFinite(t));
+  if (times.length === 0) return null;
+  const nearest = times.reduce((a, b) => (Math.abs(b - now) < Math.abs(a - now) ? b : a));
+  return new Date(nearest).toISOString();
+}
+
+function orderTimeState(o: DesignerOrder): "overdue" | "today" | "near" | "later" | "none" {
+  const end = effectiveDesignDeadline(o);
+  if (!end) return "none";
+  const dr = daysRemaining(end);
+  if (dr.status === "overdue") return "overdue";
+  if (dr.status === "today") return "today";
+  if (dr.status === "remaining" && dr.days <= 2) return "near";
+  return "later";
+}
+
 // ─── Component ────────────────────────────────────────────────────────
 export function DesignerOrders() {
   const navigate = useAppStore((s) => s.navigate);
+  const boardFilter = useAppStore((s) => s.boardFilter);
+  const setBoardFilter = useAppStore((s) => s.setBoardFilter);
   const { openOrder, modal } = useDesignerOrderDetail();
 
   // Filter state
@@ -48,6 +86,16 @@ export function DesignerOrders() {
     urgent: boolean;
     normal: boolean;
   }>({ urgent: true, normal: true });
+
+  // Phase 14: فیلتر زمانی — مقدار اولیه از کارتِ داشبورد (اگر آمده باشد)
+  const [timeFilter, setTimeFilter] = React.useState<TimeFilter>("all");
+  React.useEffect(() => {
+    if (boardFilter && boardFilter.module === "designer") {
+      const v = boardFilter.value as TimeFilter;
+      if (TIME_OPTIONS.some((o) => o.value === v)) setTimeFilter(v);
+      setBoardFilter("designer", null); // مصرف شد
+    }
+  }, [boardFilter, setBoardFilter]);
 
   // Fetch orders filtered by status=pending_design
   const { data, isLoading } = useQuery({
@@ -59,20 +107,36 @@ export function DesignerOrders() {
 
   const allOrders = data?.orders ?? [];
 
-  // Client-side filter: customer name search + priority
+  // شمارش هر دستهٔ زمانی (برای بج‌های سگمنت)
+  const timeCounts = React.useMemo(() => {
+    const c: Record<TimeFilter, number> = { all: allOrders.length, overdue: 0, today: 0, near: 0 };
+    for (const o of allOrders) {
+      const st = orderTimeState(o);
+      if (st === "overdue") c.overdue++;
+      else if (st === "today") c.today++;
+      else if (st === "near") c.near++;
+    }
+    return c;
+  }, [allOrders]);
+
+  // Client-side filter: search + priority + time
   const orders = React.useMemo(() => {
     return allOrders.filter((o) => {
-      // Search by customer name
+      // Search by customer name or order number
       if (search.trim()) {
         const q = search.trim().toLowerCase();
-        if (!(o.customer?.name ?? "").toLowerCase().includes(q)) return false;
+        const inName = (o.customer?.name ?? "").toLowerCase().includes(q);
+        const inNumber = String(o.number).includes(q.replace("#", ""));
+        if (!inName && !inNumber) return false;
       }
       // Priority filter
       if (o.priority === "urgent" && !priorityFilters.urgent) return false;
       if (o.priority === "normal" && !priorityFilters.normal) return false;
+      // Time filter
+      if (timeFilter !== "all" && orderTimeState(o) !== timeFilter) return false;
       return true;
     });
-  }, [allOrders, search, priorityFilters]);
+  }, [allOrders, search, priorityFilters, timeFilter]);
 
   // Columns designer sees — NO price columns, NO customer phone, NO overall endDate
   const columns = React.useMemo<ColumnDef<DesignerOrder>[]>(
@@ -134,12 +198,12 @@ export function DesignerOrders() {
       {
         id: "designEndDate",
         accessorFn: (r) => {
-          const d = r.items?.[0]?.designEndDate;
+          const d = effectiveDesignDeadline(r);
           return d ? new Date(d).getTime() : 0;
         },
         header: "موعد طراحی",
         cell: ({ row }) => {
-          const end = row.original.items?.[0]?.designEndDate ?? null;
+          const end = effectiveDesignDeadline(row.original);
           if (!end) {
             return (
               <span className="text-xs text-muted-foreground">
@@ -182,6 +246,8 @@ export function DesignerOrders() {
     []
   );
 
+  const activeTime = TIME_OPTIONS.find((o) => o.value === timeFilter);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -199,11 +265,58 @@ export function DesignerOrders() {
         }
       />
 
-      {/* Filters bar */}
+      {/* Filters bar — زمان + جستجو + اولویت */}
       <Card className="p-4 space-y-3">
+        {/* Time filter segmented control */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
+            <Icon name="calendar" size={13} /> زمان:
+          </span>
+          <div
+            role="radiogroup"
+            aria-label="فیلتر زمانی"
+            className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-1"
+          >
+            {TIME_OPTIONS.map((o) => {
+              const active = timeFilter === o.value;
+              return (
+                <button
+                  key={o.value}
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setTimeFilter(o.value)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition",
+                    active
+                      ? "bg-background text-foreground shadow-sm border"
+                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                  )}
+                >
+                  <Icon name={o.icon} size={13} className={active ? o.color : ""} />
+                  {o.label}
+                  {timeCounts[o.value] > 0 && (
+                    <span
+                      className={cn(
+                        "text-[10px] tabular-nums rounded-full px-1.5 py-0.5",
+                        active
+                          ? "bg-muted text-foreground"
+                          : "bg-muted/60 text-muted-foreground",
+                        o.value === "overdue" && timeCounts.overdue > 0 && "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
+                        o.value === "today" && timeCounts.today > 0 && "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                      )}
+                    >
+                      {timeCounts[o.value].toLocaleString("fa-IR")}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           {/* Search input */}
-          <div className="relative flex-1 min-w-[220px] max-w-sm">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Icon
               name="search"
               size={16}
@@ -213,7 +326,7 @@ export function DesignerOrders() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو بر اساس نام مشتری..."
+              placeholder="جستجو: نام مشتری یا شماره سفارش..."
               className="w-full h-9 rounded-md border bg-background pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -243,7 +356,8 @@ export function DesignerOrders() {
           </div>
 
           <div className="mr-auto text-xs text-muted-foreground">
-            {orders.length} سفارش
+            {orders.length.toLocaleString("fa-IR")} از {allOrders.length.toLocaleString("fa-IR")} سفارش
+            {timeFilter !== "all" && activeTime && ` (${activeTime.label})`}
           </div>
         </div>
       </Card>
@@ -258,11 +372,19 @@ export function DesignerOrders() {
           showColumnToggle={false}
           pageSize={15}
           emptyState={
-            <EmptyState
-              icon="checkCircle"
-              title="سفارشی در مرحله طراحی نیست"
-              description="همه سفارشات طراحی به مرحله بعد ارسال شده‌اند"
-            />
+            timeFilter !== "all" ? (
+              <EmptyState
+                icon="checkCircle"
+                title={`سفارش «${activeTime?.label}» وجود ندارد`}
+                description="این دسته خالی است — فیلتر زمانی را تغییر دهید"
+              />
+            ) : (
+              <EmptyState
+                icon="checkCircle"
+                title="سفارشی در مرحله طراحی نیست"
+                description="همه سفارشات طراحی به مرحله بعد ارسال شده‌اند"
+              />
+            )
           }
         />
       </Card>

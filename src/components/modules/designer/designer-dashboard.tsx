@@ -4,7 +4,7 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
-import { PageHeader, EmptyState, PriorityBadge } from "@/components/shared";
+import { PageHeader, EmptyState } from "@/components/shared";
 import { Icon, type IconName } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ type DesignerOrder = {
   items: {
     id: string;
     product: { name: string };
+    stage: string;
     designStartDate: string | null;
     designEndDate: string | null;
   }[];
@@ -38,28 +39,42 @@ type Task = {
   createdAt: string;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-/** Get the first item's designEndDate (used for "near deadline" calc). */
-function designEndDate(o: DesignerOrder): string | null {
-  return o.items?.[0]?.designEndDate ?? null;
+// ─── Time-filter semantics (shared with orders page) ────────────────
+// هر سفارش بر اساس «سخت‌گیرانه‌ترین» موعد آیتم‌های در-طراحیِ خودش
+// دسته‌بندی می‌شود: اگر حتی یکی از آیتم‌های فعالش موعد گذشته داشته
+// باشد، سفارش «موعد گذشته» است (اولویت هشدار بر راحتی است).
+export type TimeFilter = "all" | "overdue" | "today" | "near";
+
+/** موعد مؤثر سفارش = نخستین(نزدیک‌ترین به امروز) موعد طراحی آیتم‌های فعال */
+export function effectiveDesignDeadline(o: DesignerOrder): string | null {
+  const active = (o.items ?? []).filter((i) => i.stage === "design");
+  const dates = (active.length > 0 ? active : (o.items ?? []))
+    .map((i) => i.designEndDate)
+    .filter((d): d is string => !!d);
+  if (dates.length === 0) return null;
+  const now = Date.now();
+  const future = dates
+    .map((d) => new Date(d).getTime())
+    .filter((t) => Number.isFinite(t));
+  if (future.length === 0) return null;
+  // نزدیک‌ترین موعد (گذشته یا آینده) به امروز
+  const nearest = future.reduce((a, b) => (Math.abs(b - now) < Math.abs(a - now) ? b : a));
+  return new Date(nearest).toISOString();
 }
 
-function isOverdue(o: DesignerOrder): boolean {
-  const end = designEndDate(o);
-  if (!end) return false;
+export function orderTimeState(o: DesignerOrder): "overdue" | "today" | "near" | "later" | "none" {
+  const end = effectiveDesignDeadline(o);
+  if (!end) return "none";
   const dr = daysRemaining(end);
-  return dr.status === "overdue";
+  if (dr.status === "overdue") return "overdue";
+  if (dr.status === "today") return "today";
+  if (dr.status === "remaining" && dr.days <= 2) return "near";
+  return "later";
 }
 
-function isNearDeadline(o: DesignerOrder, threshold = 2): boolean {
-  const end = designEndDate(o);
-  if (!end) return false;
-  const dr = daysRemaining(end);
-  return dr.status === "remaining" && dr.days <= threshold;
-}
-
-function isUrgent(o: DesignerOrder): boolean {
-  return o.priority === "urgent";
+export function matchesTimeFilter(o: DesignerOrder, f: TimeFilter): boolean {
+  if (f === "all") return true;
+  return orderTimeState(o) === f;
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────
@@ -74,27 +89,31 @@ type KpiCardProps = {
 
 const KPI_COLOR_MAP: Record<
   KpiCardProps["color"],
-  { bg: string; text: string; ring: string }
+  { bg: string; text: string; ring: string; hoverRing: string }
 > = {
   violet: {
     bg: "bg-violet-500/10",
     text: "text-violet-600 dark:text-violet-400",
     ring: "ring-violet-500/20",
+    hoverRing: "hover:ring-violet-500/50",
   },
   rose: {
     bg: "bg-rose-500/10",
     text: "text-rose-600 dark:text-rose-400",
     ring: "ring-rose-500/20",
+    hoverRing: "hover:ring-rose-500/50",
   },
   amber: {
     bg: "bg-amber-500/10",
     text: "text-amber-600 dark:text-amber-400",
     ring: "ring-amber-500/20",
+    hoverRing: "hover:ring-amber-500/50",
   },
   emerald: {
     bg: "bg-emerald-500/10",
     text: "text-emerald-600 dark:text-emerald-400",
     ring: "ring-emerald-500/20",
+    hoverRing: "hover:ring-emerald-500/50",
   },
 };
 
@@ -105,15 +124,28 @@ function KpiCard({ icon, label, value, hint, color, onClick }: KpiCardProps) {
       className={cn(
         "p-4 ring-1 transition",
         c.ring,
-        onClick && "cursor-pointer hover:shadow-md hover:scale-[1.01]"
+        onClick &&
+          cn("cursor-pointer hover:shadow-md hover:scale-[1.01] focus-visible:ring-2 outline-none", c.hoverRing)
       )}
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
       <div className="flex items-start justify-between">
         <div className={cn("size-10 rounded-lg grid place-items-center", c.bg, c.text)}>
           <Icon name={icon} size={20} />
         </div>
-        <span className="text-3xl font-bold tabular-nums">{value}</span>
+        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("fa-IR")}</span>
       </div>
       <div className="mt-2">
         <div className="text-sm font-medium">{label}</div>
@@ -126,6 +158,7 @@ function KpiCard({ icon, label, value, hint, color, onClick }: KpiCardProps) {
 // ─── Main Dashboard ───────────────────────────────────────────────────
 export function DesignerDashboard() {
   const navigate = useAppStore((s) => s.navigate);
+  const setBoardFilter = useAppStore((s) => s.setBoardFilter);
   const { openOrder, modal } = useDesignerOrderDetail();
 
   // Designer orders: status=pending_design (design stage only)
@@ -148,61 +181,83 @@ export function DesignerDashboard() {
   const orders = ordersData?.orders ?? [];
   const tasks = tasksData?.tasks ?? [];
 
-  // KPI computations
+  // KPI computations — Phase 14: موعد گذشته + موعد امروز کارت مستقل دارند
   const inDesignCount = orders.length;
-  const urgentCount = orders.filter(isUrgent).length;
-  const nearDeadlineCount = orders.filter((o) => isNearDeadline(o, 2)).length;
+  const urgentCount = orders.filter((o) => o.priority === "urgent").length;
+  const overdueCount = orders.filter((o) => orderTimeState(o) === "overdue").length;
+  const todayCount = orders.filter((o) => orderTimeState(o) === "today").length;
+  const nearCount = orders.filter((o) => orderTimeState(o) === "near").length;
   const activeTasksCount = tasks.filter(
     (t) => t.status === "todo" || t.status === "in_progress"
   ).length;
 
-  // Overdue design deadlines
-  const overdueOrders = orders.filter(isOverdue);
+  // کلیک روی کارت → صفحهٔ سفارشات با همان فیلتر (خواستهٔ صریح کاربر)
+  const goWithFilter = (f: TimeFilter) => {
+    setBoardFilter("designer", f === "all" ? null : f);
+    navigate("designer", "orders");
+  };
+
   // Recent design orders (compact list, top 6)
   const recentDesignOrders = orders.slice(0, 6);
   // Active tasks
-  const activeTasks = tasks
-    .filter((t) => t.status !== "done")
-    .slice(0, 6);
+  const activeTasks = tasks.filter((t) => t.status !== "done").slice(0, 6);
+
+  const overdueOrders = orders.filter((o) => orderTimeState(o) === "overdue");
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="داشبورد طراح"
-        description="نمای کلی سفارشات طراحی، تسک‌ها و موعد سررسیدها"
+        description="نمای کلی سفارشات طراحی، موعدها و تسک‌ها — روی هر کارت کلیک کنید تا همان سفارشات فیلترشده نمایش داده شوند"
         icon="design"
         actions={
-          <Button onClick={() => navigate("designer", "orders")} className="gap-2">
+          <Button onClick={() => goWithFilter("all")} className="gap-2">
             <Icon name="orders" size={16} /> سفارشات طراحی
           </Button>
         }
       />
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* KPI cards — همهٔ کارت‌ها کلیک‌شون و فیلترمی‌کنند */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <KpiCard
           icon="design"
-          label="سفارشات در حال طراحی"
+          label="در حال طراحی"
           value={inDesignCount}
           hint="مجموع سفارشات مرحله طراحی"
           color="violet"
-          onClick={() => navigate("designer", "orders")}
+          onClick={() => goWithFilter("all")}
         />
         <KpiCard
           icon="alertTriangle"
-          label="سفارشات فوری"
-          value={urgentCount}
-          hint="اولویت فوری در مرحله طراحی"
+          label="موعد گذشته"
+          value={overdueCount}
+          hint="موعد طراحی‌شان رسیده و گذشته"
           color="rose"
-          onClick={() => navigate("designer", "orders")}
+          onClick={() => goWithFilter("overdue")}
         />
         <KpiCard
           icon="clock"
-          label="نزدیک سررسید طراحی"
-          value={nearDeadlineCount}
-          hint="۲ روز یا کمتر تا موعد طراحی"
+          label="موعد امروز"
+          value={todayCount}
+          hint="امروز باید تحویل شوند"
           color="amber"
-          onClick={() => navigate("designer", "calendar")}
+          onClick={() => goWithFilter("today")}
+        />
+        <KpiCard
+          icon="calendar"
+          label="نزدیک موعد"
+          value={nearCount}
+          hint="۲ روز یا کمتر تا موعد"
+          color="amber"
+          onClick={() => goWithFilter("near")}
+        />
+        <KpiCard
+          icon="alert"
+          label="فوری"
+          value={urgentCount}
+          hint="اولویت فوری در مرحله طراحی"
+          color="rose"
+          onClick={() => goWithFilter("all")}
         />
         <KpiCard
           icon="task"
@@ -223,14 +278,14 @@ export function DesignerDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm">
-                {overdueOrders.length} سفارش با موعد طراحی گذشته
+                {overdueOrders.length.toLocaleString("fa-IR")} سفارش با موعد طراحی گذشته
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 موعد طراحی این سفارشات رسیده است. لطفاً هرچه زودتر اقدام کنید.
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {overdueOrders.slice(0, 5).map((o) => {
-                  const dr = daysRemaining(designEndDate(o));
+                  const dr = daysRemaining(effectiveDesignDeadline(o));
                   return (
                     <button
                       key={o.id}
@@ -250,7 +305,7 @@ export function DesignerDashboard() {
                 })}
                 {overdueOrders.length > 5 && (
                   <button
-                    onClick={() => navigate("designer", "orders")}
+                    onClick={() => goWithFilter("overdue")}
                     className="inline-flex items-center gap-1 rounded-lg border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition"
                   >
                     +{overdueOrders.length - 5} مورد دیگر
@@ -272,7 +327,7 @@ export function DesignerDashboard() {
               <h3 className="font-semibold text-sm">سفارشات در حال طراحی</h3>
             </div>
             <button
-              onClick={() => navigate("designer", "orders")}
+              onClick={() => goWithFilter("all")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
               مشاهده همه <Icon name="arrowLeft" size={12} />
@@ -292,7 +347,7 @@ export function DesignerDashboard() {
           ) : (
             <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
               {recentDesignOrders.map((o) => {
-                const end = designEndDate(o);
+                const end = effectiveDesignDeadline(o);
                 const dr = daysRemaining(end);
                 return (
                   <button
@@ -308,7 +363,7 @@ export function DesignerDashboard() {
                         <span className="font-medium text-sm truncate">
                           {o.customer?.name ?? "—"}
                         </span>
-                        {isUrgent(o) && (
+                        {o.priority === "urgent" && (
                           <Icon
                             name="alertTriangle"
                             size={12}
@@ -392,9 +447,7 @@ export function DesignerDashboard() {
                     <div
                       className={cn(
                         "size-2 rounded-full shrink-0",
-                        t.status === "todo"
-                          ? "bg-slate-400"
-                          : "bg-amber-500"
+                        t.status === "todo" ? "bg-slate-400" : "bg-amber-500"
                       )}
                     />
                     <div className="flex-1 min-w-0">
