@@ -935,7 +935,9 @@ function ActivityChartCard({
                   contentStyle={{
                     fontSize: 11,
                     borderRadius: 8,
-                    border: "1px solid #e5e7eb",
+                    border: "1px solid var(--border)",
+                    background: "var(--popover)",
+                    color: "var(--popover-foreground)",
                     padding: "4px 8px",
                     direction: "rtl",
                   }}

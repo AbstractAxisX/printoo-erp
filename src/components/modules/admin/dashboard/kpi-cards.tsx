@@ -147,7 +147,7 @@ function KpiCard({
                   <YAxis hide domain={["dataMin", "dataMax"]} />
                   <Area type="monotone" dataKey="value" stroke={colors.stroke} strokeWidth={2} fill={`url(#grad-${config.key})`} isAnimationActive={false} />
                   <Tooltip
-                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", padding: "4px 8px" }}
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", color: "var(--popover-foreground)", padding: "4px 8px" }}
                     formatter={(v: number) => [fmt(v), config.label]}
                     labelFormatter={(l) => l}
                   />
