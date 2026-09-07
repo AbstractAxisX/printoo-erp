@@ -75,6 +75,7 @@ type FinanceOrder = {
     id: string;
     title: string | null;
     amount: number;
+    description?: string | null;
     status: string;
     module: string;
     includeInInvoice: boolean;
