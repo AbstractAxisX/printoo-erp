@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { computeInvoice, isInvoiceStatus } from "@/lib/invoice";
-import { redistributePiPaid } from "@/lib/paid-sync";
+import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -159,14 +159,19 @@ export async function POST(req: NextRequest) {
         include: INCLUDE,
       });
 
-      // قرارداد آینه‌ای (مدل آینه‌ای فاز 11): paidAmount فاکتور =
-      // کل دریافتی → order.paidAmount همان می‌شود و پیش‌فاکتورهای
-      // سفارش از نو توزیع می‌شوند تا هر دو سند همیشه هم‌عدد باشند.
-      await tx.order.update({
-        where: { id: orderId },
-        data: { paidAmount: computed.paidAmount },
+      // قرارداد آینه‌ای (مدل آینه‌ای فاز ۱۱): paidAmount فاکتور =
+      // کل دریافتی → order.paid همان می‌شود و پیش‌فاکتورهای سفارش از
+      // نو توزیع می‌شوند. Phase 15: از مسیر متمرکز + دفتر درآمد هوشمند.
+      await applyPaidAmountChange(tx, {
+        orderId,
+        newPaid: computed.paidAmount,
+        actor: {
+          userId: user.id,
+          userName: user.name,
+          module: inferRevenueModule(user),
+          note: `صدور فاکتور #${num}`,
+        },
       });
-      await redistributePiPaid(tx, orderId, computed.paidAmount);
 
       await tx.notification.create({
         data: {

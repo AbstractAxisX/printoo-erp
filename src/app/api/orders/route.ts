@@ -18,6 +18,7 @@ import {
 import { aggregateStatus } from "@/lib/order-flow";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
+import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
 import { logOrderEvent } from "@/lib/order-events";
 
 type ItemDraft = {
@@ -406,7 +407,7 @@ export async function POST(req: NextRequest) {
                 customerId,
                 [itemsFromOrderItems([it])[0]],
                 preInvoice,
-                { itemId: it.id, assignPrepaid: !prepaidAssigned }
+                { itemId: it.id, assignPrepaid: !prepaidAssigned, actor: { userId: user.id, userName: user.name, module: inferRevenueModule(user) } }
               );
               prepaidAssigned = prepaidAssigned || pi.paid > 0;
               preInvoices.push({
@@ -429,7 +430,7 @@ export async function POST(req: NextRequest) {
               customerId,
               itemsFromOrderItems(order.items),
               preInvoice,
-              { itemId: null, assignPrepaid: true }
+              { itemId: null, assignPrepaid: true, actor: { userId: user.id, userName: user.name, module: inferRevenueModule(user) } }
             );
             preInvoices.push({
               id: pi.id,
@@ -496,7 +497,7 @@ export async function POST(req: NextRequest) {
               customerId,
               itemsFromOrderItems(order.items),
               preInvoice,
-              { itemId: order.items[0]?.id ?? null, assignPrepaid: !prepaidAssigned }
+              { itemId: order.items[0]?.id ?? null, assignPrepaid: !prepaidAssigned, actor: { userId: user.id, userName: user.name, module: inferRevenueModule(user) } }
             );
             prepaidAssigned = prepaidAssigned || pi.paid > 0;
             preInvoices.push({
@@ -624,7 +625,11 @@ async function createPreInvoice(
   customerId: string,
   piItems: PreInvoiceItem[],
   pi: CreateBody["preInvoice"],
-  opts: { itemId: string | null; assignPrepaid: boolean }
+  opts: {
+    itemId: string | null;
+    assignPrepaid: boolean;
+    actor?: { userId: string; userName: string; module: "finance" | "admin" | "logistics" | "other" };
+  }
 ): Promise<{ id: string; number: number; paid: number; total: number }> {
   const items = piItems.length
     ? piItems
@@ -659,10 +664,17 @@ async function createPreInvoice(
     },
   });
   // همگام‌سازی افزایشی paidAmount سفارش (چند پیش‌فاکتور جمع می‌شود)
+  // Phase 15: مسیر متمرکز + دفتر درآمد (پیش‌پرداخت ویزارد هم لاگ می‌شود)
   if (paid > 0) {
-    await tx.order.update({
+    const cur = await tx.order.findUnique({
       where: { id: order.id },
-      data: { paidAmount: { increment: paid } },
+      select: { paidAmount: true },
+    });
+    await applyPaidAmountChange(tx, {
+      orderId: order.id,
+      newPaid: (cur?.paidAmount ?? 0) + paid,
+      actor: opts.actor ?? { userId: null, userName: null, module: "admin" },
+      skipLog: !opts.actor,
     });
   }
   return { id: row.id, number: row.number, paid, total: totals.totalAmount };

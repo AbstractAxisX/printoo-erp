@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { canUserViewOrder, requireManager, validateAssigneeForModule } from "@/l
 import { TASK_INCLUDE } from "@/lib/task-validation";
 import { aggregateStatus, syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
+import { logOrderEvent } from "@/lib/order-events";
 
 type ItemDraft = {
   id?: string; // Phase 10: شناسهٔ واقعی DB — آیتم موجود درجا آپدیت می‌شود (نه حذف/بازسازی)
@@ -57,37 +59,49 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   try {
+    // Phase 15: مالی هزینه‌ها + دفتر درآمد سفارش را هم می‌بیند
+    // (دادهٔ مالی — برای غیر مالی ارسال نمی‌شود)
+    const canSeeSensitive =
+      user.role === "master" || user.modules.includes("finance");
+    const include: Prisma.OrderInclude = {
+      customer: true,
+      items: {
+        include: {
+          product: true,
+          designAssigneeUser: { select: { id: true, name: true } },
+          printAssigneeUser: { select: { id: true, name: true } },
+        },
+      },
+      preInvoices: { orderBy: { number: "desc" }, include: { item: true } },
+      invoice: true,
+      tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
+      assignedDesigner: { select: { id: true, name: true, phone: true } },
+      assignedPrinter: { select: { id: true, name: true, phone: true } },
+      createdByUser: { select: { id: true, name: true } },
+      events: { orderBy: { createdAt: "desc" } },
+      ...(canSeeSensitive
+        ? {
+            materialCosts: {
+              orderBy: { createdAt: "desc" },
+              include: {
+                supplier: true,
+                expenseType: true,
+                attachments: true,
+                createdByUser: { select: { id: true, name: true } },
+              },
+            },
+            revenueLogs: { orderBy: { createdAt: "desc" } },
+          }
+        : {}),
+    };
     const order = await db.order.findUnique({
       where: { id },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: true,
-            // Phase 13: مجری per-item برای نمایش در مودال جزئیات
-            designAssigneeUser: { select: { id: true, name: true } },
-            printAssigneeUser: { select: { id: true, name: true } },
-          },
-        },
-        // Phase 9: پیش‌فاکتورها مرتب + فاکتور کامل — تب‌های مودال جزئیات
-        // Phase 10: itemId برای تفکیک پیش‌فاکتور per-item / کل گروه
-        preInvoices: { orderBy: { number: "desc" }, include: { item: true } },
-        invoice: true,
-        tasks: { include: { assignedUser: TASK_INCLUDE.assignedUser } },
-        // Phase 12: نام مسئوِِستان برای نمایش در مودال‌ها
-        assignedDesigner: { select: { id: true, name: true, phone: true } },
-        assignedPrinter: { select: { id: true, name: true, phone: true } },
-        createdByUser: { select: { id: true, name: true } },
-        // Phase 14: رویدادهای گردش کار برای تب تاریخچه
-        events: { orderBy: { createdAt: "desc" } },
-      },
+      include,
     });
     if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
     // Phase 14: رویدادهای مالی (sensitive) فقط برای مالی/مستر —
     // «ادمین داخلی نباید از اسناد مالی خبردار بشه»
-    const canSeeSensitive =
-      user.role === "master" || user.modules.includes("finance");
     if (!canSeeSensitive) {
       (order as { events?: { sensitive: boolean }[] }).events = (order.events ?? []).filter(
         (e) => !e.sensitive

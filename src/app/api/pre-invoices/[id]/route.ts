@@ -7,7 +7,7 @@ import {
   isPreInvoiceStatus,
   STATUS_TRANSITIONS,
 } from "@/lib/pre-invoice";
-import { mirrorInvoicePaid } from "@/lib/paid-sync";
+import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
 
 // ─── Pre-Invoice [id] API — Phase 7 rebuild ─────────────────────────
 //
@@ -157,15 +157,24 @@ export async function PUT(
         include: INCLUDE,
       });
 
-      // همگام‌سازی delta مبلغ پرداختی سفارش
-      // Phase 11: فاکتور صادرشدهٔ همین سفارش نیز آینه می‌شود
+      // همگام‌سازی delta مبلغ پرداختی سفارش — Phase 15: مسیر متمرکز
+      // با دفتر درآمد هوشمند (ادیت ۱۰۰۰→۶۰۰۰ → درآمد جدید ۵۰۰۰ ثبت می‌شود)
       const delta = newPaid - existing.paidAmount;
       if (delta !== 0) {
-        await tx.order.update({
+        const cur = await tx.order.findUnique({
           where: { id: existing.orderId },
-          data: { paidAmount: { increment: delta } },
+          select: { paidAmount: true },
         });
-        await mirrorInvoicePaid(tx, existing.orderId);
+        await applyPaidAmountChange(tx, {
+          orderId: existing.orderId,
+          newPaid: (cur?.paidAmount ?? 0) + delta,
+          actor: {
+            userId: user.id,
+            userName: user.name,
+            module: inferRevenueModule(user),
+            note: `ویرایش پیش‌پرداخت پیش‌فاکتور #${existing.number}`,
+          },
+        });
       }
       return pi;
     });
@@ -255,7 +264,8 @@ export async function DELETE(
 
     await db.$transaction(async (tx) => {
       await tx.preInvoice.delete({ where: { id } });
-      // برگشت پیش‌پرداخت از سفارش (حداقل صفر)
+      // برگشت پیش‌پرداخت از سفارش (حداقل صفر) — Phase 15: دفتر درآمد
+      // اصلاح کاهشی می‌گیرد (پول ثبت‌شده که سندش حذف شد).
       if (existing.paidAmount > 0) {
         const order = await tx.order.findUnique({
           where: { id: existing.orderId },
@@ -263,13 +273,17 @@ export async function DELETE(
         });
         const dec = Math.min(existing.paidAmount, order?.paidAmount ?? 0);
         if (dec > 0) {
-          await tx.order.update({
-            where: { id: existing.orderId },
-            data: { paidAmount: { decrement: dec } },
+          await applyPaidAmountChange(tx, {
+            orderId: existing.orderId,
+            newPaid: (order?.paidAmount ?? 0) - dec,
+            actor: {
+              userId: user.id,
+              userName: user.name,
+              module: inferRevenueModule(user),
+              note: `حذف پیش‌فاکتور #${existing.number} (برگشت پیش‌پرداخت)`,
+            },
           });
         }
-        // Phase 11: فاکتور صادرشده هم آینه شود
-        await mirrorInvoicePaid(tx, existing.orderId);
       }
     });
 

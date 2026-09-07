@@ -7,7 +7,7 @@ import {
   isPreInvoiceStatus,
   itemsFromOrderItems,
 } from "@/lib/pre-invoice";
-import { mirrorInvoicePaid } from "@/lib/paid-sync";
+import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -194,14 +194,23 @@ export async function POST(req: NextRequest) {
       });
 
       // همگام‌سازی افزایشی paidAmount سفارش (نه بازنویسی)
-      // Phase 11: اگر فاکتور نهایی صادر شده باشد، مبلغ آن هم آینه می‌شود
-      // («اگر مبلغ پرداختی ادیت شود، در پیش‌فاکتور/فاکتور سینک شود»).
+      // Phase 15: از مسیر متمرکز → دفتر درآمد با تفاضل هوشمند ثبت می‌شود
+      // (کی، کدام ماژول، چه ساعتی، چقدر درآمد جدید).
       if (paid > 0) {
-        await tx.order.update({
+        const cur = await tx.order.findUnique({
           where: { id: orderId },
-          data: { paidAmount: { increment: paid } },
+          select: { paidAmount: true },
         });
-        await mirrorInvoicePaid(tx, orderId);
+        await applyPaidAmountChange(tx, {
+          orderId,
+          newPaid: (cur?.paidAmount ?? 0) + paid,
+          actor: {
+            userId: user.id,
+            userName: user.name,
+            module: inferRevenueModule(user),
+            note: `پیش‌پرداخت هنگام صدور پیش‌فاکتور #${num}`,
+          },
+        });
       }
       return pi;
     });

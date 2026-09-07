@@ -6,7 +6,7 @@ import {
   isInvoiceStatus,
   INVOICE_STATUS_TRANSITIONS,
 } from "@/lib/invoice";
-import { redistributePiPaid, recomputeOrderPaidFromPIs } from "@/lib/paid-sync";
+import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Invoices API — Phase 9 ────────────────────────────────────────
@@ -117,14 +117,19 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
         include: INCLUDE,
       });
 
-      // Phase 11 — مدل آینه‌ای: مبلغ پرداخت فاکتور = کل دریافتی.
-      // سفارش و پیش‌فاکتورها همین عدد را می‌گیرند
-      // («اگر تو فاکتور مبلغ پرداختی ادیت شد، تو پیش‌فاکتورم سینک بشه»).
-      await tx.order.update({
-        where: { id: existing.orderId },
-        data: { paidAmount: computed.paidAmount },
+      // Phase 11 — مدل آینه‌ای + Phase 15 مسیر متمرکز با دفتر درآمد:
+      // «اگر تو فاکتور مبلغ پرداختی ادیت شد، تو پیش‌فاکتورم سینک بشه» —
+      // و تفاضل هوشمند در دفتر درآمد ثبت می‌شود.
+      await applyPaidAmountChange(tx, {
+        orderId: existing.orderId,
+        newPaid: computed.paidAmount,
+        actor: {
+          userId: user.id,
+          userName: user.name,
+          module: inferRevenueModule(user),
+          note: `ویرایش پرداختی فاکتور #${existing.number}`,
+        },
       });
-      await redistributePiPaid(tx, existing.orderId, computed.paidAmount);
       return inv;
     });
 
@@ -168,16 +173,21 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const data: Record<string, unknown> = { status };
 
       if (status === "paid") {
-        // تسویهٔ کامل (Phase 11 مدل آینه‌ای): paidAmount → totalAmount و
-        // کل دریافتی سفارش و پیش‌فاکتورها هم همین می‌شوند
+        // تسویهٔ کامل (Phase 11 مدل آینه‌ای + Phase 15 دفتر درآمد):
+        // paidAmount → totalAmount و کل دریافتی سفارش/پیش‌فاکتورها همگام
         const diff = existing.totalAmount - existing.paidAmount;
         if (diff > 0) {
           data.paidAmount = existing.totalAmount;
-          await tx.order.update({
-            where: { id: existing.orderId },
-            data: { paidAmount: { increment: diff } },
+          await applyPaidAmountChange(tx, {
+            orderId: existing.orderId,
+            newPaid: existing.totalAmount,
+            actor: {
+              userId: user.id,
+              userName: user.name,
+              module: inferRevenueModule(user),
+              note: `تسویهٔ کامل فاکتور #${existing.number}`,
+            },
           });
-          await redistributePiPaid(tx, existing.orderId, existing.totalAmount);
         }
         await tx.notification.create({
           data: {
@@ -190,10 +200,23 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       }
 
       if (status === "cancelled") {
-        // باطل (Phase 11): فاکتور دیگر آینه نیست — کل دریافتی
-        // سفارش به حالت «پیش از فاکتور» برمی‌گردد (Σ پرداخت پیش‌فاڣتورها)
+        // باطل: فاکتور دیگر آینه نیست — کل دریافتی سفارش به حالت
+        // «پیش از فاکتور» برمی‌گردد (Σ پرداخت پیش‌فاکتورها) + لاگ اصلاح
         data.paidAmount = 0;
-        await recomputeOrderPaidFromPIs(tx, existing.orderId);
+        const agg = await tx.preInvoice.aggregate({
+          where: { orderId: existing.orderId },
+          _sum: { paidAmount: true },
+        });
+        await applyPaidAmountChange(tx, {
+          orderId: existing.orderId,
+          newPaid: agg._sum.paidAmount ?? 0,
+          actor: {
+            userId: user.id,
+            userName: user.name,
+            module: inferRevenueModule(user),
+            note: `ابطال فاکتور #${existing.number}`,
+          },
+        });
       }
 
       const inv = await tx.invoice.update({ where: { id }, data, include: INCLUDE });
@@ -225,8 +248,22 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
     await db.$transaction(async (tx) => {
       await tx.invoice.delete({ where: { id } });
-      // Phase 11: برگشت به حالت «پیش از فاکتور» — کل دریافتی = Σ پیش‌فاڣتورها
-      await recomputeOrderPaidFromPIs(tx, existing.orderId);
+      // برگشت به حالت «پیش از فاکتور» — کل دریافتی = Σ پیش‌فاکتورها
+      // + لاگ اصلاح (پول ثبت‌شده‌ای که سندش حذف شد)
+      const agg = await tx.preInvoice.aggregate({
+        where: { orderId: existing.orderId },
+        _sum: { paidAmount: true },
+      });
+      await applyPaidAmountChange(tx, {
+        orderId: existing.orderId,
+        newPaid: agg._sum.paidAmount ?? 0,
+        actor: {
+          userId: user.id,
+          userName: user.name,
+          module: inferRevenueModule(user),
+          note: `حذف فاکتور #${existing.number}`,
+        },
+      });
     });
 
     return NextResponse.json({ ok: true });

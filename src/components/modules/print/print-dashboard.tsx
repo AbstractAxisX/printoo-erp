@@ -327,7 +327,7 @@ export function PrintDashboard() {
         <Card className="p-0 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
             <div className="flex items-center gap-2">
-              <Icon name="box" size={18} className="text-rose-500" />
+              <Icon name="boxes" size={18} className="text-rose-500" />
               <h3 className="font-semibold text-sm">نیازمند متریال</h3>
               <span className="text-[11px] text-muted-foreground">
                 ({orders.filter(needsMaterial).length.toLocaleString("fa-IR")})
