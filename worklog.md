@@ -3770,3 +3770,29 @@ Work Log:
 Stage Summary:
 - Every change committed+pushed immediately (rule). Commits: 5235431, f8867a1, 5a13ec4, 5391fb0, b0b0b65, 3fa7e47, 306fdaf.
 - Designer + print modules now production-ready for daily operations; remaining gaps noted in final report (see chat).
+
+---
+Task ID: PHASE-15
+Agent: orchestrator (main)
+Task: Print modal tabs+inline cost form (no dialog) + complete finance module (dashboard/history/revenues/unsettled/orders) + logistics panel + RevenueLog smart-diff ledger
+
+Work Log:
+- Schema: MaterialCost → orderId optional (free costs), title, includeInInvoice, preInvoiceId, createdById/Name (FK+snapshot), module += finance|logistics; NEW RevenueLog (signed diff, totalAfter, module, method, creator snapshot); OrderEvent types += cost_invoiced/cost_approved/cost_rejected/payment_recorded. db push + backfill (16 costs, defaults incl حقوق).
+- paid-sync: applyPaidAmountChange = single mutation point for order.paidAmount — smart diff (1000→6000 logs +5000), RevenueLog, redistributePiPaid + mirrorInvoicePaid; inferRevenueModule (finance/admin/logistics).
+- Wired into ALL paid mutation sites: orders POST (wizard prepayment), pre-invoice POST/PUT/DELETE, invoice POST/PUT/PATCH(paid/cancelled)/DELETE.
+- access: finance → all orders; warehouse → in_printing/warehouse_logistics/completed; canUserViewOrder same.
+- APIs: material-costs GET (scope/q/category/from/to + creator include) + POST (free costs finance-only auto-approved; includeInInvoice → inject into PI(=target or first)+invoice items + order.totalAmount += amount + cost_invoiced non-sensitive event) ; [id] PUT auth+transition matrix+events, DELETE incl. invoice-cost guard. NEW /api/orders/[id]/payments (GET logs, POST total|amount smart-diff + payment_recorded sensitive event). NEW /api/revenues (finance-gated ledger). NEW /api/finance/summary (pending/cost/revenue/net/unsettled/freeByCategory/costsByModule). expense-types: defaults always ensured, POST finance-gated, DELETE [id] isDefault-protected.
+- Shared CostEntryForm (wizard ItemRow UX): multi-row inline drafts + add-row + live totals + attachments upload + module selector; modes order/free; selectableOrder (search) + invoice option for finance.
+- Print modal: max-w-5xl + Tabs (جزئیات/ثبت هزینه w/ count badge) — cost dialog REMOVED; costs tab = inline form + wide table (creator+datetime); sidebar summary links to tab.
+- Finance: dashboard (5 filterable KPI cards w/ global TimeRangePicker, two-mode cost form, category cards + mgmt, hardcoded حقوق), cost-history (collapsible form + filters incl. scope/status/module/category/daterange + group-by-order toggle + summary ring-cards + DataTable + extended detail modal), revenues (ledger table w/ module/creator/method), unsettled (receivables + quick payment w/ live diff preview + progress bars), orders (open/closed/all + status chips + active-stage column) + finance order modal (intro: where-now/who + items; money: PI paid inline edit, invoice paid edit + issuance, revenue ledger, order costs, payment dialog).
+- Logistics (warehouse:orders): delivery table + modal (cash collection amount-mode → adds to paid + shows in finance w/ module=logistics; CostEntryForm fixedModule warehouse; collections history).
+- Nav: finance → dashboard/تاریخچه هزینه‌ها/سفارش‌ها + درآمدها/تسویه‌نشده (placeholders invoices/payments/expenses removed); warehouse orders → «سفارشات تحویل».
+- BUGS FIXED: Turbopack cache corruption (clean .next restart), Rules-of-Hooks violation in finance-order-modal (useMemo after early return — moved before), transient 404s from stale route manifest.
+- E2E: scripts/test-phase15.mjs — 68/68 PASS (free costs+gates, category mgmt, approval matrix, invoice-cost injection incl. separated orders, smart-diff 1000→6000=+5000 & corrections, logistics collection, revenues ledger, PI edit sync, filters). Browser-verified all pages incl. live submissions (free cost 750K, print cost 66K pending, logistics 50K collection) — 0 console errors, mobile OK.
+
+Stage Summary:
+- ماژول مالی کامل شد: داشبورد فیلتردار + هزینه‌ها (آزاد/سفارش/فاکتوری) + درآمدها + تسویه‌نشده + سفارش‌ها با نمای مالی؛ لجستیک پنل تحویل+دریافت نقدی.
+- RevenueLog: هر تغییر پرداخت با «کی/کدام ماژول/چه ساعتی/چقدر جدید» ثبت می‌شود؛ ادیت ۱۰۰۰→۶۰۰۰ → درآمد ۵۰۰۰.
+- فرم ثبت هزینه همه‌جا اینلاین (عین افزودن آیتم ویزارد) — دیالوگ حذف شد؛ مودال چاپ با تب هزینه‌ها.
+- هزینهٔ فاکتوری: در فاکتور/پیش‌فاکتور مثل آیتم می‌نشیند + مبلغ سفارش + رویداد غیرحساس برای ادمین.
+- همهٔ تغییرات بلافاصله push شد: 28529a5 … f40401e (۱۵ کامیت).
