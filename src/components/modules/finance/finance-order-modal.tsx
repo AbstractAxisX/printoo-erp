@@ -252,6 +252,26 @@ export function FinanceOrderModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // «الان کجاست و دست کیست» — مجری مؤثر هر مرحلهٔ فعال
+  // (⚠ قبل از early-return — Rules of Hooks)
+  const activeStages = React.useMemo(() => {
+    const byStage = new Map<string, { label: string; who: string[]; count: number }>();
+    for (const it of order?.items ?? []) {
+      if (it.stage === "completed" || it.stage === "archive") continue;
+      const stageLabel = ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE]?.label ?? it.stage;
+      const who =
+        it.stage === "design"
+          ? it.designAssigneeUser?.name ?? order?.assignedDesigner?.name ?? "استخر عمومی"
+          : it.printAssigneeUser?.name ?? order?.assignedPrinter?.name ?? "استخر عمومی";
+      const key = it.stage;
+      const g = byStage.get(key) ?? { label: stageLabel, who: [], count: 0 };
+      g.count++;
+      if (!g.who.includes(who)) g.who.push(who);
+      byStage.set(key, g);
+    }
+    return [...byStage.values()];
+  }, [order]);
+
   if (!order) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -278,25 +298,6 @@ export function FinanceOrderModal({
 
   const remaining = order.totalAmount - order.paidAmount;
   const priorityInfo = PRIORITY[order.priority as keyof typeof PRIORITY] ?? PRIORITY.normal;
-
-  // «الان کجاست و دست کیست» — مجری مؤثر هر مرحلهٔ فعال
-  const activeStages = React.useMemo(() => {
-    const byStage = new Map<string, { label: string; who: string[]; count: number }>();
-    for (const it of order.items) {
-      if (it.stage === "completed" || it.stage === "archive") continue;
-      const stageLabel = ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE]?.label ?? it.stage;
-      const who =
-        it.stage === "design"
-          ? it.designAssigneeUser?.name ?? order.assignedDesigner?.name ?? "استخر عمومی"
-          : it.printAssigneeUser?.name ?? order.assignedPrinter?.name ?? "استخر عمومی";
-      const key = it.stage;
-      const g = byStage.get(key) ?? { label: stageLabel, who: [], count: 0 };
-      g.count++;
-      if (!g.who.includes(who)) g.who.push(who);
-      byStage.set(key, g);
-    }
-    return [...byStage.values()];
-  }, [order]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
