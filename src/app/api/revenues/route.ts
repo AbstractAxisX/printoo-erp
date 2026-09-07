@@ -22,11 +22,11 @@ export async function GET(req: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const orderId = searchParams.get("orderId");
-    const module = searchParams.get("module");
+    const modFilter = searchParams.get("module");
 
     const where: Record<string, unknown> = {};
     if (orderId) where.orderId = orderId;
-    if (module) where.module = module;
+    if (modFilter) where.module = modFilter;
     if (from || to) {
       const createdAt: Record<string, Date> = {};
       if (from) createdAt.gte = new Date(from);
