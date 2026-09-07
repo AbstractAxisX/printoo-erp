@@ -3839,3 +3839,24 @@ Stage Summary:
 - چرخهٔ چاپ→انبار→تحویل حالا سرتاسر UI دارد؛ KPIهای داشبورد با boardFilter دقیق به لیست بسته‌ها وصل‌اند و کد «PKG-X» در همهٔ نماها (بج/لینک/جدول/مودال) mono ltr است.
 - ناهم‌خوانی API پیدا نشد — تایپ‌های Task عین پاسخ زندهٔ سرور بودند؛ فقط توجه: در POST/PATCH بسته، فیلدهای خالی به null تبدیل می‌شوند (سمت سرور trim) و در detail بسته items/itemsCount نیست (به‌جایش orders[].itemsInPackage).
 - دیتای تست مرورگر در db دمو ساخته شد (بستهٔ PKG-N24GKA تحویل‌شده + گردش چسب دوقلو) — قابل حذف با seed جدید. فایل‌های payroll هم‌زمان توسط زیراینت دیگری تغییر کرده‌اند؛ دست نزدم. git دست نخورده.
+
+---
+Task ID: PHASE-16
+Agent: orchestrator (main)
+Task: حقوق و دستمزد (مالی تخصصی + سادهٔ مدیر سیستم) + تکمیل کامل ماژول انبار/لجستیک (بسته‌بندی، بج QR، ارسال، تحویل COD، موجودی مواد)
+
+Work Log:
+- تحلیل نقش‌محور قبل از کد: مدل حقوق (PayrollPeriod/Entry/Advance + User.baseSalary) با قاعدهٔ «پرداخت = ثبت هزینهٔ حقوق» بدون دابل‌کانتینگ (مساعده هزینهٔ فوری است؛ در دوره فقط FIFO کسر می‌شود)؛ مدل بسته (Package/PackageItem چند-سفارشی + کد QR غیرقابل حدس PKG-XXXXXX) + Material/StockMove.
+- پکیج‌ها نصب: qrcode + jspdf + html2canvas (بج فارسی با رندر مرورگر → snapshot → PDF دقیقاً ۱۰۰×۵۰mm، استایل inline خالص RGB برای سازگاری html2canvas/Tailwind-oklch).
+- اسکیما push + prisma_v4 + ری‌استارت dev. Nav: مالی گروه «حقوق و دستمزد» (مدیریت+تحلیل)، sysadmin «حقوق کارمندان» (ساده)، انبار «دریافت و تحویل/بسته‌بندی و ارسال/موجودی و مواد».
+- بک‌اند حقوق (۶ روت): GET/POST /api/payroll (ensure دورهٔ جاری + ورودی همهٔ کارمندان فعال غیر-master)، PUT entries (sanitize + net سرور + سقف کسر=ماندهٔ مساعده + قفل پرداخت‌شده + updateContract)، POST entries/[id]/pay و periods/[id]/pay (FIFO مساعده + MaterialCost دستهٔ «حقوق» approved + نوتیف کارمند + قفل دوره وقتی همه پرداخت)، POST/DELETE advances (هزینهٔ فوری؛ حذف فقط کسرنشده + حذف سند)، GET analytics (monthly/byModule از modulesSnapshot/byEmployee/MoM/مساعده‌ها). رفع بن‌بست SQLite: همهٔ libها tx می‌پذیرند.
+- بک‌اند انبار: packages GET (packable=1 آیتم‌های انبارِ بسته‌نشده) / POST (اعتبارسنجی مرحله+دوبسته + counter package + کد QR + رویداد package_packed + آدرس‌گذاری سفارش بی‌آدرس)؛ [id] GET/PATCH (ماتریس گذار ready/sent/delivered/cancelled + مرجوعی sent→cancelled؛ تحویل: اقلام→completed + سفارشِ کامل→completed + COD توزیع FIFO با applyPaidAmountChange ← RevenueLog module=logistics + رویداد) / DELETE؛ public/packages/[code] بدون لاگین (proxy exempt + کش ۳۰ث + بدون نشت مبلغ‌های داخلی)؛ materials CRUD + moves (گارد کمبود) + stock-in خودکار هنگام تأیید هزینهٔ material-دار (یک‌بار — re-approve دابل نمی‌زند)؛ warehouse/stats (KPI + کم‌موجود).
+- فرانت (دو زیرایجنت موازی، کار روی فایل‌های اختصاصی — صفر تداخل): مالی payroll-page (~۱۵۰۸ خط: چیپ دوره‌ها + ۶ کارت + جدول اینلاین-ویرایش با محاسبهٔ زندهٔ خالص + قرارداد-chip + سقف مساعده + پرداخت ردیفی/کل + پنل مساعده + تاریخچهٔ دوره‌ها) و payroll-analytics (~۶۱۳: TimeRangePicker + ۵ KPI + MoM با میله + BarChart روند + کارت ماژول‌ها + جدول کارمندان) و sysadmin payroll-simple (~۵۸۶: فقط پرداخت)؛ انبار warehouse-dashboard (~۲۹۹: ۶ KPI کلیک‌پذیر + کم‌موجود + اکشن‌ها)، packages-page (~۱۸۴۲: فرم اینلاین ساخت بسته با آدرس/شرح خودکار + جدول + مودال ۳-تبی + بج/QR/PDF/PNG)، inventory-page (~۸۴۲: مواد + ورود/خروج + گردش)، public-package-view (~۴۶۵: استندالون بدون لاگین، استپر، COD، سفارش‌ها).
+- باگ‌ها: TDZ اسکلت‌ها، unreachable-code در material-costs POST (return قبل از بلوک stock)، proxy gate روی /api/public (exempt)، TypeScript narrowing در closure (matStock extract)، ۳ خطای تست (فرمول bonus/فیلتر دوره/کد 1 در الفبا).
+- E2E: scripts/test-phase16.mjs — ۷۸/۷۸ PASS (گیت‌های 403، ensure، ویرایش+قفل، پرداخت ردیفی/دوره‌ای، هزینهٔ حقوق=تعداد پرداختی‌ها، نوتیف، FIFO مساعدهٔ ۳۰۰K، آنالیتیکس، بستهٔ چند-سفارشی، رد دوبسته، گذارها، COD FIFO روی #20، رویدادها، API عمومی بدون نشت، لغو/مرجوعی، آمار، مواد+گردش+گارد، stock-in با تأیید و بدون دابل، حذف-with-موفق).
+- مرورگر (agent-browser): نگار: ویرایش+ذخیره (۹۱۵,۹۲۰) + پرداخت ردیفی + تحلیل (SVG chart)؛ مستر: پرداخت کل دوره (۸ نفر + ۱ skip)؛ حسین: ساخت بسته با اتوفیل آدرس/شرح + COD 300K → مودال بج (QR رندر + PDF بدون خطا) → آماده → ارسال (پیک) → تحویل (COD ثبت شد) → صفحهٔ عمومی ?pkg کامل؛ VLM: عمومی production-ready، موبایل ۳90px PASS. dev.log پاک.
+
+Stage Summary:
+- حقوق و دستمزد به‌عنوان سکشن اختصاصی مالی (۲ صفحه) + نسخهٔ سادهٔ «حقوق بده و برو» برای مدیر سیستم؛ هر پرداخت = MaterialCost دستهٔ «حقوق» (دیده‌شده در داشبورد/تاریخچهٔ هزینه‌ها) + نوتیف به کارمند.
+- انبار/لجستیک عملیاتی شد: دریافت از چاپ (packable) → بستهٔ چند-سفارشی با بج QR (PDF ۱۰۰×۵۰) → صفحهٔ عمومی بدون لاگین → ارسال/مرجوعی → تحویل با COD→درآمد لجستیک + تکمیل خودکار سفارش؛ موجودی مواد با گردش و stock-in خودکار از تأیید هزینه.
+- همه‌چیز push شد: 3084082 → 46d4904 (۵ کامیت). دیتابیس re-seed برای دموی تمیز.
