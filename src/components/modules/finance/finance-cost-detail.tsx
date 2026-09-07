@@ -11,7 +11,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -27,7 +27,8 @@ export type CostAttachment = {
 
 export type MaterialCost = {
   id: string;
-  orderId: string;
+  orderId: string | null;
+  title: string | null;
   supplierId: string | null;
   expenseTypeId: string | null;
   description: string | null;
@@ -36,7 +37,10 @@ export type MaterialCost = {
   fileUrl2: string | null;
   status: string;
   module: string;
+  includeInInvoice?: boolean;
   createdAt: string;
+  createdByName?: string | null;
+  createdByUser?: { id: string; name: string } | null;
   supplier: { name: string } | null;
   expenseType: { name: string } | null;
   attachments?: CostAttachment[];
@@ -62,6 +66,16 @@ const MODULE_META: Record<
     label: "انبار",
     icon: "warehouse",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+  },
+  logistics: {
+    label: "لجستیک",
+    icon: "truck",
+    color: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  },
+  finance: {
+    label: "مالی",
+    icon: "wallet",
+    color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   },
 };
 
@@ -234,21 +248,26 @@ export function FinanceCostDetailModal({
               </div>
               <div className="min-w-0">
                 <DialogTitle className="text-lg font-bold truncate">
-                  جزئیات هزینه
+                  {cost.title || "جزئیات هزینه"}
                 </DialogTitle>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span className="font-mono font-bold">
-                    #{cost.order?.number ?? "—"}
-                  </span>
+                  {cost.order ? (
+                    <>
+                      <span className="font-mono font-bold">#{cost.order.number}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Icon name="customers" size={12} />
+                        {cost.order.customer?.name ?? "—"}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <Icon name="coins" size={12} />
+                      هزینهٔ آزاد{cost.expenseType?.name ? ` — ${cost.expenseType.name}` : ""}
+                    </span>
+                  )}
                   <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Icon name="customers" size={12} />
-                    {cost.order?.customer?.name ?? "—"}
-                  </span>
-                  <span>•</span>
-                  <span className="tabular-nums">
-                    {formatDate(cost.createdAt)}
-                  </span>
+                  <span className="tabular-nums">{formatDateTime(cost.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -285,8 +304,14 @@ export function FinanceCostDetailModal({
               )}
             >
               <Icon name={moduleMeta.icon} size={11} />
-              ماژول {moduleMeta.label}
+              {moduleMeta.label}
             </span>
+            {cost.includeInInvoice && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                <Icon name="invoice" size={11} />
+                در فاکتور سفارش
+              </span>
+            )}
           </div>
         </div>
 
@@ -296,7 +321,31 @@ export function FinanceCostDetailModal({
           style={{ maxHeight: "55vh" }}
         >
           {/* Quick info grid */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <div className="rounded-lg border p-3">
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Icon name="userCircle" size={11} /> ثبت‌کننده
+              </div>
+              <div className="text-sm font-medium mt-1 truncate">
+                {cost.createdByName ?? cost.createdByUser?.name ?? "—"}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Icon name="calendar" size={11} /> تاریخ و ساعت ثبت
+              </div>
+              <div className="text-sm font-medium mt-1 tabular-nums">
+                {formatDateTime(cost.createdAt)}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Icon name="orders" size={11} /> سفارش
+              </div>
+              <div className="text-sm font-medium mt-1 font-mono">
+                {cost.order ? `#${cost.order.number}` : "هزینهٔ آزاد"}
+              </div>
+            </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Icon name="suppliers" size={11} /> تامین‌کننده
@@ -307,7 +356,7 @@ export function FinanceCostDetailModal({
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="tag" size={11} /> نوع هزینه
+                <Icon name="tag" size={11} /> {cost.order ? "نوع هزینه" : "دستهٔ هزینه"}
               </div>
               <div className="text-sm font-medium mt-1 truncate">
                 {cost.expenseType?.name ?? "—"}
@@ -315,18 +364,10 @@ export function FinanceCostDetailModal({
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="orders" size={11} /> شماره سفارش
+                <Icon name="wallet" size={11} /> فاکتور سفارش
               </div>
-              <div className="text-sm font-medium mt-1 font-mono">
-                #{cost.order?.number ?? "—"}
-              </div>
-            </div>
-            <div className="rounded-lg border p-3">
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="calendar" size={11} /> تاریخ ثبت
-              </div>
-              <div className="text-sm font-medium mt-1 tabular-nums">
-                {formatDate(cost.createdAt)}
+              <div className="text-sm font-medium mt-1">
+                {cost.includeInInvoice ? "نشسته در فاکتور/پیش‌فاکتور" : "خارج از فاکتور"}
               </div>
             </div>
           </div>
@@ -429,7 +470,7 @@ export function FinanceCostDetailModal({
                     {cost.status === "approved" ? "تأیید" : "رد"} شده است.
                   </p>
                   <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-                    تاریخ ثبت: {formatDate(cost.createdAt)}
+                    تاریخ ثبت: {formatDateTime(cost.createdAt)}
                   </div>
                 </div>
               </div>
