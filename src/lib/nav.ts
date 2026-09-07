@@ -140,7 +140,8 @@ export const NAV: ModuleNav[] = [
         label: "انبار",
         icon: "boxes",
         items: [
-          { id: "orders", label: "سفارشات انبار", icon: "orders", page: "orders" },
+          // Phase 15: پنل لجستیک — تحویل سفارش + دریافت نقدی در محل + هزینه تحویل
+          { id: "orders", label: "سفارشات تحویل", icon: "truck", page: "orders" },
           { id: "inventory", label: "موجودی انبار", icon: "boxes", page: "inventory" },
           { id: "materials", label: "مواد اولیه", icon: "layers", page: "materials" },
         ],
@@ -149,6 +150,9 @@ export const NAV: ModuleNav[] = [
   },
 
   // ─────────── FINANCE ───────────
+  // Phase 15: بازطراحی کامل — داشبورد (اوورویو + فرم هزینه)،
+  // تاریخچهٔ هزینه‌ها، درآمدها (دفتر درآمد)، تسویه‌نشده (بستانکار)،
+  // سفارش‌ها (نمای مالی هر سفارش).
   {
     key: "finance",
     label: "Finance",
@@ -161,17 +165,17 @@ export const NAV: ModuleNav[] = [
         icon: "home",
         items: [
           { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "costs", label: "هزینه‌ها", icon: "money", page: "costs" },
+          { id: "costs", label: "تاریخچه هزینه‌ها", icon: "money", page: "costs" },
+          { id: "orders", label: "سفارش‌ها", icon: "orders", page: "orders" },
         ],
       },
       {
         id: "money",
-        label: "مالی",
+        label: "گردش مالی",
         icon: "coins",
         items: [
-          { id: "invoices", label: "فاکتورها", icon: "invoice", page: "invoices" },
-          { id: "payments", label: "پرداخت‌ها", icon: "creditCard", page: "payments" },
-          { id: "expenses", label: "هزینه‌های عمومی", icon: "coins", page: "expenses" },
+          { id: "revenues", label: "درآمدها", icon: "trending", page: "revenues" },
+          { id: "unsettled", label: "تسویه‌نشده", icon: "wallet", page: "unsettled" },
         ],
       },
     ],

@@ -56,6 +56,10 @@ import { QcCalendar } from "@/components/modules/qc/qc-calendar";
 // Finance pages
 import { FinanceDashboard } from "@/components/modules/finance/finance-dashboard";
 import { FinanceCosts } from "@/components/modules/finance/finance-costs";
+import { FinanceRevenues } from "@/components/modules/finance/finance-revenues";
+import { FinanceUnsettled } from "@/components/modules/finance/finance-unsettled";
+import { FinanceOrders } from "@/components/modules/finance/finance-orders";
+import { LogisticsOrders } from "@/components/modules/warehouse/logistics-orders";
 
 // SRM pages
 import { SRMDashboard } from "@/components/modules/srm/srm-dashboard";
@@ -147,6 +151,16 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
     switch (page) {
       case "dashboard": return FinanceDashboard;
       case "costs": return FinanceCosts;
+      case "revenues": return FinanceRevenues;
+      case "unsettled": return FinanceUnsettled;
+      case "orders": return FinanceOrders;
+      default: return null;
+    }
+  }
+  if (moduleKey === "warehouse") {
+    switch (page) {
+      // Phase 15: پنل لجستیک — تحویل + دریافت نقدی + هزینه
+      case "orders": return LogisticsOrders;
       default: return null;
     }
   }
