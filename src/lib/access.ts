@@ -86,6 +86,11 @@ export function isManager(user: { role: string; modules: string[] }): boolean {
   return user.role === "master" || user.modules.includes("admin");
 }
 
+/** کارمند مالی (فاز ۱۵) — هزینه‌ها/درآمدها/تأیید و اسناد را می‌بیند. */
+export function isFinanceStaff(user: { role: string; modules: string[] }): boolean {
+  return user.role === "master" || user.modules.includes("finance");
+}
+
 /** دسترسی به یک ماژول مشخص؟ (master ضمناً همه). */
 export function hasModule(
   user: { role: string; modules: string[] },
@@ -225,6 +230,12 @@ export function orderScopeWhere(user: {
   modules: string[];
 }): Prisma.OrderWhereInput | null {
   if (isManager(user)) return null; // مدیر داخلی: همه (از پنل ادمین)
+  // فاز ۱۵: مالی همهٔ سفارش‌ها را می‌بیند (تاریخچه مالی/فاکتور)؛
+  // انبار-لجستیک سفارش‌های در جریان/تحویل را (دریافت نقدی در محل).
+  if (user.modules.includes("finance")) return null;
+  if (user.modules.includes("warehouse")) {
+    return { status: { in: ["in_printing", "warehouse_logistics", "completed"] } };
+  }
 
   const or: Prisma.OrderWhereInput[] = [
     { items: { some: { designCompletedBy: user.id } } },
@@ -255,6 +266,9 @@ export function canUserViewOrder(
   }
 ): boolean {
   if (isManager(user)) return true;
+  // فاز ۱۵: مالی/انبار-لجستیک به‌صورت سازمانی همهٔ سفارش‌ها را می‌بینند
+  if (user.modules.includes("finance")) return true;
+  if (user.modules.includes("warehouse")) return true;
   // مالکیت تاریخی
   if (order.items.some((i) => i.designCompletedBy === user.id || i.printCompletedBy === user.id)) return true;
   // برد طراحی: آیتم فعلیِ طراحیِ من / استخر عمومی

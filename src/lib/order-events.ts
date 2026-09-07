@@ -17,7 +17,12 @@ type OrderEventType =
   | "qc_returned"
   | "status_changed"
   | "reassigned"
-  | "cost_registered";
+  | "cost_registered"
+  // ─── Phase 15: مالی ──
+  | "cost_invoiced" // هزینه در فاکتور نشست — برای ادمین داخلی «غیرحساس» است (خواستهٔ صریح)
+  | "cost_approved"
+  | "cost_rejected"
+  | "payment_recorded"; // درآمد ثبت شد — حساس (ادمین داخلی نمی‌بیند)
 
 export type LogOrderEventInput = {
   orderId: string;

@@ -68,6 +68,77 @@ export async function mirrorInvoicePaid(tx: Tx, orderId: string): Promise<void> 
   }
 }
 
+// ─── Phase 15: تغییر متمرکز مبلغ پرداخت‌شده + دفتر درآمد ──────────
+// applyPaidAmountChange — تنها نقطهٔ تغییرِ order.paidAmount:
+//   ۱) diff هوشمند = newPaid − current (ادیت ۱۰۰۰→۶۰۰۰ → درآمد جدید ۵۰۰۰)
+//   ۲) order.paidAmount = newPaid
+//   ۳) RevenueLog با (amount=diff, totalAfter, module, کارمند, زمان)
+//   ۴) redistributePiPaid + mirrorInvoicePaid → سند‌ها همیشه هم‌عدد
+// فراخوانی از: PUT/POST/DELETE پیش‌فاکتور، PUT/POST/صدور فاکتور،
+// ثبت درآمد مالی، دریافت نقدی لجستیک.
+export type PaidChangeActor = {
+  userId: string | null;
+  userName: string | null;
+  /** ماژولی که عدد را زد — برای لاگ درآمد */
+  module: "finance" | "admin" | "logistics" | "other";
+  method?: string | null;
+  note?: string | null;
+};
+
+export async function applyPaidAmountChange(
+  tx: Tx,
+  args: {
+    orderId: string;
+    newPaid: number;
+    actor: PaidChangeActor;
+    /** skipLog: تغییرات بازسازی (recompute) لاگ نمی‌شوند */
+    skipLog?: boolean;
+  }
+): Promise<{ diff: number; totalAfter: number }> {
+  const clamped = Math.max(0, Math.round(args.newPaid * 100) / 100);
+  const order = await tx.order.findUnique({
+    where: { id: args.orderId },
+    select: { paidAmount: true },
+  });
+  const current = order?.paidAmount ?? 0;
+  const diff = Math.round((clamped - current) * 100) / 100;
+
+  await tx.order.update({ where: { id: args.orderId }, data: { paidAmount: clamped } });
+  await redistributePiPaid(tx, args.orderId, clamped);
+  await mirrorInvoicePaid(tx, args.orderId);
+
+  // دفتر درآمد — فقط تغییر واقعیِ اعمال‌شده توسط کاربر لاگ می‌شود
+  if (!args.skipLog && Math.abs(diff) > 0.001) {
+    try {
+      await tx.revenueLog.create({
+        data: {
+          orderId: args.orderId,
+          amount: diff,
+          totalAfter: clamped,
+          module: args.actor.module,
+          method: args.actor.method ?? null,
+          note: args.actor.note ?? null,
+          createdById: args.actor.userId,
+          createdByName: args.actor.userName,
+        },
+      });
+    } catch (e) {
+      console.error("[revenue-log] failed:", e);
+    }
+  }
+  return { diff, totalAfter: clamped };
+}
+
+/** ماژولِ ثبت‌کنندهٔ درآمد از روی ماژول‌های کاربر استنباط می‌شود. */
+export function inferRevenueModule(
+  user: { role: string; modules: string[] }
+): "finance" | "admin" | "logistics" | "other" {
+  if (user.role === "master" || user.modules.includes("admin")) return "admin";
+  if (user.modules.includes("finance")) return "finance";
+  if (user.modules.includes("warehouse")) return "logistics";
+  return "other";
+}
+
 /**
  * حالت «پیش از فاکتور»: کل دریافتی = Σ paid همهٔ پیش‌فاکتورهای سفارش
  * (شامل converted — پولی که واقعاً دریافت شده است). برای ابطال/حذف فاکتور.
