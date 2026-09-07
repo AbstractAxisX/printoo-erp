@@ -51,6 +51,9 @@ model User {
   leavesGranted         UserLeave[] @relation("LeaveCreator")
   // Phase 14: رویدادهای سفارش که این کاربر انجام داده (تاریخچه)
   orderEvents           OrderEvent[] @relation("OrderEventActor")
+  // ─── Phase 15: مالی ──
+  createdCosts          MaterialCost[] @relation("CostCreator")
+  revenueLogs           RevenueLog[]  @relation("RevenueCreator")
 }
 
 // ─── Phase 13: مرخصی (leave) ────────────────────────────────────
@@ -224,8 +227,38 @@ model Order {
   tasks         Task[]
   qcReports     QcReport[]
   materialCosts MaterialCost[]
+  // Phase 15: دفتر درآمد — هر تغییر «پرداخت‌شدهٔ» سفارش با تفاضل هوشمند
+  revenueLogs   RevenueLog[]
   // Phase 14: رویدادهای گردش کار (تاریخچهٔ واقعی سفارش)
   events        OrderEvent[]
+}
+
+// ─── Phase 15: دفتر درآمد (RevenueLog) ────────────────────────
+// «درآمد» = هر عددی که به‌عنوان پرداخت‌شدهٔ مشتری ثبت شود.
+// سناریوی ادیت هوشمند: مشتری ۱۰۰۰ داد؛ فردا ۵۰۰۰ دیگر داد و ادمید به‌جای
+// ثبت جدا، عدد کل را ۶۰۰۰ کرد → سیستم خودش diff=۵۰۰۰ را به‌عنوان
+// «درآمد جدید در این ساعت/تاریخ، توسط این کارمند، از این ماژول» لاگ می‌کند.
+//   amount      = تفاضلِ هوشمند (+درآمد جدید / -اصلاح کاهشی)
+//   totalAfter  = snapshot کل پرداخت‌شدهٔ سفارش بعد از این تغییر
+//   module      = finance | admin | logistics — کدام ماژول عدد را زد
+//   createdByName = snapshot نام کارمند
+model RevenueLog {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount        Float    // signed diff: +revenue / -reversal
+  totalAfter    Float    @default(0) // order.paidAmount پس از این تغییر
+  module        String   @default("finance") // finance | admin | logistics
+  method        String?  // cash | transfer | cheque
+  note          String?
+  createdById   String?
+  createdByUser User?    @relation("RevenueCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByName String?  // snapshot
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([orderId])
+  @@index([module])
 }
 
 // ─── Phase 14: رویدادهای سفارش (audit واقعی گردش کار) ─────────
@@ -240,8 +273,8 @@ model OrderEvent {
   id          String   @id @default(cuid())
   orderId     String
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  type        String   // created | design_completed | sent_to_print | material_confirmed | print_completed | sent_to_warehouse | qc_reported | qc_reviewed | qc_returned | status_changed | reassigned | cost_registered
-  stage       String?  // design | print | warehouse | qc — مرحلهٔ مربوط به رویداد
+  type        String   // created | design_completed | sent_to_print | material_confirmed | print_completed | sent_to_warehouse | qc_reported | qc_reviewed | qc_returned | status_changed | reassigned | cost_registered | cost_invoiced | cost_approved | cost_rejected | payment_recorded
+  stage       String?  // design | print | warehouse | qc | finance — مرحلهٔ مربوط به رویداد
   actorId     String?
   actor       User?    @relation("OrderEventActor", fields: [actorId], references: [id], onDelete: SetNull)
   actorName   String?  // اسنپ‌شات نام عامل
@@ -281,24 +314,44 @@ model ExpenseType {
 }
 
 // ─── Material / Print Costs ────────────────────────────────────
+// ─── Phase 15: هزینهٔ جامع (روی سفارش + آزاد) ───────────────────
+// دو نوع هزینه:
+//   ۱) هزینه روی سفارش (orderId مقدار دارد): چاپ/متریال/انبار/لجستیک/مالی
+//      ثبت می‌کنند؛ مالی تأیید می‌کند (pending → approved/rejected).
+//      includeInInvoice=true → هزینه مثل یک آیتم در فاکتور/پیش‌فاکتور
+//      می‌نشیند و به مبلغ سفارش اضافه می‌شود (خواستهٔ صریح کاربر).
+//   ۲) هزینهٔ آزاد (orderId=null): هزینهٔ اداری/جاری (کرایه، حقوق، …).
+//      دستهٔ آن expenseTypeId است (حقوق هاردکد-default). فقط مالی ثبت
+//      می‌کند → وضعیت مستقیم approved می‌گیرد (نیاز به تأیید ندارد).
+// createdById + createdByName: «کی، کدام ماژول، چه زمانی» — هستهٔ لاگ مالی.
 model MaterialCost {
   id           String       @id @default(cuid())
-  orderId      String
-  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId      String?      // null = هزینهٔ آزاد (بدون سفارش)
+  order        Order?       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   supplierId   String?
   supplier     Supplier?    @relation(fields: [supplierId], references: [id])
   expenseTypeId String?
   expenseType  ExpenseType? @relation(fields: [expenseTypeId], references: [id])
+  title        String?      // نام هزینه (مثل نام آیتم)
   description  String?
   amount       Float
   fileUrl1     String?
   fileUrl2     String?
   status       String       @default("pending") // pending | approved | rejected
-  module       String       @default("print") // print | material | warehouse
-  createdBy    String?
+  module       String       @default("print") // print | material | warehouse | finance | logistics
+  includeInInvoice Boolean  @default(false) // هزینه در فاکتور/پیش‌فاکتور سفارش بنشیند
+  preInvoiceId String?      // سند هدفِ تزریق هزینه (چند-سندی: کدام پیش‌فاکتور)
+  createdBy    String?      // legacy: snapshot آی‌دی
+  createdById  String?
+  createdByUser User?       @relation("CostCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByName String?     // snapshot نام کارمند (حذف کاربر متن را نمی‌کشد)
   createdAt    DateTime     @default(now())
   // Phase 14: پیوست‌های واقعی (آپلود فایل) — به‌جای دو باکس لینک
   attachments  CostAttachment[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([orderId])
 }
 
 // ─── Phase 14: پیوست هزینه (فایل آپلودشده) ─────────────────────
