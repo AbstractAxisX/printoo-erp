@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "printoo24_session";
-const PUBLIC_API = ["/api/auth/login"];
+const PUBLIC_API = ["/api/auth/login", "/api/public"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -28,7 +28,8 @@ export function proxy(req: NextRequest) {
   // Public API endpoints (login). /api/auth/me and /api/auth/logout are
   // intentionally NOT public — me returns null when unauthenticated (safe),
   // logout is a no-op without a session.
-  if (PUBLIC_API.some((p) => pathname === p)) {
+  // Phase 16: /api/public/* (صفحهٔ عمومی بسته — QR روی بج، بدون لاگین)
+  if (PUBLIC_API.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();
   }
 

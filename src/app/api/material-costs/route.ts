@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
       supplier: true,
       expenseType: true,
       attachments: true,
+      material: { select: { id: true, name: true, unit: true } },
       createdByUser: { select: { id: true, name: true } },
       order: { include: { customer: true } },
     },
@@ -106,6 +107,8 @@ export async function POST(req: NextRequest) {
       includeInInvoice,
       preInvoiceId,
       attachments,
+      materialId,
+      materialQty,
     } = body;
 
     const numAmount = Number(amount);
@@ -166,6 +169,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Phase 16: پیوند هزینه به مادهٔ اولیه (ورود به انبار با تأیید)
+    let linkedMaterial: { id: string; name: string; unit: string } | null = null;
+    if (materialId) {
+      const mat = typeof materialId === "string"
+        ? await db.material.findUnique({ where: { id: materialId }, select: { id: true, name: true, unit: true, isActive: true } })
+        : null;
+      if (!mat || !mat.isActive) {
+        return NextResponse.json({ error: "مادهٔ اولیهٔ انتخابی یافت نشد یا غیرفعال است" }, { status: 400 });
+      }
+      const qty = Number(materialQty);
+      if (!Number.isFinite(qty) || qty <= 0 || qty > 1_000_000_000) {
+        return NextResponse.json({ error: "مقدار ورود به انبار باید عددی مثبت باشد" }, { status: 400 });
+      }
+      linkedMaterial = { id: mat.id, name: mat.name, unit: mat.unit };
+    }
+
     // ── پیوست‌ها ──
     const drafts: AttachmentDraft[] = Array.isArray(attachments) ? attachments : [];
     if (drafts.length > 6) {
@@ -187,6 +206,11 @@ export async function POST(req: NextRequest) {
     const status = finance && (isFree || mod === "finance" || includeInInvoice) ? "approved" : "pending";
     const actorName = await actorNameOf(user.id);
 
+    const matStock =
+      linkedMaterial && Number(materialQty) > 0
+        ? { id: linkedMaterial.id, qty: Number(materialQty) }
+        : null;
+
     const cost = await db.$transaction(async (tx) => {
       // ── هزینهٔ فاکتوری: تزریق به سند(ها) + مبلغ کل سفارش ──
       if (includeInInvoice && order) {
@@ -202,7 +226,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return await tx.materialCost.create({
+      const created = await tx.materialCost.create({
         data: {
           orderId: isFree ? null : orderId,
           supplierId: supplierId || null,
@@ -216,6 +240,8 @@ export async function POST(req: NextRequest) {
           module: mod,
           includeInInvoice: !!includeInInvoice,
           preInvoiceId: includeInInvoice ? (typeof preInvoiceId === "string" ? preInvoiceId : null) : null,
+          materialId: linkedMaterial?.id ?? null,
+          materialQty: linkedMaterial ? Number(materialQty) : null,
           createdBy: user.id,
           createdById: user.id,
           createdByName: actorName ?? user.name,
@@ -234,6 +260,26 @@ export async function POST(req: NextRequest) {
         },
         include: { attachments: true, expenseType: true, supplier: true },
       });
+
+      // Phase 16: هزینهٔ هم‌اکنون تأییدشده با مادهٔ وصل → ورود فوری به انبار
+      if (matStock && status === "approved") {
+        await tx.materialStockMove.create({
+          data: {
+            materialId: matStock.id,
+            delta: matStock.qty,
+            reason: `خرید — ${costTitle || "هزینهٔ متریال"}`,
+            costId: created.id,
+            createdById: user.id,
+            createdByName: actorName ?? user.name,
+          },
+        });
+        await tx.material.update({
+          where: { id: matStock.id },
+          data: { quantity: { increment: matStock.qty } },
+        });
+      }
+
+      return created;
     });
 
     // ── رویدادهای تاریخچه ──

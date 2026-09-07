@@ -19,7 +19,7 @@ import { db } from "@/lib/db";
 // هر دو لایه idempotent هستند و در sandbox (شمارندهٔ سالم) هیچ رفتار
 // جدیدی ندارند — فقط در دیتابیس‌های ناهمگام خودشان را نشان می‌دهند.
 
-export type CounterModel = "order" | "preInvoice" | "invoice";
+export type CounterModel = "order" | "preInvoice" | "invoice" | "package";
 
 /** آیا شمارهٔ n قبلاً روی یک سند واقعی ثبت شده؟ */
 async function isNumberTaken(
@@ -32,6 +32,9 @@ async function isNumberTaken(
   }
   if (model === "preInvoice") {
     return !!(await tx.preInvoice.findFirst({ where: { number: n }, select: { id: true } }));
+  }
+  if (model === "package") {
+    return !!(await tx.package.findFirst({ where: { seq: n }, select: { id: true } }));
   }
   return !!(await tx.invoice.findFirst({ where: { number: n }, select: { id: true } }));
 }
@@ -74,15 +77,17 @@ export async function ensureCounters(): Promise<void> {
   if (countersEnsured) return;
   countersEnsured = true;
   try {
-    const [maxOrder, maxPre, maxInv] = await Promise.all([
+    const [maxOrder, maxPre, maxInv, maxPkg] = await Promise.all([
       db.order.aggregate({ _max: { number: true } }),
       db.preInvoice.aggregate({ _max: { number: true } }),
       db.invoice.aggregate({ _max: { number: true } }),
+      db.package.aggregate({ _max: { seq: true } }),
     ]);
     const targets: [CounterModel, number][] = [
       ["order", maxOrder._max.number ?? 0],
       ["preInvoice", maxPre._max.number ?? 0],
       ["invoice", maxInv._max.number ?? 0],
+      ["package", maxPkg._max.seq ?? 0],
     ];
     for (const [id, max] of targets) {
       const row = await db.counter.findUnique({ where: { id } });

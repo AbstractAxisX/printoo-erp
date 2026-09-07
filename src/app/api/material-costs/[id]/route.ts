@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const existing = await db.materialCost.findUnique({
       where: { id },
-      select: { id: true, status: true, orderId: true, title: true, description: true, amount: true, module: true },
+      select: { id: true, status: true, orderId: true, title: true, description: true, amount: true, module: true, materialId: true, materialQty: true },
     });
     if (!existing) return NextResponse.json({ error: "هزینه یافت نشد" }, { status: 404 });
 
@@ -69,6 +69,43 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const cost = await db.materialCost.update({ where: { id }, data: { status } });
+
+    // Phase 16: تأیید هزینهٔ خرید ماده → ورود خودکار به انبار (یک‌بار)
+    let stockIn: { material: string; quantity: number; unit: string } | null = null;
+    if (
+      existing.status !== "approved" &&
+      status === "approved" &&
+      existing.materialId &&
+      (existing.materialQty ?? 0) > 0
+    ) {
+      const already = await db.materialStockMove.findFirst({
+        where: { costId: id },
+        select: { id: true },
+      });
+      if (!already) {
+        const mat = await db.material.findUnique({ where: { id: existing.materialId } });
+        if (mat) {
+          const qty = existing.materialQty ?? 0;
+          await db.$transaction(async (tx) => {
+            await tx.materialStockMove.create({
+              data: {
+                materialId: mat.id,
+                delta: qty,
+                reason: `خرید — ${existing.title || "هزینهٔ متریال"}`,
+                costId: id,
+                createdById: user.id,
+                createdByName: user.name,
+              },
+            });
+            await tx.material.update({
+              where: { id: mat.id },
+              data: { quantity: { increment: qty } },
+            });
+          });
+          stockIn = { material: mat.name, quantity: qty, unit: mat.unit };
+        }
+      }
+    }
 
     // رویداد تأیید/رد — حساس (فقط مالی/مستر)
     if (existing.status !== status && existing.orderId) {
@@ -85,7 +122,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       });
     }
 
-    return NextResponse.json({ cost });
+    return NextResponse.json({
+      cost,
+      ...(stockIn
+        ? {
+            stockIn,
+            message: `هزینه تأیید شد — ${stockIn.quantity.toLocaleString("fa-IR")} ${stockIn.unit} «${stockIn.material}» به انبار اضافه شد`,
+          }
+        : {}),
+    });
   } catch (e) {
     return NextResponse.json({ error: "خطا" }, { status: 500 });
   }

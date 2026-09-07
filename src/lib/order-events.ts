@@ -22,7 +22,12 @@ type OrderEventType =
   | "cost_invoiced" // هزینه در فاکتور نشست — برای ادمین داخلی «غیرحساس» است (خواستهٔ صریح)
   | "cost_approved"
   | "cost_rejected"
-  | "payment_recorded"; // درآمد ثبت شد — حساس (ادمین داخلی نمی‌بیند)
+  | "payment_recorded" // درآمد ثبت شد — حساس (ادمین داخلی نمی‌بیند)
+  // ─── Phase 16: انبار/لجستیک ──
+  | "package_packed"
+  | "package_sent"
+  | "package_delivered"
+  | "package_cancelled";
 
 export type LogOrderEventInput = {
   orderId: string;
