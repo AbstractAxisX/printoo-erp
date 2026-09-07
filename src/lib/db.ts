@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client'
 // so we change the key to force creation of a new client.
 // IMPORTANT: After schema changes, always run `bun run db:generate` 
 // to regenerate the Prisma Client, then restart the dev server.
-const PRISMA_CACHE_KEY = 'prisma_v3'
+const PRISMA_CACHE_KEY = 'prisma_v4' // Phase 16: payroll + packages + materials
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: PrismaClient | undefined

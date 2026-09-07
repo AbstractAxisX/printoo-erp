@@ -54,6 +54,14 @@ model User {
   // ─── Phase 15: مالی ──
   createdCosts          MaterialCost[] @relation("CostCreator")
   revenueLogs           RevenueLog[]  @relation("RevenueCreator")
+  // ─── Phase 16: حقوق و دستمزد ──
+  baseSalary            Float?      // قرارداد حقوق پایه ماهانه (دینار)
+  payrollEntries        PayrollEntry[]
+  payrollAdvances       PayrollAdvance[] @relation("AdvanceReceiver")
+  payrollAdvancesGiven  PayrollAdvance[] @relation("AdvanceCreator")
+  paidPayrollPeriods    PayrollPeriod[] @relation("PayrollPeriodPayer")
+  // ─── Phase 16: انبار/لجستیک ──
+  packagesCreated       Package[]   @relation("PackageCreator")
 }
 
 // ─── Phase 13: مرخصی (leave) ────────────────────────────────────
@@ -106,6 +114,7 @@ model Customer {
   id          String       @id @default(cuid())
   name        String
   phone       String
+  address     String?      // Phase 16: آدرس مشتری (پیش‌فرض ارسال)
   isFavorite  Boolean      @default(false)
   balanceDue  Float        @default(0)
   note        String?
@@ -206,6 +215,7 @@ model Order {
   noEndDate   Boolean      @default(false)
   totalAmount Float        @default(0)
   paidAmount  Float        @default(0)
+  address     String?      // Phase 16: آدرس تحویل سفارش (پیش‌فرض: آدرس مشتری)
   note        String?
   designerNote String? // note from designer, visible to all modules
   createdBy   String?
@@ -231,6 +241,8 @@ model Order {
   revenueLogs   RevenueLog[]
   // Phase 14: رویدادهای گردش کار (تاریخچهٔ واقعی سفارش)
   events        OrderEvent[]
+  // Phase 16: اقلام این سفارش که در بسته‌ها قرار گرفته‌اند
+  packageItems  PackageItem[]
 }
 
 // ─── Phase 15: دفتر درآمد (RevenueLog) ────────────────────────
@@ -345,6 +357,15 @@ model MaterialCost {
   createdById  String?
   createdByUser User?       @relation("CostCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdByName String?     // snapshot نام کارمند (حذف کاربر متن را نمی‌کشد)
+  // Phase 16: هزینهٔ خرید مادهٔ اولیهٔ خاص → با تأیید مالی، موجودی انبار زیاد می‌شود
+  materialId   String?
+  material     Material?   @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  materialQty  Float?      // تعداد/مقدار ورود به انبار (واحد ماده)
+  // ─── Phase 16: حقوق و دستمزد — سند هزینهٔ ناشی از پرداخت حقوق/مساعده ──
+  payrollEntry  PayrollEntry?  @relation("EntryCost")
+  payrollAdvance PayrollAdvance? @relation("AdvanceCost")
+  // Phase 16: گردش انبار ناشی از تأیید این هزینهٔ خرید ماده
+  stockMoves   MaterialStockMove[]
   createdAt    DateTime     @default(now())
   // Phase 14: پیوست‌های واقعی (آپلود فایل) — به‌جای دو باکس لینک
   attachments  CostAttachment[]
@@ -404,6 +425,8 @@ model OrderItem {
   printAssigneeUser  User? @relation("ItemPrintAssignee", fields: [printAssigneeId], references: [id], onDelete: SetNull)
   // Phase 10: پیش‌فاکتورهای به‌ازای همین آیتم (SetNull → حذف آیتم، سند را نمی‌کشد)
   preInvoices    PreInvoice[]
+  // Phase 16: اقلام این آیتم در بسته‌های ارسال
+  packageItems   PackageItem[]
   createdAt      DateTime @default(now())
 }
 
@@ -607,4 +630,166 @@ model DayNote {
   color     String   @default("default")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ═════════════════════════════════════════════════════════════════
+// PHASE 16 — حقوق و دستمزد (Payroll)
+// ═════════════════════════════════════════════════════════════════
+// چرخهٔ کامل: دورهٔ ماهانه (گریگوری "2026-09") → ورودی هر کارمند
+// (پایه + اضافه‌کاری + پاداش − کمکرد − بیمه − مالیات − کسر مساعده
+// = خالص) → «پرداخت» → ثبت خودکار MaterialCost با دستهٔ «حقوق»
+// (هزینهٔ سیستم) + نوتیف به کارمند. مساعده: هزینهٔ فوری؛ در دورهٔ
+// بعد به‌صورت FIFO (قدیمی‌ترین‌ها) کسر می‌شود — بدون شمارش دوباره.
+
+model PayrollPeriod {
+  id        String   @id @default(cuid())
+  key       String   @unique // "2026-09" (گریگوری)
+  startDate String   // yyyy-MM-dd لوکال (اول ماه)
+  endDate   String   // yyyy-MM-dd لوکال (آخر ماه)
+  status    String   @default("open") // open | paid | closed
+  note      String?
+  // اسنپ‌شات لحظهٔ پرداخت (تاریخچه حتی اگر ورودی‌ها بعداً تغییر کند)
+  totalNet  Float    @default(0)
+  entriesCount Int  @default(0)
+  paidAt    DateTime?
+  paidById  String?
+  paidByUser User?  @relation("PayrollPeriodPayer", fields: [paidById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  entries   PayrollEntry[]
+  advancesDeducted PayrollAdvance[]
+
+  @@index([status])
+}
+
+model PayrollEntry {
+  id             String   @id @default(cuid())
+  periodId       String
+  period         PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  baseSalary     Float    @default(0) // حقوق پایه (اسنپ‌شات از قرارداد)
+  overtimeHours  Float    @default(0) // ساعت اضافه‌کاری
+  overtimeRate   Float    @default(0) // نرخ هر ساعت
+  bonus          Float    @default(0) // پاداش / کارکرد
+  deduction      Float    @default(0) // کمکرد / جریمه
+  insurance      Float    @default(0) // بیمهٔ سهم کارمند
+  tax            Float    @default(0) // مالیات
+  advanceDeducted Float  @default(0) // مساعده‌های کسرشدهٔ این دوره
+  netPay         Float    @default(0) // خالص پرداختی (محاسبه‌شده)
+  modulesSnapshot String? // "designer,print" — ماژول‌های کارمند در زمان پرداخت
+  note           String?
+  status         String   @default("draft") // draft | paid
+  paidAt         DateTime?
+  costId         String?  @unique // سند هزینهٔ ثبت‌شده (MaterialCost)
+  cost           MaterialCost? @relation("EntryCost", fields: [costId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([periodId, userId])
+  @@index([userId])
+}
+
+model PayrollAdvance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("AdvanceReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  amount    Float
+  note      String?
+  // هزینهٔ فوریِ مساعده (وقتی پول از شرکت خارج شد)
+  costId    String?  @unique
+  cost      MaterialCost? @relation("AdvanceCost", fields: [costId], references: [id], onDelete: SetNull)
+  // کسر در دورهٔ حقوق:
+  deductedPeriodId String?
+  deductedPeriod   PayrollPeriod? @relation(fields: [deductedPeriodId], references: [id], onDelete: SetNull)
+  deductedAt DateTime?
+  createdById String?
+  createdByUser User? @relation("AdvanceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByName String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([deductedPeriodId])
+}
+
+// ═════════════════════════════════════════════════════════════════
+// PHASE 16 — انبار و لجستیک: بسته‌بندی + بج QR + ارسال + تحویل
+// ═════════════════════════════════════════════════════════════════
+// نقش ماژول: دریافت کالا از چاپ → بسته‌بندی (ساخت بسته از اقلام
+// سفارش‌ها — یک بسته می‌تواند چند سفارشِ یک مشتری را داشته باشد) →
+// بج QR (صفحهٔ عمومی /?pkg=CODE) → ارسال (پیک/پست + شماره پیگیری) →
+// تحویل (+ پول در محل → درآمد). تحویل کامل = تکمیل سفارش.
+
+model Package {
+  id            String   @id @default(cuid())
+  code          String   @unique // "PKG-7K2M9X" — توکن QR (غیرقابل حدس)
+  seq           Int      // شمارهٔ نمایشی #1, #2 …
+  address       String   // آدرس تحویل بسته
+  receiverName  String?  // نام گیرنده (اگر غیر از مشتری)
+  receiverPhone String?
+  contentsNote  String?  // شرح کلی محتویات (روی بج)
+  courier       String?  // پیک / پست / تیپاکس…
+  trackingNo    String?  // شمارهٔ پیگیری
+  status        String   @default("packing") // packing | ready | sent | delivered | cancelled
+  codAmount     Float    @default(0)  // پول در محل
+  codCollected  Boolean  @default(false)
+  note          String?
+  packedAt      DateTime @default(now())
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  createdById   String?
+  createdByUser User?    @relation("PackageCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByName String?
+  items         PackageItem[]
+
+  @@index([status])
+  @@index([seq])
+}
+
+model PackageItem {
+  id           String   @id @default(cuid())
+  packageId    String
+  package      Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  orderId      String
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId  String?  // null = برای سفارش‌های بدون آیتم ساختاری
+  orderItem    OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  quantity     Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  @@unique([packageId, orderItemId])
+  @@index([orderId])
+}
+
+// ─── Phase 16: موجودی مواد اولیهٔ انبار ──────────────────────
+// گردش انبار: خرید ماده (هزینهٔ متریال تأییدشده → +qty) / مصرف
+// (خروج دستی). «کم‌موجود» = quantity < minQuantity → هشدار داشبورد.
+model Material {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  unit        String   @default("عدد") // عدد | ورق | کیلوگرم | لیتر | متر…
+  quantity    Float    @default(0)
+  minQuantity Float    @default(0)
+  note        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  moves       MaterialStockMove[]
+  costs       MaterialCost[]
+
+  @@index([isActive])
+}
+
+model MaterialStockMove {
+  id            String   @id @default(cuid())
+  materialId    String
+  material      Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  delta         Float    // + ورود / − خروج
+  reason        String?  // خرید / مصرف چاپ / ضایعات / اصلاح…
+  costId        String?  // اگر از تأیید هزینهٔ خرید آمده
+  cost          MaterialCost? @relation(fields: [costId], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+
+  @@index([materialId, createdAt])
 }

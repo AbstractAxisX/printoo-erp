@@ -59,7 +59,13 @@ import { FinanceCosts } from "@/components/modules/finance/finance-costs";
 import { FinanceRevenues } from "@/components/modules/finance/finance-revenues";
 import { FinanceUnsettled } from "@/components/modules/finance/finance-unsettled";
 import { FinanceOrders } from "@/components/modules/finance/finance-orders";
+import { PayrollPage } from "@/components/modules/finance/payroll-page";
+import { PayrollAnalyticsPage } from "@/components/modules/finance/payroll-analytics-page";
 import { LogisticsOrders } from "@/components/modules/warehouse/logistics-orders";
+import { WarehouseDashboard } from "@/components/modules/warehouse/warehouse-dashboard";
+import { PackagesPage } from "@/components/modules/warehouse/packages-page";
+import { InventoryPage } from "@/components/modules/warehouse/inventory-page";
+import { PayrollSimplePage } from "@/components/modules/sysadmin/payroll-simple-page";
 
 // SRM pages
 import { SRMDashboard } from "@/components/modules/srm/srm-dashboard";
@@ -101,6 +107,8 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "settings": return SysadminSettingsPage;
       // صفحهٔ اختصاصی کاربر (دابل‌کلیک از مانیتورینگ کاربران) — param = userId
       case "user": return UserMonitoringPage;
+      // Phase 16: حقوق کارمندان — ساده
+      case "payroll": return PayrollSimplePage;
       default: return null;
     }
   }
@@ -154,6 +162,9 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "revenues": return FinanceRevenues;
       case "unsettled": return FinanceUnsettled;
       case "orders": return FinanceOrders;
+      // Phase 16: حقوق و دستمزد + تحلیل
+      case "payroll": return PayrollPage;
+      case "payroll-analytics": return PayrollAnalyticsPage;
       default: return null;
     }
   }
@@ -161,6 +172,10 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
     switch (page) {
       // Phase 15: پنل لجستیک — تحویل + دریافت نقدی + هزینه
       case "orders": return LogisticsOrders;
+      // Phase 16: داشبورد + بسته‌بندی/بج + موجودی
+      case "dashboard": return WarehouseDashboard;
+      case "packages": return PackagesPage;
+      case "inventory": return InventoryPage;
       default: return null;
     }
   }

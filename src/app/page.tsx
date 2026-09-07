@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { LoginForm } from "@/components/auth/login-form";
 import { AppShell } from "@/components/app-shell";
 import { LoadingState } from "@/components/shared";
+import { PublicPackageView } from "@/components/modules/warehouse/public-package-view";
 
 type MeUser = {
   id: string;
@@ -19,6 +20,14 @@ export default function Home() {
   const user = useAppStore((s) => s.user);
   const setUser = useAppStore((s) => s.setUser);
   const [checking, setChecking] = React.useState(true);
+  // Phase 16: صفحهٔ عمومی بسته — ?pkg=CODE (بدون لاگین؛ QR روی بج)
+  const [pkgCode, setPkgCode] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+    const pkg = url.searchParams.get("pkg");
+    if (pkg) setPkgCode(pkg.trim().toUpperCase());
+  }, []);
 
   // Check existing session on mount
   // Phase 12: me هر ۶۰ ثانیه هم دوباره صدا زده می‌شود تا اگر مدیر دسترسی‌های
@@ -48,6 +57,11 @@ export default function Home() {
       clearInterval(id);
     };
   }, [setUser]);
+
+  // صفحهٔ عمومی بسته (QR) — حتی قبل از چک نشست؛ خروج با حذف ?pkg
+  if (pkgCode) {
+    return <PublicPackageView code={pkgCode} />;
+  }
 
   if (checking) {
     return (

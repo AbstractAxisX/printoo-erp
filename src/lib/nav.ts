@@ -140,10 +140,10 @@ export const NAV: ModuleNav[] = [
         label: "انبار",
         icon: "boxes",
         items: [
-          // Phase 15: پنل لجستیک — تحویل سفارش + دریافت نقدی در محل + هزینه تحویل
-          { id: "orders", label: "سفارشات تحویل", icon: "truck", page: "orders" },
-          { id: "inventory", label: "موجودی انبار", icon: "boxes", page: "inventory" },
-          { id: "materials", label: "مواد اولیه", icon: "layers", page: "materials" },
+          // Phase 16: چرخهٔ کامل — دریافت از چاپ → بسته‌بندی/بج QR → ارسال/تحویل
+          { id: "orders", label: "دریافت و تحویل", icon: "truck", page: "orders" },
+          { id: "packages", label: "بسته‌بندی و ارسال", icon: "package", page: "packages" },
+          { id: "inventory", label: "موجودی و مواد", icon: "boxes", page: "inventory" },
         ],
       },
     ],
@@ -176,6 +176,16 @@ export const NAV: ModuleNav[] = [
         items: [
           { id: "revenues", label: "درآمدها", icon: "trending", page: "revenues" },
           { id: "unsettled", label: "تسویه‌نشده", icon: "wallet", page: "unsettled" },
+        ],
+      },
+      // Phase 16: حقوق و دستمزد — سکشن اختصاصی با صفحات خودش
+      {
+        id: "payroll",
+        label: "حقوق و دستمزد",
+        icon: "wallet",
+        items: [
+          { id: "payroll", label: "حقوق و دستمزد", icon: "wallet", page: "payroll" },
+          { id: "payroll-analytics", label: "تحلیل حقوق", icon: "chartColumn", page: "payroll-analytics" },
         ],
       },
     ],
@@ -289,6 +299,15 @@ export const NAV: ModuleNav[] = [
         icon: "gear",
         items: [
           { id: "settings", label: "تنظیمات سیستم", icon: "settings", page: "settings" },
+        ],
+      },
+      // Phase 16: حقوق کارمندان — ساده (بدون پیچیدگی مالی/تحلیل)
+      {
+        id: "payroll",
+        label: "حقوق و دستمزد",
+        icon: "wallet",
+        items: [
+          { id: "payroll", label: "حقوق کارمندان", icon: "wallet", page: "payroll" },
         ],
       },
     ],

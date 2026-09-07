@@ -59,6 +59,13 @@ async function main() {
   await db.payment.deleteMany();
   await db.expense.deleteMany();
   await db.qcReport.deleteMany();
+  await db.packageItem.deleteMany(); // Phase 16
+  await db.package.deleteMany(); // Phase 16
+  await db.materialStockMove.deleteMany(); // Phase 16
+  await db.material.deleteMany(); // Phase 16
+  await db.payrollAdvance.deleteMany(); // Phase 16
+  await db.payrollEntry.deleteMany(); // Phase 16
+  await db.payrollPeriod.deleteMany(); // Phase 16
   await db.materialCost.deleteMany();
   await db.notification.deleteMany();
   await db.userActivityLog.deleteMany();
@@ -77,16 +84,16 @@ async function main() {
   // Phase 12 — دسترسی = ماژول‌های تیک‌خورده (چند-ماژوله):
   // نیما هم QC هم چاپ دارد (دموی «بشه به هر کاربر نقش اضافه کرد»).
   const usersSpec = [
-    { name: "مدیر سیستم", email: "admin@printoo24.com", role: "master", modules: [], phone: "07700000001", pw: "admin123" },
-    { name: "سارا احمدی", email: "sara@printoo24.com", role: "designer", modules: ["designer"], phone: "07700000002", pw: "employee123" },
-    { name: "مهدی رحیمی", email: "mehdi@printoo24.com", role: "designer", modules: ["designer"], phone: "07700000003", pw: "employee123" },
-    { name: "رضا کریمی", email: "reza@printoo24.com", role: "print", modules: ["print"], phone: "07700000004", pw: "employee123" },
-    { name: "علی نعمتی", email: "ali@printoo24.com", role: "print", modules: ["print"], phone: "07700000005", pw: "employee123" },
-    { name: "حسین موسوی", email: "hossein@printoo24.com", role: "warehouse", modules: ["warehouse"], phone: "07700000006", pw: "employee123" },
-    { name: "نگار رستمی", email: "negar@printoo24.com", role: "finance", modules: ["finance"], phone: "07700000007", pw: "employee123" },
-    { name: "نیما قاسمی", email: "nima@printoo24.com", role: "qc", modules: ["qc", "print"], phone: "07700000008", pw: "employee123" },
-    { name: "مریم کاظمی", email: "maryam@printoo24.com", role: "crm", modules: ["crm"], phone: "07700000009", pw: "employee123" },
-    { name: "امیر صالحی", email: "amir@printoo24.com", role: "srm", modules: ["srm"], phone: "07700000010", pw: "employee123" },
+    { name: "مدیر سیستم", email: "admin@printoo24.com", role: "master", modules: [], phone: "07700000001", pw: "admin123", salary: 0 },
+    { name: "سارا احمدی", email: "sara@printoo24.com", role: "designer", modules: ["designer"], phone: "07700000002", pw: "employee123", salary: 1250000 },
+    { name: "مهدی رحیمی", email: "mehdi@printoo24.com", role: "designer", modules: ["designer"], phone: "07700000003", pw: "employee123", salary: 1250000 },
+    { name: "رضا کریمی", email: "reza@printoo24.com", role: "print", modules: ["print"], phone: "07700000004", pw: "employee123", salary: 1100000 },
+    { name: "علی نعمتی", email: "ali@printoo24.com", role: "print", modules: ["print"], phone: "07700000005", pw: "employee123", salary: 1100000 },
+    { name: "حسین موسوی", email: "hossein@printoo24.com", role: "warehouse", modules: ["warehouse"], phone: "07700000006", pw: "employee123", salary: 950000 },
+    { name: "نگار رستمی", email: "negar@printoo24.com", role: "finance", modules: ["finance"], phone: "07700000007", pw: "employee123", salary: 1300000 },
+    { name: "نیما قاسمی", email: "nima@printoo24.com", role: "qc", modules: ["qc", "print"], phone: "07700000008", pw: "employee123", salary: 1000000 },
+    { name: "مریم کاظمی", email: "maryam@printoo24.com", role: "crm", modules: ["crm"], phone: "07700000009", pw: "employee123", salary: 900000 },
+    { name: "امیر صالحی", email: "amir@printoo24.com", role: "srm", modules: ["srm"], phone: "07700000010", pw: "employee123", salary: 900000 },
   ];
   const users = {};
   for (const u of usersSpec) {
@@ -95,6 +102,7 @@ async function main() {
       where: { email },
       update: {
         name, role, status: "active",
+        baseSalary: u.salary || null, // Phase 16: قرارداد حقوق پایه
         // دیتای دمو: رمز هم ریست می‌شود تا همیشه قابل-پیش‌بینی باشد
         password: await hash(pw, 10),
         // جایگزینی کامل ماژول‌ها (idempotent)
@@ -104,6 +112,7 @@ async function main() {
       },
       create: {
         name, email, role, phone, password: await hash(pw, 10),
+        baseSalary: u.salary || null,
         ...(role === "master" ? {} : { modules: { create: modules.map((m) => ({ module: m })) } }),
       },
     });
@@ -116,31 +125,31 @@ async function main() {
   // ═══════════════ 2) مشتریان (idempotent) ═══════════════
   console.log("→ مشتریان…");
   const custSpecs = [
-    ["رستوران باران", "07701110001", true, 0, "مشتری همیشگی — منو فصلی هر فصل"],
-    ["کلینیک لبخند", "07701110002", true, 250000, "قرارداد ست اداری سالانه"],
-    ["باشگاه ورشی", "07701110003", false, 0, ""],
-    ["شرکت آفتاب", "07701110004", true, 0, "از مشتریان اول"],
-    ["حسین رضایی", "07701110005", false, 80000, "کارت ویزیت دوره‌ای"],
-    ["مجموعه برکت", "07701110006", false, 0, ""],
-    ["کافه ترنج", "07701110007", true, 0, "استیکر و لیوان دوره‌ای"],
-    ["آموزشگاه پارس", "07701110008", false, 420000, "بدهی شهریه بروشور"],
-    ["داروخانه سبز", "07701110009", false, 0, ""],
-    ["فروشگاه مدار", "07701110010", true, 0, "بنر و فلکس ماهانه"],
-    ["دفتر وکالت دادگر", "07701110011", false, 150000, ""],
-    ["آژانس مسیر سبز", "07701110012", false, 0, "کاتالوگ توریسم"],
-    ["بیمارستان مهر", "07701110013", true, 0, "فرم‌ها و بروشور تخصصی"],
-    ["رایان‌گستر", "07701110014", false, 300000, "پرداخت‌ها قسطی توافق شده"],
-    ["نانو پک", "07701110015", false, 0, "بسته‌بندی صنعتی"],
-    ["گالری رنگین‌کمان", "07701110016", false, 0, ""],
-    ["مدارس نور", "07701110017", true, 0, "قرارداد سالانه چاپ"],
-    ["ساختمانی آرمان", "07701110018", false, 60000, ""],
+    ["رستوران باران", "07701110001", true, 0, "مشتری همیشگی — منو فصلی هر فصل", "اربیل، خیابان 100، ساختمان آفتاب، طبقه ۲"],
+    ["کلینیک لبخند", "07701110002", true, 250000, "قرارداد ست اداری سالانه", "اربیل، خیابان 60 متری، نزدیک میدان اربیل، کلینیک لبخند"],
+    ["باشگاه ورشی", "07701110003", false, 0, "", "سلیوانی، جاده کوی سنجک، باشگاه ورشی"],
+    ["شرکت آفتاب", "07701110004", true, 0, "از مشتریان اول", "اربیل، کامپانی شهرک صنعتی، بلوک ۷"],
+    ["حسین رضایی", "07701110005", false, 80000, "کارت ویزیت دوره‌ای", "اربیل، خیابان 30، خانه 12"],
+    ["مجموعه برکت", "07701110006", false, 0, "", "مزن، مرکز شهر، نزدیک مسجد برکت"],
+    ["کافه ترنج", "07701110007", true, 0, "استیکر و لیوان دوره‌ای", "اربیل، خیابان انکاوی، کافه ترنج"],
+    ["آموزشگاه پارس", "07701110008", false, 420000, "بدهی شهریه بروشور", "اربیل، خیابان 40، آموزشگاه پارس"],
+    ["داروخانه سبز", "07701110009", false, 0, "", "اربیل، خیابان 100، داروخانه سبز"],
+    ["فروشگاه مدار", "07701110010", true, 0, "بنر و فلکس ماهانه", "بازار قیصری، فروشگاه مدار"],
+    ["دفتر وکالت دادگر", "07701110011", false, 150000, "", "اربیل، برج دادگر، طبقه 5"],
+    ["آژانس مسیر سبز", "07701110012", false, 0, "کاتالوگ توریسم", "اربیل، جاده مسیر سبز"],
+    ["بیمارستان مهر", "07701110013", true, 0, "فرم‌ها و بروشور تخصصی", "اربیل، بیمارستان مهر"],
+    ["رایان‌گستر", "07701110014", false, 300000, "پرداخت‌ها قسطی توافق شده", "اربیل، کامپانی رایان‌گستر"],
+    ["نانو پک", "07701110015", false, 0, "بسته‌بندی صنعتی", "شهرک صنعتی، کارخانه نانو پک"],
+    ["گالری رنگین‌کمان", "07701110016", false, 0, "", "اربیل، گالری رنگین‌کمان"],
+    ["مدارس نور", "07701110017", true, 0, "قرارداد سالانه چاپ", "اربیل، محله مدارس نور"],
+    ["ساختمانی آرمان", "07701110018", false, 60000, "", "اربیل، پروژه آرمان"],
   ];
   const C = {}; // name → id
-  for (const [name, phone, isFavorite, balanceDue, note] of custSpecs) {
+  for (const [name, phone, isFavorite, balanceDue, note, address] of custSpecs) {
     const existing = await db.customer.findFirst({ where: { phone } });
     const row = existing
-      ? await db.customer.update({ where: { id: existing.id }, data: { name, isFavorite, balanceDue, note: note || null } })
-      : await db.customer.create({ data: { name, phone, isFavorite, balanceDue, note: note || null } });
+      ? await db.customer.update({ where: { id: existing.id }, data: { name, isFavorite, balanceDue, note: note || null, address } })
+      : await db.customer.create({ data: { name, phone, isFavorite, balanceDue, note: note || null, address } });
     C[name] = row.id;
   }
   const cNames = Object.keys(C);
@@ -1129,6 +1138,146 @@ async function main() {
       },
     ],
   });
+
+  // ═══════════════ Phase 16: حقوق و دستمزد (دمو) ═══════════════
+  console.log("→ حقوق و دستمزد…");
+  {
+    // دستهٔ «حقوق» (هاردکد-پیش‌فرض) برای هزینه‌های حقوق
+    let salaryType = await db.expenseType.findFirst({ where: { name: "حقوق" } });
+    if (!salaryType) salaryType = await db.expenseType.create({ data: { name: "حقوق", isDefault: true } });
+
+    const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const monthBounds = (y, m /* 0-based */) => {
+      const first = new Date(y, m, 1);
+      const last = new Date(y, m + 1, 0);
+      const p = (x) => String(x).padStart(2, "0");
+      return {
+        start: `${y}-${p(m + 1)}-01`,
+        end: `${y}-${p(m + 1)}-${p(last.getDate())}`,
+      };
+    };
+
+    const now = new Date();
+    const employees = [sara, mehdiD, reza, ali, hossein, negar, nima, maryam, amir];
+
+    // ── دورهٔ ماه گذشته: پرداخت‌شده (با هزینهٔ ثبت‌شده) ──
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+    const pb = monthBounds(prev.getFullYear(), prev.getMonth());
+    const prevKey = monthKey(prev);
+    const prevPeriod = await db.payrollPeriod.create({
+      data: {
+        key: prevKey, startDate: pb.start, endDate: pb.end,
+        status: "paid", paidAt: day(-12), paidById: negar.id,
+        note: "دورهٔ دمو — پرداخت‌شده",
+      },
+    });
+    let prevTotal = 0;
+    for (let i = 0; i < employees.length; i++) {
+      const emp = employees[i];
+      const mods = emp.role === "master" ? [] : await db.userModule.findMany({ where: { userId: emp.id } }).then((rs) => rs.map((r) => r.module));
+      const base = emp.baseSalary ?? 0;
+      const otHours = [6, 0, 10, 4, 0, 2, 8, 0, 3][i];
+      const otRate = Math.round((base / 208) * 1.5); // نرخ ساعتی × ۱.۵
+      const bonus = [150000, 0, 200000, 0, 50000, 100000, 80000, 0, 0][i];
+      const insurance = Math.round(base * 0.04);
+      const net = base + otHours * otRate + bonus - insurance;
+      prevTotal += net;
+      const cost = await db.materialCost.create({
+        data: {
+          expenseTypeId: salaryType.id,
+          title: `حقوق ${emp.name} — دورهٔ ${prevKey}`,
+          description: `پایه ${base} + اضافه‌کاری ${otHours}س × ${otRate} + پاداش ${bonus} − بیمه ${insurance}`,
+          amount: net, status: "approved", module: "finance",
+          createdById: negar.id, createdByName: negar.name,
+          createdAt: day(-12),
+        },
+      });
+      await db.payrollEntry.create({
+        data: {
+          periodId: prevPeriod.id, userId: emp.id,
+          baseSalary: base, overtimeHours: otHours, overtimeRate: otRate,
+          bonus, insurance, netPay: net,
+          modulesSnapshot: mods.join(","), status: "paid", paidAt: day(-12), costId: cost.id,
+        },
+      });
+    }
+    await db.payrollPeriod.update({
+      where: { id: prevPeriod.id },
+      data: { totalNet: prevTotal, entriesCount: employees.length },
+    });
+
+    // ── دورهٔ جاری: باز (در انتظار پرداخت) ──
+    const cb = monthBounds(now.getFullYear(), now.getMonth());
+    const curKey = monthKey(now);
+    const curPeriod = await db.payrollPeriod.create({
+      data: { key: curKey, startDate: cb.start, endDate: cb.end, status: "open" },
+    });
+    for (let i = 0; i < employees.length; i++) {
+      const emp = employees[i];
+      const mods = await db.userModule.findMany({ where: { userId: emp.id } }).then((rs) => rs.map((r) => r.module));
+      const base = emp.baseSalary ?? 0;
+      const otHours = [4, 2, 8, 0, 3, 0, 5, 1, 0][i];
+      const otRate = Math.round((base / 208) * 1.5);
+      await db.payrollEntry.create({
+        data: {
+          periodId: curPeriod.id, userId: emp.id,
+          baseSalary: base, overtimeHours: otHours, overtimeRate: otRate,
+          bonus: [100000, 0, 120000, 0, 0, 50000, 60000, 0, 0][i],
+          insurance: Math.round(base * 0.04),
+          netPay: base + otHours * otRate + [100000, 0, 120000, 0, 0, 50000, 60000, 0, 0][i] - Math.round(base * 0.04),
+          modulesSnapshot: mods.join(","), status: "draft",
+        },
+      });
+    }
+
+    // ── مساعدهٔ پرداخت‌نشده (هنوز کسر نشده) ──
+    const advCost = await db.materialCost.create({
+      data: {
+        expenseTypeId: salaryType.id,
+        title: `مساعده ${sara.name}`,
+        description: "پیش‌پرداخت حقوق — کسر در دورهٔ بعد",
+        amount: 300000, status: "approved", module: "finance",
+        createdById: negar.id, createdByName: negar.name,
+        createdAt: day(-5),
+      },
+    });
+    await db.payrollAdvance.create({
+      data: {
+        userId: sara.id, amount: 300000, note: "مساعده دمو — کسرنشده",
+        costId: advCost.id, createdById: negar.id, createdByName: negar.name, createdAt: day(-5),
+      },
+    });
+  }
+
+  // ═══════════════ Phase 16: موجودی مواد اولیه (دمو) ═══════════════
+  console.log("→ مواد اولیهٔ انبار…");
+  {
+    const matSpecs = [
+      ["کاغذ گلاسه 135 گرم", "ورق", 840, 200, "سایز 70×100 — مصرف کارت ویزیت/تراکت"],
+      ["کاغذ تحریر A4 80 گرم", "بسته", 62, 20, "بستهٔ 500 برگ"],
+      ["جوهر سیلیکونی CMYK", "لیتر", 18.5, 6, "ست ۴ رنگ"],
+      ["روکش لمینت مات", "متر", 320, 100, "عرض 32 سانتی‌متر"],
+      ["وینیل برش‌دار", "متر", 150, 80, "بنر/فلکس"],
+      ["چسب دوقلو", "کیلوگرم", 9, 4, ""],
+      ["جعبهٔ مقوایی سفید", "عدد", 1250, 300, "سایز متوسط بسته‌بندی"],
+    ];
+    for (const [name, unit, quantity, minQuantity, note] of matSpecs) {
+      const mat = await db.material.create({ data: { name, unit, quantity, minQuantity, note: note || null } });
+      // تاریخچهٔ گردش: ورود اولیه + مصرف نمونه
+      await db.materialStockMove.create({
+        data: {
+          materialId: mat.id, delta: quantity, reason: "ورود اولیهٔ دمو",
+          createdByName: "حسین موسوی", createdAt: day(-30),
+        },
+      });
+      await db.materialStockMove.create({
+        data: {
+          materialId: mat.id, delta: -Math.round(quantity * 0.1), reason: "مصرف چاپ — دمو",
+          createdByName: "رضا کریمی", createdAt: day(-3),
+        },
+      });
+    }
+  }
 
   // ═══════════════ گزارش نهایی ═══════════════
   const [orders, tasks, pis, invs, customers, products, suppliers, services, priceLists] =
