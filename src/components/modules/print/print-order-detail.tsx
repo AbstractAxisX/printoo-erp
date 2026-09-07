@@ -343,7 +343,7 @@ export function PrintOrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent aria-describedby={undefined} className="max-w-5xl w-[calc(100%-2rem)] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
+        <DialogContent aria-describedby={undefined}   className="!min-w-7xl max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
           {/* Header — عریض، متریک‌های ۴تایی */}
           <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-amber-500/8 via-amber-500/3 to-transparent">
             <div className="flex items-start justify-between gap-3">
@@ -464,7 +464,7 @@ export function PrintOrderDetailModal({
           </div>
 
           {/* Tabs: جزئیات | هزینه‌ها */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+          <Tabs dir="rtl" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <div className="px-6 pt-3 pb-0 border-b bg-muted/20">
               <TabsList className="bg-transparent p-0 h-auto gap-1">
                 <TabsTrigger

@@ -283,7 +283,7 @@ export function LogisticsOrders() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent
           aria-describedby={undefined}
-          className="max-w-3xl w-[calc(100%-2rem)] max-h-[90vh] overflow-hidden p-0 gap-0 rounded-xl"
+          className="min-w-5xl overflow-hidden p-0 gap-0 rounded-xl"
         >
           {selected ? (
             <>
@@ -346,7 +346,7 @@ export function LogisticsOrders() {
                 </div>
               </div>
 
-              <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
+              <Tabs value={tab} onValueChange={setTab} dir="rtl" className="flex-1 flex flex-col min-h-0">
                 <div className="px-6 pt-3 pb-0 border-b bg-muted/20">
                   <TabsList className="bg-transparent p-0 h-auto gap-1">
                     <TabsTrigger
