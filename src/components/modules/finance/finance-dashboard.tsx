@@ -1,356 +1,458 @@
 "use client";
 
+// ─── Phase 15: داشبورد مالی — بازطراحی کامل ─────────────────────────
+// ساختار (تحلیل وظیفه‌محور واحد مالی):
+//   ۱) اوورویو: ۵ کارت فیلتردار (فیلتر سراسری زمان — هزینه و درآمد با هم):
+//      هزینه‌های در انتظار تأیید • مجموع هزینه‌ها • مجموع درآمدها •
+//      سود خالص • تسویه‌نشده (بستانکار) — هر کارت کلیک‌پذیر → لیست فیلترشده
+//   ۲) فرم ثبت هزینه جدید (دو حالت: روی سفارش / آزاد) — اینلاین، عین
+//      افزودن آیتم ویزارد؛ حالت سفارش: سرچ سفارش + «ثبت در فاکتور»
+//   ۳) دسته‌بندی هزینه‌های آزاد: کارتِ هر دسته (Σ در بازه + تعداد) +
+//      مدیریت دسته‌ها (حقوق هاردکد-پیش‌فرض) + دکمهٔ تاریخچه هزینه‌ها
+
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
-import { PageHeader, EmptyState } from "@/components/shared";
+import { useInvalidate } from "@/lib/use-invalidate";
+import { PageHeader } from "@/components/shared";
 import { Icon, type IconName } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { TimeRangePicker } from "@/components/ui/time-range-picker";
+import { CostEntryForm } from "@/components/shared/cost-entry-form";
+import { getPreset, type TimeRange } from "@/lib/time-ranges";
+import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate } from "@/lib/format";
-import { useCostDetail } from "@/lib/use-cost-detail";
-import type { MaterialCost } from "./finance-cost-detail";
+import { toast } from "sonner";
 
-// ─── Module & status meta ─────────────────────────────────────────────
-const MODULE_META: Record<
-  string,
-  { label: string; icon: IconName; color: string; bar: string }
-> = {
-  print: {
-    label: "چاپ",
-    icon: "print",
-    color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    bar: "bg-amber-500",
-  },
-  warehouse: {
-    label: "انبار",
-    icon: "warehouse",
-    color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
-    bar: "bg-cyan-500",
-  },
+// ─── Types ─────────────────────────────────────────────────────────────
+
+type Summary = {
+  pendingCount: number;
+  pendingSum: number;
+  costSum: number;
+  revenueSum: number;
+  netProfit: number;
+  unsettledSum: number;
+  unsettledCount: number;
+  freeByCategory: { id: string | null; name: string; sum: number; count: number }[];
+  costsByModule: { module: string; sum: number; count: number }[];
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  pending: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
-  rejected: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
-};
+type ExpenseType = { id: string; name: string; isDefault: boolean };
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  approved: "تأیید شده",
-  rejected: "رد شده",
-};
+// ─── KPI card ──────────────────────────────────────────────────────────
 
-// ─── KPI Card ─────────────────────────────────────────────────────────
-type KpiCardProps = {
-  icon: IconName;
+type KpiDef = {
+  key: string;
   label: string;
+  icon: IconName;
+  color: "amber" | "rose" | "emerald" | "violet" | "teal";
   value: number;
-  hint?: string;
-  color: "amber" | "emerald" | "rose" | "violet";
-  onClick?: () => void;
+  hint: string;
   isAmount?: boolean;
+  onClick?: () => void;
 };
 
-const KPI_COLOR_MAP: Record<
-  KpiCardProps["color"],
+const KPI_COLORS: Record<
+  KpiDef["color"],
   { bg: string; text: string; ring: string }
 > = {
-  amber: {
-    bg: "bg-amber-500/10",
-    text: "text-amber-600 dark:text-amber-400",
-    ring: "ring-amber-500/20",
-  },
-  emerald: {
-    bg: "bg-emerald-500/10",
-    text: "text-emerald-600 dark:text-emerald-400",
-    ring: "ring-emerald-500/20",
-  },
-  rose: {
-    bg: "bg-rose-500/10",
-    text: "text-rose-600 dark:text-rose-400",
-    ring: "ring-rose-500/20",
-  },
-  violet: {
-    bg: "bg-violet-500/10",
-    text: "text-violet-600 dark:text-violet-400",
-    ring: "ring-violet-500/20",
-  },
+  amber: { bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", ring: "ring-amber-500/20" },
+  rose: { bg: "bg-rose-500/10", text: "text-rose-600 dark:text-rose-400", ring: "ring-rose-500/20" },
+  emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", ring: "ring-emerald-500/20" },
+  violet: { bg: "bg-violet-500/10", text: "text-violet-600 dark:text-violet-400", ring: "ring-violet-500/20" },
+  teal: { bg: "bg-teal-500/10", text: "text-teal-600 dark:text-teal-400", ring: "ring-teal-500/20" },
 };
 
-function KpiCard({ icon, label, value, hint, color, onClick, isAmount }: KpiCardProps) {
-  const c = KPI_COLOR_MAP[color];
+function KpiCard({ def, rangeLabel }: { def: KpiDef; rangeLabel: string }) {
+  const c = KPI_COLORS[def.color];
   return (
     <Card
+      role="button"
+      tabIndex={0}
+      onClick={def.onClick}
+      onKeyDown={(e) => {
+        if (def.onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          def.onClick();
+        }
+      }}
       className={cn(
-        "p-4 ring-1 transition",
+        "p-4 ring-1 transition group",
         c.ring,
-        onClick && "cursor-pointer hover:shadow-md hover:scale-[1.01]"
+        def.onClick && "cursor-pointer hover:shadow-md hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2"
       )}
-      onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className={cn("size-10 rounded-lg grid place-items-center", c.bg, c.text)}>
-          <Icon name={icon} size={20} />
+      <div className="flex items-center justify-between gap-2">
+        <div className={cn("size-10 rounded-xl grid place-items-center shrink-0", c.bg, c.text)}>
+          <Icon name={def.icon} size={19} />
         </div>
-        <span
-          className={cn(
-            "font-bold tabular-nums",
-            isAmount ? "text-base" : "text-3xl"
-          )}
-          dir={isAmount ? "ltr" : undefined}
-        >
-          {isAmount ? formatCurrency(value) : value}
-        </span>
+        {def.onClick && (
+          <Icon
+            name="arrowLeft"
+            size={15}
+            className="text-muted-foreground/40 group-hover:text-foreground group-hover:-translate-x-0.5 transition"
+          />
+        )}
       </div>
-      <div className="mt-2">
-        <div className="text-sm font-medium">{label}</div>
-        {hint && <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>}
+      <div className="text-2xl font-bold tabular-nums mt-2.5" dir="ltr">
+        {def.isAmount ? formatCurrency(def.value) : def.value.toLocaleString("fa-IR")}
+      </div>
+      <div className="text-xs font-medium text-muted-foreground mt-1">{def.label}</div>
+      <div className="text-[10px] text-muted-foreground/70 mt-1.5 pt-1.5 border-t">
+        {def.hint} • {rangeLabel}
       </div>
     </Card>
   );
 }
 
-// ─── Main Dashboard ───────────────────────────────────────────────────
+// ─── Dashboard ─────────────────────────────────────────────────────────
+
 export function FinanceDashboard() {
   const navigate = useAppStore((s) => s.navigate);
-  const { openCost, modal } = useCostDetail();
+  const setBoardFilter = useAppStore((s) => s.setBoardFilter);
+  const invalidate = useInvalidate();
+  const qc = useQueryClient();
 
-  // Fetch all material costs
-  const { data, isLoading } = useQuery({
-    queryKey: ["material-costs", "dashboard"],
-    queryFn: () => api<{ costs: MaterialCost[] }>("/api/material-costs"),
-    refetchInterval: 30000,
+  // فیلتر سراسری زمان — هزینه و درآمد با هم فیلتر می‌شوند
+  const [range, setRange] = React.useState<TimeRange>(() => getPreset("this-month"));
+  const rangeLabel = range.label;
+
+  // حالت فرم: روی سفارش / آزاد
+  const [costMode, setCostMode] = React.useState<"order" | "free">("order");
+  const [showCatManage, setShowCatManage] = React.useState(false);
+  const [newCategory, setNewCategory] = React.useState("");
+
+  const { data: summary, isLoading } = useQuery({
+    queryKey: ["finance", "summary", range.from.toISOString(), range.to.toISOString()],
+    queryFn: () =>
+      api<Summary>(`/api/finance/summary?from=${range.from.toISOString()}&to=${range.to.toISOString()}`),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
-  const costs = data?.costs ?? [];
+  const { data: typesData, refetch: refetchTypes } = useQuery({
+    queryKey: ["expense-types"],
+    queryFn: () => api<{ expenseTypes: ExpenseType[] }>("/api/expense-types"),
+    staleTime: 60_000,
+  });
 
-  // KPI computations
-  const pendingCount = costs.filter((c) => c.status === "pending").length;
-  const approvedCount = costs.filter((c) => c.status === "approved").length;
-  const totalAmount = costs.reduce((sum, c) => sum + (c.amount || 0), 0);
-  // "هزینه‌های فوری" = pending costs (still awaiting review, urgent)
-  const urgentCount = pendingCount;
+  const s: Partial<Summary> = summary ?? {};
 
-  // Module breakdown
-  const moduleBreakdown = React.useMemo(() => {
-    const map: Record<string, number> = { print: 0, warehouse: 0 };
-    for (const c of costs) {
-      if (map[c.module] !== undefined) map[c.module]++;
-      else map[c.module] = (map[c.module] ?? 0) + 1;
-    }
-    return map;
-  }, [costs]);
+  const kpis: KpiDef[] = [
+    {
+      key: "pending",
+      label: "هزینه‌های در انتظار تأیید",
+      icon: "clock",
+      color: "amber",
+      value: s.pendingCount ?? 0,
+      hint: `Σ ${formatCurrency(s.pendingSum ?? 0)}`,
+      onClick: () => {
+        setBoardFilter("finance", "pending");
+        navigate("finance", "costs");
+      },
+    },
+    {
+      key: "costs",
+      label: "مجموع هزینه‌ها",
+      icon: "money",
+      color: "rose",
+      value: s.costSum ?? 0,
+      isAmount: true,
+      hint: "هزینه‌های تأییدشده",
+      onClick: () => {
+        setBoardFilter("finance", "all-costs");
+        navigate("finance", "costs");
+      },
+    },
+    {
+      key: "revenue",
+      label: "مجموع درآمدها",
+      icon: "trending",
+      color: "emerald",
+      value: s.revenueSum ?? 0,
+      isAmount: true,
+      hint: "دریافتی‌های مشتریان",
+      onClick: () => navigate("finance", "revenues"),
+    },
+    {
+      key: "profit",
+      label: "سود خالص",
+      icon: "chartColumn",
+      color: "teal",
+      value: s.netProfit ?? 0,
+      isAmount: true,
+      hint: "درآمد − هزینه",
+    },
+    {
+      key: "unsettled",
+      label: "تسویه‌نشده (بستانکار)",
+      icon: "wallet",
+      color: "violet",
+      value: s.unsettledSum ?? 0,
+      isAmount: true,
+      hint: `${(s.unsettledCount ?? 0).toLocaleString("fa-IR")} سفارش با مانده`,
+      onClick: () => navigate("finance", "unsettled"),
+    },
+  ];
 
-  const totalCosts = costs.length || 1;
+  // دسته‌ها: merge لیست کامل + آمار بازه (دسته‌های بدون هزینه هم دیده شوند)
+  const categories = React.useMemo(() => {
+    const all = typesData?.expenseTypes ?? [];
+    const stats = new Map((s.freeByCategory ?? []).map((f) => [f.id ?? "", f]));
+    return all.map((t) => ({
+      ...t,
+      sum: stats.get(t.id)?.sum ?? 0,
+      count: stats.get(t.id)?.count ?? 0,
+    }));
+  }, [typesData, s.freeByCategory]);
 
-  // Recent costs (compact list, top 6)
-  const recentCosts = costs.slice(0, 6);
+  // ── دستهٔ جدید ──
+  const addCategoryMut = useMutation({
+    mutationFn: (name: string) =>
+      api("/api/expense-types", { method: "POST", body: JSON.stringify({ name }) }),
+    onSuccess: () => {
+      toast.success("دستهٔ هزینه اضافه شد");
+      setNewCategory("");
+      refetchTypes();
+      invalidate(["finance", "expense-types"]);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── حذف دسته (غیرپیش‌فرض) ──
+  const deleteCategoryMut = useMutation({
+    mutationFn: (id: string) => api(`/api/expense-types/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("دسته حذف شد");
+      refetchTypes();
+      invalidate(["finance", "expense-types"]);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="داشبورد مالی"
-        description="نمای کلی هزینه‌های ثبت‌شده توسط ماژول‌های چاپ و انبار"
-        icon="wallet"
-        actions={
-          <Button onClick={() => navigate("finance", "costs")} className="gap-2">
-            <Icon name="money" size={16} /> همه هزینه‌ها
+      {/* Header + فیلتر سراسری */}
+      <PageHeader title="داشبورد مالی" icon="wallet" actions={
+        <div className="flex items-center gap-2">
+          <TimeRangePicker value={range} onChange={setRange} compact />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => qc.invalidateQueries({ queryKey: ["finance"] })}
+            title="به‌روزرسانی"
+          >
+            <Icon name="refresh" size={14} className={isLoading ? "animate-spin" : ""} />
           </Button>
-        }
-      />
+        </div>
+      } />
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          icon="clock"
-          label="هزینه‌های در انتظار"
-          value={pendingCount}
-          hint="نیازمند بررسی واحد مالی"
-          color="amber"
-          onClick={() => navigate("finance", "costs")}
-        />
-        <KpiCard
-          icon="checkCircle"
-          label="تأیید شده"
-          value={approvedCount}
-          hint="هزینه‌های تأیید شده"
-          color="emerald"
-          onClick={() => navigate("finance", "costs")}
-        />
-        <KpiCard
-          icon="coins"
-          label="مجموع هزینه‌ها"
-          value={totalAmount}
-          hint="مجموع کل هزینه‌های ثبت‌شده"
-          color="rose"
-          isAmount
-          onClick={() => navigate("finance", "costs")}
-        />
-        <KpiCard
-          icon="alertTriangle"
-          label="هزینه‌های فوری"
-          value={urgentCount}
-          hint="در انتظار بررسی و نیاز به اقدام سریع"
-          color="violet"
-          onClick={() => navigate("finance", "costs")}
-        />
+      {/* اوورویو — ۵ کارت فیلتردار */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {kpis.map((k) => (
+          <KpiCard key={k.key} def={k} rangeLabel={rangeLabel} />
+        ))}
       </div>
 
-      {/* Two-column layout: recent costs + module breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Recent costs (compact list) */}
-        <Card className="p-0 overflow-hidden lg:col-span-2">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
-            <div className="flex items-center gap-2">
-              <Icon name="money" size={18} className="text-primary" />
-              <h3 className="font-semibold text-sm">هزینه‌های اخیر</h3>
-              <span className="text-[11px] text-muted-foreground">
-                ({costs.length})
-              </span>
+      {/* ثبت هزینه جدید — دو حالت */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center">
+              <Icon name="plusCircle" size={17} />
             </div>
+            <div>
+              <h3 className="font-semibold text-sm">ثبت هزینه جدید</h3>
+              <p className="text-[11px] text-muted-foreground">
+                {costMode === "order"
+                  ? "هزینه روی سفارش — با گزینهٔ نشستن در فاکتور"
+                  : "هزینهٔ آزاد — کرایه، حقوق و هزینه‌های جاری بدون سفارش"}
+              </p>
+            </div>
+          </div>
+          {/* سوییچ حالت */}
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="نوع هزینه">
             <button
-              onClick={() => navigate("finance", "costs")}
-              className="text-xs text-primary hover:underline flex items-center gap-1"
+              role="radio"
+              aria-checked={costMode === "order"}
+              onClick={() => setCostMode("order")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition",
+                costMode === "order"
+                  ? "bg-background text-foreground shadow-sm border"
+                  : "text-muted-foreground hover:bg-background/60"
+              )}
             >
-              مشاهده همه <Icon name="arrowLeft" size={12} />
+              <Icon name="orders" size={13} />
+              روی سفارش
+            </button>
+            <button
+              role="radio"
+              aria-checked={costMode === "free"}
+              onClick={() => setCostMode("free")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition",
+                costMode === "free"
+                  ? "bg-background text-foreground shadow-sm border"
+                  : "text-muted-foreground hover:bg-background/60"
+              )}
+            >
+              <Icon name="coins" size={13} />
+              هزینهٔ آزاد
             </button>
           </div>
-          {isLoading ? (
-            <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-              <Icon name="loading" size={16} className="animate-spin" />
-              در حال بارگذاری...
-            </div>
-          ) : recentCosts.length === 0 ? (
-            <EmptyState
-              icon="checkCircle"
-              title="هزینه‌ای ثبت نشده است"
-              description="هنوز هزینه‌ای از ماژول‌ها دریافت نشده است"
-            />
-          ) : (
-            <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
-              {recentCosts.map((c) => {
-                const meta =
-                  MODULE_META[c.module] ?? {
-                    label: c.module,
-                    icon: "wallet" as IconName,
-                    color: "bg-muted text-muted-foreground",
-                    bar: "bg-muted",
-                  };
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => openCost(c.id)}
-                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-accent/40 transition text-right"
-                  >
-                    <div
-                      className={cn(
-                        "size-10 rounded-lg grid place-items-center shrink-0",
-                        meta.color
-                      )}
-                    >
-                      <Icon name={meta.icon} size={18} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono font-bold text-xs">
-                          #{c.order?.number ?? "—"}
-                        </span>
-                        <span className="font-medium text-sm truncate">
-                          {c.order?.customer?.name ?? "—"}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">
-                        {c.description || c.expenseType?.name || "بدون توضیحات"}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span
-                        className="text-xs font-bold tabular-nums"
-                        dir="ltr"
-                      >
-                        {formatCurrency(c.amount)}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-[11px] font-medium px-1.5 py-0.5 rounded-full",
-                          STATUS_BADGE[c.status] ?? "bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {STATUS_LABEL[c.status] ?? c.status}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+        </div>
+        <div className="p-4">
+          <CostEntryForm
+            key={costMode}
+            mode={costMode}
+            selectableOrder={costMode === "order"}
+            showInvoiceOption={costMode === "order"}
+            fixedModule={costMode === "free" ? "finance" : undefined}
+            showSupplier={costMode === "order"}
+            onManageCategories={costMode === "free" ? () => setShowCatManage((v) => !v) : undefined}
+            onSubmitted={() => {
+              invalidate(["finance", "material-costs"]);
+              qc.invalidateQueries({ queryKey: ["orders", "cost-form"] });
+            }}
+          />
+        </div>
+      </Card>
 
-        {/* Module breakdown */}
-        <Card className="p-0 overflow-hidden">
-          <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center gap-2">
-            <Icon name="grid" size={18} className="text-primary" />
-            <h3 className="font-semibold text-sm">هزینه‌ها بر اساس ماژول</h3>
+      {/* دسته‌بندی هزینه‌های آزاد + مدیریت */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 grid place-items-center">
+              <Icon name="grid" size={16} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">دسته‌بندی هزینه‌های آزاد</h3>
+              <p className="text-[11px] text-muted-foreground">
+                جمع هر دسته در بازهٔ {rangeLabel} — حقوق پیش‌فرض سیستم است
+              </p>
+            </div>
           </div>
-          <div className="p-5 space-y-4">
-            {Object.entries(MODULE_META).map(([key, meta]) => {
-              const count = moduleBreakdown[key] ?? 0;
-              const pct = Math.round((count / totalCosts) * 100);
-              const moduleAmount = costs
-                .filter((c) => c.module === key)
-                .reduce((sum, c) => sum + (c.amount || 0), 0);
-              return (
-                <div key={key}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={cn(
-                          "size-7 rounded-md grid place-items-center",
-                          meta.color
-                        )}
-                      >
-                        <Icon name={meta.icon} size={14} />
-                      </div>
-                      <span className="text-sm font-medium">{meta.label}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {pct}%
-                      </span>
-                      <span className="text-sm font-bold tabular-nums">
-                        {count}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={cn("h-full rounded-full transition-all", meta.bar)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="text-[11px] text-muted-foreground mt-1 tabular-nums" dir="ltr">
-                    مجموع: {formatCurrency(moduleAmount)}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setShowCatManage((v) => !v)}
+            >
+              <Icon name={showCatManage ? "arrowUp" : "gear"} size={14} />
+              {showCatManage ? "بستن مدیریت" : "مدیریت دسته‌ها"}
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                setBoardFilter("finance", "free");
+                navigate("finance", "costs");
+              }}
+            >
+              <Icon name="checkList" size={14} />
+              تاریخچه هزینه‌ها
+            </Button>
+          </div>
+        </div>
 
-            {/* Total at the bottom */}
-            <div className="pt-3 border-t flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">مجموع هزینه‌ها</span>
-              <span className="text-sm font-bold tabular-nums" dir="ltr">
-                {formatCurrency(totalAmount)}
+        <div className="p-4 space-y-4">
+          {/* کارت دسته‌ها */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {categories.map((cat) => (
+              <Card
+                key={cat.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setBoardFilter("finance", `free:${cat.id}`);
+                  navigate("finance", "costs");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setBoardFilter("finance", `free:${cat.id}`);
+                    navigate("finance", "costs");
+                  }
+                }}
+                className={cn(
+                  "p-3.5 ring-1 ring-teal-500/15 cursor-pointer hover:shadow-md hover:scale-[1.01] transition group",
+                  cat.isDefault && "ring-primary/25"
+                )}
+              >
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="text-xs font-semibold truncate">{cat.name}</span>
+                  {cat.isDefault ? (
+                    <span
+                      className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0"
+                      title="دستهٔ پیش‌فرض سیستم — قابل حذف نیست"
+                    >
+                      پیش‌فرض
+                    </span>
+                  ) : showCatManage ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCategoryMut.mutate(cat.id);
+                      }}
+                      disabled={deleteCategoryMut.isPending}
+                      className="text-muted-foreground hover:text-rose-600 transition shrink-0"
+                      title="حذف دسته"
+                    >
+                      <Icon name="trash" size={12} />
+                    </button>
+                  ) : null}
+                </div>
+                <div className="text-lg font-bold tabular-nums mt-2" dir="ltr">
+                  {formatCurrency(cat.sum)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {cat.count.toLocaleString("fa-IR")} ثبت در {rangeLabel}
+                </div>
+              </Card>
+            ))}
+            {categories.length === 0 && (
+              <div className="col-span-full text-xs text-muted-foreground text-center py-4">
+                دسته‌ای یافت نشد
+              </div>
+            )}
+          </div>
+
+          {/* مدیریت دسته‌ها — افزودن */}
+          {showCatManage && (
+            <div className="rounded-xl border bg-muted/20 p-3 flex items-center gap-2 flex-wrap">
+              <Input
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="نام دستهٔ جدید… مثلاً تبلیغات"
+                className="w-64"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newCategory.trim()) addCategoryMut.mutate(newCategory.trim());
+                }}
+              />
+              <Button
+                size="sm"
+                className="gap-1.5"
+                disabled={!newCategory.trim() || addCategoryMut.isPending}
+                onClick={() => addCategoryMut.mutate(newCategory.trim())}
+              >
+                <Icon name={addCategoryMut.isPending ? "loading" : "plus"} size={14} className={addCategoryMut.isPending ? "animate-spin" : ""} />
+                افزودن دسته
+              </Button>
+              <span className="text-[11px] text-muted-foreground">
+                دسته‌های پیش‌فرض (حقوق، اجاره و…) قابل حذف نیستند — «حقوق» از سیستم
+                حقوق‌ودستمزد تغذیه می‌شود
               </span>
             </div>
-          </div>
-        </Card>
-      </div>
-
-      {modal}
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
