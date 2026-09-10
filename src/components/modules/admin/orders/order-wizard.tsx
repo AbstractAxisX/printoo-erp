@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { safeUuid } from "@/lib/safe-uuid";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -260,7 +261,7 @@ export function OrderWizardPage() {
 
     // Step 2: items — Phase 10: dbId برای merge هوشمند + تاریخ‌های per-item
     const items: ItemDraft[] = (order.items ?? []).map((it) => ({
-      id: crypto.randomUUID(),
+      id: safeUuid(),
       dbId: it.id,
       productId: it.productId,
       productName: it.product?.name ?? "",
@@ -344,7 +345,7 @@ export function OrderWizardPage() {
 
   function newItem(productId = "", productName = ""): ItemDraft {
     return {
-      id: crypto.randomUUID(),
+      id: safeUuid(),
       productId,
       productName,
       quantity: 1,
@@ -377,7 +378,7 @@ export function OrderWizardPage() {
       const arr = s[cid] ?? [];
       const idx = arr.findIndex((i) => i.id === itemId);
       if (idx === -1) return s;
-      const copy = { ...arr[idx], id: crypto.randomUUID() };
+      const copy = { ...arr[idx], id: safeUuid() };
       const next = [...arr];
       next.splice(idx + 1, 0, copy);
       return { ...s, [cid]: next };

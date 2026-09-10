@@ -13,6 +13,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { safeUuid } from "@/lib/safe-uuid";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -109,7 +110,7 @@ function formatSize(bytes: number): string {
 
 function newDraft(module: string): CostDraft {
   return {
-    key: crypto.randomUUID(),
+    key: safeUuid(),
     title: "",
     amount: "",
     supplierId: "",

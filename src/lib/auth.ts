@@ -89,7 +89,8 @@ export async function setSession(user: SessionUser) {
   store.set(SESSION_COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // HTTP deployments (bare IP, no TLS): set COOKIE_SECURE=false in env.
+    secure: process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false",
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
