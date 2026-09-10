@@ -3860,3 +3860,27 @@ Stage Summary:
 - حقوق و دستمزد به‌عنوان سکشن اختصاصی مالی (۲ صفحه) + نسخهٔ سادهٔ «حقوق بده و برو» برای مدیر سیستم؛ هر پرداخت = MaterialCost دستهٔ «حقوق» (دیده‌شده در داشبورد/تاریخچهٔ هزینه‌ها) + نوتیف به کارمند.
 - انبار/لجستیک عملیاتی شد: دریافت از چاپ (packable) → بستهٔ چند-سفارشی با بج QR (PDF ۱۰۰×۵۰) → صفحهٔ عمومی بدون لاگین → ارسال/مرجوعی → تحویل با COD→درآمد لجستیک + تکمیل خودکار سفارش؛ موجودی مواد با گردش و stock-in خودکار از تأیید هزینه.
 - همه‌چیز push شد: 3084082 → 46d4904 (۵ کامیت). دیتابیس re-seed برای دموی تمیز.
+
+---
+Task ID: DEPLOY-1
+Agent: orchestrator (main)
+Task: استقرار production روی سرور اختصاصی 187.124.27.96 (پنل ادمین Printoo24) بدون دست‌زدن به استک داکر موجود
+
+Work Log:
+- اتصال با paramiko (sshpass/ssh در سندباکس نبود) — ابزار /home/z/deploy-tool/sshx.py (run/put/putdir).
+- بررسی سرور: ۲ vCPU AMD EPYC 9354P / ۷.۸GB RAM / ۹۶GB دیسک / Ubuntu کرنل 6.8 / بدون swap / ufw غیرفعال.
+- استک موجود (دست‌نخورده): printoo_nginx (80/443) + printoo_customer_site (gunicorn 9010) + celery + postgres17 + redis6 — همه Up 2 months باقی ماندند.
+- بسته tarball سورس ۱.۲MB (بدون node_modules/.next/.git) → /opt/printoo24-admin + آپلود db/custom.db دمو (۱۱ کاربر، ۳۱ سفارش، ۳۷ جدول).
+- سرور: node v20.20.2 — npm install (۹۰۴ پکیج؛ package-lock قدیمی بود، npm ci رد شد) + prisma generate + db push (already in sync).
+- بیلد production standalone (next build ✓ 29s) + systemd printoo24-admin.service (PORT=3000, HOSTNAME=0.0.0.0, DATABASE_URL, Restart=always, enabled).
+- باگ ۱ (HTTP bare-IP): کوکی سشن با Secure=true در production ست می‌شد → مرورگر روی http آن را دور می‌ریخت؛ لاگین 200 ولی سشن نمی‌ماند → auth.ts: secure با COOKIE_SECURE=false قابل‌غیرفعال‌شدن شد.
+- باگ ۲ (Secure Context): crypto.randomUUID روی http معمولی وجود ندارد → CostEntryForm/newDraft و order-wizard (۳ مورد) کرش کل React tree می‌دادند (فقط برای کاربران مالی در لود اول) → lib/safe-uuid.ts با fallback getRandomValues + جایگزینی هر ۴ مورد.
+- دیباگ با Playwright مستقیم (pageerror listener) چون console agent-browser خالی بود؛ کرش در chunk: SB=newDraft → crypto.randomUUID.
+- rebuild + restart؛ تایید مرورگر: لاگین admin (داشبورد کامل + جدول سفارش‌ها با دیتای واقعی + ویزارد ۴ مرحله‌ای)، نگار مالی (داشبورد KPI با دیتا: ۵۴۷K در انتظار…)، حسین انبار، لاگ‌اوت/لاگین مجدد، viewport موبایل 390px، اسکرین‌شات‌ها.
+- کامیت bbb0ce8 + push به GitHub.
+
+Stage Summary:
+- لینک نهایی: http://187.124.27.96:3000 (پورت 3000، جدا از nginx داکر موجود؛ فایروال بسته نیست).
+- سرویس systemd با auto-restart و start در boot؛ لاگ: /var/log/printoo24-admin.log؛ رم: ~56MB.
+- دیتابیس SQLite دمو در /opt/printoo24-admin/db/custom.db (تغییر .env مسیر مطلق سرور).
+- دو فیک HTTP-deployment (COOKIE_SECURE=false در systemd؛ safeUuid) — روی HTTPS دامنه‌دار در آینده فیک‌ها خودکار بی‌اثر می‌شوند.
