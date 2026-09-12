@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
-import { SearchSelect } from "@/components/shared/search-select";
+import { SearchSelect, type SearchOption } from "@/components/shared/search-select";
 import {
   Select,
   SelectContent,
@@ -50,6 +50,248 @@ const PI_STATUS_BADGE = {
   rejected: { label: "ردشده", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
   converted: { label: "تبدیل به فاکتور", cls: "bg-primary/15 text-primary" },
 } as const;
+
+// ─── Phase 18: کارت «مسئولان سفارش» (تغییر مجری — ادمین) ──────────
+//
+// خواستهٔ کارفرما: «بشه راحت ادمین بتونه کارمند سفارش رو در هر بخش عوض
+// کنه؛ سفارش از پنل کارمند فعلی برداشته بشه و بره تو پنل کارمند جدید.»
+// قرارداد: PUT /api/orders/[id]/assignee — آبشار کامل (سطح سفارش +
+// آیتم‌های جاری + اعلان «واگذار شد / از شما گرفته شد» + رویداد تاریخچه).
+// این کارت فقط UI همان قرارداد است؛ جابجایی بین پنل‌ها سمت سرور رخ می‌دهد.
+//
+// سطوح دسترسی: اکشن تغییر فقط برای نقش مدیریتی (master / ماژول admin)؛
+// سایر نقش‌ها فقط نام فعلی را می‌بینند (بدون دراپ‌داون). فهرست کاربران:
+// GET /api/users?module=designer|print (فقط فعال‌ها + وضعیت مرخصی امروز).
+
+type ModuleAssigneeUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  onLeaveToday?: boolean;
+  leaveNote?: string | null;
+};
+
+function useModuleAssignees(module: "designer" | "print", enabled: boolean) {
+  return useQuery({
+    queryKey: ["users", "module", module],
+    queryFn: () => api<{ users: ModuleAssigneeUser[] }>(`/api/users?module=${module}`),
+    staleTime: 60_000,
+    enabled,
+  });
+}
+
+/** آپشن‌های کامبو: «بدون تخصیص» + کاربران فعال همان ماژول + fallback مجری فعلیِ خارج از فهرست. */
+function assigneeOptions(
+  users: ModuleAssigneeUser[],
+  currentId: string | null,
+  currentName: string | null
+): SearchOption[] {
+  const opts: SearchOption[] = [
+    { value: "", label: "بدون تخصیص (استخر عمومی)" },
+    ...users.map((u) => ({
+      value: u.id,
+      label: u.onLeaveToday ? `${u.name} — مرخصی` : u.name,
+      sub: u.onLeaveToday ? "امروز در مرخصی است" : USER_ROLE[u.role]?.label ?? u.role,
+    })),
+  ];
+  // مجری فعلیِ خارج از فهرست فعال (غیرفعال/بی‌ماژول شده) — گزینهٔ fallback تا نامش گم نشود
+  if (currentId && !opts.some((o) => o.value === currentId)) {
+    opts.push({
+      value: currentId,
+      label: currentName ?? "کاربر تخصیص‌یافته",
+      sub: "خارج از فهرست فعال",
+    });
+  }
+  return opts;
+}
+
+function AssigneeRow({
+  label,
+  icon,
+  accent,
+  currentId,
+  currentName,
+  onLeave,
+  leaveNote,
+  canManage,
+  options,
+  onChange,
+  pending,
+  searchPlaceholder,
+  ariaLabel,
+}: {
+  label: string;
+  icon: Parameters<typeof Icon>[0]["name"];
+  accent: string;
+  currentId: string | null;
+  currentName: string | null;
+  onLeave: boolean;
+  leaveNote: string | null;
+  canManage: boolean;
+  options: SearchOption[];
+  onChange: (v: string | null) => void;
+  pending: boolean;
+  searchPlaceholder: string;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5">
+      <span className={cn("size-8 rounded-lg grid place-items-center shrink-0", accent)}>
+        <Icon name={icon} size={14} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+          {label}
+          {onLeave && (
+            <span
+              className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-medium"
+              title={leaveNote ?? "امروز در مرخصی است"}
+            >
+              مرخصی
+            </span>
+          )}
+          {pending && (
+            <Icon name="loading" size={11} className="animate-spin text-muted-foreground" />
+          )}
+        </div>
+        {canManage ? (
+          <div role="group" aria-label={ariaLabel} className="mt-1 max-w-[260px]">
+            <SearchSelect
+              value={currentId ?? ""}
+              onChange={onChange}
+              options={options}
+              placeholder="انتخاب مجری..."
+              searchPlaceholder={searchPlaceholder}
+              className="w-full h-8 text-xs"
+            />
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "text-sm font-medium truncate mt-0.5",
+              !currentName && "text-muted-foreground"
+            )}
+          >
+            {currentName ?? "بدون تخصیص (استخر عمومی)"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function OrderAssigneesCard({ order }: { order: OrderDetail }) {
+  const user = useAppStore((s) => s.user);
+  const invalidate = useInvalidate();
+  // اکشن تغییر فقط برای نقش مدیریتی (master / ماژول admin) — بقیه فقط نمایش
+  const canManage =
+    !!user && (user.role === "master" || (user.modules ?? []).includes("admin"));
+
+  const { data: designerData } = useModuleAssignees("designer", canManage);
+  const { data: printerData } = useModuleAssignees("print", canManage);
+  const designers = designerData?.users ?? [];
+  const printers = printerData?.users ?? [];
+
+  const assignMut = useMutation({
+    mutationFn: (v: { field: "designerId" | "printerId"; value: string; name: string | null }) =>
+      api<{ ok: boolean; moved: { designItems: number; printItems: number } }>(
+        `/api/orders/${order.id}/assignee`,
+        { method: "PUT", body: JSON.stringify({ [v.field]: v.value }) }
+      ),
+    onSuccess: (_data, v) => {
+      // مودال (["order", id]) + لیست‌های همهٔ پنل‌ها (["orders", ...]) + اعلان‌ها
+      invalidate(["order", "orders", "notifications", "dashboard"]);
+      toast.success(
+        `مسئول ${v.field === "designerId" ? "طراحی" : "چاپ"} سفارش #${order.number} تغییر کرد — ${
+          v.name ?? "بدون تخصیص (استخر عمومی)"
+        }`
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // مجری مؤثر — سطح سفارش با fallback به اولین آیتم جاری همان مرحله
+  const firstDesignItem = order.items.find((i) => i.stage === "design");
+  const firstPrintItem = order.items.find(
+    (i) => i.stage === "design" || i.stage === "print"
+  );
+  const designerId =
+    order.assignedDesignerId ?? firstDesignItem?.designAssigneeId ?? null;
+  const designerName =
+    order.assignedDesigner?.name ?? firstDesignItem?.designAssigneeUser?.name ?? null;
+  const printerId =
+    order.assignedPrinterId ?? firstPrintItem?.printAssigneeId ?? null;
+  const printerName =
+    order.assignedPrinter?.name ?? firstPrintItem?.printAssigneeUser?.name ?? null;
+
+  const designerActive = designers.find((u) => u.id === designerId);
+  const printerActive = printers.find((u) => u.id === printerId);
+
+  const makeOnChange = (
+    field: "designerId" | "printerId",
+    users: ModuleAssigneeUser[],
+    currentId: string | null
+  ) => (v: string | null) => {
+    const val = v ?? "";
+    // بدون تغییر / در حال ارسال → هیچ (SearchSelect پراپ disabled ندارد؛ گارد نرم)
+    if (assignMut.isPending || val === (currentId ?? "")) return;
+    assignMut.mutate({
+      field,
+      value: val,
+      name: users.find((u) => u.id === val)?.name ?? null,
+    });
+  };
+
+  const pendingField = assignMut.isPending ? assignMut.variables?.field ?? null : null;
+
+  return (
+    <div className="rounded-lg border">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/30">
+        <span className="text-xs font-medium flex items-center gap-1.5">
+          <Icon name="users" size={13} /> مسئولان سفارش
+        </span>
+        {canManage && (
+          <span className="text-[10px] text-muted-foreground">
+            تغییر مجری، سفارش را بین پنل کارکنان جابجا می‌کند
+          </span>
+        )}
+      </div>
+      <div className="divide-y">
+        <AssigneeRow
+          label="طراح مسئول"
+          icon="design"
+          accent="text-violet-600 bg-violet-500/10"
+          currentId={designerId}
+          currentName={designerName}
+          onLeave={!!designerActive?.onLeaveToday}
+          leaveNote={designerActive?.leaveNote ?? null}
+          canManage={canManage}
+          options={assigneeOptions(designers, designerId, designerName)}
+          onChange={makeOnChange("designerId", designers, designerId)}
+          pending={pendingField === "designerId"}
+          searchPlaceholder="جستجوی طراح..."
+          ariaLabel="تغییر طراح مسئول سفارش"
+        />
+        <AssigneeRow
+          label="چاپ‌کار مسئول"
+          icon="print"
+          accent="text-amber-600 bg-amber-500/10"
+          currentId={printerId}
+          currentName={printerName}
+          onLeave={!!printerActive?.onLeaveToday}
+          leaveNote={printerActive?.leaveNote ?? null}
+          canManage={canManage}
+          options={assigneeOptions(printers, printerId, printerName)}
+          onChange={makeOnChange("printerId", printers, printerId)}
+          pending={pendingField === "printerId"}
+          searchPlaceholder="جستجوی چاپ‌کار..."
+          ariaLabel="تغییر چاپ‌کار مسئول سفارش"
+        />
+      </div>
+    </div>
+  );
+}
 
 // ─── 1. Overview tab ────────────────────────────────────────────
 // Context-First: identity, next-action CTA, status timeline, note.
@@ -178,6 +420,9 @@ export function OverviewTab({
         </div>
       </div>
 
+      {/* Phase 18: مسئولان سفارش — نمایش/تغییر مجری (طراح/چاپ‌کار) */}
+      <OrderAssigneesCard order={order} />
+
       {/* Blocking items callout */}
       {blockingItems > 0 && (
         <button
@@ -286,6 +531,11 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
           it.printEndDate &&
           it.stage === "print" &&
           new Date(it.printEndDate) < new Date();
+        // Phase 18: مجری مؤثر این آیتم — per-item با fallback به مجری سفارش
+        const itemDesigner =
+          it.designAssigneeUser?.name ?? order.assignedDesigner?.name ?? null;
+        const itemPrinter =
+          it.printAssigneeUser?.name ?? order.assignedPrinter?.name ?? null;
         const isEditing = editing === it.id;
         return (
           <div
@@ -351,6 +601,19 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
                     {it.materialConfirmed ? "متریال تأمین شد" : "نیازمند متریال"}
                   </span>
                 )}
+                {/* Phase 18: مجری‌های همین آیتم */}
+                <span
+                  className="px-1.5 py-0.5 rounded bg-muted flex items-center gap-0.5"
+                  title="طراح این آیتم"
+                >
+                  <Icon name="user" size={10} /> طراح: {itemDesigner ?? "—"}
+                </span>
+                <span
+                  className="px-1.5 py-0.5 rounded bg-muted flex items-center gap-0.5"
+                  title="چاپ‌کار این آیتم"
+                >
+                  <Icon name="user" size={10} /> چاپ: {itemPrinter ?? "—"}
+                </span>
                 <span className="text-muted-foreground flex items-center gap-0.5">
                   <Icon name="design" size={10} /> طراحی:{" "}
                   {it.designStartDate

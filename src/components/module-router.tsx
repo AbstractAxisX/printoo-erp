@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useAppStore } from "@/stores/app-store";
-import { allowedModuleKeys, findModule } from "@/lib/nav";
+import { allowedModuleKeys, findModule, moduleHasPage } from "@/lib/nav";
 import { PageHeader, EmptyState } from "@/components/shared";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,8 @@ import { SuppliersPage } from "@/components/modules/admin/suppliers-page";
 import { ProductsPage } from "@/components/modules/admin/products-page";
 import { ArchivePage } from "@/components/modules/admin/archive-page";
 import { ExpenseTypesPage } from "@/components/modules/admin/expense-types-page";
+// Phase 18: مدیریت شهر/استان (ادمین داخلی)
+import { LocationsPage } from "@/components/modules/admin/locations-page";
 
 // Phase 13: ماژول «مدیر سیستم» (sysadmin) — جایگزین settings
 import { MonitoringUsersPage } from "@/components/modules/sysadmin/monitoring-users-page";
@@ -95,6 +97,8 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
       case "products": return ProductsPage;
       case "expense-types": return ExpenseTypesPage;
       case "archive": return ArchivePage;
+      // Phase 18: شهر/استان — فهرست مجاز دراپ‌داون مشتریان
+      case "locations": return LocationsPage;
       default: return null;
     }
   }
@@ -222,6 +226,9 @@ function PlaceholderPage({ title }: { title: string }) {
  * Phase 12 — access guard: تب/صفحه‌ای که ماژولش در دسترسی کاربر نیست،
  * هرگز رندر نمی‌شود (حتی اگر از طریق tab ماندگار localStorage باقی مانده
  * باشد). لایه‌های امنیت: sidebar فیلترشده + این گارد UI + گاردهای API.
+ *
+ * Phase 18 — page-level guard: ماژول مجاز ولی صفحهٔ غیرمجاز هم AccessDenied
+ * می‌شود (UserModule.pages) — تب ماندگار localStorage هم پالایش می‌شود.
  */
 function AccessDenied() {
   return (
@@ -250,7 +257,8 @@ export function ModuleRouter() {
         const isActive = tab.id === activeTabId;
         const Comp = getPageComponent(tab.module, tab.page);
         const mod = findModule(tab.module);
-        const tabAllowed = allowed.includes(tab.module);
+        const tabAllowed =
+          allowed.includes(tab.module) && moduleHasPage(tab.module, tab.page, user);
         return (
           <div
             key={tab.id}
@@ -269,7 +277,8 @@ export function ModuleRouter() {
       })}
       {/* If no tabs open (shouldn't happen normally), show current module/page */}
       {tabs.length === 0 && (() => {
-        if (!allowed.includes(moduleKey)) return <AccessDenied />;
+        if (!allowed.includes(moduleKey) || !moduleHasPage(moduleKey, page, user))
+          return <AccessDenied />;
         const Comp = getPageComponent(moduleKey, page);
         const mod = findModule(moduleKey);
         return Comp ? <Comp /> : <PlaceholderPage title={pageTitle(mod, page)} />;

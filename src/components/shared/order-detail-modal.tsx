@@ -96,6 +96,11 @@ export type OrderDetail = {
   updatedAt?: string;
   createdBy: string | null;
   customer: { id: string; name: string; phone: string };
+  // Phase 18: مجریان سطح سفارش (GET /api/orders/[id] از قبل برمی‌گرداند)
+  assignedDesignerId?: string | null;
+  assignedPrinterId?: string | null;
+  assignedDesigner?: { id: string; name: string; phone?: string } | null;
+  assignedPrinter?: { id: string; name: string; phone?: string } | null;
   items: {
     id: string;
     productId: string;
@@ -112,6 +117,11 @@ export type OrderDetail = {
     designEndDate: string | null;
     printStartDate: string | null;
     printEndDate: string | null;
+    // Phase 18: مجری per-item (additive — سرور برمی‌گرداند)
+    designAssigneeId?: string | null;
+    printAssigneeId?: string | null;
+    designAssigneeUser?: { id: string; name: string } | null;
+    printAssigneeUser?: { id: string; name: string } | null;
   }[];
   preInvoices: {
     id: string;
@@ -333,7 +343,6 @@ export function OrderDetailModal({
       // تب آغازین فقط بار اول (order.id جدید) اعمال می‌شود
       setActiveTab(initialTab ?? "overview");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id]);
 
   // ── Status mutation (action-forward) ──

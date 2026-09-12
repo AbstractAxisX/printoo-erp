@@ -3,13 +3,16 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { activeLeaveToday, isModuleKey, isOnline, localDayKey, type LeaveSpan } from "@/lib/access";
+import { safeParsePages } from "@/lib/auth";
+import { serializePages, validateModulePages } from "@/lib/module-pages";
 
 // GET  /api/users → کاربران فعال برای pickers
 //                ?module=designer → فقط کاربرانی که این ماژول را تیک خورده‌اند
 //                ?all=1 (master) → شامل غیرفعال‌ها + آمار حضور (صفحهٔ مدیریت)
 // POST /api/users → ایجاد کاربر (master) — با «چند ماژول» (Phase 12)
+//   Phase 18: modulePages?: Record<module, page[]|null> — صفحات مجاز هر ماژول
 //
-// POST body: { name, email, password, phone?, modules: string[] }
+// POST body: { name, email, password, phone?, modules: string[], modulePages? }
 //   - modules: حداقل یک ماژول معتبر (designer/print/qc/...) — هر تعداد.
 //     نمونهٔ کاربر: هم QC هم چاپ. role ستون اول برای compat نمایش می‌شود.
 //   - سازگاری: اگر modules نفرستاد ولی role آمد → تک-ماژول همان role.
@@ -23,9 +26,18 @@ const BASE_SELECT = {
   avatar: true,
 } as const;
 
-function modulesOf(u: { role: string; modules: { module: string }[] }): string[] {
+function modulesOf(u: { role: string; modules: { module: string; pages: string | null }[] }): string[] {
   if (u.role === "master") return [];
   return u.modules.map((m) => m.module);
+}
+
+/** Phase 18: صفحات مجاز هر ماژول — از ردیف‌های UserModule. */
+function modulePagesOf(u: { role: string; modules: { module: string; pages: string | null }[] }): Record<string, string[] | null> {
+  const out: Record<string, string[] | null> = {};
+  for (const m of u.modules) {
+    out[m.module] = m.pages ? safeParsePages(m.pages) : null;
+  }
+  return out;
 }
 
 export async function GET(req: NextRequest) {
@@ -45,7 +57,7 @@ export async function GET(req: NextRequest) {
       },
       select: {
         ...BASE_SELECT,
-        modules: { select: { module: true } },
+        modules: { select: { module: true, pages: true } },
         // Phase 13: مرخصی برای هشدار picker («امروز فلان طراح نیست»)
         leaves: { select: { startDate: true, endDate: true, note: true } },
         ...(wantAll
@@ -76,6 +88,8 @@ export async function GET(req: NextRequest) {
           phone: u.phone,
           avatar: u.avatar,
           modules: modulesOf(u),
+          // Phase 18: صفحات مجاز هر ماژول (null = همه)
+          modulePages: modulePagesOf(u),
           // Phase 13: هشدار مرخصی در pickerهای تخصیص
           onLeaveToday: !!onLeave,
           leaveNote: onLeave?.note ?? null,
@@ -115,7 +129,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, email, password, phone, status, modules, role } = body ?? {};
+    const { name, email, password, phone, status, modules, role, modulePages } = body ?? {};
 
     // name — required
     if (typeof name !== "string" || !name.trim()) {
@@ -165,6 +179,13 @@ export async function POST(req: NextRequest) {
     }
     const uniqueMods = Array.from(new Set(mods));
 
+    // Phase 18: صفحات مجاز هر ماژول (اختیاری) — اعتبارسنجی ساختاری
+    const pagesCheck = validateModulePages(uniqueMods, modulePages);
+    if (!pagesCheck.ok) {
+      return NextResponse.json({ error: pagesCheck.error }, { status: 400 });
+    }
+    const pagesMap = pagesCheck.value;
+
     // uniqueness — friendly Persian error instead of raw P2002
     const existing = await db.user.findUnique({ where: { email: emailNorm } });
     if (existing) {
@@ -183,14 +204,18 @@ export async function POST(req: NextRequest) {
         phone: phone ? String(phone).trim() : null,
         status: status === "inactive" ? "inactive" : "active",
         modules: {
-          create: uniqueMods.map((m) => ({ module: m })),
+          create: uniqueMods.map((m) => ({
+            module: m,
+            // Phase 18: محدودیت صفحه‌ای — null = همه
+            pages: serializePages(pagesMap[m] ?? null),
+          })),
         },
       },
-      select: { ...BASE_SELECT, modules: { select: { module: true } } },
+      select: { ...BASE_SELECT, modules: { select: { module: true, pages: true } } },
     });
 
     return NextResponse.json(
-      { user: { ...user, modules: modulesOf(user) } },
+      { user: { ...user, modules: modulesOf(user), modulePages: modulePagesOf(user) } },
       { status: 201 }
     );
   } catch {

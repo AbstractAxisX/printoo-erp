@@ -35,7 +35,26 @@ export type SessionUser = {
   // cookie این را حمل می‌کند ولی هر requireUser از DB تازه می‌خواند تا
   // تغییر دسترسی بلافاصله اعمال شود (نه ۷ روز بعد).
   modules: string[];
+  // Phase 18: صفحات مجازِ هر ماژول (JSON در UserModule.pages) —
+  // null/غایب = بدون محدودیت. مثل modules، هر requireUser تازه خوانده
+  // می‌شود تا تغییر سطح دسترسی فوری اعمال شود.
+  modulePages?: Record<string, string[] | null>;
 };
+
+// ─── Phase 18: parse امن JSON صفحات UserModule.pages ─────────────
+// مقدار خراب/غیرآرایه‌ای → null (بدون محدودیت) — سخت‌گیرانه نیست چون
+// منبع داده فقط API است و اعتبارسنجی ساختاری همان‌جا انجام می‌شود.
+export function safeParsePages(raw: string): string[] | null {
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x.length > 0)) {
+      return v as string[];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Signed session (HMAC) ─────────────────────────────────────
 function b64encode(str: string): string {
@@ -75,6 +94,7 @@ export async function getSession(): Promise<SessionUser | null> {
     return {
       ...parsed,
       modules: Array.isArray(parsed.modules) ? parsed.modules : [],
+      modulePages: parsed.modulePages ?? {},
     };
   } catch {
     return null;
@@ -134,7 +154,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
         email: true,
         role: true,
         status: true,
-        modules: { select: { module: true } },
+        modules: { select: { module: true, pages: true } },
       },
     });
     if (!fresh || fresh.status !== "active") {
@@ -148,12 +168,18 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
     void touchLastSeen(user.id);
     // Return the FRESH row — role/module changes apply immediately,
     // not 7 days later when the cookie expires.
+    // Phase 18: pages هر ماژول هم تازه — null = همهٔ صفحات.
+    const modulePages: Record<string, string[] | null> = {};
+    for (const m of fresh.modules) {
+      modulePages[m.module] = m.pages ? safeParsePages(m.pages) : null;
+    }
     return {
       id: fresh.id,
       name: fresh.name,
       email: fresh.email,
       role: fresh.role,
       modules: fresh.modules.map((m) => m.module),
+      modulePages,
     };
   } catch {
     // DB unreachable — fail closed.

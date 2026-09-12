@@ -73,6 +73,15 @@ export const NAV: ModuleNav[] = [
           { id: "expense-types", label: "انواع هزینه", icon: "tag", page: "expense-types" },
         ],
       },
+      {
+        id: "settings",
+        label: "تنظیمات پایه",
+        icon: "grid2",
+        items: [
+          // Phase 18: فهرست مجاز شهر/استان — منبع دراپ‌داون‌های مشتری
+          { id: "locations", label: "شهرها و استان‌ها", icon: "mapPin", page: "locations" },
+        ],
+      },
     ],
   },
 
@@ -332,9 +341,37 @@ export const HIDDEN_PAGES: Record<string, { label: string; icon: IconName }> = {
  * Phase 12 — RBAC چند-ماژوله:
  *   master      → همهٔ ماژول‌ها + مدیر سیستم (sysadmin)
  *   غیر-master → دقیقاً ماژول‌های تیک‌خوردهٔ او (UserModule) — نه یک مورد بیشتر
- *   «فقط باید همون نقشی که بهم داده وارد شه» — خواستهٔ صریح کاربر.
+ *
+ * Phase 18 — دسترسی صفحه‌محور (module + pages):
+ *   UserModule.pages = JSON آرایهٔ صفحات مجاز آن ماژول (null = همه).
+ *   آیتم‌های سایدبار ماژول به همان صفحات فیلتر می‌شوند؛ ماژولی که بعد از
+ *   فیلتر هیچ صفحه‌ای ندارد کلاً از سایدبار حذف می‌شود (پنل بی‌صفحه = بی‌دسترسی).
+ *   master همچنان همه‌چیز را می‌بیند.
  */
-export type NavUser = { role: string; modules?: string[] } | null | undefined;
+export type NavUser = {
+  role: string;
+  modules?: string[];
+  /** Phase 18: صفحات مجاز هر ماژول — null/غایب = بدون محدودیت صفحه */
+  modulePages?: Record<string, string[] | null> | null;
+} | null | undefined;
+
+/** صفحات مجازِ کاربر در یک ماژول — null = بدون محدودیت (همه). */
+export function allowedPagesOf(user: NavUser, moduleKey: string): string[] | null {
+  if (!user || user.role === "master") return null;
+  const pages = user.modulePages?.[moduleKey];
+  if (!pages || !Array.isArray(pages) || pages.length === 0) return null;
+  return pages;
+}
+
+/** نسخهٔ فیلترشدهٔ یک ماژول بر اساس صفحات مجاز (خودش بدون تغییر). */
+function filterModulePages(m: ModuleNav, user: NavUser): ModuleNav {
+  const allowed = allowedPagesOf(user, m.key);
+  if (allowed === null) return m;
+  const groups = m.groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => allowed.includes(i.page)) }))
+    .filter((g) => g.items.length > 0);
+  return { ...m, groups };
+}
 
 export function visibleModules(user?: NavUser): ModuleNav[] {
   if (!user) return [];
@@ -342,12 +379,16 @@ export function visibleModules(user?: NavUser): ModuleNav[] {
     return NAV.filter((m) => !m.masterOnly || user.role === "master");
   }
   const mods = new Set(user.modules ?? []);
-  return NAV.filter((m) => !m.masterOnly && mods.has(m.key));
+  return NAV
+    .filter((m) => !m.masterOnly && mods.has(m.key))
+    .map((m) => filterModulePages(m, user))
+    .filter((m) => m.groups.some((g) => g.items.length > 0)); // ماژول بی‌صفحه → حذف
 }
 
 /** کلیدهای ماژول‌های مجاز برای گاردهای سمت کلاینت (ModuleRouter/palette). */
 export function allowedModuleKeys(user?: NavUser): string[] {
   // Phase 13: «profile» همیشه مجاز است — پروفایلِ خود، حقِ همه است.
+  // Phase 18: ماژول‌های بی‌صفحه (بعد از فیلتر صفحه‌ای) حذف می‌شوند.
   return [...visibleModules(user).map((m) => m.key), PROFILE_MODULE];
 }
 
@@ -357,19 +398,38 @@ export function findModule(key: string) {
 
 /** آیا این صفحه در ماژول موجود است؟ (آیتم‌های سایدبار + صفحات مخفی)
  * Phase 17 — برای پاک‌سازی تب‌های ماندگارِ صفحات حذف‌شده (مثل داشبورد چاپ)
- * تا کاربر پس از حذف صفحه، روی placeholder ننشیند. */
-export function moduleHasPage(key: string, page: string): boolean {
+ * تا کاربر پس از حذف صفحه، روی placeholder ننشیند.
+ * Phase 18 — پارامتر اختیاری user: با وجود محدودیت صفحه‌ای (modulePages)،
+ * فقط صفحات مجاز آن ماژول true می‌دهند. بدون user = چک ساختاری خالص
+ * (سازگاری کامل با call site‌های موجود).
+ */
+export function moduleHasPage(key: string, page: string, user?: NavUser): boolean {
   if (key === PROFILE_MODULE) {
     return HIDDEN_PAGES[`${key}:${page}`] !== undefined;
   }
   const m = NAV.find((x) => x.key === key);
   if (!m) return false;
-  if (HIDDEN_PAGES[`${key}:${page}`]) return true;
-  return m.groups.some((g) => g.items.some((i) => i.page === page));
+  if (HIDDEN_PAGES[`${key}:${page}`]) {
+    // صفحات مخفی فقط با نقش master (sysadmin) قابل دسترس‌اند — بدون محدودیت
+    return user ? allowedPagesOf(user, key) === null || allowedPagesOf(user, key)!.includes(page) : true;
+  }
+  const inNav = m.groups.some((g) => g.items.some((i) => i.page === page));
+  if (!inNav) return false;
+  const allowed = allowedPagesOf(user, key);
+  if (allowed === null) return true;
+  return allowed.includes(page);
 }
 
-/** صفحهٔ فرود ماژول = مورد اول سایدبار آن (چاپ: «سفارشات»، بقیه: «داشبورد»). */
-export function firstPageOfModule(key: string): string {
+/** صفحهٔ فرود ماژول = مورد اول سایدبار آن (چاپ: «سفارشات»، بقیه: «داشبورد»).
+ *  Phase 18 — با محدودیت صفحه‌ای، اولین صفحهٔ «مجاز» برمی‌گردد. */
+export function firstPageOfModule(key: string, user?: NavUser): string {
   const m = NAV.find((x) => x.key === key);
-  return m?.groups[0]?.items[0]?.page ?? "dashboard";
+  if (!m) return "dashboard";
+  const allowed = allowedPagesOf(user, key);
+  if (allowed === null) return m.groups[0]?.items[0]?.page ?? "dashboard";
+  for (const g of m.groups) {
+    const item = g.items.find((i) => allowed.includes(i.page));
+    if (item) return item.page;
+  }
+  return "dashboard";
 }

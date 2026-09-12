@@ -4012,3 +4012,118 @@ Work Log:
 Stage Summary:
 - هر ۶ خواستهٔ فاز ۱۷ روی git (e29c5b4) و production (http://187.124.27.96:3000) فعال است؛ دیتای واقعی کارفرما دست‌نخورده ماند.
 - گیت و سرور همگام شدند.
+---
+Task ID: 18-c
+Agent: subagent-C (general-purpose)
+Task: آپدیت دیالوگ «ایجاد مشتری جدید» داخل ویزارد سفارش — دراپ‌داون استان/شهر از فهرست مجاز (فاز ۱۸)
+
+Work Log:
+- لاگ‌های قبلی خوانده شد؛ قرارداد فاندیشن بررسی شد: GET /api/locations (provinces/cities با provinceId)، POST /api/customers/quick از قبل city/province/note/address را می‌پذیرد، Customer شهر/استان را STRING ذخیره می‌کند.
+- order-wizard.tsx (فقط همین فایل): تایپ‌های محلی جدید LocationsData / QuickCustomerBody / NewCustomerDraft (بدون any).
+- Step1: useQuery با کلید ["locations"] (مشترک با locations-page → کش مشترک، staleTime 5m) + گسترش state newCust به {name, phone, province, city}؛ ریست onSuccess هم کامل (۴ فیلد).
+- submitNewCustomer: بدنهٔ quick فقط province/city پرشده را می‌فرستد (رشتهٔ خالی → نفرست) + trim نام/تلفن.
+- CreateCustomerDialog: پراپ‌های provinces/cities؛ ردیف دوم grid-cols-1 sm:grid-cols-2 با Field «استان» و «شهر» (هر دو hint «اختیاری»، Field موجود). استان = SearchSelect با options نام استان‌ها (value = نام). شهر = SearchSelect فیلترشده client-side بر provinceId (نگاشت نام→id استان)؛ تا استان انتخاب نشده → جایگزین button disabled با همان استایل تریگر و placeholder «اول استان…» (SearchSelect پراپ disabled ندارد و فایلش مجاز به تغییر نبود). تغییر/پاک‌شدن استان → city پاک می‌شود. label دیالوگ «ایجاد مشتری جدید» و دکمهٔ «ایجاد و انتخاب» دست‌نخورده.
+- بخش‌های دیگر ویزارد (آیتم‌ها/تخصیص/مراحل) و فایل customers-page ایجنت 18-b تغییر نکرد.
+- نکتهٔ محیط: dev server (PID قبلی) کاملاً مرده بود (شاید OOM — هیچ پروسهٔ node نبود، ۱۲۰ثانیه poll بی‌نتیجه)؛ با setsid/nohup دوباره بالا آورده شد (next dev پورت 3000، PID 5244) و روشن ماند؛ دو تلاش اول EADDRINUSE خوردند که بی‌اثر بودند.
+- راستی‌آزمایی: tsc --noEmit (فیلتر examples/skills) → صفر خطا؛ eslint order-wizard.tsx → ۰ error/warning؛ curl: لاگین ادمین 200، GET /api/locations (اربیل با ۷ شهر)، POST /api/customers/quick با {name:"تست 18c", phone:"07700001118", province:"اربیل", city:"شقلاوه"} → 201 و customer.city=="شقلاوه"؛ DELETE همان مشتری → 200 و جستجوی «تست 18c» → لیست خالی (پاک‌شدن تست).
+- git دست نخورد (کامیت با ارکستراتور). dev server روشن ماند.
+
+Stage Summary:
+- دیالوگ «ایجاد مشتری جدید» در Step1 ویزارد سفارش حالا هم‌خانوادهٔ فرم مشتری ادمین است: استان دراپ‌داونی از فهرست مجاز + شهر وابستهٔ فیلترشده بر همان استان با قفل «اول استان…»؛ هر دو اختیاری و به‌صورت نام رشته به quick endpoint پاس می‌شوند؛ موفقیت → انتخاب خودکار مشتری + ریست کامل فرم.
+- فایل تغییر یافته: src/components/modules/admin/orders/order-wizard.tsx (+86/−7). تست‌ها پاس؛ دیتای تست پاک شد.
+
+---
+Task ID: 18-b
+Agent: subagent-B (general-purpose)
+Task: دراپ‌داون استان/شهر در فرم ساخت/ویرایش مشتری ادمین (فهرست مجاز /api/locations)
+
+Work Log:
+- worklog خوانده شد؛ الگوی Parallel 18-c در order-wizard (SearchSelect + button disabled + LocationsData + staleTime 5m) مطالعه و عیناً هم‌خانواده شد تا codebase یکدست بماند.
+- customers-page.tsx: دو Input متنی «شهر/استان» با دو دراپ‌داون SearchSelect جایگزین شد؛ type LocationsData (آینهٔ /api/locations) + useQuery با queryKey مشترک ["locations"] و staleTime 5*60_000 اضافه شد.
+- استان: options = نام استان‌ها (value=نام — Customer string ذخیره می‌کند) + آپشن fallback برای استانِ فعلیِ خارج از فهرست (pattern current-value) تا دادهٔ قدیمی گم نشود.
+- شهر: فیلتر client-side روی cities به‌ازای provinceId استان انتخابی + آپشن fallback شهرِ فعلی؛ تا استان انتخاب نشده → تریگر disabled بومی (button disabled + aria-label، همان استایل SearchSelect چون کامپوننت پراپ disabled ندارد) با placeholder «اول استان را انتخاب کنید».
+- handleProvinceChange: تغییر استان → اگر شهر فعلی به استان جدید تعلق ندارد (cities.some روی provinceId+name) city خالی می‌شود؛ کلیک مجدد/پاک‌کردن استان = null → پاک‌شدن.
+- aria-label: wrapper role="group" + aria-label («انتخاب استان»/«انتخاب شهر») دور هر SearchSelect + aria-label مستقیم روی دکمهٔ disabled شهر (SearchSelect پراپ aria-label ندارد و فایل shared طبق محدودیت تسک دست نخورد).
+- openEdit بدون تغییر (مقادیر c.province/c.city در فرم می‌نشینند؛ fallback آپشن‌ها آن‌ها را نمایان نگه می‌دارند)؛ CustomerForm/mutations/ستون جدول «شهر / استان» و customers-detail-dialog.tsx دست‌نخورده (دیالوگ شهر/استان را string نمایش می‌دهد — نیازی به تغییر نبود).
+- dev server در sandbox خاموش بود (pid مرده، پورت 3000 آزاد) → بدون restartِ چیزی، bun run dev در بک‌گراند بالا آمد (لاگش ترافیک تست ایجنت موازی 18-c را هم سرو می‌کرد).
+
+Stage Summary:
+- تغییرات: فقط src/components/modules/admin/customers-page.tsx (+107/−12). اسکرین‌شات: .zscripts/p18b-customers-dropdown.png.
+- tsc --noEmit (فیلتر examples/skills): صفر خطا؛ eslint customers-page.tsx: ۰ error/۰ warning.
+- curl: login 200؛ GET /api/locations 200 (19 استان/94 شهر)؛ POST /api/customers city="اربیل" province="اربیل" → 201؛ PUT همان با زاخو/دهوک → 200؛ DELETE → 200 و پاک‌سازی تأیید شد.
+- تست مرورگر (agent-browser): فرم جدید → شهر disabled با placeholder «اول استان را انتخاب کنید» و aria-label؛ انتخاب دهوک → شهر فعال با دقیقاً ۶ شهر همان استان؛ انتخاب زاخو → تغییر استان به اربیل → شهر خودکار خالی شد؛ اربیل → ۷ شهر درست؛ ثبت از UI → ردیف «شقلاوه / اربیل» در جدول (201)؛ ویرایش مشتری → دراپ‌داون‌ها مقدار فعلی را نشان دادند؛ دادهٔ legacy (استان قدیمی/شهر خیلی قدیمی) → هر دو به‌عنوان آپشن fallback نمایان و شهر فقط همان آپشن را داشت (گم نشد)؛ دیتای تستی هر سه مرحله DELETE شد (باقی‌مانده: 26 مشتری، برابر قبل).
+---
+Task ID: 18-d
+Agent: subagent-D (general-purpose)
+Task: UI انتخاب صفحات در فرم کاربر — پنل «صفحات مجاز» زیر هر ماژول تیک‌خورده + بج محدودیت در فهرست (فاز ۱۸)
+
+Work Log:
+- worklog فاز ۱۸ + فاندیشن خوانده شد: PAGES_BY_MODULE/validateModulePages (lib/module-pages)، NAV + allowedPagesOf (lib/nav)، GET/POST /api/users و PUT /api/users/[id] (قرارداد modulePages)، users-page.tsx (۵۸۶ خط).
+- users-page.tsx (فقط همین فایل، +239/−34): FormState += modulePages: PagesMap (Record<string, string[]|null>)؛ ManagedUser += modulePages.
+- هلپرها: MODULE_NAV_ITEMS (NAV.find(key).groups.flatMap(items) — همان منبع سایدبار)، normPages ([]/undefined → null)، payloadPages (فقط ماژول‌های تیک‌خورده + auto-all)، sameModuleSet.
+- ModulePagesPanel جدید: سربرگ «صفحات مجاز در {faLabel}» + Checkbox «همهٔ صفحات» (تیک = null، لیست صفحات مخفی)؛ برداشتنِ «همه» → چک‌باکس تک‌تک صفحات همان ماژول (از NAV، grid-cols-1 sm:grid-cols-2) همه تیک‌خورده؛ گارد UX: تخلیهٔ کامل آرایه → خودکار null برمی‌گردد (بدون toast، hint «حداقل یک صفحه باید فعال باشد…» زیر پنل).
+- UserFormFields: هر سلول grid = wrapper div (label ماژول + پنل در صورت تیک)؛ toggleModule کلید برداشته‌شده را از modulePages پاک می‌کند و تیک جدید بدون رکورد = null؛ ستون items-start به grid.
+- openEdit: هیدراته از u.modulePages (ماژول بدون رکورد → null). submitCreate: payloadPages فقط کلیدهای انتخابی. submitEdit: modules فقط وقتی مجموع عوض شده (sameModuleSet)؛ master → بدون modulePages (سرور 400 می‌دهد) و پنل‌ها رندر نمی‌شوند (modules=[]).
+- نکتهٔ API: PUT سرور صفحات ماژول‌های «مانده» را فقط در مسیر مستقل (!newModules) می‌نویسد → mutationFn آسنکرون: PUT اصلی + در صورت modules+modulePages با هم، PUT دوم {modulePages} (idempotent) تا صفحات ماژول‌های تازه+مانده هر دو تضمین شوند؛ سوییچ وضعیت همان تک‌درخواستی قبلی.
+- فهرست: کنار هر ModuleChip با modulePages[m] غیر-null → PageLimitBadge (آیکون filter + «N/M» با formatNumber، title «دسترسی محدود به N صفحه از M»).
+- دیالوگ‌های ساخت/ویرایش: max-h-[90vh] overflow-y-auto scrollbar-thin (پنل‌ها فرم را بلند می‌کنند).
+- ⚠️ یافتهٔ مهم routing: src/components/modules/admin/users-page.tsx از فاز ۱۳ به بعد «کد مرده» است — module-router تنها sysadmin:users → MonitoringUsersPage (sysadmin/monitoring-users-page.tsx ~1190 خط، کپی مستقل همان الگو) را مپ می‌کند و هیچ import از UsersPage در کل پروژه نیست؛ NAV ادمین هم آیتم users ندارد. برای دیده‌شدن این UI در اپِ زنده، اورکستراتور باید یا routing را برگرداند (case "users" → UsersPage + NAV) یا همین پنل را به monitoring-users-page.tsx پورت کند (فایلش برای این تسک برای من ممنوع بود).
+- راستی‌آزمایی tsc/eslint: tsc --noEmit (فیلتر examples/skills) → صفر خطا؛ bunx eslint users-page.tsx → ۰ error/۰ warning.
+- curl: login master 200؛ GET all=1 → id سارا (modulePages.designer=null قبل تست)؛ PUT {modulePages:{designer:["orders","tasks"]}} → 200 و ریسپانس دقیقاً ["orders","tasks"]؛ login سارا + GET /api/auth/me → همان آرایه؛ PUT برگرداندن null → 200 {"designer":null}.
+- تست مرورگر (agent-browser، سشن ایزوله p18d): چون فایل مپ‌شده به router نیست، harness موقت src/app/t18d-harness/page.tsx ساخته شد (فقط UsersPage + پرکردن store از me — بعد از تست کامل حذف شد و tsc/eslint بدون آن دوباره سبز شد). جریان کامل: ویرایش «سارا احمدی» → پنل «صفحات مجاز در طراح» زیر چک‌باکس با «همهٔ صفحات» تیک → برداشتن «همه» → ۴ صفحه همه تیک → تخلیهٔ داشبورد+تقویم → ذخیره → PUT 200 + رفرش + بج «2/4» با title «دسترسی محدود به 2 صفحه از 4» کنار چیپ طراح (screenshot)؛ بازکردن مجدد ویرایش → هیدراته دقیق (فقط سفارشات طراحی+تسک‌ها)؛ برداشتن دو تیک آخر → «همهٔ صفحات» خودکار برگشت و لیست مخفی شد (گارد بدون قفل)؛ ذخیره با «همه» → modulePages.designer=null در GET و /me، بج از فهرست حذف شد. دیالوگ «کاربر جدید»: پنل زیر طراح پیش‌فرض + برداشتن «همه» + تیک ادمین داخلی → پنل ۱۲ صفحه‌ای (screenshot). خطای کنسول/صفحه: صفر.
+- نکتهٔ محیط: dev server چندبار OOM-kill شد (سندباکس ۴GB + مرورگرهای ایجنت‌های موازی + کامپایل‌های Turbopack) → هر بار با bun run dev بک‌گراند بالا آمد و تست‌ها ادامه یافت؛ در پایان روشن مانده (server زنده). دیتای سارا در پایان دقیقاً به null برگشت (قبل تست هم null بود). اسکرین‌شات‌ها: .zscripts/p18d-*.png (۷ عدد).
+- git دست نخورد (کامیت با ارکستراتور). فایل تغییر یافته: فقط src/components/modules/admin/users-page.tsx.
+
+Stage Summary:
+- فرم ساخت/ویرایش کاربر (users-page.tsx) حالا «ماژول + صفحات» دو سطحی دارد: تیک ماژول، پنل bordered جمع‌وجور با تاگل «همهٔ صفحات» و چک‌باکس تک‌تک صفحات همان ماژول از NAV؛ گارد auto-all کاربر را بدون صفحه قفل نمی‌کند؛ payload فقط کلیدهای انتخابی با نرمال‌سازی null؛ فهرست بج «N/M» با آیکون filter نشان می‌دهد.
+- قرارداد PUT به‌صورت کلاینت-safe رعایت شد: مجموع ثابت → modulePages مستقل (تک‌درخواست)؛ مجموع متغیر → modules+modulePages + PUT دوم idempotent برای ماژول‌های مانده.
+- تست‌ها: tsc ۰ خطا، eslint ۰/۰، curl سه‌مرحله‌ای PUT/me/revert سبز، E2E مرورگر کامل با harness موقت (حذف‌شده) — toast موفق، بج 2/4، هیدراته‌سازی، auto-all، برگشت به null همه تأیید.
+- ⚠️ برای اورکستراتور: users-page.tsx فعلاً به هیچ routeای وصل نیست (module-router → MonitoringUsersPage) — برای فعال‌شدن این UI در اپ، یا one-line re-wire (case "users" → UsersPage + آیتم NAV ادمین) لازم است یا پورت همین پنل به sysadmin/monitoring-users-page.tsx (تسک جدا).
+
+---
+Task ID: 18-e
+Agent: subagent-E (general-purpose)
+Task: کارت «مسئولان سفارش» در مودال جزئیات سفارش (ادمین) — نمایش/تغییر مجری طراح و چاپ‌کار با آبشار PUT /api/orders/[id]/assignee (فاز ۱۸)
+
+Work Log:
+- worklog خوانده شد (زمینهٔ 18-a: endpoint آبشاری + تایپ‌های گسترش‌یافتهٔ OrderDetail + قرارداد /api/users?module=)؛ الگوها مطالعه شد: SearchSelect (بدون پراپ disabled → گارد نرم در onChange)، ItemAssigneePicker ویزارد (tag آمبر مرخصی + «بدون تخصیص (استخر عمومی)»)، queryKey ["users","module",X]، invalidate پیشوندی useInvalidate.
+- order-detail-tabs.tsx (+۲۶۴/−۱): بخش جدید «Phase 18: مسئولان سفارش» قبل از OverviewTab — تایپ ModuleAssigneeUser، هوک useModuleAssignees(module, enabled) با staleTime 60s فقط برای مدیریتی، assigneeOptions() (بدون تخصیص + کاربران فعال همان ماژول + آپشن fallback مجری فعلیِ خارج از فهرست تا نامش گم نشود)، AssigneeRow (آیکون design/print رنگی + tag آمبر «مرخصی» + اسپینر pending + SearchSelect برای مدیر / نام ساده برای غیرمدیر) و OrderAssigneesCard.
+- RBAC: canManage = user.role==="master" || user.modules.includes("admin") — فقط برای همین گروه fetch کاربران + دراپ‌داون؛ بقیه فقط نام. mutation: PUT /api/orders/{id}/assignee با فیلد مربوطه ("" = null/استخر عمومی)؛ onSuccess → invalidate(["order","orders","notifications","dashboard"]) (کلید مودال ["order",id] با پیشوند "order" رفرش می‌شود) + توست «مسئول طراحی/چاپ سفارش #N تغییر کرد — نام جدید»؛ onError توست پیام سرور. مجری مؤثر = سطح سفارش با fallback به اولین آیتم جاری همان مرحله؛ نوچنج/پندینگ → ارسال نمی‌شود.
+- OverviewTab: کارت بعد از کاشی‌های آمار رندر می‌شود؛ ItemsTab: چیپ‌های جدید «طراح: X» / «چاپ: Y» (per-item با fallback به مجری سفارش؛ null → «—») کنار متادیتای آیتم در حالت نمایش.
+- order-detail-modal.tsx (−۱ خط): فقط حذف eslint-disable بلااستفادهٔ react-hooks/exhaustive-deps (هشدار پیش‌موجود؛ تایپ‌ها را 18-a گسترش داده بود — دست نخورد).
+- نکتهٔ محیط: dev server چندبار OOM-kill شد (dmesq: next-server ~2.1GB؛ فشار تست‌های مرورگر/کامپایل زیرایجنت‌های موازی 18-d) — یک‌بار خودم با setsid/nohup بالا آوردم (بقیه‌اش ری‌استارت موازی)؛ تست‌ها با صبر و retry کامل شد. سشن‌های مرورگر اختصاصی e18e/e18e2.
+- راستی‌آزمایی: tsc --noEmit (فیلتر examples/skills) → صفر خطا؛ eslint هر دو فایل → ۰ error/۰ warning.
+- curl: PUT #7 → سارا {ok:true,moved:{designItems:1,printItems:0}}؛ برد designer سارا +[7] و مهدی −[7]؛ برگرداندن → مهدی {ok:true,moved:{designItems:1}} و بردارها برعکس؛ FINAL: assignedDesigner=مهدی رحیمی (سطح سفارش + آیتم) = وضعیت اصلی.
+- E2E مرورگر (ادمین): همه سفارشات → مودال #7 (کلیک سلول مشتری — کلیک ردیف دیالوگ وضعیت باز می‌کند) → کارت «مسئولان سفارش»: طراح مسئول «مهدی رحیمی» + چاپ‌کار «بدون تخصیص (استخر عمومی)» → دراپ‌داون: بدون تخصیص/سارا احمدی (طراح)/مهدی رحیمی (طراح) → انتخاب سارا → توست «مسئول طراحی سفارش #7 تغییر کرد» + تریگر «سارا احمدی» (رفرش مودال با invalidate) → برگرداندن به مهدی → توست با نام مهدی + تریگر «مهدی رحیمی»؛ تب آیتم‌ها: چیپ «طراح: مهدی رحیمی» / «چاپ: —»؛ صفر خطای کنسول/صفحه؛ ۴ اسکرین‌شات .zscripts/p18e-*.png.
+- بررسی RBAC نمایشی: مودال تب‌دار شاخصِ admin است (پنل طراح/چاپ مودال اکشن خودش را دارد) — مسیر canManage=false فقط دفاع‌عمقی؛ سارا در پنل خودش به این مودال نمی‌رسد.
+- دادهٔ #7 به وضعیت اصلی (مهدی) برگردانده شد و تأیید نهایی GET /api/orders/[id] شد. اعلان‌های «واگذار/گرفته شد» + رویداد reassigned از خودِ API ساخته شدند (رفتار موردنظر، پاک‌سازی نشد). git دست نخورد.
+
+Stage Summary:
+- ادمین حالا از تب «نمای کلی» مودال سفارش می‌تواند طراح/چاپ‌کار را با یک کامبو عوض کند — آبشار سرور سفارش را از پنل مجری قبلی برمی‌دارد و به پنل مجری جدید می‌برد (تست پنل سارا/مهدی پاس)، اعلان + رویداد تاریخچه ثبت می‌شود و مودال فوراً دیتای تازه نشان می‌دهد؛ تب آیتم‌ها مجری هر آیتم را با چیپ نشان می‌دهد.
+- فایل‌ها: src/components/shared/order-detail-tabs.tsx (+۲۶۴/−۱) و src/components/shared/order-detail-modal.tsx (−۱). دیتا به حالت اولیه برگشت.
+
+---
+Task ID: PHASE-18
+Agent: orchestrator (main)
+Task: شهر/استان دراپ‌داونی + صفحه مدیریت جغرافیا + دسترسی صفحه‌محور (module+pages) + رفع باگ تخصیص/تغییر مجری سفارش
+
+Work Log:
+- QC تجربی باگ تخصیص (قبل از فیکس): PUT سطح-سفارش assignedDesignerId بدون آبشار → مهدی #7 را همچنان می‌دید و سارا (مسئول جدید) نمی‌دید — ریشه: فیلتر برد per-item (clause 1: designAssigneeId) که آیتم‌ها را دست‌نخورده می‌گذاشت. باگ دوم: مالکیت تاریخی (printCompletedBy) سفارش #14 را در پنل علی نگه می‌داشت در حالی که آیتم چاپ جاری مال رضاست.
+- Schema: Province/City (جداول مجزا @@map) + UserModule.pages (JSON آرایه صفحات؛ null=همه) → db push + بکاپ db/custom.db.bak-phase18 + سید ۱۹ استان عراق/۹۴ شهر (scripts/seed-locations.mjs idempotent).
+- API جدید: /api/locations (GET لیست/POST استان|شهر با 409 تکراری) + provinces/[id] DELETE (گارد شهر/مشتری) + cities/[id] DELETE (گارد مشتری هم‌نام+هم‌استان) + **PUT /api/orders/[id]/assignee** — آبشار تخصیص: سطح سفارش + آیتم‌های جاری (طراحی: stage=design؛ چاپ: stage∈{design,print}) + اعلان «واگذار شد/از شما گرفته شد» + رویداد reassigned (فقط مدیر).
+- access.ts: مالکیت تاریخی از boardScopeWhere حذف شد (پنل = فقط مسئول فعلی؛ canUserViewOrder برای ممیزی محافظ است) + module-pages.ts (PAGES_BY_MODULE + validateModulePages/serializePages).
+- nav.ts: آیتم «شهرها و استان‌ها» (تنظیمات پایه ادمین) + فیلتر صفحه‌محور: visibleModules/moduleHasPage/firstPageOfModule با پارامتر user (سازگار با call‌های قدیمی) + allowedPagesOf؛ ماژول بی‌صفحه = حذف از سایدبار.
+- auth: SessionUser.modulePages + safeParsePages؛ requireUser/login/me صفحات را fresh از DB می‌خوانند (تغییر دسترسی فوری — تست شد: revert بدون re-login با reload اعمال شد).
+- users API: GET (+modulePages) / POST / PUT (modulePages مستقل یا همراه modules؛ فیکس: صفحات ماژول‌های «مانده» هم با PUT واحد نوشته می‌شوند) + validation ساختاری 400 فارسی + master-گارد.
+- app-store/module-router/login-form/page.tsx: AppUser.modulePages + پالایش تب‌ها/فرود صفحه‌محور + AccessDenied برای صفحهٔ غیرمجاز.
+- monitoring (صفحهٔ زندهٔ مدیریت کاربران — users-page ادمین کد مرده بود): MonitorUserRow.modulePages + ModulePagesPanel زیر هر ماژول تیک‌خورده (تاگل «همهٔ صفحات» + چک‌باکس صفحات از NAV + گارد auto-all) + بج «N/M» کنار چیپ ماژول.
+- ۴ زیرایجنت موازی: 18-b فرم مشتری ادمین (SearchSelect استان/شهر وابسته + fallback دادهٔ قدیمی)؛ 18-c دیالوگ مش-Series جدید ویزارد (۴ فیلدی + quick endpoint)؛ 18-d UI صفحات در users-page مرده (فیکس حیاتی: کد مرده شناسایی شد → پورت به monitoring انجام شد)؛ 18-e کارت «مسئولان سفارش» در مودال جزئیات (کومبو تغییر طراح/چاپکار + چیپ مجری per-item در تب آیتم‌ها).
+- QC کامل (curl): QC-1 مالکیت تاریخی حذف شد (علی #14 را دیگر نمی‌بیند)؛ QC-2 تک‌سفارش #7 مهدی→سارا→برگشت (برد‌ها دقیقاً جابجا شدند)؛ QC-3 چند-آیتم #6 (۲ آیتم آبشار، سارا حذف/برگشت)؛ QC-4 چاپ #13 (رضا→علی و برگشت)؛ QC-5 استخر عمومی #10 (تخصیص→اختصاص‌دادن به رضا، علی حذف شد)؛ QC-6 صفحات: PUT مستقل/همراه، 400 صفحهٔ نامعتبر، 400 master، 403 غیرمدیر در assignee، me تازه؛ نوتیف‌های واگذاری/سلب هر دو ساخته شدند.
+- E2E مرورگر (agent-browser): صفحه شهرها/استان‌ها (۱۹/۹۴، ساخت شهر تست→حذف→۹۴)؛ فرم مشتری (استان دهوک→۶ شهر همان استان→ثبت با زاخو→حذف)؛ ویزارد (مشتری جدید با اربیل/شقلاوه→201→انتخاب→پاک‌سازی)؛ مانیتورینگ سارا (پنل صفحات→محدود به orders+tasks→ذخیره)؛ سشن سارا: سایدبار فقط ۲ صفحه + پالت فرمان ۲ گزینه + فرود سفارشات؛ revert→null→reload→۴ صفحه برگشت؛ مودال #7: تغییر طراح به سارا→توست+کومبو فوری→برد‌ها جابجا→برگشت به مهدی؛ چیپ «طراح: مهدی رحیمی/چاپ: —» در تب آیتم‌ها؛ موبایل 390px بدون overflowX. tsc صفر خطا؛ lint ۰ error (۶ warning پیش‌موجود)؛ dev.log بدون ۵۰۰.
+- نکتهٔ مهم محیط: در فیکس PUT کاربر، ریشهٔ «محدودیت ذخیره نمی‌شد» سمت سرور بود (کلید همراه modules فقط روی ماژول‌های تازه‌ایجاد اثر می‌گذاشت) — بعد از فیکس، PUT واحد از monitoring کار می‌کند.
+
+Stage Summary:
+- شهر/استان: دراپ‌داون وابسته (استان→شهرهای همان استان) در فرم مشتری ادمین + دیالوگ مشتوی ویزارد + صفحهٔ مدیریت «شهرها و استان‌ها» با گاردهای ۴۰۹؛ Customer همچنان string ذخیره می‌کند (سازگاری کامل).
+- دسترسی: module-base + page-level — ماژول تیک می‌خورد و زیرش صفحات مجاز محدود می‌شوند (null=همه)؛ سایدبار/پالت/تب‌ها/فرود همه صفحه‌محور فیلتر می‌شوند؛ بج «N/M» در مانیتورینگ؛ تغییرات بدون re-login اعمال می‌شوند (me/requireUser از DB تازه).
+- تخصیص: PUT /api/orders/[id]/assignee با آبشار کامل — سفارش از پنل مجری قبلی برداشته و به پنل جدید می‌رود (تست تک‌سفارش/چندآیتم/گروهی/چاپ/استخر عمومی) + کارت «مسئولان سفارش» در مودال ادمین + چیپ مجری آیتم‌ها؛ مالکیت تاریکی از برد کاری حذف شد.
+- فایل‌های کلیدی: prisma/schema.prisma، scripts/seed-locations.mjs، src/lib/{nav,access,auth,monitoring,module-pages}.ts، src/stores/app-store.ts، src/components/module-router.tsx، API: locations*/users*/auth/{login,me}/orders/[id]/assignee، components: admin/{locations-page,customers-page,orders/order-wizard}، sysadmin/monitoring-users-page، shared/{order-detail-modal,order-detail-tabs}، app/page.tsx، auth/login-form.tsx.

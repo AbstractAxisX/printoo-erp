@@ -93,6 +93,10 @@ model UserModule {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   module    String
+  // Phase 18 — دسترسی صفحه‌محور: JSON آرایهٔ شناسهٔ صفحات مجازِ همین ماژول
+  // (مثل ["dashboard","orders"])؛ null = همهٔ صفحات ماژول (سازگاری کامل).
+  // منبع حقیقت اعتبارسنجی صفحات = NAV در lib/nav.ts.
+  pages     String?
   createdAt DateTime @default(now())
 
   @@unique([userId, module])
@@ -109,6 +113,31 @@ model UserActivityLog {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ─── Phase 18: جغرافیا — استان/شهر (دراپ‌داون مشتریان) ──────────
+// استان و شهر موجودیت مستقل‌اند (خواستهٔ صریح: «شهر جدا استان جدا»)؛
+// ذخیره‌سازی روی Customer همچنان string می‌ماند (سازگاری کامل با
+// داده‌های موجود) — این جداول فقط «فهرست مجاز» را می‌سازند.
+model Province {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  cities    City[]
+
+  @@map("provinces")
+}
+
+model City {
+  id         String   @id @default(cuid())
+  name       String
+  provinceId String
+  province   Province @relation(fields: [provinceId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([name, provinceId])
+  @@index([provinceId])
+  @@map("cities")
 }
 
 // ─── CRM: Customers ─────────────────────────────────────────────

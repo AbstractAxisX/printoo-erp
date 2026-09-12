@@ -10,6 +10,7 @@
 
 import { db } from "@/lib/db";
 import { activeLeaveToday, localDayKey, type LeaveSpan } from "@/lib/access";
+import { safeParsePages } from "@/lib/auth";
 
 // ─── انواع اشتراکی (قرارداد API → فرانت) ───────────────────────────
 
@@ -29,6 +30,8 @@ export type MonitorUserRow = {
   role: string;
   status: string;
   modules: string[];
+  /** Phase 18: صفحات مجاز هر ماژول — null = همه (برای بج محدودیت در لیست) */
+  modulePages?: Record<string, string[] | null>;
   online: boolean;
   lastSeenAt: Date | null;
   lastLoginAt: Date | null;
@@ -88,7 +91,7 @@ export async function monitorUsersList(): Promise<{
       select: {
         id: true, name: true, email: true, phone: true, role: true, status: true,
         lastSeenAt: true, lastLoginAt: true, loginCount: true,
-        modules: { select: { module: true } },
+        modules: { select: { module: true, pages: true } },
         leaves: { select: { startDate: true, endDate: true, note: true } },
       },
       orderBy: { name: "asc" },
@@ -203,6 +206,10 @@ export async function monitorUsersList(): Promise<{
       role: u.role,
       status: u.status,
       modules: u.role === "master" ? [] : u.modules.map((m) => m.module),
+      // Phase 18: صفحات مجاز هر ماژول (null = همه) — بج «N/M صفحه» در لیست
+      modulePages: Object.fromEntries(
+        u.modules.map((m) => [m.module, m.pages ? safeParsePages(m.pages) : null])
+      ),
       online: !!u.lastSeenAt && now - u.lastSeenAt.getTime() < 3 * 60 * 1000,
       lastSeenAt: u.lastSeenAt,
       lastLoginAt: u.lastLoginAt,

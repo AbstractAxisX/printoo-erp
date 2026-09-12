@@ -51,6 +51,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MODULES, type ModuleKey } from "@/lib/constants";
+import { NAV } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,8 @@ type MonitorUser = {
   role: string;
   status: string;
   modules: string[];
+  // Phase 18: صفحات مجاز هر ماژول (null = همه) — بج محدودیت در لیست
+  modulePages?: Record<string, string[] | null>;
   online: boolean;
   lastSeenAt: string | null;
   lastLoginAt: string | null;
@@ -101,6 +104,8 @@ type FormState = {
   phone: string;
   status: "active" | "inactive";
   modules: string[];
+  // Phase 18: صفحات مجاز هر ماژول — null = همهٔ صفحات همان ماژول
+  modulePages: Record<string, string[] | null>;
 };
 
 type CreateUserBody = {
@@ -110,6 +115,8 @@ type CreateUserBody = {
   phone: string | null;
   status: "active" | "inactive";
   modules: string[];
+  // Phase 18
+  modulePages?: Record<string, string[] | null>;
 };
 
 const EMPTY_FORM: FormState = {
@@ -119,7 +126,25 @@ const EMPTY_FORM: FormState = {
   phone: "",
   status: "active",
   modules: ["designer"],
+  modulePages: {},
 };
+
+/** Phase 18: آیتم‌های سایدبار یک ماژول (برچسب/صفحه) — از NAV. */
+function moduleNavItems(moduleKey: string): { id: string; label: string; page: string }[] {
+  const m = NAV.find((x) => x.key === moduleKey);
+  if (!m) return [];
+  return m.groups.flatMap((g) => g.items.map((i) => ({ id: i.id, label: i.label, page: i.page })));
+}
+
+/** Phase 18: فقط کلیدهای ماژول‌های انتخاب‌شده + نرمال‌سازی آرایهٔ خالی → null. */
+function payloadPages(form: FormState): Record<string, string[] | null> {
+  const out: Record<string, string[] | null> = {};
+  for (const m of form.modules) {
+    const pages = form.modulePages[m];
+    out[m] = pages && pages.length > 0 ? Array.from(new Set(pages)) : null;
+  }
+  return out;
+}
 
 // ─── فیلتر/مرتب‌سازی ────────────────────────────────────────────────
 type PresenceFilter = "all" | "online" | "offline" | "leave";
@@ -468,6 +493,8 @@ export function MonitoringUsersPage() {
       phone: u.phone ?? "",
       status: u.status === "inactive" ? "inactive" : "active",
       modules: u.role === "master" ? [] : (u.modules ?? []),
+      // Phase 18: هیدراته از modulePages کاربر (null = همه)
+      modulePages: u.role === "master" ? {} : { ...(u.modulePages ?? {}) },
     });
     setNewPassword("");
   }
@@ -489,6 +516,8 @@ export function MonitoringUsersPage() {
       phone: createForm.phone.trim() || null,
       status: createForm.status,
       modules: createForm.modules,
+      // Phase 18: صفحات مجاز فقط برای ماژول‌های انتخاب‌شده
+      modulePages: payloadPages(createForm),
     });
   }
 
@@ -507,6 +536,8 @@ export function MonitoringUsersPage() {
       status: editForm.status,
       // master ماژول تکی ندارد — PUT برای او modules را رد می‌کند (۴۰۰)
       ...(editUser.role !== "master" ? { modules: editForm.modules } : {}),
+      // Phase 18: صفحات مجاز (سرور مجموع ماژول ثابت را مستقل اعمال می‌کند)
+      ...(editUser.role !== "master" ? { modulePages: payloadPages(editForm) } : {}),
       ...(newPassword ? { password: newPassword } : {}),
     });
   }
@@ -949,9 +980,31 @@ export function MonitoringUsersPage() {
                           <span className="text-[11px] text-muted-foreground">—</span>
                         ) : (
                           <>
-                            {(u.modules ?? []).map((m) => (
-                              <ModuleChip key={m} module={m} />
-                            ))}
+                            {(u.modules ?? []).map((m) => {
+                              const pages = u.modulePages?.[m] ?? null;
+                              const total = moduleNavItems(m).length;
+                              const restricted = pages !== null && pages.length > 0;
+                              return (
+                                <span key={m} className="inline-flex items-center gap-1">
+                                  <ModuleChip module={m} />
+                                  {restricted && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span
+                                          className="text-[9px] font-medium tabular-nums rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 px-1.5 py-0.5 cursor-help"
+                                          title={undefined}
+                                        >
+                                          {fa(pages.length)}/{fa(total)}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-xs max-w-[240px]">
+                                        دسترسی محدود به {fa(pages.length)} صفحه از {fa(total)} صفحهٔ ماژول
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </span>
+                              );
+                            })}
                             <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                               {fa(u.modules.length)} ماژول
                             </span>
@@ -1195,12 +1248,20 @@ function UserFormFields({
   isMasterUser?: boolean;
 }) {
   function toggleModule(key: string, checked: boolean) {
-    setForm((f) => ({
-      ...f,
-      modules: checked
+    setForm((f) => {
+      const modules = checked
         ? Array.from(new Set([...f.modules, key]))
-        : f.modules.filter((m) => m !== key),
-    }));
+        : f.modules.filter((m) => m !== key);
+      // Phase 18: کلید ماژولِ تازه تیک‌خورده بدون رکورد → null (همهٔ صفحات)؛
+      // ماژولِ برداشته‌شده از modulePages حذف می‌شود (payload فقط ماژول‌های انتخابی)
+      const modulePages = { ...f.modulePages };
+      if (checked) {
+        if (modulePages[key] === undefined) modulePages[key] = null;
+      } else {
+        delete modulePages[key];
+      }
+      return { ...f, modules, modulePages };
+    });
   }
 
   return (
@@ -1269,48 +1330,142 @@ function UserFormFields({
         />
       </div>
 
-      {/* ماژول‌های دسترسی — چند انتخاب (چک‌باکس + نقطهٔ رنگ ماژول) */}
+      {/* ماژول‌های دسترسی — چند انتخاب (چک‌باکس + نقطهٔ رنگ ماژول) + صفحات مجاز */}
       {isMasterUser ? null : (
-        <Field label="ماژول‌های دسترسی (چند انتخاب)" required>
-          <div className="grid grid-cols-2 gap-2">
+        <Field label="ماژول‌های دسترسی و صفحات مجاز" required>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {(Object.keys(MODULES) as ModuleKey[]).map((key) => {
               const checked = form.modules.includes(key);
               return (
-                <label
-                  key={key}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer transition-colors select-none",
-                    checked
-                      ? "border-primary/50 bg-primary/5"
-                      : "border-border hover:bg-accent/40"
-                  )}
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(v) => toggleModule(key, v === true)}
-                    aria-label={MODULES[key].faLabel}
-                  />
-                  <span className="text-xs font-medium flex items-center gap-1.5">
-                    <span
-                      className={cn(
-                        "size-2 rounded-full shrink-0",
-                        checked
-                          ? MODULE_DOT[key] ?? "bg-primary"
-                          : "bg-muted-foreground/30"
-                      )}
+                <div key={key} className="space-y-0">
+                  <label
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer transition-colors select-none",
+                      checked
+                        ? "border-primary/50 bg-primary/5"
+                        : "border-border hover:bg-accent/40"
+                    )}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => toggleModule(key, v === true)}
+                      aria-label={MODULES[key].faLabel}
                     />
-                    {MODULES[key].faLabel}
-                  </span>
-                </label>
+                    <span className="text-xs font-medium flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          "size-2 rounded-full shrink-0",
+                          checked
+                            ? MODULE_DOT[key] ?? "bg-primary"
+                            : "bg-muted-foreground/30"
+                        )}
+                      />
+                      {MODULES[key].faLabel}
+                    </span>
+                  </label>
+                  {/* Phase 18: صفحات مجاز این ماژول — فقط وقتی تیک خورده */}
+                  {checked && (
+                    <ModulePagesPanel
+                      moduleKey={key}
+                      pages={form.modulePages[key] ?? null}
+                      onChange={(pages) =>
+                        setForm((f) => ({
+                          ...f,
+                          modulePages: { ...f.modulePages, [key]: pages },
+                        }))
+                      }
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-            کاربر فقط پنل ماژول‌های تیک‌خورده را می‌بیند — مثلاً هم «کنترل کیفی» هم
-            «چاپ» را تیک بزنید تا هر دو پنل برایش باز شود.
+            ماژول را تیک بزنید تا پنلش باز شود؛ زیر هر ماژول می‌توانید صفحات مجاز همان
+            ماژول را محدود کنید — مثلاً «چاپ» تیک + فقط «سفارشات چاپ».
           </p>
         </Field>
       )}
+    </div>
+  );
+}
+
+// ─── Phase 18: پنل «صفحات مجاز در ماژول» ────────────────────────────
+// null = همهٔ صفحات (پیش‌فرض). برداشتن «همهٔ صفحات» → انتخاب صریح تک‌تک.
+// گارد UX: تخلیهٔ کامل → auto-all (ماژول بدون صفحه = حذف کامل از سایدبار).
+function ModulePagesPanel({
+  moduleKey,
+  pages,
+  onChange,
+}: {
+  moduleKey: string;
+  pages: string[] | null;
+  onChange: (pages: string[] | null) => void;
+}) {
+  const items = moduleNavItems(moduleKey);
+  const allValues = items.map((i) => i.page);
+  const isAll = pages === null || pages.length === 0;
+  const meta = (MODULES as Record<string, { faLabel: string }>)[moduleKey];
+  const faLabel = meta?.faLabel ?? moduleKey;
+  const selected = new Set(isAll ? [] : pages);
+
+  function toggleAll(checked: boolean) {
+    // برداشتن «همه» → همهٔ صفحات صریح تیک‌خورده (معادل همان همه)
+    onChange(checked ? null : allValues);
+  }
+
+  function togglePage(page: string, checked: boolean) {
+    if (isAll) return;
+    const next = checked
+      ? Array.from(new Set([...(pages ?? []), page]))
+      : (pages ?? []).filter((p) => p !== page);
+    // گارد UX: ماژول بدون صفحه = حذف کامل از سایدبار → auto-all
+    if (next.length === 0) {
+      onChange(null);
+      return;
+    }
+    onChange(next);
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          صفحات مجاز در {faLabel}
+        </span>
+        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+          <Checkbox
+            checked={isAll}
+            onCheckedChange={(v) => toggleAll(v === true)}
+            aria-label={`همهٔ صفحات ${faLabel}`}
+          />
+          <span className="text-[11px] font-medium">همهٔ صفحات</span>
+        </label>
+      </div>
+      {!isAll && (
+        <div className="grid grid-cols-1 gap-x-3 gap-y-1">
+          {items.map((item) => (
+            <label
+              key={item.id}
+              className="flex items-center gap-1.5 cursor-pointer select-none"
+              title={item.label}
+            >
+              <Checkbox
+                checked={selected.has(item.page)}
+                onCheckedChange={(v) => togglePage(item.page, v === true)}
+                aria-label={item.label}
+              />
+              <span className="text-[11px] truncate">{item.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      <p className="text-[10px] text-muted-foreground leading-relaxed">
+        حداقل یک صفحه باید فعال باشد — اگر هیچ صفحه‌ای تیک نخورد، «همهٔ صفحات» خودکار
+        برمی‌گردد.
+      </p>
     </div>
   );
 }

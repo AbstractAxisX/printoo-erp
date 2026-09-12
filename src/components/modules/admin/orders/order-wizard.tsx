@@ -51,6 +51,17 @@ type ItemDraft = {
 
 type Customer = { id: string; name: string; phone: string };
 
+// Phase 18-c: جغرافیا برای دراپ‌داون‌های دیالوگ «ایجاد مشتری جدید» —
+// Customer شهر/استان را STRING (نام) ذخیره می‌کند → value دراپ‌داون = نام
+type LocationsData = {
+  provinces: { id: string; name: string; cityCount: number }[];
+  cities: { id: string; name: string; provinceId: string; provinceName: string }[];
+};
+// بدنهٔ POST /api/customers/quick — province/city اختیاری (نام رشته)
+type QuickCustomerBody = { name: string; phone: string; province?: string; city?: string };
+// پیش‌نویس فرم «ایجاد مشتری جدید» داخل Step1
+type NewCustomerDraft = { name: string; phone: string; province: string; city: string };
+
 type OrderEditData = {
   id: string;
   number: number;
@@ -913,13 +924,24 @@ function Step1({
   customerOptions: { value: string; label: string; sub?: string }[];
   allCustomers: Customer[];
 }) {
-  const [newCust, setNewCust] = React.useState({ name: "", phone: "" });
+  const [newCust, setNewCust] = React.useState<NewCustomerDraft>({ name: "", phone: "", province: "", city: "" });
   const [createOpen, setCreateOpen] = React.useState(false);
   const invalidate = useInvalidate();
 
+  // Phase 18-c: جغرافیا (استان/شهر) برای دیالوگ «ایجاد مشتری جدید» —
+  // همان کلید ["locations"] صفحهٔ مدیریت شهر/استان → کش مشترک react-query
+  const { data: locations } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => api<LocationsData>("/api/locations"),
+    staleTime: 5 * 60_000,
+  });
+  const provinces = locations?.provinces ?? [];
+  const cities = locations?.cities ?? [];
+
   // Phase 17-D: quick endpoint — آدرس در ویزارد الزامی نیست (جریان سریع)
+  // Phase 18-c: province/city (نام) هم پاس می‌شود — رشتهٔ خالی نفرست
   const createCust = useMutation({
-    mutationFn: (body: { name: string; phone: string }) => api<{ customer: Customer }>("/api/customers/quick", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: QuickCustomerBody) => api<{ customer: Customer }>("/api/customers/quick", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: (data) => {
       invalidate(["customers"]);
       invalidate(["customers-wizard"]);
@@ -928,11 +950,18 @@ function Step1({
       invalidate(["customers-list"]);
       addCustomer(data.customer.id);
       toast.success("مشتری ایجاد و انتخاب شد");
-      setNewCust({ name: "", phone: "" });
+      setNewCust({ name: "", phone: "", province: "", city: "" });
       setCreateOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const submitNewCustomer = () => {
+    const body: QuickCustomerBody = { name: newCust.name.trim(), phone: newCust.phone.trim() };
+    if (newCust.province.trim()) body.province = newCust.province.trim();
+    if (newCust.city.trim()) body.city = newCust.city.trim();
+    createCust.mutate(body);
+  };
 
   return (
     <Card className="p-6 space-y-5">
@@ -1016,8 +1045,10 @@ function Step1({
         onOpenChange={setCreateOpen}
         form={newCust}
         setForm={setNewCust}
-        onSubmit={() => createCust.mutate(newCust)}
+        onSubmit={submitNewCustomer}
         loading={createCust.isPending}
+        provinces={provinces}
+        cities={cities}
       />
     </Card>
   );
@@ -1028,15 +1059,25 @@ function Step1({
 }
 
 function CreateCustomerDialog({
-  open, onOpenChange, form, setForm, onSubmit, loading,
+  open, onOpenChange, form, setForm, onSubmit, loading, provinces, cities,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  form: { name: string; phone: string };
-  setForm: (f: { name: string; phone: string }) => void;
+  form: NewCustomerDraft;
+  setForm: (f: NewCustomerDraft) => void;
   onSubmit: () => void;
   loading: boolean;
+  provinces: LocationsData["provinces"];
+  cities: LocationsData["cities"];
 }) {
+  // Phase 18-c: فرم استان با «نام» ذخیره می‌شود (Customer رشته نگه می‌دارد)؛
+  // برای فیلتر شهرهای همان استان، نام → id استان نگاشت می‌شود
+  const selectedProvinceId = provinces.find((p) => p.name === form.province)?.id;
+  const provinceOptions = provinces.map((p) => ({ value: p.name, label: p.name }));
+  const cityOptions = cities
+    .filter((c) => c.provinceId === selectedProvinceId)
+    .map((c) => ({ value: c.name, label: c.name }));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined}>
@@ -1048,6 +1089,44 @@ function CreateCustomerDialog({
             </Field>
             <Field label="شماره تلفن" required>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required dir="ltr" placeholder="0912…" />
+            </Field>
+          </div>
+          {/* Phase 18-c: استان/شهر اختیاری از فهرست مجاز (/api/locations) —
+              تا استان انتخاب نشود شهر قفل است؛ تغییر استان → پاک‌شدن شهر */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="استان" hint="اختیاری">
+              <SearchSelect
+                value={form.province || null}
+                onChange={(v) => setForm({ ...form, province: v ?? "", city: "" })}
+                placeholder="انتخاب استان…"
+                searchPlaceholder="جستجوی استان…"
+                options={provinceOptions}
+                allowClear
+              />
+            </Field>
+            <Field label="شهر" hint="اختیاری">
+              {form.province ? (
+                <SearchSelect
+                  value={form.city || null}
+                  onChange={(v) => setForm({ ...form, city: v ?? "" })}
+                  placeholder="انتخاب شهر…"
+                  searchPlaceholder="جستجوی شهر…"
+                  options={cityOptions}
+                  allowClear
+                />
+              ) : (
+                // SearchSelect پراپ disabled ندارد → تا انتخاب استان، تریگر
+                // خاموش با همان استایل (button disabled) جایگزین می‌شود
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 py-2 text-sm min-w-0 text-muted-foreground opacity-50 cursor-not-allowed"
+                >
+                  <span className="truncate">اول استان…</span>
+                  <Icon name="chevronDown" size={14} className="text-muted-foreground shrink-0" />
+                </button>
+              )}
             </Field>
           </div>
           <DialogFooter>

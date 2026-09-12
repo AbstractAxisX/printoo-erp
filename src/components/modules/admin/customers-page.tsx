@@ -10,6 +10,10 @@
 //  - کلیک ردیف → دیالوگ «پروندهٔ مشتری» (customers-detail-dialog)
 //  - فرم ساخت/ویرایش با نام/تلفن/آدرس الزامی + شهر/استان/یادداشت/ویژه
 //  - حذف با AlertDialog و پیام ۴۰۹-aware (مشتری با سفارش حذف نمی‌شود)
+// Phase 18-b: شهر/استان فرم از فهرست مجاز /api/locations می‌آید (دراپ‌داون) —
+// Customer همچنان «نام» رشته‌ای ذخیره می‌کند؛ value دراپ‌داون = نام، نه id.
+// تا استان انتخاب نشود شهر قفل است؛ تغییر استان → پاک‌شدن شهرِ نا متعلق؛
+// مقدار قدیمیِ خارج از فهرست به‌عنوان آپشن fallback حاضر می‌ماند.
 
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -24,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { ToggleButton } from "@/components/ui/toggle-button";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchSelect } from "@/components/shared/search-select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
@@ -71,6 +76,13 @@ type FormErrors = { name?: boolean; phone?: boolean; address?: boolean };
 
 type ChipFilter = "all" | "unsettled" | "favorite";
 
+// Phase 18-b: جغرافیا برای دراپ‌داون‌های فرم — Customer شهر/استان را
+// STRING (نام) ذخیره می‌کند → value دراپ‌داون = نام (آینهٔ /api/locations)
+type LocationsData = {
+  provinces: { id: string; name: string; cityCount: number }[];
+  cities: { id: string; name: string; provinceId: string; provinceName: string }[];
+};
+
 /** شمارش فارسی برای اعداد کوچک */
 const fa = (n: number) => n.toLocaleString("fa-IR");
 
@@ -116,6 +128,16 @@ export function CustomersPage() {
   const [errors, setErrors] = React.useState<FormErrors>({});
   const [deleting, setDeleting] = React.useState<CustomerRow | null>(null);
 
+  // Phase 18-b: فهرست مجاز استان/شهر — همان کلید ["locations"] صفحهٔ مدیریت
+  // جغرافیا و ویزارد سفارش → کش مشترک react-query
+  const { data: locations } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => api<LocationsData>("/api/locations"),
+    staleTime: 5 * 60_000, // جغرافیا به‌ندرت وسط جلسه عوض می‌شود
+  });
+  const provinces = locations?.provinces ?? [];
+  const cities = locations?.cities ?? [];
+
   // ── داده‌ها ──
   const { data, isLoading } = useQuery({
     queryKey: ["customers", "admin", search],
@@ -147,6 +169,36 @@ export function CustomersPage() {
       }),
     [customers, chip]
   );
+
+  // ── دراپ‌داون استان/شهر (Phase 18-b) ──
+  // آپشن استان‌ها — value = نام (Customer رشته ذخیره می‌کند، نه id).
+  // اگر استانِ فعلیِ مشتری در فهرست نیست (دادهٔ قدیمی)، به‌عنوان آپشن
+  // fallback اضافه می‌شود تا مقدار ذخیره‌شده گم نشود (pattern current-value)
+  const provinceOptions = React.useMemo(() => {
+    const opts = provinces.map((p) => ({ value: p.name, label: p.name }));
+    if (form.province && !opts.some((o) => o.value === form.province)) {
+      opts.push({ value: form.province, label: form.province });
+    }
+    return opts;
+  }, [provinces, form.province]);
+
+  // نام استان انتخاب‌شده → id (برای فیلتر شهرهای همان استان)
+  const selectedProvinceId = provinces.find((p) => p.name === form.province)?.id ?? null;
+
+  // شهرهای همان استان — فیلتر client-side روی provinceId.
+  // شهرِ فعلیِ خارج از فهرست (دادهٔ قدیمی) به‌عنوان آپشن fallback می‌ماند
+  const cityOptions = React.useMemo(() => {
+    if (!form.province) return [];
+    const opts = selectedProvinceId
+      ? cities
+          .filter((c) => c.provinceId === selectedProvinceId)
+          .map((c) => ({ value: c.name, label: c.name }))
+      : [];
+    if (form.city && !opts.some((o) => o.value === form.city)) {
+      opts.push({ value: form.city, label: form.city });
+    }
+    return opts;
+  }, [cities, selectedProvinceId, form.province, form.city]);
 
   // ── Mutations ──
   const createMut = useMutation({
@@ -201,6 +253,22 @@ export function CustomersPage() {
     setErrors({});
     setFormOpen(true);
   }
+  // تغییر استان → اگر شهرِ فعلی به استان جدید تعلق ندارد، شهر خالی می‌شود
+  // (اگر همان استان دوباره کلیک شود، SearchSelect مقدار را null می‌کند = پاک‌شدن)
+  function handleProvinceChange(v: string | null) {
+    const nextProvince = v ?? "";
+    if (nextProvince === form.province) return;
+    let nextCity = form.city;
+    if (nextCity) {
+      const pid = provinces.find((p) => p.name === nextProvince)?.id ?? null;
+      const belongs = pid
+        ? cities.some((c) => c.provinceId === pid && c.name === nextCity)
+        : false;
+      if (!belongs) nextCity = "";
+    }
+    setForm({ ...form, province: nextProvince, city: nextCity });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const errs: FormErrors = {
@@ -480,20 +548,47 @@ export function CustomersPage() {
               />
             </Field>
 
+            {/* Phase 18-b: شهر/استان از فهرست مجاز /api/locations — دراپ‌داون.
+                تا استان انتخاب نشود شهر قفل است؛ مقدار قدیمی خارج از فهرست
+                به‌عنوان آپشن fallback حاضر می‌ماند تا گم نشود */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="شهر">
-                <Input
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                  placeholder="مثلاً اربیل"
-                />
-              </Field>
               <Field label="استان">
-                <Input
-                  value={form.province}
-                  onChange={(e) => setForm({ ...form, province: e.target.value })}
-                  placeholder="مثلاً اربیل"
-                />
+                <div role="group" aria-label="انتخاب استان">
+                  <SearchSelect
+                    value={form.province || null}
+                    onChange={handleProvinceChange}
+                    placeholder="انتخاب استان…"
+                    searchPlaceholder="جستجوی استان…"
+                    options={provinceOptions}
+                    className="w-full"
+                  />
+                </div>
+              </Field>
+              <Field label="شهر">
+                {form.province ? (
+                  <div role="group" aria-label="انتخاب شهر">
+                    <SearchSelect
+                      value={form.city || null}
+                      onChange={(v) => setForm({ ...form, city: v ?? "" })}
+                      placeholder="انتخاب شهر…"
+                      searchPlaceholder="جستجوی شهر…"
+                      options={cityOptions}
+                      className="w-full"
+                    />
+                  </div>
+                ) : (
+                  // SearchSelect پراپ disabled ندارد → تا انتخاب استان، تریگر
+                  // خاموش با همان استایل (button disabled) جایگزین می‌شود
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="شهر — ابتدا استان را انتخاب کنید"
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 py-2 text-sm min-w-0 text-muted-foreground opacity-50 cursor-not-allowed"
+                  >
+                    <span className="truncate">اول استان را انتخاب کنید</span>
+                    <Icon name="chevronDown" size={14} className="text-muted-foreground shrink-0" />
+                  </button>
+                )}
               </Field>
             </div>
 

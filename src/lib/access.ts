@@ -201,7 +201,14 @@ function printerVisibleItemsFilter(userId: string): Prisma.OrderItemWhereInput {
 
 /** اسکوپ یک «برد ماژول» (طراحی/چاپ) — مستقل از اینکه کاربر مدیر داخلی
  *  هم هست یا نه: در برد طراحی فقط آیتم‌های طراحیِ خودت را می‌بینی.
- *  مستر (صاحب سیستم) همه‌چیز را می‌بیند. */
+ *  مستر (صاحب سیستم) همه‌چیز را می‌بیند.
+ *
+ *  Phase 18-QC: «مالکیت تاریخی» (designCompletedBy/printCompletedBy) از
+ *  بردِ کاری حذف شد — خواستهٔ کارفرما: سفارش فقط باید در پنلِ «مسئولِ
+ *  فعلیِ» کار باشد، نه مجری‌های گذشتهٔ آیتم‌های تکمیل‌شده (باقگ #14:
+ *  آیتم انبارشدهٔ علی، آیتم چاپ جاری رضا — فقط رضا باید ببیند).
+ *  تاریخچه همچنان از مسیر orderScopeWhere/canUserViewOrder برای
+ *  ممیزی قابل مشاهده است. */
 export function boardScopeWhere(
   user: { id: string; role: string; modules: string[] },
   board: "designer" | "print"
@@ -211,11 +218,9 @@ export function boardScopeWhere(
     board === "designer"
       ? [
           { items: { some: designerVisibleItemsFilter(user.id) } },
-          { items: { some: { designCompletedBy: user.id } } }, // مالکیت تاریخی
         ]
       : [
           { items: { some: printerVisibleItemsFilter(user.id) } },
-          { items: { some: { printCompletedBy: user.id } } },
         ];
   return { OR: or };
 }

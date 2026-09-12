@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession, clearSession, touchLastSeen } from "@/lib/auth";
+import { getSession, clearSession, touchLastSeen, safeParsePages } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 // /api/auth/me — session bootstrap for the client shell.
@@ -28,7 +28,7 @@ export async function GET() {
         email: true,
         role: true,
         status: true,
-        modules: { select: { module: true } },
+        modules: { select: { module: true, pages: true } },
       },
     });
     if (!fresh || fresh.status !== "active") {
@@ -36,6 +36,11 @@ export async function GET() {
       return NextResponse.json({ user: null }, { status: 401 });
     }
     void touchLastSeen(fresh.id);
+    // Phase 18: صفحات مجاز هر ماژول هم تازه برمی‌گردند (مثل modules)
+    const modulePages: Record<string, string[] | null> = {};
+    for (const m of fresh.modules) {
+      modulePages[m.module] = m.pages ? safeParsePages(m.pages) : null;
+    }
     return NextResponse.json({
       user: {
         id: fresh.id,
@@ -46,6 +51,7 @@ export async function GET() {
           fresh.role === "master"
             ? [] // master = همهٔ ماژول‌ها (UI می‌داند)
             : fresh.modules.map((m) => m.module),
+        modulePages,
       },
     });
   } catch {

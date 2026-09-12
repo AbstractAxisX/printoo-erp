@@ -26,6 +26,9 @@ type AppUser = {
   role: string;
   // Phase 12: ماژول‌های تیک‌خوردهٔ کاربر — منبع فیلتر sidebar/naوبری
   modules: string[];
+  // Phase 18: صفحات مجاز هر ماژول — null/غایب = بدون محدودیت.
+  // فرم login/me آن را می‌فرستند؛ setUser تب‌ها/فرود را با آن می‌پالایش می‌کند.
+  modulePages?: Record<string, string[] | null> | null;
 };
 
 type AppState = {
@@ -93,20 +96,26 @@ export const useAppStore = create<AppState>()(
       setUser: (u) =>
         set((s) => {
           if (!u) return { ...s, user: null };
-          const allowed = allowedModuleKeys(u);
+          const withPages: AppUser = {
+            ...u,
+            modules: u.modules ?? [],
+            modulePages: u.modulePages ?? {},
+          };
+          const allowed = allowedModuleKeys(withPages);
           const sanitizedTabs = s.tabs.filter(
-            (t) => allowed.includes(t.module) && moduleHasPage(t.module, t.page)
+            (t) =>
+              allowed.includes(t.module) && moduleHasPage(t.module, t.page, withPages)
           );
           const activeOk =
             s.activeTabId != null &&
             sanitizedTabs.some((t) => t.id === s.activeTabId);
           const currentOk =
-            allowed.includes(s.module) && moduleHasPage(s.module, s.page);
+            allowed.includes(s.module) && moduleHasPage(s.module, s.page, withPages);
           const fallbackModule = allowed[0] ?? "admin";
-          const fallbackPage = firstPageOfModule(fallbackModule);
+          const fallbackPage = firstPageOfModule(fallbackModule, withPages);
           return {
             ...s,
-            user: { ...u, modules: u.modules ?? [] },
+            user: withPages,
             tabs: sanitizedTabs,
             activeTabId: activeOk
               ? s.activeTabId
@@ -155,8 +164,10 @@ export const useAppStore = create<AppState>()(
           } else {
             // Phase 17: بستن آخرین تب → فرود روی اولین ماژول مجاز کاربر
             // (قبلاً ادمین/داشبورد هاردکد بود که برای کاربر تک-ماژوله AccessDenied می‌شد)
-            const m = state.user ? allowedModuleKeys(state.user)[0] ?? "admin" : "admin";
-            set({ tabs: newTabs, activeTabId: null, module: m, page: firstPageOfModule(m), param: undefined });
+            // Phase 18: فرود صفحه‌محور — اولین صفحهٔ مجاز آن ماژول
+            const u2 = state.user;
+            const m = u2 ? allowedModuleKeys(u2)[0] ?? "admin" : "admin";
+            set({ tabs: newTabs, activeTabId: null, module: m, page: firstPageOfModule(m, u2), param: undefined });
           }
         } else {
           set({ tabs: newTabs });
@@ -169,7 +180,7 @@ export const useAppStore = create<AppState>()(
       closeAllTabs: () => {
         const u = get().user;
         const m = u ? allowedModuleKeys(u)[0] ?? "admin" : "admin";
-        set({ tabs: [], activeTabId: null, module: m, page: firstPageOfModule(m), param: undefined });
+        set({ tabs: [], activeTabId: null, module: m, page: firstPageOfModule(m, u), param: undefined });
       },
 
       headerCollapsed: false,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { setSession, ensureSeedUser, verifyPassword } from "@/lib/auth";
+import { setSession, ensureSeedUser, verifyPassword, safeParsePages } from "@/lib/auth";
 
 // ─── POST /api/auth/login — Phase 12: حضور و غیاب + ماژول‌ها ─────
 // علاوه بر ورود امضاشده (HMAC):
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     await ensureSeedUser();
     const user = await db.user.findUnique({
       where: { email },
-      include: { modules: { select: { module: true } } },
+      include: { modules: { select: { module: true, pages: true } } },
     });
     // Always run verify to keep timing roughly constant (mitigate user-enumeration).
     const ok = user ? await verifyPassword(password, user.password) : false;
@@ -57,15 +57,22 @@ export async function POST(req: NextRequest) {
       ? [] // master دسترسی ضمنی دارد — UI خودش همه را نشان می‌دهد
       : user.modules.map((m) => m.module);
 
+    // Phase 18: صفحات مجاز هر ماژول — null = همه
+    const modulePages: Record<string, string[] | null> = {};
+    for (const m of user.modules) {
+      modulePages[m.module] = m.pages ? safeParsePages(m.pages) : null;
+    }
+
     await setSession({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       modules,
+      modulePages,
     });
     return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, modules },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, modules, modulePages },
     });
   } catch {
     // Never leak raw exception text to the client (was a leak pre-Phase-1.5).

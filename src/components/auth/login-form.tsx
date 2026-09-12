@@ -28,13 +28,15 @@ export function LoginForm() {
           email: string;
           role: string;
           modules?: string[];
+          // Phase 18: صفحات مجاز هر ماژول (null = همه)
+          modulePages?: Record<string, string[] | null> | null;
         } | null;
       }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
       if (!user) throw new Error("ورود ناموفق");
-      setUser({ ...user, modules: user.modules ?? [] }); // Phase 12: sanitize ناوبری بر اساس ماژول‌ها
+      setUser({ ...user, modules: user.modules ?? [], modulePages: user.modulePages ?? {} }); // Phase 12/18: sanitize ناوبری بر اساس ماژول‌ها + صفحات
       toast.success(`خوش آمدید، ${user.name}`);
       router.refresh();
     } catch (err) {
