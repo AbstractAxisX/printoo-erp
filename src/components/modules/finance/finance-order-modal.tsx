@@ -366,7 +366,7 @@ export function FinanceOrderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="max-w-5xl w-[calc(100%-2rem)] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl"
+        className="min-w-6xl overflow-hidden p-0 gap-0 rounded-xl"
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-violet-500/8 via-violet-500/3 to-transparent">
@@ -459,7 +459,7 @@ export function FinanceOrderModal({
         </div>
 
         {/* Tabs */}
-        <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col min-h-0">
+        <Tabs value={tab} onValueChange={setTab} dir="rtl" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-3 pb-0 border-b bg-muted/20">
             <TabsList className="bg-transparent p-0 h-auto gap-1">
               <TabsTrigger
@@ -1117,7 +1117,7 @@ export function FinanceOrderModal({
                     </span>
                   </div>
                 ) : (
-                  <div className="rounded-xl border overflow-hidden">
+                  <div className="rounded-xl border  overflow-hidden">
                     {/* سربرگ جدول */}
                     <div className="grid grid-cols-[1fr_90px_110px_90px_170px] items-center gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
                       <span>هزینه</span>

@@ -466,7 +466,7 @@ export function CostEntryForm({
                   />
                 </Field>
                 {moduleOptions.length > 1 && (
-                  <Field label="ثبت از طرف" className="col-span-1 md:col-span-2">
+                  <Field label="ثبت از طرف" className="col-span-1 md:col-span-3 ">
                     <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
                       {moduleOptions.map((m) => (
                         <button
@@ -485,7 +485,7 @@ export function CostEntryForm({
                       ))}
                     </div>
                   </Field>
-                )}
+                                  )}
                 {!isFree && showSupplier !== false && (
                   <Field label="تامین‌کننده" className="col-span-2 md:col-span-3">
                     <SearchSelect
@@ -497,7 +497,7 @@ export function CostEntryForm({
                     />
                   </Field>
                 )}
-                <Field label="توضیح" className="col-span-2 md:col-span-6">
+                <Field label="توضیح" className="col-span-2 md:col-span-5">
                   <Input
                     value={row.description}
                     onChange={(e) => updateRow(row.key, { description: e.target.value })}
@@ -505,7 +505,7 @@ export function CostEntryForm({
                   />
                 </Field>
                 {showInvoiceOption && !isFree && (
-                  <div className="col-span-2 md:col-span-6 flex items-center">
+                  <div className="col-span-2 md:col-span-4 flex items-center">
                     <label className="flex items-center gap-2 h-9 w-full px-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition text-xs">
                       <input
                         type="checkbox"
