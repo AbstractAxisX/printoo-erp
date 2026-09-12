@@ -4127,3 +4127,18 @@ Stage Summary:
 - دسترسی: module-base + page-level — ماژول تیک می‌خورد و زیرش صفحات مجاز محدود می‌شوند (null=همه)؛ سایدبار/پالت/تب‌ها/فرود همه صفحه‌محور فیلتر می‌شوند؛ بج «N/M» در مانیتورینگ؛ تغییرات بدون re-login اعمال می‌شوند (me/requireUser از DB تازه).
 - تخصیص: PUT /api/orders/[id]/assignee با آبشار کامل — سفارش از پنل مجری قبلی برداشته و به پنل جدید می‌رود (تست تک‌سفارش/چندآیتم/گروهی/چاپ/استخر عمومی) + کارت «مسئولان سفارش» در مودال ادمین + چیپ مجری آیتم‌ها؛ مالکیت تاریکی از برد کاری حذف شد.
 - فایل‌های کلیدی: prisma/schema.prisma، scripts/seed-locations.mjs، src/lib/{nav,access,auth,monitoring,module-pages}.ts، src/stores/app-store.ts، src/components/module-router.tsx، API: locations*/users*/auth/{login,me}/orders/[id]/assignee، components: admin/{locations-page,customers-page,orders/order-wizard}، sysadmin/monitoring-users-page، shared/{order-detail-modal,order-detail-tabs}، app/page.tsx، auth/login-form.tsx.
+
+---
+Task ID: PHASE-18-DEPLOY
+Agent: orchestrator (main)
+Task: یکپارچه‌سازی + کامیت/Push + استقرار فاز ۱۸ روی سرور 187.124.27.96
+
+Work Log:
+- ربیس روی کامیت جدید کارفرما 77e3a67 (تغییرات ظاهری مودال مالی/فرم هزینه — دست نخورد و حفظ شد) → فاز ۱۸ = a1bae9e؛ push موفق.
+- tarball سورس (بدون db/upload/node_modules) → سرور؛ prisma generate + db push (provinces/cities/UserModule.pages — additive)؛ seed-locations → ۱۹ استان/۹۴ شهر روی دیتای زندهٔ کارفرما؛ بکاپ db/custom.db.bak-phase18 قبل از push.
+- نکته: اولین بیلد با pipe خراب شد (rg روی سرور نیست) → ری‌بیلد تمیز BUILD_EXIT=0 + standalone manifest سالم → restart → active.
+- تایید سرور (curl): login 200؛ /api/locations (۱۹ استان)؛ /api/monitoring/users با modulePages (کاربر واقعی accountant: crm+finance+srm)؛ /api/customers سالم.
+- مرورگر production (agent-browser): سایدبار «شهرها و استان‌ها» → ۱۹/۹۴؛ فرم مشتری: دراپ‌داون استان→اربیل → شهر فعال با ۷ شهر همان استان؛ مودال سفارش #۵ (Shwan sharey): کارت «مسئولان سفارش» با کومبو طراح/چاپکار «بدون تخصیص» — رندر تمیز، صفر خطای کنسول/صفحه. سرویس healthy.
+
+Stage Summary:
+- فاز ۱۸ کامل روی production: دراپ‌داون‌های جغرافیا + صفحه مدیریت شهر/استان + دسترسی صفحه‌محور (module+pages) + فیکس آبشاری تخصیص مجری + کارت مسئولان — روی دیتای واقعی کارفرما، بدون از دست رفتن کامیت‌های جدید او.
