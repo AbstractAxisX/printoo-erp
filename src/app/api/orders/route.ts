@@ -148,10 +148,23 @@ export async function GET(req: NextRequest) {
     include: {
       customer: true,
       items: { include: { product: true } },
-      _count: { select: { items: true } },
+      _count: { select: { items: true, preInvoices: true } },
     },
   });
-  return NextResponse.json({ orders });
+
+  // ─── Phase 17-A: فیلدهای تخت برای فرم هزینهٔ مالی ─────────────────
+  // CostEntryForm (حالت selectableOrder) دراپ‌داون سرچ سفارش دارد و
+  // OrderOption آن customerName/preInvoiceCount تخت می‌خواهد؛ ردیف خام
+  // فقط customer تودرتو دارد (ریشهٔ «#5 — undefined» در دراپ‌داون).
+  // additive: بقیهٔ فیلدها عین ردیف Prisma می‌مانند تا مصرف‌کنندگان
+  // دیگر (customer/items/_count.items) دست‌نخورده بمانند.
+  return NextResponse.json({
+    orders: orders.map((o) => ({
+      ...o,
+      customerName: o.customer?.name ?? "",
+      preInvoiceCount: o._count?.preInvoices ?? 0,
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {

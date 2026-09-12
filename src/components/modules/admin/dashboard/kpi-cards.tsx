@@ -8,6 +8,7 @@ import { TimeRangePicker } from "@/components/ui/time-range-picker";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { getPreset, type TimeRange } from "@/lib/time-ranges";
+import { useAppStore } from "@/stores/app-store";
 import { useDashboardKpis } from "./use-dashboard-data";
 
 export type KpiCardConfig = {
@@ -16,6 +17,11 @@ export type KpiCardConfig = {
   icon: IconName;
   color: string;
   isCurrency?: boolean;
+  /** Phase 17-D: متریک لحظه‌ای (بدون فیلتر زمانی) — مثل طلبِ جاری مشتریان؛
+   *  TimeRangePicker اختصاصی و پیکان تغییر حذف می‌شود. */
+  pointInTime?: boolean;
+  /** Phase 17-D: فقط برای کارت‌های کلیک‌شون — بعد از کلیک، فیلتر/ناوبری. */
+  onClick?: () => void;
 };
 
 export const KPI_CARDS: KpiCardConfig[] = [
@@ -26,7 +32,7 @@ export const KPI_CARDS: KpiCardConfig[] = [
   { key: "completed", label: "تکمیل شده", icon: "checkCircle", color: "emerald" },
   { key: "urgent", label: "سفارشات فوری", icon: "alertTriangle", color: "rose" },
   { key: "payments", label: "پرداخت‌های دریافتی", icon: "creditCard", color: "amber", isCurrency: true },
-  { key: "profit", label: "سود تخمینی", icon: "trending", color: "cyan", isCurrency: true },
+  { key: "unsettledCustomers", label: "مشتریان تسویه‌نکرده", icon: "customers", color: "rose", pointInTime: true },
 ];
 
 const COLOR_MAP: Record<string, { bg: string; text: string; stroke: string }> = {
@@ -36,7 +42,6 @@ const COLOR_MAP: Record<string, { bg: string; text: string; stroke: string }> = 
   teal: { bg: "bg-teal-50 dark:bg-teal-950/40", text: "text-teal-600 dark:text-teal-400", stroke: "#14b8a6" },
   rose: { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-rose-600 dark:text-rose-400", stroke: "#f43f5e" },
   amber: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-amber-600 dark:text-amber-400", stroke: "#f59e0b" },
-  cyan: { bg: "bg-cyan-50 dark:bg-cyan-950/40", text: "text-cyan-600 dark:text-cyan-400", stroke: "#06b6d4" },
 };
 
 export function KpiCardsGrid({
@@ -51,6 +56,26 @@ export function KpiCardsGrid({
   onToggleChart: () => void;
 }) {
   const [cardRanges, setCardRanges] = React.useState<Record<string, TimeRange>>({});
+  const navigate = useAppStore((s) => s.navigate);
+  const setBoardFilter = useAppStore((s) => s.setBoardFilter);
+
+  // Phase 17-D: کارت «مشتریان تسویه‌نکرده» تنها کارت کلیک‌شون است —
+  // پرش به لیست مشتریان با چیپ «تسویه‌نشده» فعال (مثل الگوی داشبورد مالی).
+  const cards = React.useMemo<KpiCardConfig[]>(
+    () =>
+      KPI_CARDS.map((c) =>
+        c.key === "unsettledCustomers"
+          ? {
+              ...c,
+              onClick: () => {
+                setBoardFilter("admin", "customers:unsettled");
+                navigate("admin", "customers");
+              },
+            }
+          : c
+      ),
+    [navigate, setBoardFilter]
+  );
 
   return (
     <div className="space-y-3">
@@ -79,7 +104,7 @@ export function KpiCardsGrid({
 
       {/* KPI cards grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {KPI_CARDS.map((cfg) => (
+        {cards.map((cfg) => (
           <KpiCard
             key={cfg.key}
             config={cfg}
@@ -115,9 +140,29 @@ function KpiCard({
   const chartData = data?.series?.[config.key] ?? [];
   const hasOverride = range.label !== globalLabel;
   const fmt = (v: number) => config.isCurrency ? formatCurrency(v) : formatNumber(v);
+  const hasSubValue = kpi != null && typeof kpi.subValue === "number";
 
   return (
-    <Card className="p-4 relative overflow-hidden group hover:shadow-md transition-shadow">
+    <Card
+      className={cn(
+        "p-4 relative overflow-hidden group hover:shadow-md transition-shadow",
+        config.onClick && "cursor-pointer hover:ring-2 hover:ring-rose-300 dark:hover:ring-rose-800 active:scale-[0.99] transition-transform"
+      )}
+      onClick={config.onClick}
+      role={config.onClick ? "button" : undefined}
+      tabIndex={config.onClick ? 0 : undefined}
+      aria-label={config.onClick ? config.label : undefined}
+      onKeyDown={
+        config.onClick
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                config.onClick?.();
+              }
+            }
+          : undefined
+      }
+    >
       {/* Header: icon + BIG label */}
       <div className="flex items-center gap-2.5 mb-3">
         <div className={cn("size-10 rounded-xl grid place-items-center shrink-0", colors.bg)}>
@@ -160,28 +205,43 @@ function KpiCard({
         )}
       </div>
 
-      {/* Total + change */}
-      <div className="flex items-center gap-2 mt-1.5 text-[11px]">
-        <span className="text-muted-foreground">
-          کل: <span className="tabular-nums" dir="ltr">{kpi ? fmt(kpi.total) : "—"}</span>
-        </span>
-        {kpi && (
-          <span className={cn("flex items-center gap-0.5 font-medium", kpi.change >= 0 ? "text-emerald-600" : "text-rose-600")}>
-            <Icon name={kpi.change >= 0 ? "arrowUp" : "arrowDown"} size={10} />
-            {Math.abs(kpi.change)}%
+      {/* Total + change — متریک‌های subValueدار (point-in-time) به‌جای پیکان
+          تغییر، زیرمتنِ جمع را نشان می‌دهند (مثل جمع مطالبات مشتریان). */}
+      {kpi && hasSubValue ? (
+        <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-muted-foreground">
+          <Icon name="wallet" size={11} />
+          <span dir="ltr" className="tabular-nums">Σ {formatCurrency(kpi.subValue)}</span>
+          طلبِ واریزنشده
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 mt-1.5 text-[11px]">
+          <span className="text-muted-foreground">
+            کل: <span className="tabular-nums" dir="ltr">{kpi ? fmt(kpi.total) : "—"}</span>
           </span>
-        )}
-      </div>
+          {kpi && (
+            <span className={cn("flex items-center gap-0.5 font-medium", kpi.change >= 0 ? "text-emerald-600" : "text-rose-600")}>
+              <Icon name={kpi.change >= 0 ? "arrowUp" : "arrowDown"} size={10} />
+              {Math.abs(kpi.change)}%
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Per-card time filter */}
-      <div className="mt-2 pt-2 border-t">
-        <TimeRangePicker value={range} onChange={onRangeChange} compact className="w-full justify-between text-[11px] h-7" />
-        {hasOverride && (
-          <button onClick={onCardRangeReset} className="text-[10px] text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1">
-            <Icon name="cancel" size={10} /> بازگشت به فیلتر اصلی ({globalLabel})
-          </button>
-        )}
-      </div>
+      {/* Per-card time filter — برای متریک‌های لحظه‌ای بی‌معناست */}
+      {config.pointInTime ? (
+        <div className="mt-2 pt-2 border-t text-[10px] text-muted-foreground/80">
+          مقدار لحظه‌ای — بدون فیلتر زمانی
+        </div>
+      ) : (
+        <div className="mt-2 pt-2 border-t">
+          <TimeRangePicker value={range} onChange={onRangeChange} compact className="w-full justify-between text-[11px] h-7" />
+          {hasOverride && (
+            <button onClick={onCardRangeReset} className="text-[10px] text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1">
+              <Icon name="cancel" size={10} /> بازگشت به فیلتر اصلی ({globalLabel})
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

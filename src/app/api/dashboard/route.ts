@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireManager } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
+import { unsettledByCustomer } from "@/lib/customer-debt";
 
 function getRange(req: NextRequest): { from: Date; to: Date } {
   const { searchParams } = new URL(req.url);
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
     pendingTasksCount,
     // For chart series — fetch raw records in range
     ordersRaw, customersRaw, paymentsRaw, expensesRaw,
+    // Phase 17-D: بدهی زندهٔ مشتریان (point-in-time — بدون فیلتر بازه)
+    unsettledMap,
   ] = await Promise.all([
     db.order.count({ where: { createdAt: { gte: from, lte: to } } }),
     db.order.aggregate({ _sum: { totalAmount: true }, where: { createdAt: { gte: from, lte: to } } }),
@@ -78,12 +81,19 @@ export async function GET(req: NextRequest) {
     db.customer.findMany({ where: { createdAt: { gte: from, lte: to } }, select: { createdAt: true } }),
     db.payment.findMany({ where: { date: { gte: from, lte: to } }, select: { date: true, amount: true } }),
     db.expense.findMany({ where: { date: { gte: from, lte: to } }, select: { date: true, amount: true } }),
+    unsettledByCustomer(),
   ]);
 
+  // Phase 17-D: «مشتریان تسویه‌نکرده» — بدهیِ الان (بدون فیلتر بازه؛
+  // subValue = جمع مطالبات؛ کارت KPI فقط count را بزرگ نشان می‌دهد).
+  const unsettledValues = Array.from(unsettledMap.values());
+  const unsettledCount = unsettledValues.length;
+  const unsettledSum = unsettledValues.reduce((a, b) => a + b, 0);
+
   // Build per-metric daily series
-  const days = new Map<string, { revenue: number; orders: number; completed: number; urgent: number; newCustomers: number; payments: number; expenses: number; profit: number; avgOrderValue: number }>();
+  const days = new Map<string, { revenue: number; orders: number; completed: number; urgent: number; newCustomers: number; payments: number; expenses: number; avgOrderValue: number }>();
   function ensureDay(key: string) {
-    if (!days.has(key)) days.set(key, { revenue: 0, orders: 0, completed: 0, urgent: 0, newCustomers: 0, payments: 0, expenses: 0, profit: 0, avgOrderValue: 0 });
+    if (!days.has(key)) days.set(key, { revenue: 0, orders: 0, completed: 0, urgent: 0, newCustomers: 0, payments: 0, expenses: 0, avgOrderValue: 0 });
     return days.get(key)!;
   }
   for (const o of ordersRaw) {
@@ -94,8 +104,8 @@ export async function GET(req: NextRequest) {
     if (o.priority === "urgent") d.urgent += 1;
   }
   for (const c of customersRaw) { ensureDay(dayKey(c.createdAt)).newCustomers += 1; }
-  for (const p of paymentsRaw) { const d = ensureDay(dayKey(p.date)); d.payments += p.amount; d.profit += p.amount; }
-  for (const e of expensesRaw) { const d = ensureDay(dayKey(e.date)); d.expenses += e.amount; d.profit -= e.amount; }
+  for (const p of paymentsRaw) { const d = ensureDay(dayKey(p.date)); d.payments += p.amount; }
+  for (const e of expensesRaw) { const d = ensureDay(dayKey(e.date)); d.expenses += e.amount; }
   // Compute avgOrderValue per day
   for (const d of days.values()) { d.avgOrderValue = d.orders > 0 ? Math.round(d.revenue / d.orders) : 0; }
 
@@ -108,7 +118,6 @@ export async function GET(req: NextRequest) {
     completed: sortedDays.map(([d, v]) => ({ date: d, value: v.completed })),
     urgent: sortedDays.map(([d, v]) => ({ date: d, value: v.urgent })),
     payments: sortedDays.map(([d, v]) => ({ date: d, value: v.payments })),
-    profit: sortedDays.map(([d, v]) => ({ date: d, value: v.profit })),
   };
 
   const revenue = revenueInPeriod._sum.totalAmount ?? 0;
@@ -116,8 +125,6 @@ export async function GET(req: NextRequest) {
   const payments = paymentsInPeriod._sum.amount ?? 0;
   const paymentsPrevVal = paymentsPrev._sum.amount ?? 0;
   const expenses = expensesInPeriod._sum.amount ?? 0;
-  const profit = payments - expenses;
-  const profitPrev = paymentsPrevVal;
   const avgOrderValue = ordersInPeriod > 0 ? revenue / ordersInPeriod : 0;
   const avgOrderValuePrev = ordersPrev > 0 ? (revenuePrevVal / ordersPrev) : 0;
 
@@ -136,7 +143,8 @@ export async function GET(req: NextRequest) {
       completed: { value: completedInPeriod, prev: completedPrev, change: pctChange(completedInPeriod, completedPrev), total: completedInPeriod },
       urgent: { value: urgentInPeriod, prev: urgentPrev, change: pctChange(urgentInPeriod, urgentPrev), total: urgentInPeriod },
       payments: { value: payments, prev: paymentsPrevVal, change: pctChange(payments, paymentsPrevVal), total: payments },
-      profit: { value: profit, prev: profitPrev, change: pctChange(profit, profitPrev), total: profit },
+      // Phase 17-D: جای «سود تخمینی» — طلبِ جاری از مشتریان (point-in-time)
+      unsettledCustomers: { value: unsettledCount, prev: 0, change: 0, total: unsettledCount, subValue: unsettledSum },
     },
     quickStats: {
       overdueOrders: overdueOrders.length,

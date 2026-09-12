@@ -11,7 +11,6 @@ import {
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Icon, type IconName } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ToggleButton } from "@/components/ui/toggle-button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatDate, daysRemaining } from "@/lib/format";
@@ -40,7 +39,18 @@ type PrintOrder = {
   }[];
 };
 
-// ─── Time filter (هم‌semantics با داشبورد چاپ) ──────────────────────
+// Phase 17: برای کارت «تسک‌های فعال» (کوئری مشترک با print-tasks)
+type Task = {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate: string | null;
+  module: string;
+  createdAt: string;
+};
+
+// ─── Time filter ──────────────────────────────────────────────────────
 type TimeFilter = "all" | "overdue" | "today" | "near";
 
 const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: string }[] = [
@@ -50,6 +60,8 @@ const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: s
   { value: "near", label: "نزدیک موعد (۲روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
 ];
 
+// ─── Time-filter helpers (Phase 17: منتقل از داشبورد حذف‌شده) ────────
+/** موعد مؤثر = نزدیک‌ترین موعد چاپِ آیتم‌های فعال به امروز */
 function effectivePrintDeadline(o: PrintOrder): string | null {
   const active = (o.items ?? []).filter((i) => i.stage === "print");
   const dates = (active.length > 0 ? active : (o.items ?? []))
@@ -80,8 +92,93 @@ function needsMaterial(o: PrintOrder): boolean {
   return (o.items ?? []).some((it) => it.needsMaterial && !it.materialConfirmed);
 }
 
-function isReadyForPrint(o: PrintOrder): boolean {
-  return !needsMaterial(o);
+// ─── KPI Card (Phase 17: منتقل از داشبورد حذف‌شده + حالت فعال) ───────
+type KpiCardProps = {
+  icon: IconName;
+  label: string;
+  value: number;
+  hint?: string;
+  color: "amber" | "rose" | "emerald" | "violet";
+  /** حالت انتخاب‌شده — کارتِ متناظر با فیلتر فعال هایلایت می‌شود */
+  active?: boolean;
+  onClick?: () => void;
+};
+
+const KPI_COLOR_MAP: Record<
+  KpiCardProps["color"],
+  { bg: string; text: string; ring: string; hoverRing: string; activeRing: string }
+> = {
+  amber: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    ring: "ring-amber-500/20",
+    hoverRing: "hover:ring-amber-500/50",
+    activeRing: "ring-2 ring-amber-500/70 border-amber-500/50",
+  },
+  rose: {
+    bg: "bg-rose-500/10",
+    text: "text-rose-600 dark:text-rose-400",
+    ring: "ring-rose-500/20",
+    hoverRing: "hover:ring-rose-500/50",
+    activeRing: "ring-2 ring-rose-500/70 border-rose-500/50",
+  },
+  emerald: {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
+    ring: "ring-emerald-500/20",
+    hoverRing: "hover:ring-emerald-500/50",
+    activeRing: "ring-2 ring-emerald-500/70 border-emerald-500/50",
+  },
+  violet: {
+    bg: "bg-violet-500/10",
+    text: "text-violet-600 dark:text-violet-400",
+    ring: "ring-violet-500/20",
+    hoverRing: "hover:ring-violet-500/50",
+    activeRing: "ring-2 ring-violet-500/70 border-violet-500/50",
+  },
+};
+
+function KpiCard({ icon, label, value, hint, color, active, onClick }: KpiCardProps) {
+  const c = KPI_COLOR_MAP[color];
+  return (
+    <Card
+      className={cn(
+        "p-4 ring-1 transition",
+        c.ring,
+        active && c.activeRing,
+        onClick &&
+          cn(
+            "cursor-pointer hover:shadow-md hover:scale-[1.01] focus-visible:ring-2 outline-none",
+            c.hoverRing
+          )
+      )}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      aria-pressed={active}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
+      <div className="flex items-start justify-between">
+        <div className={cn("size-10 rounded-lg grid place-items-center", c.bg, c.text)}>
+          <Icon name={icon} size={20} />
+        </div>
+        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("fa-IR")}</span>
+      </div>
+      <div className="mt-2">
+        <div className="text-sm font-medium">{label}</div>
+        {hint && <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>}
+      </div>
+    </Card>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -99,7 +196,7 @@ export function PrintOrders() {
     normal: boolean;
   }>({ urgent: true, normal: true });
 
-  // Phase 14: فیلتر زمانی — مقدار اولیه از کارتِ داشبورد (اگر آمده باشد)
+  // فیلتر زمانی — مقدار اولیه از boardFilter (پرش از نوتیف/لینک خارجی)
   const [timeFilter, setTimeFilter] = React.useState<TimeFilter>("all");
   React.useEffect(() => {
     if (boardFilter && boardFilter.module === "print") {
@@ -117,9 +214,25 @@ export function PrintOrders() {
     refetchInterval: 30000,
   });
 
+  // Phase 17: تسک‌های چاپ برای کارت «تسک‌های فعال» —
+  // همان کوئری print-tasks (کلید یکسان) تا کش مشترک شود و fetch تکراری نباشد.
+  const { data: tasksData } = useQuery({
+    queryKey: ["tasks", "print", "list"],
+    queryFn: () => api<{ tasks: Task[] }>("/api/tasks?module=print"),
+    refetchInterval: 30000,
+  });
+
   const allOrders = data?.orders ?? [];
 
-  // شمارش هر دستهٔ زمانی (برای بج‌های سگمنت)
+  const activeTasksCount = React.useMemo(
+    () =>
+      (tasksData?.tasks ?? []).filter(
+        (t) => t.status === "todo" || t.status === "in_progress"
+      ).length,
+    [tasksData]
+  );
+
+  // شمارش هر دستهٔ زمانی (برای بج‌های سگمنت و کارت‌های KPI)
   const timeCounts = React.useMemo(() => {
     const c: Record<TimeFilter, number> = { all: allOrders.length, overdue: 0, today: 0, near: 0 };
     for (const o of allOrders) {
@@ -160,6 +273,16 @@ export function PrintOrders() {
 
   const filteredNeedsMaterial = applyFilters(needsMaterialOrders);
   const filteredReady = applyFilters(readyOrders);
+
+  // کلیک روی کارت زمانی → اعمال فیلتر؛ کلیک دوباره روی کارتِ فعال → خاموشی (all)
+  const applyTimeCard = (f: TimeFilter) => {
+    setTimeFilter((prev) => (prev === f ? "all" : f));
+  };
+
+  // کارت متریال → پرش به تب «نیازمند متریال»؛ کلیک دوباره → بازگشت به «آماده چاپ»
+  const toggleMaterialTab = () => {
+    setActiveTab((prev) => (prev === "needs-material" ? "ready" : "needs-material"));
+  };
 
   // Columns print sees — NO price columns, NO customer phone, NO overall endDate
   const columns = React.useMemo<ColumnDef<PrintOrder>[]>(
@@ -287,22 +410,77 @@ export function PrintOrders() {
 
   const activeTime = TIME_OPTIONS.find((o) => o.value === timeFilter);
 
+  // اجزای فعالِ فیلتر برای نوار خلاصه (زمان + جستجو + اولویت)
+  const filterParts: string[] = [];
+  if (timeFilter !== "all") filterParts.push(activeTime?.label ?? timeFilter);
+  if (search.trim()) filterParts.push(`جستجو: «${search.trim()}»`);
+  if (priorityFilters.urgent && !priorityFilters.normal) filterParts.push("اولویت: فوری");
+  if (!priorityFilters.urgent && priorityFilters.normal) filterParts.push("اولویت: معمولی");
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="سفارشات چاپ"
-        description="سفارشات در مرحله چاپ — برای مشاهده جزئیات روی ردیف کلیک کنید"
+        description="سفارشات در مرحله چاپ — روی کارت‌های بالا کلیک کنید تا فیلتر شوند؛ برای جزئیات، روی ردیف جدول کلیک کنید"
         icon="orders"
-        actions={
-          <Button
-            variant="outline"
-            onClick={() => navigate("print", "dashboard")}
-            className="gap-2"
-          >
-            <Icon name="dashboard" size={16} /> داشبورد
-          </Button>
-        }
       />
+
+      {/* Phase 17: کارت‌های آماری (منتقل‌شده از داشبورد حذف‌شده) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KpiCard
+          icon="print"
+          label="در حال چاپ"
+          value={allOrders.length}
+          hint="مجموع سفارشات مرحله چاپ"
+          color="amber"
+          active={timeFilter === "all"}
+          onClick={() => applyTimeCard("all")}
+        />
+        <KpiCard
+          icon="alertTriangle"
+          label="موعد گذشته"
+          value={timeCounts.overdue}
+          hint="موعد چاپ‌شان رسیده و گذشته"
+          color="rose"
+          active={timeFilter === "overdue"}
+          onClick={() => applyTimeCard("overdue")}
+        />
+        <KpiCard
+          icon="clock"
+          label="موعد امروز"
+          value={timeCounts.today}
+          hint="امروز باید چاپ شوند"
+          color="rose"
+          active={timeFilter === "today"}
+          onClick={() => applyTimeCard("today")}
+        />
+        <KpiCard
+          icon="calendar"
+          label="نزدیک موعد"
+          value={timeCounts.near}
+          hint="۲ روز یا کمتر تا موعد چاپ"
+          color="violet"
+          active={timeFilter === "near"}
+          onClick={() => applyTimeCard("near")}
+        />
+        <KpiCard
+          icon="boxes"
+          label="نیازمند متریال"
+          value={needsMaterialOrders.length}
+          hint="در انتظار تأمین متریال"
+          color="amber"
+          active={activeTab === "needs-material"}
+          onClick={toggleMaterialTab}
+        />
+        <KpiCard
+          icon="task"
+          label="تسک‌های فعال"
+          value={activeTasksCount}
+          hint="در صف یا در حال انجام"
+          color="emerald"
+          onClick={() => navigate("print", "tasks")}
+        />
+      </div>
 
       {/* Filters bar — زمان + جستجو + اولویت */}
       <Card className="p-4 space-y-3">
@@ -393,13 +571,6 @@ export function PrintOrders() {
               activeColor="primary"
             />
           </div>
-
-          <div className="mr-auto text-xs text-muted-foreground">
-            مجموع: {allOrders.length.toLocaleString("fa-IR")} سفارش (
-            {needsMaterialOrders.length.toLocaleString("fa-IR")} نیازمند متریال،{" "}
-            {readyOrders.length.toLocaleString("fa-IR")} آماده چاپ)
-            {timeFilter !== "all" && activeTime && ` — فیلتر: ${activeTime.label}`}
-          </div>
         </div>
       </Card>
 
@@ -422,6 +593,32 @@ export function PrintOrders() {
             </span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Phase 17: نوار خلاصهٔ فیلتر — تفکیک زندهٔ مجموعهٔ فیلترشده به چاپ/متریال */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-muted/40 px-3 py-2 text-sm">
+          <span className="flex items-center gap-1 text-muted-foreground shrink-0">
+            <Icon name="filter" size={13} />
+            {filterParts.length > 0 ? "با این فیلتر:" : "نمای کلی:"}
+          </span>
+          <span className="font-medium">
+            <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+              {filteredReady.length.toLocaleString("fa-IR")}
+            </span>{" "}
+            سفارش در بخش چاپ (آمادهٔ چاپ)
+          </span>
+          <span className="text-muted-foreground">و</span>
+          <span className="font-medium">
+            <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 font-bold tabular-nums text-amber-700 dark:text-amber-400">
+              {filteredNeedsMaterial.length.toLocaleString("fa-IR")}
+            </span>{" "}
+            سفارش در بخش متریال (منتظر تأمین)
+          </span>
+          {filterParts.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              — {filterParts.join(" • ")}
+            </span>
+          )}
+        </div>
 
         <TabsContent value="needs-material">
           <Card className="p-0 overflow-hidden">

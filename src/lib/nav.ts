@@ -98,6 +98,8 @@ export const NAV: ModuleNav[] = [
   },
 
   // ─────────── PRINT ───────────
+  // Phase 17: داشبورد چاپ حذف شد — کارت‌های آماری به بالای «سفارشات چاپ»
+  // منتقل شدند؛ سفارشات اولین (و مقصد پیش‌فرضِ ورود) کاربر چاپ است.
   {
     key: "print",
     label: "Print",
@@ -109,7 +111,6 @@ export const NAV: ModuleNav[] = [
         label: "اصلی",
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
           { id: "orders", label: "سفارشات چاپ", icon: "orders", page: "orders" },
           { id: "tasks", label: "تسک‌های چاپ", icon: "task", page: "tasks" },
           { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
@@ -352,4 +353,23 @@ export function allowedModuleKeys(user?: NavUser): string[] {
 
 export function findModule(key: string) {
   return NAV.find((m) => m.key === key) ?? NAV[0];
+}
+
+/** آیا این صفحه در ماژول موجود است؟ (آیتم‌های سایدبار + صفحات مخفی)
+ * Phase 17 — برای پاک‌سازی تب‌های ماندگارِ صفحات حذف‌شده (مثل داشبورد چاپ)
+ * تا کاربر پس از حذف صفحه، روی placeholder ننشیند. */
+export function moduleHasPage(key: string, page: string): boolean {
+  if (key === PROFILE_MODULE) {
+    return HIDDEN_PAGES[`${key}:${page}`] !== undefined;
+  }
+  const m = NAV.find((x) => x.key === key);
+  if (!m) return false;
+  if (HIDDEN_PAGES[`${key}:${page}`]) return true;
+  return m.groups.some((g) => g.items.some((i) => i.page === page));
+}
+
+/** صفحهٔ فرود ماژول = مورد اول سایدبار آن (چاپ: «سفارشات»، بقیه: «داشبورد»). */
+export function firstPageOfModule(key: string): string {
+  const m = NAV.find((x) => x.key === key);
+  return m?.groups[0]?.items[0]?.page ?? "dashboard";
 }

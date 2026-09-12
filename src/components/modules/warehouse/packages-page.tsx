@@ -101,6 +101,9 @@ type Pkg = {
 
 type PkgDetail = Omit<Pkg, "orders" | "items" | "itemsCount"> & {
   orders: (PkgOrder & {
+    // Phase 17: گیت خروج از انبار — وضعیت فاکتور برای دیالوگ ارسال
+    invoiceWithPackage: boolean;
+    invoice: { totalAmount: number; paidAmount: number; status: string } | null;
     allItems: { id: string; productName: string; stage: string; quantity: number }[];
     itemsInPackage: { productName: string; quantity: number }[];
   })[];
@@ -1475,6 +1478,61 @@ function PackageDetailModal({
                   </div>
                 </div>
                 <div className="p-5 space-y-3">
+                  {/* Phase 17: گیت خروج از انبار — وضعیت تسویهٔ فاکتور هر سفارش */}
+                  <div className="rounded-xl border bg-muted/40 p-3 space-y-1.5">
+                    <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                      <Icon name="lock" size={12} className="shrink-0" />
+                      تسویهٔ فاکتور سفارش‌ها (گیت خروج از انبار)
+                    </div>
+                    {pkg.orders.map((o) => {
+                      const settled =
+                        o.invoice !== null &&
+                        o.invoice.totalAmount > 0 &&
+                        o.invoice.paidAmount >= o.invoice.totalAmount;
+                      const withPkg = o.invoiceWithPackage === true;
+                      const locked = !settled && !withPkg;
+                      return (
+                        <div
+                          key={o.id}
+                          className="flex items-center justify-between gap-2 text-xs"
+                        >
+                          <span className="truncate min-w-0">
+                            <span dir="ltr" className="font-mono">#{o.number}</span>{" "}
+                            {o.customer.name}
+                          </span>
+                          <span
+                            className={cn(
+                              "shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                              locked
+                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            )}
+                          >
+                            {locked
+                              ? "قفل — تسویه نشده"
+                              : withPkg
+                                ? "فاکتور همراه بسته ✓"
+                                : "تسویه ✓"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {pkg.orders.some(
+                      (o) =>
+                        o.invoiceWithPackage !== true &&
+                        !(
+                          o.invoice !== null &&
+                          o.invoice.totalAmount > 0 &&
+                          o.invoice.paidAmount >= o.invoice.totalAmount
+                        )
+                    ) && (
+                      <p className="text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                        <Icon name="info" size={11} className="shrink-0" />
+                        تا تسویه یا علامت «فاکتور همراه بسته» توسط واحد مالی، ثبت ارسال
+                        با خطا رد می‌شود.
+                      </p>
+                    )}
+                  </div>
                   <Field label="شرکت پیک">
                     <Input
                       value={sendCourier}

@@ -51,6 +51,8 @@ model User {
   leavesGranted         UserLeave[] @relation("LeaveCreator")
   // Phase 14: رویدادهای سفارش که این کاربر انجام داده (تاریخچه)
   orderEvents           OrderEvent[] @relation("OrderEventActor")
+  // Phase 17: وضعیت خواندن اعلان‌ها (هر-کاربر)
+  notificationReads     NotificationRead[]
   // ─── Phase 15: مالی ──
   createdCosts          MaterialCost[] @relation("CostCreator")
   revenueLogs           RevenueLog[]  @relation("RevenueCreator")
@@ -115,6 +117,8 @@ model Customer {
   name        String
   phone       String
   address     String?      // Phase 16: آدرس مشتری (پیش‌فرض ارسال)
+  city        String?      // شهر (استان/شهر جدا برای فیلتر و ارسال)
+  province    String?      // استان
   isFavorite  Boolean      @default(false)
   balanceDue  Float        @default(0)
   note        String?
@@ -216,6 +220,9 @@ model Order {
   totalAmount Float        @default(0)
   paidAmount  Float        @default(0)
   address     String?      // Phase 16: آدرس تحویل سفارش (پیش‌فرض: آدرس مشتری)
+  // Phase 17: گیت خروج از انبار — مالی یا فاکتور را تسویه می‌کند یا علامت
+  // «فاکتور همراه بسته ارسال می‌شود» می‌زند؛ تا آن موقع انبار اجازهٔ خروج ندارد.
+  invoiceWithPackage Boolean @default(false)
   note        String?
   designerNote String? // note from designer, visible to all modules
   createdBy   String?
@@ -532,8 +539,23 @@ model Notification {
   userId    String?
   link      String? // nav target e.g. "admin:orders"
   createdAt DateTime @default(now())
+  reads     NotificationRead[]
 
   @@index([userId, createdAt])
+}
+
+// Phase 17: وضعیت خواندنِ «هر-کاربر» — اعلان عمومی وقتی کاربری می‌خواند
+// نباید برای بقیه خوانده‌شده شود. ردیف این جدول = آن کاربر آن اعلان را خوانده.
+model NotificationRead {
+  id             String   @id @default(cuid())
+  userId         String
+  notificationId String
+  readAt         DateTime @default(now())
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@index([userId])
 }
 
 // ─── Finance: Expenses & Payments ───────────────────────────────

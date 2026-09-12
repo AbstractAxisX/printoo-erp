@@ -48,6 +48,33 @@ type OrderOption = {
   preInvoiceCount: number;
 };
 
+// ─── Phase 17-A: ردیف خام GET /api/orders ──────────────────────────
+// هر دو شکل سرور را می‌پذیرد (رفع باگ «undefined» در دراپ‌داون سفارش):
+//  • شکل تخت (Phase 17+): customerName / preInvoiceCount
+//  • شکل تودرتو (قدیمی): customer.name / _count.preInvoices
+type OrderApiRow = {
+  id: string;
+  number: number;
+  totalAmount: number;
+  status: string;
+  customerName?: string;
+  preInvoiceCount?: number;
+  customer?: { name?: string | null } | null;
+  _count?: { preInvoices?: number } | null;
+};
+
+/** نرمال‌سازی ردیف سفارش → OrderOption (بدون undefined در هر شکلی) */
+function toOrderOption(o: OrderApiRow): OrderOption {
+  return {
+    id: o.id,
+    number: o.number,
+    customerName: o.customerName ?? o.customer?.name ?? "—",
+    totalAmount: o.totalAmount,
+    status: o.status,
+    preInvoiceCount: o.preInvoiceCount ?? o._count?.preInvoices ?? 0,
+  };
+}
+
 export const MODULE_LABELS: Record<string, string> = {
   print: "چاپ",
   material: "متریال",
@@ -162,10 +189,16 @@ export function CostEntryForm({
   });
   const { data: ordersData } = useQuery({
     queryKey: ["orders", "cost-form"],
-    queryFn: () => api<{ orders: OrderOption[] }>("/api/orders?excludeArchived=false"),
+    queryFn: () => api<{ orders: OrderApiRow[] }>("/api/orders?excludeArchived=false"),
     staleTime: 30_000,
     enabled: !!selectableOrder,
   });
+
+  // نرمال‌شدهٔ سفارش‌ها — هم شکل تخت و هم تودرتو (سرچ/انتخاب روی این می‌نشیند)
+  const allOrderOptions = React.useMemo(
+    () => (ordersData?.orders ?? []).map(toOrderOption),
+    [ordersData]
+  );
 
   // ── draft helpers ──
   const addRow = () => setDrafts((d) => [...d, newDraft(defaultModule)]);
@@ -184,17 +217,16 @@ export function CostEntryForm({
 
   // سفارش‌های قابل انتخاب (سرچ محلی: نام مشتری / شماره)
   const orderOptions = React.useMemo(() => {
-    const all = ordersData?.orders ?? [];
     const q = orderQuery.trim().toLowerCase();
     const filtered = q
-      ? all.filter(
+      ? allOrderOptions.filter(
           (o) =>
-            o.customerName.toLowerCase().includes(q) ||
+            (o.customerName ?? "").toLowerCase().includes(q) ||
             String(o.number).includes(q.replace(/[^0-9]/g, ""))
         )
-      : all;
+      : allOrderOptions;
     return filtered.slice(0, 60);
-  }, [ordersData, orderQuery]);
+  }, [allOrderOptions, orderQuery]);
 
   const canSubmit =
     !submitting &&
@@ -295,7 +327,7 @@ export function CostEntryForm({
             <SearchSelect
               value={selectedOrder?.id ?? null}
               onChange={(v) => {
-                const found = (ordersData?.orders ?? []).find((o) => o.id === v) ?? null;
+                const found = allOrderOptions.find((o) => o.id === v) ?? null;
                 setSelectedOrder(found);
                 setOrderQuery("");
               }}

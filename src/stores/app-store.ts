@@ -2,7 +2,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { allowedModuleKeys } from "@/lib/nav";
+import {
+  allowedModuleKeys,
+  firstPageOfModule,
+  moduleHasPage,
+} from "@/lib/nav";
 
 // Client-side navigation: (module, page) since we only expose "/" route.
 export type NavTarget = { module: string; page: string; param?: string };
@@ -83,16 +87,23 @@ export const useAppStore = create<AppState>()(
       // حذف می‌شوند و ماژول فعال روی اولین ماژولِ مجازِ کاربر جدید می‌نشیند.
       // بدون این، بعد از logout مدیر و login طراح، پنل ادمین با تب‌های
       // ماندگار رندر می‌شد (قبلاً دقیقاً همین باگ: «سایدبار کل منوها را داشت»).
+      // Phase 17: تب‌ها/صفحهٔ فعلی هم اعتبارسنجی «صفحه» می‌شوند تا صفحات
+      // حذف‌شده (مثل داشبورد چاپ) کاربر را روی placeholder نگه ندارند —
+      // فرودِ پیش‌فرض = مورد اول سایدبار ماژول (چاپ: «سفارشات»).
       setUser: (u) =>
         set((s) => {
           if (!u) return { ...s, user: null };
           const allowed = allowedModuleKeys(u);
-          const sanitizedTabs = s.tabs.filter((t) => allowed.includes(t.module));
+          const sanitizedTabs = s.tabs.filter(
+            (t) => allowed.includes(t.module) && moduleHasPage(t.module, t.page)
+          );
           const activeOk =
             s.activeTabId != null &&
             sanitizedTabs.some((t) => t.id === s.activeTabId);
-          const currentOk = allowed.includes(s.module);
+          const currentOk =
+            allowed.includes(s.module) && moduleHasPage(s.module, s.page);
           const fallbackModule = allowed[0] ?? "admin";
+          const fallbackPage = firstPageOfModule(fallbackModule);
           return {
             ...s,
             user: { ...u, modules: u.modules ?? [] },
@@ -101,7 +112,7 @@ export const useAppStore = create<AppState>()(
               ? s.activeTabId
               : sanitizedTabs[0]?.id ?? null,
             module: currentOk ? s.module : fallbackModule,
-            page: currentOk ? s.page : "dashboard",
+            page: currentOk ? s.page : fallbackPage,
             param: currentOk ? s.param : undefined,
           };
         }),
@@ -142,7 +153,10 @@ export const useAppStore = create<AppState>()(
           if (next) {
             set({ tabs: newTabs, activeTabId: next.id, module: next.module, page: next.page });
           } else {
-            set({ tabs: newTabs, activeTabId: null, module: "admin", page: "dashboard" });
+            // Phase 17: بستن آخرین تب → فرود روی اولین ماژول مجاز کاربر
+            // (قبلاً ادمین/داشبورد هاردکد بود که برای کاربر تک-ماژوله AccessDenied می‌شد)
+            const m = state.user ? allowedModuleKeys(state.user)[0] ?? "admin" : "admin";
+            set({ tabs: newTabs, activeTabId: null, module: m, page: firstPageOfModule(m), param: undefined });
           }
         } else {
           set({ tabs: newTabs });
@@ -152,7 +166,11 @@ export const useAppStore = create<AppState>()(
         const tab = get().tabs.find((t) => t.id === id);
         if (tab) set({ activeTabId: id, module: tab.module, page: tab.page });
       },
-      closeAllTabs: () => set({ tabs: [], activeTabId: null, module: "admin", page: "dashboard" }),
+      closeAllTabs: () => {
+        const u = get().user;
+        const m = u ? allowedModuleKeys(u)[0] ?? "admin" : "admin";
+        set({ tabs: [], activeTabId: null, module: m, page: firstPageOfModule(m), param: undefined });
+      },
 
       headerCollapsed: false,
       toggleHeader: () => set((s) => ({ headerCollapsed: !s.headerCollapsed })),

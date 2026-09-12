@@ -110,9 +110,10 @@ export function CRMCustomers() {
   }, [customersRaw, filter]);
 
   // Mutations
+  // Phase 17-D: quick endpoint — آدرس در ساخت سریع CRM الزامی نیست
   const createMut = useMutation({
     mutationFn: (body: typeof form) =>
-      api("/api/customers", { method: "POST", body: JSON.stringify(body) }),
+      api("/api/customers/quick", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["customers", "crm-dashboard", "deals"]);
       toast.success("مشتری ایجاد شد");

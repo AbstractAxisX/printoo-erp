@@ -1278,4 +1278,7 @@ const EVENT_META: Record<
   status_changed: { icon: "edit", tone: "neutral", label: "تغییر وضعیت" },
   reassigned: { icon: "customers", tone: "violet", label: "تغییر مجری" },
   cost_registered: { icon: "money", tone: "emerald", label: "ثبت هزینه" },
+  // Phase 17: گیت خروج از انبار
+  invoice_flagged: { icon: "route", tone: "emerald", label: "فاکتور همراه بسته" },
+  invoice_unflagged: { icon: "route", tone: "neutral", label: "برداشتن علامت فاکتور" },
 };

@@ -42,8 +42,7 @@ import { DesignerOrders } from "@/components/modules/designer/designer-orders";
 import { DesignerCalendar } from "@/components/modules/designer/designer-calendar";
 import { DesignerTasks } from "@/components/modules/designer/designer-tasks";
 
-// Print pages
-import { PrintDashboard } from "@/components/modules/print/print-dashboard";
+// Print pages — Phase 17: داشبورد چاپ حذف شد؛ کارت‌های آماری داخل print-orders آمدند
 import { PrintOrders } from "@/components/modules/print/print-orders";
 import { PrintCalendar } from "@/components/modules/print/print-calendar";
 import { PrintTasks } from "@/components/modules/print/print-tasks";
@@ -140,7 +139,6 @@ function getPageComponent(moduleKey: string, page: string): React.ComponentType 
   }
   if (moduleKey === "print") {
     switch (page) {
-      case "dashboard": return PrintDashboard;
       case "orders": return PrintOrders;
       case "calendar": return PrintCalendar;
       case "tasks": return PrintTasks;

@@ -3904,3 +3904,95 @@ Stage Summary:
 - سیستم روی http://187.124.27.96:3000 حالا کاملاً خالی و آمادهٔ دمو/شروع واقعی است: فقط admin@printoo24.com / admin123 (master).
 - بکاپ دیتای قبلی روی سرور موجود است (custom.db.backup-20260912-0714) — قابل حذف یا بازیابی.
 - جداول مرجع (ExpenseType و Counter) عمداً خالی شدند چون API ها آنها را خودکار بازسازی می‌کنند (defaults همیشه ensure می‌شوند).
+
+---
+Task ID: P17-PREP
+Agent: orchestrator (main)
+Task: آماده‌سازی فاز ۱۷ — اسکیمای مشترک + endpoint پرچم فاکتور (قبل از اعزام ۴ زیرایجنت موازی)
+
+Work Log:
+- prisma/schema: Customer += city/province (نال)؛ Order += invoiceWithPackage (پیش‌فرض false)؛ مدل جدید NotificationRead (userId+notificationId یکتا + رابطه‌های user/notification) برای وضعیت خواندنِ هر-کاربر اعلان‌ها؛ User += notificationReads[]. db push + generate OK.
+- Endpoint جدید: POST /api/orders/[id]/invoice-clear {withPackage:boolean} — گیت مالی (finance/master)؛ Order.invoiceWithPackage را ست/پاک می‌کند + رویداد invoice_flagged/invoice_unflagged (غیرحساس) + اعلان به کاربران فعال ماژول warehouse (link warehouse:packages) وقتی true. پاسخ: {ok, order:{invoiceWithPackage}}. curl با نگار تست شد → 200.
+- order-events.ts: تایپ‌های invoice_flagged/invoice_unflagged اضافه شد؛ EVENT_META در order-detail-tabs.tsx هم (emerald/neutral).
+- dev server روشن (localhost:3000)؛ دیتابیس لوکال = دیتای دمو (۱۱ کاربر، ۳۱ سفارش) برای تست.
+
+Stage Summary:
+- قرارداد UI برای «ارسال فاکتور همراه بسته» در مودال مالی: POST /api/orders/[id]/invoice-clear با {withPackage} — زیرایجنت A (فرانت مودال) همین را صدا بزند.
+- ۴ زیرایجنت موازی اعزام می‌شوند: A=فرم هزینه+مودال مالی، B=ماژول چاپ، C=نوتیف‌ها+گیت انبار، D=مشتریان+داشبورد ادمین. کامیت واحد توسط ارکستراتور.
+
+---
+Task ID: P17-A
+Agent: subagent-A (general-purpose)
+Task: مالی — رفع باگ undefined دراپ‌داون سفارش فرم هزینه + تب «ثبت هزینه» در مودال سفارش مالی + کارت وضعیت خروج از انبار (گیت فاکتور همراه بسته)
+
+Work Log:
+- باگ undefined (دو طرف): GET /api/orders → include اضافه شد `_count.preInvoices` (items ماند) + مپینگ additive روی ردیف‌ها: `customerName: customer?.name ?? ""` و `preInvoiceCount: _count.preInvoices ?? 0` — بقیهٔ فیلدها عین Prisma (سایر مصرف‌کنندگان سالم). curl نگار: هر ۳۱ سفارش فیلد تخت دارند.
+- cost-entry-form.tsx: تایپ محلی `OrderApiRow` (هر دو شکل flat/nested) + `toOrderOption()` نرمال‌ساز (fallback `"—"`/۰) — دراپ‌داون «#5 — undefined» شد «#5 — باشگاه ورشی … • ۱ پیش‌فاکتور»؛ سرچ محلی روی آرایهٔ نرمال‌شده دیگر روی نام غابی throw نمی‌کند؛ selectedOrder هم از همان آرایه می‌آید. بدون any.
+- finance-order-modal.tsx (~۹۷۵→۱۱۷۰ خط): FinanceOrder += invoiceWithPackage؛ تب سوم «ثبت هزینه» (آیکون money + بج شمار materialCosts): سربرگ «افزودن هزینه به سفارش #N (مشتری)» + چیپ‌های زنده (تعداد/Σ/در انتظار)، CostEntryForm با mode=order + orderId (بدون selectableOrder) + modules=هر ۵ ماژول + showInvoiceOption/showSupplier داخل p-5، جدول جمع‌وجور هزینه‌ها (عنوان+در-فاکتور/چیپ ماژول رنگی/مبلغ/چیپ وضعیت/ثبت‌کننده+تاریخ) با EmptyState؛ onSubmitted → invalidate ["order",orderId,"finance"] + ["finance","material-costs","orders"].
+- money tab: کارت «وضعیت خروج از انبار» بعد از سکشن فاکتور — سه حالت: پرچم خورده (emerald + دکمهٔ «برداشتن علامت» POST false)، تسویهٔ کامل فاکتور (emerald بدون اکشن)، قفل (amber + دکمهٔ primary «ارسال فاکتور همراه بسته» POST true) — mutation با loading، توست موفق/خطا، invalidate order+orders. قرارداد invoice-clear موجود دست نخورد.
+- راستی‌آزمایی: tsc --noEmit → صفر خطا در فایل‌های تسک (فقط examples/ و skills/ پیش‌موجود)؛ eslint ۴ فایل → ۰ error/warning. curl: invoice-clear true→false روی #7 → {ok:true} هر دو. مرورگر (agent-browser، لاگین نگار): دراپ‌داون فرم هزینه بدون undefined؛ مودال #7 → ۳ تب؛ ثبت واقعی «هزینه تست P17-A» ۱۰۰۰ IQD ماژول متریال → توست «هزینه ثبت شد»، چیپ‌ها ۱ هزینه/۱٬۰۰۰/۱ در انتظار و جدول رشد کرد (نگار رستمی + تاریخ)؛ money tab: قفل amber → کلیک ارسال → emerald «فاکتور همراه بسته ارسال می‌شود» + برداشتن علامت → بازگشت قفل. dev.log: صفر ۵۰۰/خطا. VLM روی ۲ اسکرین‌شات: ساختار سالم، بدون شکست چیدمان.
+- دیتای تست باقی‌مانده: یک MaterialCost «هزینه تست P17-A» ۱٬۰۰۰ IQD (pending, متریال) روی سفارش #7 — قابل حذف از تاریخچهٔ هزینه‌ها. پرچم invoiceWithPackage روی #7 به false برگشت.
+
+Stage Summary:
+- فرم هزینه مالی حالا هم در داشبورد/تاریخچهٔ هزینه‌ها (با دراپ‌داون سالم) و هم داخل خود مودال سفارش مالی (تب «ثبت هزینه») کار می‌کند؛ مالی ماژول ثبت‌کننده را آزادانه برمی‌گزیند.
+- گیت «خروج از انبار» برای مالی visible شد: سه حالت پرچم/تسویه/قفل با اکشن زنده روی POST /api/orders/[id]/invoice-clear.
+- فایل‌های تسک: orders/route.ts (GET فقط)، cost-entry-form.tsx، finance-order-modal.tsx — orders/[id]/route.ts بدون تغییر (invoiceWithPackage/materialCosts از قبل در پاسخ خام بود). git دست نخورده (کامیت با ارکستراتور).
+
+---
+Task ID: P17-B
+Agent: subagent-B (general-purpose)
+Task: ماژول چاپ — حذف داشبورد + انتقال کارت‌های آماری به بالای «همه سفارشات»
+
+Work Log:
+- داشبورد چاپ حذف شد: nav.ts آیتم «داشبورد» ماژول print برداشته شد (سفارشات = اولین آیتم)؛ module-router.tsx ایمپورت+کیس dashboard حذف شد؛ فایل print-dashboard.tsx کلاً delete شد (هیچ فایل دیگری از آن ایمپورت نداشت — فقط module-router بود)؛ دکمهٔ «داشبورد» در PageHeader سفارشات چاپ حذف شد.
+- فرودِ پیش‌فرض: setUser در app-store قبلاً page:"dashboard" هاردکد داشت و تب‌های ماندگارِ صفحاتِ مرده را نگه می‌داشت → دو هلپر جدید در nav.ts (moduleHasPage برای اعتبار صفحه در ماژول شامل HIDDEN_PAGES، firstPageOfModule = مورد اول سایدبار) ؛ setUser حالا تب‌های صفحهٔ ناموجود را می‌اندازد و page سقوطی = مورد اول ماژول (چاپ: orders)؛ closeTab/closeAllTabs هم به‌جای admin/dashboard هاردکد، روی اولین ماژول مجازِ کاربر فرود می‌آیند.
+- print-orders.tsx بازطراحی: ۶ کارت KPI (grid-cols-2 sm:grid-cols-3 lg:grid-cols-6) بالای فیلترها، پورت‌شده از داشبورد حذف‌شده — در حال چاپ(amber)→timeFilter=all، موعد گذشته(rose)، موعد امروز(rose)، نزدیک موعد(violet)→فیلتر زمانی با toggle-off (کلیک دوباره روی کارت فعال → all)، نیازمند متریال(amber)→جابجایی تب needs-material/ready (toggle)، تسک‌های فعال(emerald)→navigate print:tasks. کارت فعال ring-2+border رنگی+aria-pressed. دیتا: همان کوئری سفارشات صفحه (بدون fetch تکراری) + کوئری tasks با همان کلید print-tasks (["tasks","print","list"] → کش مشترک). سگمنت TIME_OPTIONS + جستجو + اولویت دست‌نخورده ماند و با کارت‌ها همان state مشترک timeFilter را تغذیه می‌کنند.
+- نوار خلاصهٔ فیلتر (bg-muted/40، بین TabsList و جدول): «نمای کلی/با این فیلتر: X سفارش در بخش چاپ (آمادهٔ چاپ) و Y سفارش در بخش متریال (منتظر تأمین)» با چیپ بولد emerald/amber + اجزای فعال فیلتر (زمان/جستجو/اولویت)، ارقام fa-IR؛ متن قدیمی «مجموع:...» داخل کارت فیلترها حذف شد (با کارت‌ها تکراری بود). هلپرهای زمان (effectivePrintDeadline/orderTimeState) در print-orders ماندند (مصرف‌کنندهٔ دیگری نبود).
+- راستی‌آزمایی: tsc --noEmit → صفر خطا در فایل‌های تسک (فقط examples/skills + یک خطای مالِ route نوتیف‌های ایجنت C)؛ eslint پنج مسیر تسک → ۰ error. مرورگر (سشن ایزوله): لاگین رضا → فرود مستقیم روی سفارشات چاپ، سایدبار بدون «داشبورد»؛ کارت‌ها با شمارش زندهٔ واقعی (۷/۶/۱/۰/۱/۴ → بعد از تغییر دیتای همزمان توسط ایجنت‌های موازی ۵/۴/۱/۰/۱/۴)؛ کلیک «موعد گذشته» → فیلتر جدول + هایلایت rose + «با این فیلتر… — موعد گذشته»؛ toggle-off کارکرد؛ «نیازمند متریال» ↔ جابجایی دو تب؛ کارت تسک → صفحهٔ تسک‌ها؛ تزریق localStorage با تب stale «print:dashboard» + reload → پاک‌سازی و فرود روی orders (بدون placeholder)؛ موبایل 390px → کارت‌ها ۲ستونه (سنجش DOM: grid-cols=2)؛ بدون خطای کنسول/صفحه (فقط HMR/DevTools لاگ)؛ dev.log بدون ۵۰۰. VLM روی ۳ اسکرین‌شات: ۶ کارت + هایلایت rose + نوار خلاصه با چیپ + بدون شکست چیدمان؛ موبایل تمیز.
+- نکتهٔ محیط: dev server وسط تست یک‌بار OOM-kill شد (سندباکس ۳.۹GB + ۴ ایجنت موازی) و چندبار توسط ایجنت‌های دیگر restart/kill شد — با سشن مرورگر ایزوله و restart سریع ادامه دادم؛ لاگ نهایی بدون خطا.
+
+Stage Summary:
+- ماژول چاپ حالا تک‌صفحهٔ «سفارشات چاپ» با اوورویو کامل است: ۶ کارت آماری کلیک‌شون + سگمنت زمانی + نوار خلاصهٔ تفکیک چاپ/متریال. مسیر print:dashboard و هر ناوبری به آن حذف شد؛ کاربران قدیمی با تب stale به‌طور خودکار روی orders فرود می‌آیند.
+- فایل‌های تغییر یافته: src/lib/nav.ts، src/components/module-router.tsx، src/stores/app-store.ts، src/components/modules/print/print-orders.tsx، delete: src/components/modules/print/print-dashboard.tsx. git دست نخورد (کامیت با ارکستراتور).
+---
+Task ID: P17-C
+Agent: subagent-C (general-purpose)
+Task: نوتیف‌ها (per-user خوانده‌شده + پنل زیبا) + اطلاع مالی هنگام تکمیل چاپ + گیت خروج از انبار در ارسال بسته
+
+Work Log:
+- print-action/route.ts: کوئری سفارش += invoice(total,paid)؛ در complete_item و send_warehouse بعد از recompute→warehouse_logistics همان جایی که notifyWarehouse می‌جوشد، notifyFinanceSettlement(order) جدید: اگر سفارش تسویه نیست (نه invoice paid≥total با total>0 و نه invoiceWithPackage) → createMany اعلان هدفمند به همهٔ کاربران ACTIVE ماژول مالی (الگوی invoice-clear) با title «تسویهٔ فاکتور سفارش #N» / type warning / link finance:orders / message دقیق طبق قرارداد. best-effort try/catch. دوبل‌زدن ندارد: گیت بالای route فقط in_printing را رد می‌کند پس گذار فقط یک‌بار می‌جوشد (comment مستند شد).
+- packages/[id]/route.ts: GET — include سفارش += invoice(total,paid,status) و orderMap += invoiceWithPackage/invoice (برای UI). PATCH sent — گیت خروج از انبار قبل از هر mutation: pkg fetch += order(number,invoiceWithPackage,invoice)؛ اولین سفارش متخلف → 409 «خروج مجاز نیست: فاکتور سفارش #N تسویه نشده — واحد مالی باید پرداخت را ثبت کند یا «ارسال فاکتور همراه بسته» را علامت بزند.» بدون تغییر داده. packing/ready/delivered/cancelled دست‌نخورده.
+- packages-page.tsx: تایپ PkgDetail.orders += invoiceWithPackage + invoice(null-able)؛ دیالوگ ارسال — کادر «تسویهٔ فاکتور سفارش‌ها (گیت خروج از انبار)» قبل از فیلدهای پیک: هر سفارش یک خط #N + مشتری + چیپ emerald «تسویه ✓»/«فاکتور همراه بسته ✓» یا rose «قفل — تسویه نشده» + خط راهنمای rose وقتی سفارش قفل هست.
+- notifications/route.ts GET: read دیگر از ستون legacy نیست — NotificationRead کاربر جاری برای همان ۳۰ اعلان واکشی می‌شود، read per-user در آیتم‌ها + unread=شمار ناخوانده‌ها (شکل پاسخ {notifications,unread} حفظ شد؛ polling ۱۵ث و orderBy createdAt desc دست‌نخورده). [id]/route.ts PUT: upsert NotificationRead (هرگز Notification.read جهانی را نمی‌نویسد)؛ مالکیت مثل قبل (403 فقط برای هدفمندِ دیگری). NEW read-all/route.ts: POST → اعلان‌های قابل‌مشاهده بدون ردیف خواندنِ این کاربر → createMany (SQLite: بدون skipDuplicates — شرط reads:none خودش تکرار را ناممکن می‌کند) → {ok,marked}.
+- header.tsx: بازطراحی کامل زنگ اعلان → Popover غنی w-[380px] sm:w-[420px] max-w-[calc(100vw-2rem)] p-0 rounded-xl: سربرگ گرادیانی (آیکون + «اعلان‌ها» + بج ناخوانده primary + «همه را خواندم» checkBadge با اسپینر + رفرش)، چیپ‌های فیلتر دستی (همه/خوانده‌نشده/همهٔ انواع/اطلاع/موفق/هشدار/خطا — فیلتر کلاینتی)، لیست max-h-420 scrollbar-thin با آیتم‌های button (نوار ۲px رنگ نوع سمت راست + مربع ۹×۹ رنگ تخت با آیکون سفید + title+dot emerald ناخوانده + message line-clamp-2 + meta نسبی+تاریخ دقیق fa-IR جلالی + bg-primary/5 برای ناخوانده + hover:bg-accent)، حالت خالی دوجانبه (لیست خالی: «اعلان جدیدی نیست/اینجا خبرهای سفارش‌ها و تسویه‌ها می‌آید» — فیلتر خالی: «اعلانی مطابق این فیلتر نیست»)، فوتر «N خوانده‌نشده از M» + «به‌روزرسانی خودکار هر ۱۵ ثانیه». TYPE_VISUALS با رنگ‌های بولد بدون آبی: info=violet، success=emerald، warning=amber، error=rose. کوئری ["notifications"] + markRead ماند؛ readAllMutation → POST read-all → invalidate. کلیک آیتم: markRead+navigate(link)+بستن پنل.
+- راستی‌آزمایی: tsc --noEmit → صفر خطا در فایل‌های تسک (خطاهای باقی‌مانده فقط dashboard/route.ts مالِ زیرایجنت D است)؛ eslint هر ۶ فایل → ۰ error/warning. curl: negar GET {notifications,unread} با read per-user؛ PUT یک اعلان عمومی → negar خوانده/hossein همان اعلان ناخوانده (read=15→13/16)؛ hossein read-all → marked:16 و unread=0 (negar دست‌نخورده)؛ reza complete_item آخرین آیتم #16 → warehouse_logistics → نگار «تسویهٔ فاکتور سفارش #16» warning؛ skip-تسویه: #11 اول پرچم خورد بعد چاپش کامل شد → نوتیف مالی جدید نساخت (نوتیف عمومی انبار آمد)؛ گیت: بسته PKG-MBZPPG از #17 → 409 «خروج مجاز نیست…» → invoice-clear نگار → PATCH sent 200؛ بستهٔ mixed PKG-55KHCG (#18 بدون فاکتور + #21 تسویه‌شده با PATCH invoice paid) → 409 با #18. ستون legacy Notification.read بعد از همهٔ تست‌ها هنوز 0=true. مرورگر (agent-browser): ادمین → پنل زیبا (چیپ هشدار فقط ۶ warning)، «همه را خواندم» → بج زنگ حذف شد، کلیک «تسویهٔ فاکتور #16» → finance:orders + بستن پنل، فیلتر خوانده‌نشده → حالت خالی + فوتر «۰ خوانده‌نشده از ۲۵»؛ حسین → دیالوگ ارسال PKG-55KHCG خطوط تسویه (#18 قفل rose / #21 تسویه ✓ emerald) + «ثبت ارسال» → توست خطای 409 دقیق؛ موبایل ۳90px → پنل ۳۵۸px fits. VLM هر ۵ اسکرین‌شات → NO ISSUES. dev.log: صفر ۵۰۰ (فقط دو Error: invoice-gate لاگ‌شده از jsonError عمدی). console/خطای صفحه صفر.
+- دیتای تست باقی‌مانده (قابل پاک با seed): سفارش‌های #11/#16 → warehouse_logistics؛ پرچم invoiceWithPackage روی #11 و #17؛ فاکتور #21 → paid تسویه کامل؛ بستهٔ PKG-MBZPPG (sent، #17) و PKG-55KHCG (ready، #18+#21 قفل)؛ نوتیف تستی مالی/انبار + ردیف‌های NotificationRead (negar/hossein/admin).
+
+Stage Summary:
+- اعلان‌ها حالا per-user خوانده می‌شوند (اعلان عمومی یکی می‌خواند بقیه ناخوانده می‌مانند) + پنل Popover تولید-محور با فیلتر/همه-خواندم/تاریخ جلالی/رنگ‌های نوع بدون آبی.
+- حلقهٔ مالی-انبار بسته شد: چاپ تمام → اعلان هشدار به مالی → انبار خروج بسته را تا تسویه یا پرچم «فاکتور همراه بسته» با 409 قفل می‌کند و عامل قفل در UI دیالوگ ارسال دیده می‌شود.
+- git دست‌نخورده (کامیت با ارکستراتور). فایل‌های سایر زیرایجنت‌ها تغییر نکرد.
+
+---
+Task ID: P17-D
+Agent: subagent-D (general-purpose)
+Task: ماژول مشتریان ادمین داخلی (بازسازی حرفه‌ای) + کارت داشبورد «مشتریان تسویه‌نکرده»
+
+Work Log:
+- Shared: src/lib/customer-debt.ts — unsettledByCustomer(): ماندهٔ زنده = Σ max(0, total−paid) روی سفارش‌های غیر لغو/آرشیو (per-order کسر می‌شود)؛ مشترک بین customers و dashboard تا اعداد دو سمت یکی باشد (نه snapshot قدیمی balanceDue).
+- API customers/route.ts: GET لیست + ?search (name/phone) — ردیف‌ها additive: address/city/province + ordersCount + unsettled (CRM/ویزارد سالم ماندند)؛ POST با نام/تلفن/آدرس الزامی (trim، پیام فارسی ۴۰۰).
+- API customers/[id]/route.ts: GET → پروندهٔ کامل (customer + orders desc با status/priority/endDate + invoices + payments + totals {ordersCount, unsettled, totalBilled, totalPaid})؛ PUT جزئی با اعتبارسنجی نام/تلفن/آدرسِ غیرخالی + city/province/note قابل null؛ DELETE با گارد سوابق → ۴۰۹ «این مشتری سفارش ثبت‌شده دارد و قابل حذف نیست» (+ سابقهٔ CRM معامله/فعالیت → ۴۰۹ جدا)؛ P2025 → ۴۰۴.
+- API NEW customers/quick/route.ts: POST ساخت سریع بدون الزام آدرس (آدرس/شهر/استان/یادداشت اختیاری پاس می‌شوند) — چون ویزارد سفارش و فرم سریع CRM قبلاً مستقیم به POST اصلی می‌زدند و الزامِ آدرس جریانشان را می‌شکست؛ آدرس‌های هر دو مصرف‌کننده ۱-خطی به quick تغییر کرد (order-wizard.tsx، crm-customers.tsx — فقط mutation URL).
+- API dashboard/route.ts: kpis.unsettledCustomers = {value/total: count، subValue: Σ} (point-in-time، بدون فیلتر بازه)؛ «سود تخمینی» (kpis.profit + series.profit + محاسبهٔ روزانه) کاملاً حذف شد — کارت مصرف‌کننده‌ای نداشت.
+- kpi-cards.tsx: جای profit → unsettledCustomers (rose، icon customers)؛ تنها کارت کلیک‌شون: onClick → setBoardFilter("admin","customers:unsettled") + navigate("admin","customers") (الگوی داشبورد مالی؛ onClick از store در KpiCardsGrid تزریق می‌شود)؛ KpiCardConfig += pointInTime (بدون TimeRangePicker اختصاصی + یادداشت «مقدار لحظه‌ای») و پشتیبانی subValue (زیرمتن «Σ X IQD طلبِ واریزنشده» به‌جای پیکان تغییر)؛ Card با role=button/tabIndex/Enter-Space؛ cyan از COLOR_MAP حذف شد.
+- use-dashboard-data.ts: KpiData += subValue?: number + کامنت قرارداد کلید جدید.
+- customers-page.tsx (بازسازی کامل، ~۶۲۰ خط): PageHeader + جستجوی سرور-side با debounce ۴۰۰ms (در هدر) + دکمهٔ «مشتری جدید»؛ نوار خلاصهٔ ۴ کارتی (تعداد/تسویه‌نشده‌ها/جمع مطالبات formatCurrency/مورد علاقه‌ها)؛ چیپ‌های فیلتر radiogroup همه/تسویه‌نشده/مورد علاقه با شمارندهٔ زنده + مصرف boardFilter دقیقاً الگوی print-orders (فقط value === "customers:unsettled")؛ DataTable فشرده: «مشتری» = نام + ستارهٔ amber + چیپ مانده کنار نام (رز اگر unsettled>0 با formatCurrency / زمرد «تسویه‌شده» — خواستهٔ اصلی کارفرما)، تماس ltr، شهر/استان، آدرس truncate max-w-220 + Tooltip، سفارش‌ها centered (fa digits)، ثبت formatDate، عملیات ویرایش/حذف؛ کلیک ردیف → دیالوگ پرونده؛ فرم ساخت/ویرایش (name*/phone*/address* با aria-invalid قرمز + پیام، city/province/note، ToggleButton ستارهٔ amber)؛ حذف AlertDialog با preventDefault تا خطای ۴۰۹ توست شود و دیالوگ باز بماند؛ invalidate ["customers","customers-list","customers-wizard","dashboard"].
+- NEW customers/customers-detail-dialog.tsx: «پروندهٔ مشتری» max-w-4xl — سربرگ (آواتار حرف اول/نام+ستاره/تلفن/شهر-استان/آدرس کامل/یادداشت با نوار amber/تاریخ ثبت + دکمهٔ ویرایش → فرم صفحه)؛ ۴ کاشی متریک؛ ۳ تب با بج شمارنده: سفارش‌ها (#N mono + آیکون فوری، StatusBadge، جمع/پرداخت/مانده، موعد با رزِ سررسیدگذشته، تاریخ)، فاکتورها (متای محلی بدون آبی: draft/issued-amber/paid-emerald/cancelled-rose)، پرداخت‌ها (مبلغ emerald، روش نقدی/کارت/چک)؛ EmptyState هر تب؛ queryKey زیر ["customers",id,"detail"] تا invalidate والد رفرش کند.
+- راستی‌آزمایی: tsc --noEmit (فیلتر تسک) → خالی؛ eslint هر ۱۱ فایل → ۰/۰. curl: GET لیست ۲۶ مشتری + unsettled=17/Σ197,042,500 (برابر ریاضی دستی: گالری رنگین‌کمان 8.4M، رایان‌گستر 27.45M)؛ POST 201 / بدون آدرس ۴۰۰ فارسی / quick 201؛ PUT شهر/استان 200 + خالی‌کردن نام ۴۰۰؛ GET [id] تاریخچه کامل؛ DELETE بدون سفارش 200 / با سفارش ۴۰۹؛ dashboard kpis.unsettledCustomers={17, 197,042,500} بدون profit.
+- E2E مرورگر (session اختصاصی p17d — سشن مشترک با زیرایجنت موازی باعث stale-ref شده بود): لاگین admin → داشبورد کارت «مشتریان تسویه‌نکرده» با 17 و Σ، بدون «سود» → کلیک → صفحهٔ مشتریان با چیپ «تسویه‌نشده» فعال (۱۷ بدهکار، فقط ردیف‌های مانده‌دار) + نوار خلاصه؛ ردیف رایان‌گستر → پرونده: کاشی‌ها 28,120,000/670,000/27,450,000/۲ + تب‌های سفارش/فاکتور/پرداخت با دیتای درست؛ ویرایش از خود دیالوگ؛ ساخت «مرکز چاپ پارس» (اعتبارسنجی: ۳ aria-invalid + توست فارسی، سپس ۲۰۱ + ردیف «تسویه‌شده»)؛ ویرایش شهر → PUT 200 ماندگار؛ حذف مشتریِ دارای سفارش → ۴۰۹ + توست «قابل حذف نیست» (دیالوگ باز ماند)؛ حذف تستِ بدون سفارش → ۲۰۰؛ ویزارد سفارش → «مشتری جدید» → quick 201 + «ایجاد و انتخاب شد» (جریان ویزارد سالم)؛ CRM مشتریان رندر سالم؛ موبایل 390px: جدول overflow-x-auto، خلاصه ۲ ستونه، دیالوگ max-h+scroll؛ dev.log بدون ۵۰۰ (فقط ۴۰۰/۴۰۹ عمدی)؛ VLM روی ۴ اسکرین‌شات → NO ISSUES؛ رفع دو هشدار a11y (DialogTitle sr-only در پرونده + حذف aria-describedby از AlertDialog حذف).
+- نکتهٔ محیط: dev server وسط تست‌ها توسط زیرایجنت موازی خاموش/روشن شد — یک‌بار ری‌استارت شد و سشن مرورگر اختصاصی برای ادامه؛ دیتای تست مرورگر کامل پاک شد (۲ مشتری تست حذف‌شده). dev server روشن مانده.
+
+Stage Summary:
+- «مشتریان» ادمین حالا ماژول کامل است: ماندهٔ حساب زنده کنار هر نام، پروندهٔ تب‌دار با تاریخچه سفارش/فاکتور/پرداخت، فرم با آدرس الزامی + شهر/استان، حذف امن با گارد ۴۰۹.
+- داشبورد ادمین: «سود تخمینی» با «مشتریان تسویه‌نکرده» (count + Σ طلب) جایگزین شد و کارت با boardFilter دقیقاً به لیست بدهکاران وصل است — همان عدد لیست مشتریان.
+- قرارداد API: ساخت سریع (ویزارد/CRM) → POST /api/customers/quick (بدون الزام آدرس)؛ ساخت کامل (ادمین) → POST /api/customers (آدرس الزامی).

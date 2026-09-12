@@ -36,6 +36,8 @@ export async function GET(
                   include: { product: { select: { name: true } } },
                   orderBy: { createdAt: "asc" },
                 },
+                // Phase 17: وضعیت تسویه برای گیت خروج از انبار (UI دیالوگ ارسال)
+                invoice: { select: { totalAmount: true, paidAmount: true, status: true } },
               },
             },
             orderItem: { include: { product: { select: { name: true } } } },
@@ -56,6 +58,8 @@ export async function GET(
         paidAmount: number;
         address: string | null;
         customer: { id: string; name: string; phone: string; address: string | null };
+        invoiceWithPackage: boolean;
+        invoice: { totalAmount: number; paidAmount: number; status: string } | null;
         allItems: { id: string; productName: string; stage: string; quantity: number }[];
         itemsInPackage: { productName: string; quantity: number }[];
       }
@@ -71,6 +75,14 @@ export async function GET(
           paidAmount: o.paidAmount,
           address: o.address ?? o.customer.address,
           customer: o.customer,
+          invoiceWithPackage: o.invoiceWithPackage,
+          invoice: o.invoice
+            ? {
+                totalAmount: o.invoice.totalAmount,
+                paidAmount: o.invoice.paidAmount,
+                status: o.invoice.status,
+              }
+            : null,
           allItems: o.items.map((oi) => ({
             id: oi.id,
             productName: oi.product.name,
@@ -130,11 +142,27 @@ export async function PATCH(
 
     const pkg = await db.package.findUnique({
       where: { id },
-      include: { items: { select: { orderId: true } } },
+      include: {
+        items: {
+          select: {
+            orderId: true,
+            // Phase 17: گیت خروج از انبار — وضعیت فاکتور هر سفارشِ بسته
+            order: {
+              select: {
+                id: true,
+                number: true,
+                invoiceWithPackage: true,
+                invoice: { select: { totalAmount: true, paidAmount: true } },
+              },
+            },
+          },
+        },
+      },
     });
     if (!pkg) return jsonError(new Error("nf"), "بسته یافت نشد", 404);
 
     const orderIds = [...new Set(pkg.items.map((i) => i.orderId))];
+    const gateOrders = [...new Map(pkg.items.map((i) => [i.order.id, i.order])).values()];
     const nextStatus = typeof body.status === "string" ? (body.status as PackageStatus) : null;
 
     // ── جریان وضعیت ──
@@ -169,6 +197,27 @@ export async function PATCH(
       }
 
       if (nextStatus === "sent") {
+        // ── Phase 17: گیت خروج از انبار ──
+        // خروج هر سفارشِ بسته فقط با تسویهٔ کامل فاکتور (paid≥total و
+        // total>0) یا علامت «فاکتور همراه بسته» مجاز است — اولین
+        // سفارشِ متخلف با 409 اعلام می‌شود و هیچ چیزی تغییر نمی‌کند.
+        const offender = gateOrders.find(
+          (o) =>
+            o.invoiceWithPackage !== true &&
+            !(
+              o.invoice !== null &&
+              o.invoice.totalAmount > 0 &&
+              o.invoice.paidAmount >= o.invoice.totalAmount
+            )
+        );
+        if (offender) {
+          return jsonError(
+            new Error("invoice-gate"),
+            `خروج مجاز نیست: فاکتور سفارش #${offender.number} تسویه نشده — واحد مالی باید پرداخت را ثبت کند یا «ارسال فاکتور همراه بسته» را علامت بزند.`,
+            409
+          );
+        }
+
         const courier = typeof body.courier === "string" ? body.courier.trim() : pkg.courier;
         const trackingNo = typeof body.trackingNo === "string" ? body.trackingNo.trim() : pkg.trackingNo;
         const result = await db.$transaction(async (tx) => {

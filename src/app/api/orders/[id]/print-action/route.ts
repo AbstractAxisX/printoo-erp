@@ -43,6 +43,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           },
         },
         customer: { select: { name: true } },
+        // Phase 17: گیت مالی — برای تشخیص «تسویه‌شده» قبل از نوتیف فاکتور
+        invoice: { select: { totalAmount: true, paidAmount: true } },
       },
     });
     if (!order)
@@ -120,6 +122,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       if (result.status === "warehouse_logistics") {
         await notifyWarehouse(order.number, order.customer?.name);
+        // Phase 17: اطلاع مالی برای تسویهٔ فاکتور (فقط گذار تازه — گیت
+        // in_printing بالاتر تضمین می‌کند این بلوک در هر گذار فقط یک‌بار می‌جوشد:
+        // complete_item و send_warehouse هر دو در همان گذار مشترک‌اند و درخواست
+        // بعدی با 409 رد می‌شود)
+        await notifyFinanceSettlement(order);
         await logOrderEvent(db, {
           orderId: id,
           type: "sent_to_warehouse",
@@ -210,6 +217,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       if (result.status === "warehouse_logistics") {
         await notifyWarehouse(order.number, order.customer?.name);
+        // Phase 17: همان اطلاع مالی — چون send_warehouse هم می‌تواند گذار را
+        // نهایی کند (آخرین آیتم‌ها)، همان گیت تازه‌بودنِ بالا صادق است.
+        await notifyFinanceSettlement(order);
         await logOrderEvent(db, {
           orderId: id,
           type: "sent_to_warehouse",
@@ -287,5 +297,52 @@ async function notifyWarehouse(orderNumber: number, customerName?: string) {
     });
   } catch {
     // best-effort
+  }
+}
+
+// ─── Phase 17: گیت خروج از انبار — اطلاع مالی هنگام رسیدن چاپ به انبار ──
+// سفارش تازه به warehouse_logistics رسیده؛ اگر فاکتورش تسویه نیست و علامت
+// «فاکتور همراه بسته» هم نخورده، به همهٔ کاربران فعال ماژول مالی اعلان
+// هدفمند می‌رود تا پرداخت را ثبت کنند یا پرچم را بزنند.
+async function notifyFinanceSettlement(
+  order: {
+    number: number;
+    invoiceWithPackage: boolean;
+    invoice: { totalAmount: number; paidAmount: number } | null;
+    customer: { name: string } | null;
+  }
+) {
+  try {
+    const settled =
+      order.invoiceWithPackage === true ||
+      (order.invoice !== null &&
+        order.invoice.totalAmount > 0 &&
+        order.invoice.paidAmount >= order.invoice.totalAmount);
+    if (settled) return; // بدون نویز — فاکتور یا تسویه است یا همراه بسته می‌رود
+
+    const financeUsers = await db.userModule.findMany({
+      where: { module: "finance" },
+      select: { userId: true, user: { select: { status: true } } },
+    });
+    const targets = financeUsers
+      .filter((f) => f.user.status === "active")
+      .map((f) => f.userId);
+    if (targets.length === 0) return;
+
+    const customerName = order.customer?.name;
+    await db.notification.createMany({
+      data: targets.map((uid) => ({
+        userId: uid,
+        title: `تسویهٔ فاکتور سفارش #${order.number}`,
+        message:
+          `چاپ سفارش #${order.number}${customerName ? ` (${customerName})` : ""}` +
+          ` کامل شد و به انبار رفت — پرداخت فاکتور را انجام دهید یا «ارسال فاکتور همراه بسته» را علامت بزنید؛` +
+          ` تا آن زمان انبار اجازهٔ خروج ندارد.`,
+        type: "warning",
+        link: "finance:orders",
+      })),
+    });
+  } catch {
+    // best-effort — اکشن اصلی چاپ هرگز نباید به‌خاطر اعلان شکست بخورد
   }
 }

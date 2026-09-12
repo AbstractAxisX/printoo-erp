@@ -1,12 +1,14 @@
 "use client";
 
 // ─── Phase 15: مودال مالی سفارش ──────────────────────────────────────
-// نمای مالی از یک سفارش — دو بخش:
+// نمای مالی از یک سفارش — سه بخش:
 //   ۱) «معرفی سفارش»: کد، مشتری، وضعیت، و «الان کجاست و دست کیست»
 //      (مرحلهٔ فعال هر آیتم + مجری مؤثر آن)
 //   ۲) «تاریخچهٔ مالی»: پیش‌فاکتورها + فاکتور (با ادیت پرداختیِ سینک‌شونده)،
 //      دفتر درآمد (تفاضل هوشمند)، هزینه‌های سفارش (به تفکیک ماژول/کارمند)
-//      + ثبت پرداخت جدید.
+//      + ثبت پرداخت جدید + وضعیت خروج از انبار (گیت فاکتور).
+//   ۳) «ثبت هزینه» (Phase 17): فرم هزینه روی همین سفارش + جدول هزینه‌های
+//      ثبت‌شده — مالی ماژول ثبت‌کننده را آزادانه انتخاب می‌کند.
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { StatusBadge } from "@/components/shared";
+import { CostEntryForm } from "@/components/shared/cost-entry-form";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { PRIORITY, ITEM_STAGE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -44,6 +47,8 @@ type FinanceOrder = {
   totalAmount: number;
   paidAmount: number;
   note: string | null;
+  // Phase 17: پرچم «فاکتور همراه بسته» — گیت خروج از انبار
+  invoiceWithPackage: boolean;
   customer: { id: string; name: string; phone: string };
   items: {
     id: string;
@@ -120,6 +125,24 @@ const STAGE_COLOR: Record<string, string> = {
   warehouse: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300",
   completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
   archive: "bg-muted text-muted-foreground",
+};
+
+// ─── Phase 17-A: تب «ثبت هزینه» ─────────────────────────────────────
+// مالی ماژول ثبت‌کننده را آزادانه انتخاب می‌کند (بدون محدودیت پنل چاپ/لجستیک)
+const ORDER_COST_MODULES = ["print", "material", "warehouse", "logistics", "finance"];
+
+const COST_MODULE_COLOR: Record<string, string> = {
+  print: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
+  material: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
+  warehouse: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  logistics: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300",
+  finance: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
+};
+
+const COST_STATUS_META: Record<string, { label: string; cls: string }> = {
+  pending: { label: "در انتظار", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  approved: { label: "تأیید", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: "رد", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
 };
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -252,6 +275,30 @@ export function FinanceOrderModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // ── Phase 17: پرچم «فاکتور همراه بسته» (گیت خروج از انبار) ──
+  // POST /api/orders/[id]/invoice-clear {withPackage} — با true انبار اجازهٔ
+  // خروج می‌یابد (اعلان + رویداد سمت سرور); با false علامت برداشته می‌شود.
+  const invoiceClearMut = useMutation({
+    mutationFn: (withPackage: boolean) =>
+      api<{ ok: boolean; order: { invoiceWithPackage: boolean } }>(
+        `/api/orders/${orderId}/invoice-clear`,
+        {
+          method: "POST",
+          body: JSON.stringify({ withPackage }),
+        }
+      ),
+    onSuccess: (_res, withPackage) => {
+      toast.success(
+        withPackage
+          ? "علامت «فاکتور همراه بسته» ثبت شد — خروج از انبار باز شد"
+          : "علامت ارسال فاکتور برداشته شد — خروج از انبار مجدداً قفل است"
+      );
+      qc.invalidateQueries({ queryKey: ["order", orderId, "finance"] });
+      invalidate(["orders"]);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // «الان کجاست و دست کیست» — مجری مؤثر هر مرحلهٔ فعال
   // (⚠ قبل از early-return — Rules of Hooks)
   const activeStages = React.useMemo(() => {
@@ -298,6 +345,22 @@ export function FinanceOrderModal({
 
   const remaining = order.totalAmount - order.paidAmount;
   const priorityInfo = PRIORITY[order.priority as keyof typeof PRIORITY] ?? PRIORITY.normal;
+
+  // ── Phase 17-A: خلاصهٔ زندهٔ هزینه‌ها (تب «ثبت هزینه») ──
+  const costs = order.materialCosts ?? [];
+  const totalCosts = costs.reduce((s, c) => s + c.amount, 0);
+  const pendingCosts = costs.filter((c) => c.status === "pending").length;
+
+  // ── Phase 17: وضعیت خروج از انبار ──
+  // ۱) پرچم مالی «فاکتور همراه بسته» → خروج آزاد
+  // ۲) تسویهٔ کامل فاکتور (باقطل‌نشده و مبلغ > ۰) → خروج آزاد
+  // ۳) غیر از این → قفل؛ مالی می‌تواند پرچم را بزند
+  const invoiceFlagged = order.invoiceWithPackage === true;
+  const orderSettled =
+    !!order.invoice &&
+    order.invoice.status !== "cancelled" &&
+    order.invoice.totalAmount > 0 &&
+    order.invoice.paidAmount >= order.invoice.totalAmount - 0.001;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -415,6 +478,19 @@ export function FinanceOrderModal({
                 {(order.revenueLogs ?? []).length > 0 && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
                     {(order.revenueLogs ?? []).length.toLocaleString("fa-IR")}
+                  </span>
+                )}
+              </TabsTrigger>
+              {/* Phase 17-A: تب «ثبت هزینه» — فرم هزینه روی همین سفارش */}
+              <TabsTrigger
+                value="costs"
+                className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
+              >
+                <Icon name="money" size={15} />
+                ثبت هزینه
+                {costs.length > 0 && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
+                    {costs.length.toLocaleString("fa-IR")}
                   </span>
                 )}
               </TabsTrigger>
@@ -751,6 +827,87 @@ export function FinanceOrderModal({
                 )}
               </div>
 
+              {/* ── Phase 17: وضعیت خروج از انبار (گیت فاکتور همراه بسته) ── */}
+              <div>
+                <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
+                  <Icon name="warehouse" size={13} /> وضعیت خروج از انبار
+                </div>
+                {invoiceFlagged ? (
+                  <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-500/[0.05] p-3.5 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 grid place-items-center shrink-0">
+                        <Icon name="packageSent" size={16} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                          فاکتور همراه بسته ارسال می‌شود
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          مالی علامت زده — انبار اجازهٔ خروج این سفارش را دارد
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 h-8"
+                      onClick={() => invoiceClearMut.mutate(false)}
+                      disabled={invoiceClearMut.isPending}
+                    >
+                      {invoiceClearMut.isPending ? (
+                        <Icon name="loading" size={12} className="animate-spin" />
+                      ) : (
+                        <Icon name="cancel" size={12} />
+                      )}
+                      برداشتن علامت
+                    </Button>
+                  </div>
+                ) : orderSettled ? (
+                  <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-500/[0.05] p-3.5 flex items-center gap-2.5">
+                    <span className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 grid place-items-center shrink-0">
+                      <Icon name="checkCircle" size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                        تسویه کامل — خروج آزاد
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        فاکتور تسویه شده — خروج از انبار نیازی به علامت ندارد
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-500/[0.05] p-3.5 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="size-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 grid place-items-center shrink-0">
+                        <Icon name="lock" size={16} />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                          تسویه‌نشده — خروج از انبار قفل است
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          تا تسویهٔ کامل فاکتور یا علامت مالی، بستهٔ این سفارش از انبار خارج نمی‌شود
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="gap-1.5 h-8"
+                      onClick={() => invoiceClearMut.mutate(true)}
+                      disabled={invoiceClearMut.isPending}
+                    >
+                      {invoiceClearMut.isPending ? (
+                        <Icon name="loading" size={12} className="animate-spin" />
+                      ) : (
+                        <Icon name="packageSent" size={12} />
+                      )}
+                      ارسال فاکتور همراه بسته
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               {/* دفتر درآمد سفارش */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
@@ -878,6 +1035,151 @@ export function FinanceOrderModal({
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+          {/* ── Tab 3: ثبت هزینه (Phase 17-A) ── */}
+          <TabsContent value="costs" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
+            <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5" style={{ maxHeight: "52vh" }}>
+              {/* سربرگ: سفارش + خلاصهٔ زندهٔ هزینه‌ها */}
+              <div className="rounded-xl border bg-gradient-to-l from-violet-500/[0.04] to-transparent p-4 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="size-9 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 grid place-items-center shrink-0">
+                    <Icon name="money" size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold">
+                      افزودن هزینه به سفارش #{order.number}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      {order.customer?.name} — ماژول ثبت‌کننده آزاد است؛ ثبت برای تأیید مالی می‌رود
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+                    {costs.length.toLocaleString("fa-IR")} هزینه
+                  </span>
+                  <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                    مجموع{" "}
+                    <span dir="ltr" className="tabular-nums font-bold">
+                      {formatCurrency(totalCosts)}
+                    </span>
+                  </span>
+                  {pendingCosts > 0 && (
+                    <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                      {pendingCosts.toLocaleString("fa-IR")} در انتظار
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* فرم ثبت هزینه — سفارش معلوم است (بدون دراپ‌داون) */}
+              <div className="rounded-xl border p-5 bg-card">
+                <CostEntryForm
+                  mode="order"
+                  orderId={order.id}
+                  modules={ORDER_COST_MODULES}
+                  showInvoiceOption
+                  showSupplier
+                  onSubmitted={() => {
+                    qc.invalidateQueries({ queryKey: ["order", orderId, "finance"] });
+                    invalidate(["finance", "material-costs", "orders"]);
+                  }}
+                />
+              </div>
+
+              {/* هزینه‌های ثبت‌شدهٔ این سفارش — جدول جمع‌وجور */}
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Icon name="checkList" size={13} /> هزینه‌های ثبت‌شده
+                    <span className="text-[10px] font-normal text-muted-foreground/70">
+                      ({costs.length.toLocaleString("fa-IR")})
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    مجموع:{" "}
+                    <b dir="ltr" className="text-foreground tabular-nums">
+                      {formatCurrency(totalCosts)}
+                    </b>
+                  </div>
+                </div>
+                {costs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-muted-foreground rounded-xl border border-dashed">
+                    <Icon name="inbox" size={24} className="opacity-30" />
+                    <span className="text-xs">هنوز هزینه‌ای روی این سفارش ثبت نشده است</span>
+                    <span className="text-[10px] text-muted-foreground/70">
+                      با فرم بالا هزینهٔ اولین متریال/خدمت را ثبت کنید
+                    </span>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border overflow-hidden">
+                    {/* سربرگ جدول */}
+                    <div className="grid grid-cols-[1fr_90px_110px_90px_170px] items-center gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
+                      <span>هزینه</span>
+                      <span className="text-center">بخش</span>
+                      <span className="text-center">مبلغ</span>
+                      <span className="text-center">وضعیت</span>
+                      <span className="text-center">ثبت</span>
+                    </div>
+                    <div className="divide-y">
+                      {costs.map((c) => {
+                        const st = COST_STATUS_META[c.status] ?? {
+                          label: c.status,
+                          cls: "bg-muted text-muted-foreground",
+                        };
+                        return (
+                          <div
+                            key={c.id}
+                            className="grid grid-cols-[1fr_90px_110px_90px_170px] items-center gap-2 px-3 py-2.5 hover:bg-accent/30 transition text-sm"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-medium text-sm truncate flex items-center gap-1.5">
+                                {c.title || c.description || "هزینه"}
+                                {c.includeInInvoice && (
+                                  <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                                    در فاکتور
+                                  </span>
+                                )}
+                              </div>
+                              {(c.expenseType?.name || c.supplier?.name) && (
+                                <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                                  {c.expenseType?.name ?? ""}
+                                  {c.supplier?.name ? ` • ${c.supplier.name}` : ""}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-center">
+                              <span
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0.5 rounded",
+                                  COST_MODULE_COLOR[c.module] ?? "bg-muted text-muted-foreground"
+                                )}
+                              >
+                                {MODULE_LABELS[c.module] ?? c.module}
+                              </span>
+                            </span>
+                            <span className="text-center font-semibold tabular-nums" dir="ltr">
+                              {formatCurrency(c.amount)}
+                            </span>
+                            <span className="text-center">
+                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full", st.cls)}>
+                                {st.label}
+                              </span>
+                            </span>
+                            <span className="text-center text-[10px] text-muted-foreground flex items-center justify-center gap-1.5 min-w-0">
+                              <span className="truncate">{c.createdByName ?? "—"}</span>
+                              <span className="tabular-nums shrink-0" dir="ltr">
+                                {formatDateTime(c.createdAt)}
+                              </span>
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

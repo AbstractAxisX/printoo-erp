@@ -917,8 +917,9 @@ function Step1({
   const [createOpen, setCreateOpen] = React.useState(false);
   const invalidate = useInvalidate();
 
+  // Phase 17-D: quick endpoint — آدرس در ویزارد الزامی نیست (جریان سریع)
   const createCust = useMutation({
-    mutationFn: (body: { name: string; phone: string }) => api<{ customer: Customer }>("/api/customers", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: { name: string; phone: string }) => api<{ customer: Customer }>("/api/customers/quick", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: (data) => {
       invalidate(["customers"]);
       invalidate(["customers-wizard"]);

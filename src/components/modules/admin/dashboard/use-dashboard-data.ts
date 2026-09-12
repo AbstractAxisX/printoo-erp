@@ -33,12 +33,15 @@ import { rangeToParams, type TimeRange } from "@/lib/time-ranges";
 
 // ─── Shared types (single source of truth for the dashboard payload) ─────────
 
-export type KpiData = { value: number; prev: number; change: number; total: number };
+export type KpiData = { value: number; prev: number; change: number; total: number; subValue?: number };
 export type SeriesPoint = { date: string; value: number };
 
 /** Full /api/dashboard response shape. Each consumer reads only its slice. */
 export type DashboardData = {
   range: { from: string; to: string };
+  // Phase 17-D: «unsettledCustomers» point-in-time است — prev/change همیشه ۰
+  // و subValue = جمع مطالبات (دینار) است؛ کارتش فقط count را بزرگ نشان می‌دهد.
+  // کلید «profit» (سود تخمینی) حذف شد — جای آن طلبِ جاری مشتریان نشست.
   kpis: Record<string, KpiData>;
   series: Record<string, SeriesPoint[]>;
   quickStats: {
