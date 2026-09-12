@@ -3884,3 +3884,23 @@ Stage Summary:
 - سرویس systemd با auto-restart و start در boot؛ لاگ: /var/log/printoo24-admin.log؛ رم: ~56MB.
 - دیتابیس SQLite دمو در /opt/printoo24-admin/db/custom.db (تغییر .env مسیر مطلق سرور).
 - دو فیک HTTP-deployment (COOKIE_SECURE=false در systemd؛ safeUuid) — روی HTTPS دامنه‌دار در آینده فیک‌ها خودکار بی‌اثر می‌شوند.
+
+---
+Task ID: DEPLOY-2
+Agent: orchestrator (main)
+Task: پاک‌سازی کامل دیتای تستی روی سرور 187.124.27.96 — فقط اکانت ادمین بماند
+
+Work Log:
+- محیط سندباکس ریست شده بود → paramiko نصب مجدد + بازسازی /home/z/deploy-tool/sshx.py.
+- بررسی دیتابیس سرور: ۳۷ جدول، ۱۴ کاربر (۱۱ دمو + ۳ کاربر تستی yada/abas/nsar که بعد از استقرار ساخته شده بودند)، ۳۳ سفارش و ~۴۰۰ ردیف دیتا در مجموع.
+- توقف سرویس → بکاپ کامل در /opt/printoo24-admin/db/custom.db.backup-20260912-0714.
+- DELETE همه جدول‌های داده‌ای (Order/OrderItem/PreInvoice/Invoice/Payment/MaterialCost/RevenueLog/OrderEvent/QcReport/Task/Notification/Customer/Product/PriceList/Supplier*/Deal/Expense/ExpenseType/Material/StockMove/Package*/Payroll*/UserModule/UserActivityLog/UserLeave/Activity/DayNote/Counter/CostAttachment/AuditLog) + DELETE FROM User WHERE email != 'admin@printoo24.com' + VACUUM.
+- پاک‌سازی فایل‌های آپلود ضمیمه (standalone/public/uploads/costs).
+- ری‌استارت سرویس → active.
+- تایید API: لاگین ادمین 200؛ orders/customers/products/suppliers/tasks/notifications/users همه لیست خالی؛ dashboard و finance/summary همه صفر.
+- تایید مرورگر: داشبورد ادمین با EmptyState «سفارشی ثبت نشده»؛ مانیتورینگ کاربران فقط ۱ ردیف = مدیر سیستم (admin@printoo24.com، همه ماژول‌ها، آنلاین)؛ بدون خطای کنسول/صفحه.
+
+Stage Summary:
+- سیستم روی http://187.124.27.96:3000 حالا کاملاً خالی و آمادهٔ دمو/شروع واقعی است: فقط admin@printoo24.com / admin123 (master).
+- بکاپ دیتای قبلی روی سرور موجود است (custom.db.backup-20260912-0714) — قابل حذف یا بازیابی.
+- جداول مرجع (ExpenseType و Counter) عمداً خالی شدند چون API ها آنها را خودکار بازسازی می‌کنند (defaults همیشه ensure می‌شوند).
