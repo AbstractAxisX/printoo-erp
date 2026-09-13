@@ -15,11 +15,12 @@
 // مودال جزئیات هم همین مودال باز می‌شود.
 //
 // چرخهٔ وضعیت: draft → sent → approved → converted (یا rejected)
-// چاپ: window.print() + کلاس print-doc در globals.css (فقط سند چاپ می‌شود)
+// چاپ (Phase 19): پنجرهٔ جدید تمیز — فقط خود سند، بدون هیچ chrome سیستمی (lib/print-doc)
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { printElementClean } from "@/lib/print-doc";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -949,7 +950,12 @@ function DocView({
             <Icon name="trash" size={13} /> حذف
           </Button>
         )}
-        <Button size="sm" onClick={() => window.print()} className="gap-1.5 h-8 shadow-sm">
+        <Button size="sm" onClick={() => {
+            const res = printElementClean("#printable-invoice");
+            if (!res.ok && res.error === "popup-blocked") {
+              toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+            }
+          }} className="gap-1.5 h-8 shadow-sm">
           <Icon name="print" size={13} /> چاپ / ذخیره PDF
         </Button>
       </div>

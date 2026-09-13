@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { isManager } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
 
 // POST /api/notifications/read-all — Phase 17
@@ -14,9 +13,9 @@ export async function POST() {
   if (user instanceof NextResponse) return user;
 
   try {
-    const scoped = isManager(user)
-      ? {} // مدیر: همهٔ اعلان‌ها (عمومی + هدفمند)
-      : { OR: [{ userId: null }, { userId: user.id }] };
+    // Phase 19: همان scope فهرست اعلان‌ها — عمومی + هدفدارِ خودِ کاربر
+    // (مدیر هم اعلان‌های شخصی دیگران را نمی‌بیند).
+    const scoped = { OR: [{ userId: null }, { userId: user.id }] };
 
     // قابل‌مشاهده + هنوز توسط این کاربر خوانده‌نشده
     const visibleUnread = await db.notification.findMany({

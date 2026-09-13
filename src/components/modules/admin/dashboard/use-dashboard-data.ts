@@ -41,7 +41,8 @@ export type DashboardData = {
   range: { from: string; to: string };
   // Phase 17-D: «unsettledCustomers» point-in-time است — prev/change همیشه ۰
   // و subValue = جمع مطالبات (دینار) است؛ کارتش فقط count را بزرگ نشان می‌دهد.
-  // کلید «profit» (سود تخمینی) حذف شد — جای آن طلبِ جاری مشتریان نشست.
+  // Phase 19: «revenue» = پول دریافتی (subValue = سود خالص)؛ «orderValue» =
+  // ارزش سفارشات جدید؛ «payments» حذف شد.
   kpis: Record<string, KpiData>;
   series: Record<string, SeriesPoint[]>;
   quickStats: {
@@ -50,10 +51,30 @@ export type DashboardData = {
     noEndDate: number;
     pendingTasks: number;
   };
+  // Phase 19: رادار رئیس — نگاه یک‌ثانیه‌ای به مشکلات
+  radar?: {
+    customersDue: { count: number; sum: number; top: { name: string; due: number }[] };
+    supplierDebt: { count: number; sum: number; top: { name: string; balanceDue: number }[] };
+    overdue: { count: number; oldestDays: number };
+    pendingCosts: { count: number; sum: number };
+    profit: { revenue: number; costs: number; net: number };
+  };
   recentOrders: DashboardOrder[];
   nearDeadlineOrders: DashboardOrder[];
   latestTasks: DashboardTask[];
+  latestEvents?: DashboardEvent[];
   byStatus?: Record<string, number>[];
+};
+
+export type DashboardEvent = {
+  id: string;
+  type: string;
+  stage: string | null;
+  title: string;
+  actorName: string | null;
+  sensitive: boolean;
+  createdAt: string;
+  order: { number: number } | null;
 };
 
 export type DashboardOrder = {

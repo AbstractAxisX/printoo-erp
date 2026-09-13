@@ -20,18 +20,24 @@ export type KpiCardConfig = {
   /** Phase 17-D: متریک لحظه‌ای (بدون فیلتر زمانی) — مثل طلبِ جاری مشتریان؛
    *  TimeRangePicker اختصاصی و پیکان تغییر حذف می‌شود. */
   pointInTime?: boolean;
+  /** Phase 19: برچسب زیرمتنِ subValue (پیش‌فرض: طلبِ واریزنشده). */
+  subValueLabel?: string;
   /** Phase 17-D: فقط برای کارت‌های کلیک‌شون — بعد از کلیک، فیلتر/ناوبری. */
   onClick?: () => void;
 };
 
 export const KPI_CARDS: KpiCardConfig[] = [
-  { key: "revenue", label: "درآمد کل", icon: "wallet", color: "emerald", isCurrency: true },
+  // Phase 19: «درآمد» = پول واقعاً دریافت‌شده (RevenueLog) — subValue = سود خالص
+  // دوره (درآمد − هزینه)؛ KPI قدیمی «پرداخت‌های دریافتی» (مدل Payment بدون
+  // write) و درآمدِ مبتنی بر ارزش سفارش حذف شدند (خواستهٔ صریح: فاکتور بدون
+  // دریافت پول نباید در درآمد بنشیند).
+  { key: "revenue", label: "درآمد دریافتی", icon: "wallet", color: "emerald", isCurrency: true, subValueLabel: "سود خالص (درآمد − هزینه)" },
+  { key: "orderValue", label: "ارزش سفارشات جدید", icon: "chart", color: "teal", isCurrency: true },
   { key: "orders", label: "سفارشات جدید", icon: "orders", color: "violet" },
   { key: "avgOrderValue", label: "میانگین ارزش سفارش", icon: "chart", color: "blue", isCurrency: true },
   { key: "newCustomers", label: "مشتریان جدید", icon: "customers", color: "teal" },
   { key: "completed", label: "تکمیل شده", icon: "checkCircle", color: "emerald" },
   { key: "urgent", label: "سفارشات فوری", icon: "alertTriangle", color: "rose" },
-  { key: "payments", label: "پرداخت‌های دریافتی", icon: "creditCard", color: "amber", isCurrency: true },
   { key: "unsettledCustomers", label: "مشتریان تسویه‌نکرده", icon: "customers", color: "rose", pointInTime: true },
 ];
 
@@ -140,7 +146,15 @@ function KpiCard({
   const chartData = data?.series?.[config.key] ?? [];
   const hasOverride = range.label !== globalLabel;
   const fmt = (v: number) => config.isCurrency ? formatCurrency(v) : formatNumber(v);
-  const hasSubValue = kpi != null && typeof kpi.subValue === "number";
+  // Phase 19: کارت‌های subValueدار (point-in-time مثل طلب مشتریان، یا درآمد
+  // با سود خالص) زیرمتن را جای پیکان تغییر نشان می‌دهند. درآمد وقتی
+  // subValue=۰ است پیکان می‌ماند (سود صفر بی‌معنا نیست — فقط نمایش پویا).
+  const showSubRow =
+    kpi != null &&
+    typeof kpi.subValue === "number" &&
+    (config.pointInTime || (config.key === "revenue" && kpi.subValue !== 0));
+  const subNegative = typeof kpi?.subValue === "number" && kpi.subValue < 0;
+  const subLabel = config.subValueLabel ?? "طلبِ واریزنشده";
 
   return (
     <Card
@@ -205,13 +219,16 @@ function KpiCard({
         )}
       </div>
 
-      {/* Total + change — متریک‌های subValueدار (point-in-time) به‌جای پیکان
-          تغییر، زیرمتنِ جمع را نشان می‌دهند (مثل جمع مطالبات مشتریان). */}
-      {kpi && hasSubValue ? (
+      {/* Total + change — متریک‌های subValueدار (point-in-time یا درآمد/سود)
+          به‌جای پیکان تغییر، زیرمتن مخصوص خود را نشان می‌دهند. */}
+      {kpi && showSubRow ? (
         <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-muted-foreground">
-          <Icon name="wallet" size={11} />
-          <span dir="ltr" className="tabular-nums">Σ {formatCurrency(kpi.subValue)}</span>
-          طلبِ واریزنشده
+          <Icon name={subNegative ? "arrowDown" : "wallet"} size={11} className={subNegative ? "text-rose-500" : undefined} />
+          <span dir="ltr" className={cn("tabular-nums", subNegative && "text-rose-600 dark:text-rose-400 font-medium")}>
+            {subNegative ? "−" : ""}
+            {formatCurrency(Math.abs(kpi.subValue ?? 0))}
+          </span>
+          {subLabel}
         </div>
       ) : (
         <div className="flex items-center gap-2 mt-1.5 text-[11px]">

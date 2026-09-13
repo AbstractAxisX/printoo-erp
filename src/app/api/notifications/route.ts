@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { isManager, requireManager } from "@/lib/access";
+import { requireManager } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Notifications API — Phase 12 / Phase 17 ───────────────────────
@@ -20,9 +20,11 @@ export async function GET() {
   if (user instanceof NextResponse) return user;
 
   try {
-    const scoped = isManager(user)
-      ? {} // مدیر: همهٔ اعلان‌ها (عمومی + هدفمند)
-      : { OR: [{ userId: null }, { userId: user.id }] };
+    // Phase 19: مدیر هم فقط اعلان‌های عمومی + اعلان‌های هدفدارِ «خودش» را
+    // می‌بیند — قبلاً همهٔ اعلان‌ها را می‌دید و پیام‌های «سفارش به شما
+    // تخصیص یافت» مربوط به کارمندان دیگر هم برایش می‌آمد (گمراه‌کننده).
+    // اعلان‌های هدفدارِ دیگران فقط در پنل همان کاربر معنا دارند.
+    const scoped = { OR: [{ userId: null }, { userId: user.id }] };
 
     const notifications = await db.notification.findMany({
       where: scoped,

@@ -213,8 +213,9 @@ export async function POST(req: NextRequest) {
 
     const cost = await db.$transaction(async (tx) => {
       // ── هزینهٔ فاکتوری: تزریق به سند(ها) + مبلغ کل سفارش ──
+      let injectedPiId: string | null = null;
       if (includeInInvoice && order) {
-        await injectCostIntoDocs(tx, {
+        injectedPiId = await injectCostIntoDocs(tx, {
           orderId: order.id,
           preInvoiceId: typeof preInvoiceId === "string" ? preInvoiceId : null,
           costTitle: costTitle || "هزینهٔ اضافی",
@@ -239,7 +240,12 @@ export async function POST(req: NextRequest) {
           status,
           module: mod,
           includeInInvoice: !!includeInInvoice,
-          preInvoiceId: includeInInvoice ? (typeof preInvoiceId === "string" ? preInvoiceId : null) : null,
+          // Phase 19: سندِ واقعیِ هدفِ تزریق ذخیره می‌شود (اگر سند صریح نیامده
+          // بود، اولین سند) — تا با حذف آن سند، هزینه orphan شود و سند
+          // جدیدِ همان سفارش دوباره او را بگیرد (گم نمی‌شود).
+          preInvoiceId: includeInInvoice
+            ? (injectedPiId ?? (typeof preInvoiceId === "string" ? preInvoiceId : null))
+            : null,
           materialId: linkedMaterial?.id ?? null,
           materialQty: linkedMaterial ? Number(materialQty) : null,
           createdBy: user.id,
@@ -319,10 +325,12 @@ export async function POST(req: NextRequest) {
 }
 
 // ── تزریق هزینه به پیش‌فاکتور (سند هدف یا اولین سند) + فاکتور نهایی ──
+// Phase 19: id سندِ تزریق‌شده را برمی‌گرداند (null = سندی نبود → هزینه
+// «سرگردان» می‌ماند و سند جدید همان سفارش او را می‌گیرد).
 async function injectCostIntoDocs(
   tx: Parameters<Parameters<typeof db.$transaction>[0]>[0],
   args: { orderId: string; preInvoiceId: string | null; costTitle: string; amount: number }
-) {
+): Promise<string | null> {
   const costItem: PreInvoiceItem & { isCost?: boolean } = {
     name: args.costTitle,
     quantity: 1,
@@ -356,6 +364,7 @@ async function injectCostIntoDocs(
         totalAmount: totals.totalAmount,
       },
     });
+    return pi.id;
   }
 
   // فاکتور نهایی (اگر صادر شده و باطل نیست) — همیشه هم‌عدد با سفارش
@@ -373,6 +382,7 @@ async function injectCostIntoDocs(
       },
     });
   }
+  return null;
 }
 
 function moduleLabel(mod: string): string {

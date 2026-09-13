@@ -263,6 +263,15 @@ export async function DELETE(
     }
 
     await db.$transaction(async (tx) => {
+      // Phase 19: هزینه‌های فاکتوریِ چسبیده به این سند سرگردان (orphan) می‌شوند
+      // — preInvoiceId=null یعنی «در هیچ سندی نیست»؛ سند جدیدِ همین سفارش
+      // آنها را دوباره می‌گیرد (هزینه گم نمی‌شود — خواستهٔ صریح کارفرما).
+      // order.totalAmount دست نمی‌خورد (طلب مشتری همان می‌ماند).
+      await tx.materialCost.updateMany({
+        where: { preInvoiceId: id },
+        data: { preInvoiceId: null },
+      });
+
       await tx.preInvoice.delete({ where: { id } });
       // برگشت پیش‌پرداخت از سفارش (حداقل صفر) — Phase 15: دفتر درآمد
       // اصلاح کاهشی می‌گیرد (پول ثبت‌شده که سندش حذف شد).

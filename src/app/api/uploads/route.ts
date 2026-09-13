@@ -4,10 +4,14 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { requireUser } from "@/lib/auth";
 import { jsonError } from "@/lib/api-error";
+import { uploadsRoot } from "@/lib/uploads-dir";
 
 // ─── Phase 14: فایل آپلود عمومی (پیوست هزینه‌ها) ────────────────
 // POST multipart/form-data: files under key "file" (single or multiple).
-// Saves to public/uploads/costs/<uuid>.<ext> → returns public URL.
+// ذخیره در دایرکتوری ماندگار (lib/uploads-dir — Phase 19: قبلاً داخل
+// .next/standalone/public می‌نوشت که با هر بیلد پاک می‌شد → لینک
+// دانلود ۴۰۴). آدرس عمومی /uploads/costs/<uuid>.<ext> از route
+// /uploads/[...path] سرو می‌شود.
 // Constraints: ≤10MB/file; pdf/images/office/zip types allowed.
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "حداکثر ۶ فایل در هر بار آپلود" }, { status: 400 });
     }
 
-    const dir = path.join(process.cwd(), "public", "uploads", "costs");
+    const dir = path.join(uploadsRoot(), "costs");
     await mkdir(dir, { recursive: true });
 
     const results: { url: string; fileName: string; mimeType: string; size: number }[] = [];

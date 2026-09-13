@@ -140,6 +140,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── Phase 19: بازگرداندن هزینه‌های فاکتوری سرگردان ──
+    // هزینه‌هایی که includeInInvoice دارند ولی سندشان حذف شده
+    // (preInvoiceId=null) به همین سند تازه تزریق می‌شوند — «پیش‌فاکتور را
+    // حذف کردم از اول ساختم، هزینه گم شد» دیگر اتفاق نمی‌افتد.
+    // دقت: فقط هزینه‌های «ردنشده» — ردشده هرگز برنمی‌گردد.
+    const orphanCosts = await db.materialCost.findMany({
+      where: {
+        orderId,
+        includeInInvoice: true,
+        preInvoiceId: null,
+        status: { not: "rejected" },
+      },
+      select: { id: true, title: true, amount: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (orphanCosts.length > 0) {
+      const costItems = orphanCosts.map((c) => ({
+        name: c.title || "هزینهٔ اضافی",
+        quantity: 1,
+        unit: "عدد",
+        unitPrice: c.amount,
+        discount: 0,
+        isCost: true,
+      }));
+      normalized = normalizeItems([...normalized, ...costItems]);
+    }
+
     const totals = computeTotals(
       normalized,
       Number(discountAmount) || 0,
@@ -192,6 +219,15 @@ export async function POST(req: NextRequest) {
         },
         include: INCLUDE,
       });
+
+      // هزینه‌های سرگردانِ تزریق‌شده حالا به این سند چسبیده‌اند — تا حذفِ
+      // بعدیِ همین سند دوباره orphan شوند و سندِ بعدی بگیردشان (چرخه سالم).
+      if (orphanCosts.length > 0) {
+        await tx.materialCost.updateMany({
+          where: { id: { in: orphanCosts.map((c) => c.id) } },
+          data: { preInvoiceId: pi.id },
+        });
+      }
 
       // همگام‌سازی افزایشی paidAmount سفارش (نه بازنویسی)
       // Phase 15: از مسیر متمرکز → دفتر درآمد با تفاضل هوشمند ثبت می‌شود

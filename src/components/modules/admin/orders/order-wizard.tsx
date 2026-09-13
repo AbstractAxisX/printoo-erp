@@ -847,6 +847,7 @@ export function OrderWizardPage() {
           noEndDate={noEndDate}
           note={note}
           needsDesign={needsDesign}
+          needsPrint={needsPrint}
           isEditing={isEditing}
           designerName={designerUsers.find((u) => u.id === derivedDesignerId)?.name}
           printerName={printerUsers.find((u) => u.id === derivedPrinterId)?.name}
@@ -1336,7 +1337,7 @@ function ItemRow({
         </Field>
 
         <Field label="قیمت واحد (IQD)" required className="col-span-1 md:col-span-3">
-          <Input type="number" min={0} value={item.pricePerUnit} onChange={(e) => onUpdate({ pricePerUnit: Number(e.target.value) })} className="text-center" dir="ltr" />
+          <Input type="number" min={0} value={item.pricePerUnit || ""} placeholder="—" onChange={(e) => onUpdate({ pricePerUnit: Number(e.target.value) || 0 })} className="text-center" dir="ltr" />
         </Field>
 
         <Field label="مرحله" className="col-span-2 md:col-span-3">
@@ -1550,26 +1551,31 @@ function Step3(props: {
         <div><h2 className="font-semibold">زمان‌دهی، اولویت و تخصیص</h2><p className="text-xs text-muted-foreground">زمان‌بندی هر آیتم جداگانه است + تعیین مسئول طراحی و چاپ</p></div>
       </div>
 
-      {/* ═══ Phase 13: تخصیص مجری‌ها per-item ═══ */}
+      {/* ═══ Phase 13: تخصیص مجری‌ها per-item — فقط مراحل موجود (Phase 19) ═══ */}
+      {(needsDesign || needsPrint) && (
       <div className="rounded-xl border border-violet-200/60 dark:border-violet-900/60 bg-violet-50/40 dark:bg-violet-950/15 p-4 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Icon name="userMultiple" size={17} className="text-primary" />
-            <h3 className="font-medium text-sm">تخصیص مجری‌ها (هر آیتم مجزا)</h3>
+            <h3 className="font-medium text-sm">
+              تخصیص مجری‌ها (هر آیتم مجزا)
+              {!needsDesign && " — فقط چاپ"}
+              {!needsPrint && needsDesign && " — فقط طراحی"}
+            </h3>
           </div>
           {(designerRequired || printerRequired) && missingCountLabel(missingDesign.length, missingPrint.length)}
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          طراح و چاپِ هر آیتم در همان کارتِ زمان‌بندی همان آیتم انتخاب می‌شود — سفارش فقط در پنل
-          مجریِ همان آیتم ظاهر می‌شود و پس از طراحی، دقیقاً به چاپ‌کارِ انتخابیِ همان آیتم می‌رسد.
+          {needsDesign && "طراح و چاپِ هر آیتم در همان کارتِ زمان‌بندی همان آیتم انتخاب می‌شود — سفارش فقط در پنل مجریِ همان آیتم ظاهر می‌شود."}
+          {!needsDesign && needsPrint && "این سفارش طراحی ندارد — فقط چاپ‌کارِ هر آیتم انتخاب می‌شود و سفارش مستقیم در پنل چاپ همان مجری می‌آید."}
           {designerUsers.length <= 1 && printerUsers.length <= 1
             ? " تنها یک کاربر در هر ماژول دارید — به‌صورت خودکار انتخاب می‌شود."
             : ""}
         </p>
         {/* اعمال سریع مجری روی همهٔ آیتم‌ها */}
-        {(designerUsers.length > 1 || printerUsers.length > 1) && (
+        {((needsDesign && designerUsers.length > 1) || (needsPrint && printerUsers.length > 1)) && (
           <div className="flex flex-wrap gap-2 pt-1">
-            {designerUsers.length > 1 && (
+            {needsDesign && designerUsers.length > 1 && (
               <div className="rounded-lg border bg-card p-2 flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Icon name="design" size={11} className="text-violet-500" /> طراح همه:
@@ -1592,7 +1598,7 @@ function Step3(props: {
                 ))}
               </div>
             )}
-            {printerUsers.length > 1 && (
+            {needsPrint && printerUsers.length > 1 && (
               <div className="rounded-lg border bg-card p-2 flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Icon name="print" size={11} className="text-amber-500" /> چاپ همه:
@@ -1618,6 +1624,7 @@ function Step3(props: {
           </div>
         )}
       </div>
+      )}
 
       {/* Split mode */}
       <div className="space-y-2">
@@ -1689,12 +1696,13 @@ function Step3(props: {
           در کار خود می‌بینند و روی پیش‌فاکتور هر آیتم هم درج می‌شود.
         </p>
 
-        {/* ابزار اعمال-روی-همه */}
+        {/* ابزار اعمال-روی-همه — فقط مراحلِ موجود (Phase 19) */}
         <div className="rounded-lg border bg-card p-3 space-y-2.5">
           <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
             <Icon name="layers" size={14} /> اعمال سریع روی همهٔ آیتم‌ها
           </div>
           <div className="grid grid-cols-2 gap-3">
+            {needsDesign && (
             <div className="rounded-md border bg-muted/30 p-2 space-y-2">
               <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="design" size={12} className="text-violet-500" /> طراحی</div>
               <DatePicker value={bulkDesign.start || null} onChange={(d) => setBulkDesign((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="شروع" className="w-full bg-transparent" />
@@ -1704,6 +1712,8 @@ function Step3(props: {
                 اعمال طراحی روی همه
               </Button>
             </div>
+            )}
+            {needsPrint && (
             <div className="rounded-md border bg-muted/30 p-2 space-y-2">
               <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="print" size={12} className="text-amber-500" /> چاپ</div>
               <DatePicker value={bulkPrint.start || null} onChange={(d) => setBulkPrint((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="شروع" className="w-full bg-transparent" />
@@ -1713,6 +1723,7 @@ function Step3(props: {
                 اعمال چاپ روی همه
               </Button>
             </div>
+            )}
           </div>
         </div>
 
@@ -1853,6 +1864,7 @@ function Step4(props: {
   noEndDate: boolean;
   note: string;
   needsDesign: boolean;
+  needsPrint: boolean;
   isEditing: boolean;
   // Phase 13: نام‌های مجری (derived — اولین مجری آیتم‌ها) برای بازنگری
   designerName?: string;
@@ -1862,7 +1874,7 @@ function Step4(props: {
 }) {
   const {
     customers, itemsByCustomer, allCustomers, splitMode, priority, endDate, noEndDate,
-    note, needsDesign, isEditing, designerName, printerName, designerUsers, printerUsers,
+    note, needsDesign, needsPrint, isEditing, designerName, printerName, designerUsers, printerUsers,
   } = props;
   const [tab, setTab] = React.useState(customers[0] ?? "");
   const activeCid = tab || customers[0] || "";
@@ -1901,13 +1913,17 @@ function Step4(props: {
           <InfoCell icon="customers" label="مشتری اصلی" value={allCustomers.find((c) => c.id === customers[0])?.name ?? "—"}
             sub={customers.length > 1 ? `+${customers.length - 1} مشتری دیگر (سفارش تفکیکی)` : undefined} />
           <InfoCell icon="layers" label="نوع ثبت" value={splitMode === "grouped" ? "گروهی (یک سفارش)" : "تفکیک‌شده (هر آیتم یک سفارش)"} />
-          {/* Phase 12: تخصیص‌ها در بازنگری نهایی */}
-          <InfoCell icon="design" label="مسئول طراحی"
-            value={designerName ?? "—"}
-            sub={designerName ? "سفارش فقط در پنل او" : needsDesign ? "استخر عمومی طراح‌ها" : "بدون مرحلهٔ طراحی"} />
-          <InfoCell icon="print" label="مسئول چاپ"
-            value={printerName ?? "—"}
-            sub={printerName ? "پس از طراحی به پنل او" : "استخر عمومی چاپ‌کارها"} />
+          {/* Phase 12: تخصیص‌ها در بازنگری نهایی — فقط مراحل موجود (P19) */}
+          {needsDesign && (
+            <InfoCell icon="design" label="مسئول طراحی"
+              value={designerName ?? "—"}
+              sub={designerName ? "سفارش فقط در پنل او" : "استخر عمومی طراح‌ها"} />
+          )}
+          {needsPrint && (
+            <InfoCell icon="print" label="مسئول چاپ"
+              value={printerName ?? "—"}
+              sub={printerName ? "پس از طراحی به پنل او" : "استخر عمومی چاپ‌کارها"} />
+          )}
           <InfoCell icon={priority === "urgent" ? "alertTriangle" : "tag"} label="اولویت"
             value={priority === "urgent" ? "فوری" : "معمولی"}
             tone={priority === "urgent" ? "text-rose-600" : undefined} />

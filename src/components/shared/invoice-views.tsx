@@ -22,6 +22,7 @@
 import * as React from "react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { printElementClean } from "@/lib/print-doc";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -136,10 +137,14 @@ export function InvoiceIssueForm({
       discount: 0,
     }))
   );
-  // مبلغ پرداخت = «کل دریافتی» — با order.paidAmount پیش‌پر می‌شود
-  const [discountAmount, setDiscountAmount] = React.useState(0);
-  const [taxRate, setTaxRate] = React.useState(0);
-  const [paidAmount, setPaidAmount] = React.useState(order.paidAmount ?? 0);
+  // Phase 19: فیلدهای عددی «خالی» شروع می‌شوند — نه صفر (ادمین مجبور
+  // نیست صفر را پاک کند). مبلغ پرداخت فقط وقتی پیش‌پر می‌شود که واقعاً
+  // پولی دریافت شده باشد (paid>0) — صدور فاکتورِ بدون پول، درآمد نمی‌سازد.
+  const [discountAmount, setDiscountAmount] = React.useState("");
+  const [taxRate, setTaxRate] = React.useState("");
+  const [paidAmount, setPaidAmount] = React.useState(
+    order.paidAmount && order.paidAmount > 0 ? String(order.paidAmount) : ""
+  );
   const [dueDays, setDueDays] = React.useState(30);
   const [notes, setNotes] = React.useState("");
 
@@ -148,11 +153,12 @@ export function InvoiceIssueForm({
     Math.max(0, (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0) - (Number(it.discount) || 0))
   );
   const subtotal = lineTotals.reduce((s, t) => s + t, 0);
-  const disc = Math.min(Math.max(0, discountAmount || 0), subtotal);
-  const rate = Math.min(Math.max(0, taxRate || 0), 100);
+  const disc = Math.min(Math.max(0, Number(discountAmount) || 0), subtotal);
+  const rate = Math.min(Math.max(0, Number(taxRate) || 0), 100);
   const taxAmount = Math.round((subtotal - disc) * (rate / 100));
   const totalAmount = Math.round(subtotal - disc + taxAmount);
-  const remaining = Math.max(0, totalAmount - Math.min(paidAmount || 0, totalAmount));
+  const paidNum = Math.max(0, Number(paidAmount) || 0);
+  const remaining = Math.max(0, totalAmount - Math.min(paidNum, totalAmount));
 
   const patchItem = (key: string, patch: Partial<DraftItem>) =>
     setItems((arr) => arr.map((it) => (it.key === key ? { ...it, ...patch } : it)));
@@ -172,7 +178,7 @@ export function InvoiceIssueForm({
           })),
           discountAmount: disc,
           taxRate: rate,
-          paidAmount: Math.min(Math.max(0, paidAmount || 0), totalAmount),
+          paidAmount: Math.min(paidNum, totalAmount),
           dueDays: dueDays > 0 ? dueDays : undefined,
           notes: notes.trim() || undefined,
         }),
@@ -231,8 +237,9 @@ export function InvoiceIssueForm({
                 type="number"
                 min={0}
                 dir="ltr"
-                value={it.unitPrice}
-                onChange={(e) => patchItem(it.key, { unitPrice: Number(e.target.value) })}
+                value={it.unitPrice || ""}
+                onChange={(e) => patchItem(it.key, { unitPrice: Number(e.target.value) || 0 })}
+                placeholder="—"
                 className="h-9 tabular-nums"
               />
             </Field>
@@ -241,8 +248,8 @@ export function InvoiceIssueForm({
                 type="number"
                 min={0}
                 dir="ltr"
-                value={it.discount}
-                onChange={(e) => patchItem(it.key, { discount: Number(e.target.value) })}
+                value={it.discount || ""}
+                onChange={(e) => patchItem(it.key, { discount: Number(e.target.value) || 0 })}
                 className="h-9 tabular-nums"
               />
             </Field>
@@ -264,7 +271,8 @@ export function InvoiceIssueForm({
             min={0}
             dir="ltr"
             value={discountAmount}
-            onChange={(e) => setDiscountAmount(Number(e.target.value))}
+            onChange={(e) => setDiscountAmount(e.target.value)}
+            placeholder="—"
             className="h-9 tabular-nums"
           />
         </Field>
@@ -275,17 +283,19 @@ export function InvoiceIssueForm({
             max={100}
             dir="ltr"
             value={taxRate}
-            onChange={(e) => setTaxRate(Number(e.target.value))}
+            onChange={(e) => setTaxRate(e.target.value)}
+            placeholder="—"
             className="h-9 tabular-nums"
           />
         </Field>
-        <Field label="مبلغ پرداختی (کل دریافتی)" hint="با سفارش و پیش‌فاکتور سینک می‌شود">
+        <Field label="مبلغ پرداختی (کل دریافتی)" hint="خالی = هنوز چیزی دریافت نشده">
           <Input
             type="number"
             min={0}
             dir="ltr"
             value={paidAmount}
-            onChange={(e) => setPaidAmount(Number(e.target.value))}
+            onChange={(e) => setPaidAmount(e.target.value)}
+            placeholder="خالی = دریافت نشده"
             className="h-9 tabular-nums"
           />
         </Field>
@@ -475,7 +485,12 @@ export function InvoiceDocPanel({
             <Icon name="cancel" size={13} /> ابطال
           </Button>
         )}
-        <Button size="sm" onClick={() => window.print()} className="gap-1.5 h-8 shadow-sm">
+        <Button size="sm" onClick={() => {
+            const res = printElementClean("#printable-invoice");
+            if (!res.ok && res.error === "popup-blocked") {
+              toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+            }
+          }} className="gap-1.5 h-8 shadow-sm">
           <Icon name="print" size={13} /> چاپ / ذخیره PDF
         </Button>
       </div>
@@ -547,9 +562,16 @@ export function InvoiceEditForm({
       discount: it.discount,
     }))
   );
-  const [discountAmount, setDiscountAmount] = React.useState(invoice.discountAmount || 0);
-  const [taxRate, setTaxRate] = React.useState(invoice.taxRate || 0);
-  const [paidAmount, setPaidAmount] = React.useState(invoice.paidAmount || 0);
+  // Phase 19: فیلدهای عددی رشته‌ای — مقدار صفر به‌جای نمایش «0» خالی است
+  const [discountAmount, setDiscountAmount] = React.useState(
+    invoice.discountAmount > 0 ? String(invoice.discountAmount) : ""
+  );
+  const [taxRate, setTaxRate] = React.useState(
+    invoice.taxRate > 0 ? String(invoice.taxRate) : ""
+  );
+  const [paidAmount, setPaidAmount] = React.useState(
+    invoice.paidAmount > 0 ? String(invoice.paidAmount) : ""
+  );
   const [dueDays, setDueDays] = React.useState(
     invoice.dueDate
       ? Math.max(1, Math.ceil((new Date(invoice.dueDate).getTime() - Date.now()) / 86_400_000))
@@ -561,11 +583,12 @@ export function InvoiceEditForm({
     Math.max(0, (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0) - (Number(it.discount) || 0))
   );
   const subtotal = lineTotals.reduce((s, t) => s + t, 0);
-  const disc = Math.min(Math.max(0, discountAmount || 0), subtotal);
-  const rate = Math.min(Math.max(0, taxRate || 0), 100);
+  const disc = Math.min(Math.max(0, Number(discountAmount) || 0), subtotal);
+  const rate = Math.min(Math.max(0, Number(taxRate) || 0), 100);
   const taxAmount = Math.round((subtotal - disc) * (rate / 100));
   const totalAmount = Math.round(subtotal - disc + taxAmount);
-  const remaining = Math.max(0, totalAmount - Math.min(paidAmount || 0, totalAmount));
+  const paidNum = Math.max(0, Number(paidAmount) || 0);
+  const remaining = Math.max(0, totalAmount - Math.min(paidNum, totalAmount));
 
   const patchItem = (key: string, patch: Partial<DraftItem>) =>
     setItems((arr) => arr.map((it) => (it.key === key ? { ...it, ...patch } : it)));
@@ -584,7 +607,7 @@ export function InvoiceEditForm({
           })),
           discountAmount: disc,
           taxRate: rate,
-          paidAmount: Math.min(Math.max(0, paidAmount || 0), totalAmount),
+          paidAmount: Math.min(paidNum, totalAmount),
           dueDays: dueDays > 0 ? dueDays : undefined,
           notes: notes.trim() || undefined,
         }),
@@ -634,15 +657,16 @@ export function InvoiceEditForm({
             </Field>
             <Field label="قیمت واحد" className="sm:col-span-2">
               <Input
-                type="number" min={0} dir="ltr" value={it.unitPrice}
-                onChange={(e) => patchItem(it.key, { unitPrice: Number(e.target.value) })}
+                type="number" min={0} dir="ltr" value={it.unitPrice || ""}
+                onChange={(e) => patchItem(it.key, { unitPrice: Number(e.target.value) || 0 })}
+                placeholder="—"
                 className="h-9 tabular-nums"
               />
             </Field>
             <Field label="تخفیف" className="sm:col-span-2">
               <Input
-                type="number" min={0} dir="ltr" value={it.discount}
-                onChange={(e) => patchItem(it.key, { discount: Number(e.target.value) })}
+                type="number" min={0} dir="ltr" value={it.discount || ""}
+                onChange={(e) => patchItem(it.key, { discount: Number(e.target.value) || 0 })}
                 className="h-9 tabular-nums"
               />
             </Field>
@@ -657,15 +681,15 @@ export function InvoiceEditForm({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Field label="تخفیف کل">
           <Input type="number" min={0} dir="ltr" value={discountAmount}
-            onChange={(e) => setDiscountAmount(Number(e.target.value))} className="h-9 tabular-nums" />
+            onChange={(e) => setDiscountAmount(e.target.value)} placeholder="—" className="h-9 tabular-nums" />
         </Field>
         <Field label="مالیات (٪)">
           <Input type="number" min={0} max={100} dir="ltr" value={taxRate}
-            onChange={(e) => setTaxRate(Number(e.target.value))} className="h-9 tabular-nums" />
+            onChange={(e) => setTaxRate(e.target.value)} placeholder="—" className="h-9 tabular-nums" />
         </Field>
-        <Field label="مبلغ پرداختی (کل دریافتی)" hint="با سفارش و پیش‌فاکتور سینک می‌شود">
+        <Field label="مبلغ پرداختی (کل دریافتی)" hint="خالی = هنوز چیزی دریافت نشده">
           <Input type="number" min={0} dir="ltr" value={paidAmount}
-            onChange={(e) => setPaidAmount(Number(e.target.value))} className="h-9 tabular-nums" />
+            onChange={(e) => setPaidAmount(e.target.value)} placeholder="خالی = دریافت نشده" className="h-9 tabular-nums" />
         </Field>
         <Field label="سررسید (روز)">
           <Input type="number" min={0} max={365} dir="ltr" value={dueDays}

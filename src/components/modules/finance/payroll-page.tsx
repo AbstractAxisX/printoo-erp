@@ -1181,6 +1181,7 @@ function AdvancesPanel({
 }) {
   // فرم ثبت
   const [advUserId, setAdvUserId] = React.useState("");
+  // NumInput مقدار ۰ را خالی نمایش می‌دهد — ورودی از اول خالی است
   const [advAmount, setAdvAmount] = React.useState(0);
   const [advNote, setAdvNote] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<Advance | null>(null);

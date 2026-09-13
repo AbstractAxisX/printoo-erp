@@ -22,6 +22,7 @@ import { findModule, type NavItem } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { KpiCardsGrid } from "./kpi-cards";
 import { QuickStatsRow } from "./quick-stats";
+import { BossRadar, LatestEvents } from "./boss-radar";
 import {
   LatestTasks,
   NearDeadlineOrders,
@@ -283,10 +284,13 @@ export function AdminDashboard() {
         }
       />
 
-      {/* 1) Shortcuts */}
+      {/* 1) رادار رئیس — نگاه یک‌ثانیه‌ای (Phase 19) */}
+      <BossRadar />
+
+      {/* 2) Shortcuts */}
       <ShortcutsSection />
 
-      {/* 2) KPI cards */}
+      {/* 3) KPI cards */}
       <SectionCard
         icon="chart"
         title="شاخص‌های کلیدی (KPI)"
@@ -301,12 +305,12 @@ export function AdminDashboard() {
         />
       </SectionCard>
 
-      {/* 3) Quick stats */}
+      {/* 4) Quick stats */}
       <SectionCard icon="grid" title="آمار سریع" bodyClassName="!p-4">
         <QuickStatsRow />
       </SectionCard>
 
-      {/* 4) Recent orders — wrapped in collapsible SectionCard.
+      {/* 5) Recent orders — wrapped in collapsible SectionCard.
           The inner RecentOrders component renders its own Card+header+view-all,
           which we visually merge via MERGE_INNER_CARD so only its list shows. */}
       <SectionCard
@@ -320,7 +324,7 @@ export function AdminDashboard() {
         </div>
       </SectionCard>
 
-      {/* 5) Near-deadline + latest tasks side-by-side, each in a collapsible SectionCard */}
+      {/* 6) Near-deadline + latest tasks side-by-side, each in a collapsible SectionCard */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <SectionCard
           icon="clock"
@@ -344,6 +348,11 @@ export function AdminDashboard() {
           </div>
         </SectionCard>
       </div>
+
+      {/* 7) آخرین رویدادها — لاگ سراسری (Phase 19: «در آخر، لاگ‌ها») */}
+      <SectionCard icon="info" title="آخرین رویدادها" description="جریان کاری لحظه‌ای — همهٔ ماژول‌ها" bodyClassName="!p-0">
+        <LatestEvents />
+      </SectionCard>
     </div>
   );
 }
