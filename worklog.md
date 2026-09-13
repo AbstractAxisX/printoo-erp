@@ -4142,3 +4142,27 @@ Work Log:
 
 Stage Summary:
 - فاز ۱۸ کامل روی production: دراپ‌داون‌های جغرافیا + صفحه مدیریت شهر/استان + دسترسی صفحه‌محور (module+pages) + فیکس آبشاری تخصیص مجری + کارت مسئولان — روی دیتای واقعی کارفرما، بدون از دست رفتن کامیت‌های جدید او.
+
+---
+Task ID: PHASE-19
+Agent: orchestrator (main)
+Task: ۸ گزارش کارفرما — درآمد/فاکتور، چاپ تمیز، پیوست ۴۰۴، مراحل ویزارد، نوتیف مدیر، هزینهٔ پیش‌فاکتور، صفرهای اینپوت، رادار رئیس
+
+Work Log:
+- ریشه‌یابی (بازتولید روی دیتای production): درآمد داشبورد = Σ order.totalAmount سفارش‌های جدید (نه پول!)؛ پیوست‌ها در .next/standalone/public می‌نوشتند که با بیلد فاز ۱۸ پاک شد → ۴۰۴ (۲ فایل امروز کارفرما از دست رفت — سطرهای DB مرده پاک شدند)؛ مدیر همهٔ نوتیف‌ها از جمله هدفدار دیگران را می‌دید؛ حذف پیش‌فاکتور هزینهٔ فاکتوری را گم می‌کرد (تزریق یک‌باره بدون ردیابی سند).
+- (۱+۸) dashboard/route.ts: revenue = Σ RevenueLog (پول واقعی) + subValue=سود خالص؛ KPI جدید orderValue (ارزش سفارشات جدید)؛ KPI قدیمی payments (مدل Payment بدون write) حذف شد؛ سریس revenue از RevenueLog. kpi-cards: subValueLabel + کارت درآمد با سود خالص/رنگ قرمز منفی.
+- (۸) boss-radar.tsx جدید: «نگاه یک‌ثانیه‌ای» — ۵ کارت هشدار کلیک‌شونده: طلب از مشتریان (top-3 بدهکار با عدد → customers:unsettled)، بدهی ما به تامین‌کنندگان (Supplier.balanceDue → suppliers)، تاخیری (count + قدیمی‌ترین روز → open-orders)، هزینه‌های در انتظار تأیید مالی (→ finance:costs)، سود الان (درآمد−هزینه)؛ بج وضعیت «نیاز به توجه/سالم». + LatestEvents: فید ۸ رویداد آخر OrderEvent (آیکون per-type + زمان نسبی؛ sensitive فقط master) — بخش ۷ داشبورد.
+- (۲) lib/print-doc.ts جدید: printElementClean() — کلون سند + پنجرهٔ جدید + کپی کامل استایل‌شیت‌ها + CSS چاپ A4 لبه‌به‌لبه + print خودکار؛ دکمه‌های چاپ invoice-views + pre-invoice-modal با fallback toast پاپ‌آپ-مسدود.
+- (۳) lib/uploads-dir.ts جدید (UPLOADS_DIR env → خارج standalone؛ dev=public/uploads) + api/uploads به ریشهٔ ماندگار + route جدید app/uploads/[...path]/route.ts (requireUser + گارد traversal + mime + fallback public). سرور: Environment=UPLOADS_DIR=/opt/printoo24-admin/uploads در systemd + mkdir + مهاجرت ۲ فایل قدیمی + حذف از static (حالا ۴۰۱ بدون login).
+- (۴) order-wizard: Step3 باکس تخصیص/bulk-طراحی فقط needsDesign؛ چاپ فقط needsPrint (هیچ‌کدام → کل باکس مخفی + متن‌های شرطی)؛ Step4 سلول‌های مسئول طراحی/چاپ شرطی (needsPrint prop جدید).
+- (۵) notifications GET + read-all: مدیر هم فقط عمومی + هدفدارِ خودش (scope یکسان همه) — «سفارش به شما تخصیص یافت» دیگر برای ادمین نمی‌آید.
+- (۶) pre-invoices DELETE: هزینه‌های چسبیده orphan (preInvoiceId=null) + order.totalAmount دست‌نخورده؛ POST: هزینه‌های سرگردانِ همان سفارش به سند جدید تزریق + قید می‌شوند؛ material-costs POST: سندِ واقعیِ تزریق ذخیره می‌شود (injectCostIntoDocs id برمی‌گرداند).
+- (۷) invoice-views: تخفیف/مالیات/پرداختی issue+edit فرم‌ها → رشتهٔ خالی (عدد فقط موقع submit)؛ paid فقط با paid>0 پیش‌پر؛ اقلام discount/unitPrice صفر→خالی؛ wizard قیمت واحد خالی؛ payroll (NumInput خودش ۰→خالی بود — revert).
+- QC سندباکس: tsc صفر خطا (فیلتر examples/skills)؛ eslint ۰ error/۶ warning پیش‌موجود؛ curl: dashboard/radar/رویدادها، نوتیف (ادمین False/سارا True)، آپلود+سرو 200/401/گارد 400؛ باگ-۶ E2E: هزینه→تزریق→حذف→orphan→سند جدید→بازتزریق+قید (دیتای تست کامل پاک شد)؛ مرورگر: رادار→کلیک→مشتریان تسویه‌نشده (Σ196.5M)؛ ویزارد مرحله=چاپ → «فقط چاپ» بدون طراح/تاریخ طراحی/سلول مسئول طراحی در Step4؛ دکمهٔ چاپ → تب جدید «سند چاپی» فقط خود سند (بدون هیچ chrome)؛ موبایل 390px بدون overflow؛ dev.log پاک.
+- کامیت ca37aa1 + push. استقرار: بکاپ db (bak-phase19) → tarball → prisma generate → بیلد production (BUILD_EXIT=0) → restart → مرورگر production: رادار با دیتای واقعی (طلب 4,538,200 IQD / kaka hama / سود زیر کارت درآمد) + چاپ فاکتور Shwan در پنجرهٔ جدید تمیز + فرم پیش‌فاکتور با اینپوت‌های خالی + صدور سند گروه موفق؛ پیوست 200 authed / 401 unauthed.
+
+Stage Summary:
+- هر ۸ گزارش رفع و روی production فعال است؛ فایل‌های کلیدی: api/dashboard, api/notifications{,/read-all}, api/uploads, app/uploads/[...path]/route.ts, lib/{print-doc,uploads-dir}.ts, api/{pre-invoices,material-costs}, boss-radar.tsx, kpi-cards, order-wizard, invoice-views, pre-invoice-modal.
+- «درآمد» حالا فقط پولِ واقعاً دریافتی است؛ سود خالص زیر کارت درآمد؛ رادار رئیس + فید رویدادها در داشبورد.
+- پیوست‌ها ماندگارند (UPLOADS_DIR) و دانلود فقط با login؛ دو پیوستِ از‌دست‌رفتهٔ قدیمی پاک‌سازی شد (کارفرما باید دوباره آپلود کند).
+- هزینه‌های فاکتوری هرگز با حذف/بازسازی پیش‌فاکتور گم نمی‌شوند.
