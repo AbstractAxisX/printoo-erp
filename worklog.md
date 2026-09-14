@@ -4254,3 +4254,17 @@ Work Log:
 
 Stage Summary:
 - فاکتور/پیش‌فاکتور جدید انگلیسی با نام فایل مشتری‌محور فعال؛ فاکتور جمعی سفارش‌های جاری مشتری در ۳۶۰ CRM؛ مانده حساب CRM درست؛ حذف مشتری فقط با تایپ نام از منطقه خطر؛ همهٔ جزئیات‌ها دراور چپ/بات‌شیت موبایل؛ کانبان درگ‌اند‌دراپ؛ تب‌های جزئیات بالای جداول سفارشات؛ کل سیستم موبایل‌پسند با نمای کارتی.
+
+---
+Task ID: PHASE-20-DEPLOY
+Agent: main orchestrator
+Task: استقرار فاز ۲۰ روی سرور production
+
+Work Log:
+- بکاپ DB سرور: db/custom.db.bak-phase20 (سندباکس: بازسازی paramiko + sshx.py چون ریست شده بود).
+- تاربال ۳۲ فایل سورس تغییرکرده → آپلود → استخراج در /opt/printoo24-admin → prisma generate → NODE_ENV=production npm run build (BUILD_EXIT=0) → systemctl restart → active + 200.
+- تأیید مرورگر production (187.124.27.96:3000): ورود admin؛ داشبورد بدون overflow؛ سفارشات باز → نمای کانبان با دیتای واقعی (VLM 9/10 — حاشیهٔ قرمز کارت = نشانگر تاخیرِ عمدی)؛ CRM → ۳۶۰ kaka hama → دکمهٔ «چاپ فاکتور سفارشات جاری» → پنجرهٔ چاپ با عنوان «Invoice - kaka hama - harzan barazri hawari shar - Active Orders» (= نام فایل PDF ذخیره‌شده)؛ سند استیتمنت انگلیسی کامل (VLM 9/10)؛ کنسول بدون خطا.
+- کامیت 8faf5f3 + push به main.
+
+Stage Summary:
+- فاز ۲۰ کامل و روی production فعال است؛ بدون تغییر اسکیمای Prisma (بدون مهاجرت DB)؛ همهٔ ۱۰ خواستهٔ کارفرما پیاده و تست‌شده.
