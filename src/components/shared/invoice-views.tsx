@@ -22,7 +22,7 @@
 import * as React from "react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { printElementClean } from "@/lib/print-doc";
+import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -485,18 +485,10 @@ export function InvoiceDocPanel({
             <Icon name="cancel" size={13} /> ابطال
           </Button>
         )}
-        <Button size="sm" onClick={() => {
-            // فاز ۲۰: نام فایل PDF = «Invoice No_ N - Customer»
-            const res = printElementClean(
-              "#printable-invoice",
-              `Invoice No_ ${invoice.number} - ${order.customer?.name ?? "Customer"}`
-            );
-            if (!res.ok && res.error === "popup-blocked") {
-              toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
-            }
-          }} className="gap-1.5 h-8 shadow-sm">
-          <Icon name="print" size={13} /> چاپ / ذخیره PDF
-        </Button>
+        {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Invoice No_ N - Customer */}
+        <DocPrintButtons
+          fileName={`Invoice No_ ${invoice.number} - ${order.customer?.name ?? "Customer"}`}
+        />
       </div>
 
       {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز ۲۰) ─── */}

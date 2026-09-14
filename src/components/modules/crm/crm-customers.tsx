@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, EmptyState, StatusBadge } from "@/components/shared";
 import { P24StatementDoc } from "@/components/shared/p24-doc";
-import { printElementClean } from "@/lib/print-doc";
+import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
 import { COMPANY } from "@/lib/constants";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
@@ -855,21 +855,10 @@ function CustomerDetailDrawer({
                   {detail.customer.name} — {activeOrders.length} سفارش در جریان
                 </p>
               </div>
-              <Button
-                size="sm"
-                onClick={() => {
-                  const res = printElementClean(
-                    "#printable-invoice",
-                    `Invoice - ${detail.customer.name} - Active Orders`
-                  );
-                  if (!res.ok && res.error === "popup-blocked") {
-                    toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
-                  }
-                }}
-                className="gap-1.5 h-8 shadow-sm"
-              >
-                <Icon name="print" size={13} /> چاپ / ذخیره PDF
-              </Button>
+              {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی */}
+              <DocPrintButtons
+                fileName={`Invoice - ${detail.customer.name} - Active Orders`}
+              />
             </div>
             <div className="doc-frame bg-muted/30 p-4" dir="ltr">
               <P24StatementDoc

@@ -20,7 +20,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { printElementClean } from "@/lib/print-doc";
+import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -953,18 +953,10 @@ function DocView({
             <Icon name="trash" size={13} /> حذف
           </Button>
         )}
-        <Button size="sm" onClick={() => {
-            // فاز ۲۰: نام فایل PDF = «Quotation No_ N - Customer»
-            const res = printElementClean(
-              "#printable-invoice",
-              `Quotation No_ ${pi.number} - ${pi.customer?.name ?? "Customer"}`
-            );
-            if (!res.ok && res.error === "popup-blocked") {
-              toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
-            }
-          }} className="gap-1.5 h-8 shadow-sm">
-          <Icon name="print" size={13} /> چاپ / ذخیره PDF
-        </Button>
+        {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Quotation No_ N - Customer */}
+        <DocPrintButtons
+          fileName={`Quotation No_ ${pi.number} - ${pi.customer?.name ?? "Customer"}`}
+        />
       </div>
 
       {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز ۲۰) ─── */}
