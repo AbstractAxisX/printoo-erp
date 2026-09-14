@@ -17,15 +17,33 @@
 //
 // کاربر می‌تواند قبل از چاپ از preview هم خروجی PDF بگیرد (print → save as
 // PDF) — پنجرهٔ جدید فقط سند است.
+//
+// فاز ۲۰ — نام فایل دانلود: مرورگر هنگام «Save as PDF» از <title> پنجره به‌عنوان
+// نام پیش‌فرض فایل استفاده می‌کند؛ پس عنوان = «نوع سند + شماره + نام مشتری»
+// (مثل Invoice No_ 1567 - Ali Ahmed) تا فایل‌های ذخیره‌شده قابل شناسایی باشند.
 
 export type PrintResult = { ok: boolean; error?: string };
 
 /**
+ * نام فایل امن می‌سازد — کاراکترهای ممنوع ویندوز/مک/لینوکس حذف می‌شوند.
+ */
+export function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[\\/:*?"<>|\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+}
+
+/**
  * عنصر سند را در پنجرهٔ جدیدی با فقط خودِ سند چاپ می‌کند.
  * @param selector سلکتور عنصر سند (پیش‌فرض: #printable-invoice)
- * @param title عنوان پنجرهٔ چاپ
+ * @param title عنوان پنجرهٔ چاپ = نام پیش‌فرض فایل PDF ذخیره‌شده
  */
-export function printElementClean(selector = "#printable-invoice", title = "Printoo24 — سند چاپی"): PrintResult {
+export function printElementClean(
+  selector = "#printable-invoice",
+  title = "Printoo24 — Invoice"
+): PrintResult {
   if (typeof window === "undefined") return { ok: false, error: "no-window" };
 
   const source = document.querySelector(selector);
@@ -48,11 +66,11 @@ export function printElementClean(selector = "#printable-invoice", title = "Prin
 
   printWindow.document.open();
   printWindow.document.write(`<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>
+<title>${escapeHtml(sanitizeFileName(title))}</title>
 <style>${styleText}</style>
 <style>
   /* چاپ تمیز — هیچ chrome سیستمی، فقط سند */

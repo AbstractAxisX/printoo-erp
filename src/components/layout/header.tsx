@@ -1,33 +1,34 @@
 "use client";
 
 /**
- * هدر ERP (Header) — نسخهٔ زیباسازی‌شدهٔ فاز ۶ / پنل اعلان‌های فاز ۱۷
+ * هدر ERP (Header) — نسخهٔ زیباسازی‌شدهٔ فاز ۶ / اعلان‌های فاز ۲۰
  * ─────────────────────────────────────────────────────────────
  * هدر چسبان بالای محتوای اصلی: همبرگر + breadcrumb + اکشن‌سریع
- * (سفارش جدید) + سوییچ تم + پاپ‌آور اعلان‌ها.
+ * (سفارش جدید) + سوییچ تم + دراور اعلان‌ها.
  *
- * پنل اعلان‌ها (فاز ۱۷ — بازطراحی کامل):
- *   - Popover غنی ۳۸۰/۴۲۰px به‌جای DropdownMenu ساده.
- *   - وضعیت «خوانده» per-user (NotificationRead): اعلان عمومی که یک
- *     کاربر خواند برای بقیه ناخوانده می‌ماند.
- *   - سربرگ (آیکون + بج ناخوانده) + «همه را خواندم» + رفرش.
- *   - فیلتر چیپ: همه/خوانده‌نشده + نوع (اطلاع/موفق/هشدار/خطا).
+ * فاز ۲۰:
+ *   - اعلان‌ها از Popover به DetailDrawer مشترک تبدیل شدند: دسکتاپ
+ *     دراور چپِ جمع‌وجور (sm:max-w-md)، موبایل بات‌شیت با گوشهٔ گرد.
+ *   - همبرگر مرده (toggleSidebar Zustand) به سایدبار واقعی وصل شد:
+ *     موبایل → sidebar.setOpenMobile(true)، دسکتاپ → sidebar.setOpen(...).
+ *
+ * اعلان‌ها (منطق فاز ۱۷، دست‌نخورده):
+ *   - وضعیت «خوانده» per-user (NotificationRead).
+ *   - نوار ابزار (بج ناخوانده + «همه را خواندم» + رفرش) + چیپ فیلتر.
  *   - آیتم‌ها با نوار رنگی نوع + آیکون رنگی + نسبی/تاریخ دقیق.
  *   - فوتر شمارنده + اشاره به به‌روزرسانی خودکار ۱۵ ثانیه‌ای.
- *
- * حفظ‌شده از فازهای قبل:
- *   - badge اعلان: z-10 + ring-2 ring-background.
- *   - TYPE_VISUALS (نقشهٔ نوع → آیکون/رنگ) — فاز ۱۷: info=violet.
- *   - کوئری ["notifications"] با refetchInterval=15000 (هم‌راه با polling).
- *   - aria-label روی همهٔ دکمه‌های فقط-آیکون.
- *   - navigate از Zustand store می‌آید (useAppStore).
+ *   - کوئری ["notifications"] با refetchInterval=15000.
+ *   - badge اعلان: z-10 + ring-2 ring-background؛ aria-label روی همهٔ
+ *     دکمه‌های فقط-آیکون؛ navigate از Zustand store (useAppStore).
  */
 
 import * as React from "react";
 import { useTheme } from "next-themes";
 import { Icon, type IconName } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { useSidebar } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { useAppStore } from "@/stores/app-store";
 import { api } from "@/lib/api";
@@ -90,7 +91,10 @@ export function Header() {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
-  const { navigate, module: modKey, page, toggleSidebar } = useAppStore();
+  const { navigate, module: modKey, page } = useAppStore();
+  // فاز ۲۰: سایدبار واقعی (Radix sidebar) — toggleSidebar مردهٔ Zustand حذف شد
+  const sidebar = useSidebar();
+  const isMobile = useIsMobile();
   const qc = useQueryClient();
   const mod = findModule(modKey);
 
@@ -157,12 +161,15 @@ export function Header() {
       {/* خط پایین گرادیانتی emerald برای عمق بصری */}
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-l from-transparent via-primary/30 to-transparent" aria-hidden="true" />
 
-      {/* همبرگر — toggle سایدبار */}
+      {/* همبرگر — سایدبار واقعی: موبایل = کشوی موبایل، دسکتاپ = جمع/باز */}
       <Button
         variant="ghost"
         size="icon"
         className="size-9 rounded-lg hover:bg-accent transition-all duration-200"
-        onClick={toggleSidebar}
+        onClick={() => {
+          if (isMobile) sidebar.setOpenMobile(true);
+          else sidebar.setOpen(!sidebar.open);
+        }}
         aria-label="باز/بسته کردن سایدبار"
       >
         <Icon name="menu" size={20} className="transition-transform duration-200" />
@@ -222,46 +229,42 @@ export function Header() {
         />
       </Button>
 
-      {/* ── اعلان‌ها — پنل غنی Popover (فاز ۱۷) ── */}
-      <Popover open={notifOpen} onOpenChange={setNotifOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-9 rounded-lg relative hover:bg-accent transition-all duration-200"
-            aria-label="اعلان‌ها"
-          >
-            <Icon name="bell" size={20} className="transition-transform duration-200" />
-            {unread > 0 && (
-              <span className="absolute -top-0.5 -left-0.5 z-10 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center ring-2 ring-background shadow-sm shadow-destructive/30">
-                {unread > 9 ? "9+" : unread}
-              </span>
+      {/* ── اعلان‌ها — دراور DetailDrawer (فاز ۲۰: Popover → دراور) ── */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-9 rounded-lg relative hover:bg-accent transition-all duration-200"
+        onClick={() => setNotifOpen(true)}
+        aria-label="اعلان‌ها"
+      >
+        <Icon name="bell" size={20} className="transition-transform duration-200" />
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -left-0.5 z-10 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold grid place-items-center ring-2 ring-background shadow-sm shadow-destructive/30">
+            {unread > 9 ? "9+" : unread}
+          </span>
+        )}
+      </Button>
+
+      <DetailDrawer
+        open={notifOpen}
+        onOpenChange={setNotifOpen}
+        title="اعلان‌ها"
+        icon="bell"
+        widthClass="sm:max-w-md"
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          {/* نوار ابزار — بج ناخوانده + «همه را خواندم» + رفرش */}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2.5">
+            {unread > 0 ? (
+              <Badge
+                variant="secondary"
+                className="text-[10px] px-1.5 bg-primary/10 text-primary border border-primary/20 shrink-0"
+              >
+                {fa(unread)} خوانده‌نشده
+              </Badge>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">همهٔ اعلان‌ها خوانده شده</span>
             )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          sideOffset={8}
-          className="w-[380px] sm:w-[420px] max-w-[calc(100vw-2rem)] p-0 rounded-xl border shadow-lg overflow-hidden"
-        >
-          {/* سربرگ پنل — آیکون + بج ناخوانده + «همه را خواندم» + رفرش */}
-          <div className="bg-muted/60 border-b px-3 py-3 flex items-center justify-between gap-2 bg-gradient-to-l from-primary/[0.06] to-transparent">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="size-9 rounded-lg bg-gradient-to-br from-primary/20 to-emerald-500/20 text-primary grid place-items-center shrink-0 border border-primary/20">
-                <Icon name="bell" size={17} />
-              </div>
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm font-bold shrink-0">اعلان‌ها</span>
-                {unread > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] px-1.5 bg-primary/10 text-primary border border-primary/20 shrink-0"
-                  >
-                    {fa(unread)} خوانده‌نشده
-                  </Badge>
-                )}
-              </div>
-            </div>
             <div className="flex items-center gap-1 shrink-0">
               {unread > 0 && (
                 <Button
@@ -298,7 +301,7 @@ export function Header() {
           </div>
 
           {/* چیپ‌های فیلتر — همه/خوانده‌نشده + نوع */}
-          <div className="px-3 pb-2 pt-2 flex items-center gap-1.5 flex-wrap border-b bg-muted/20">
+          <div className="px-4 pb-2 pt-2 flex items-center gap-1.5 flex-wrap border-b bg-muted/20">
             {READ_FILTERS.map((f) => (
               <button
                 key={f.key}
@@ -330,7 +333,7 @@ export function Header() {
           </div>
 
           {/* لیست اعلان‌ها */}
-          <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+          <div className="min-h-0 flex-1 max-h-[65vh] overflow-y-auto scrollbar-thin">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground px-4 text-center">
                 <div className="size-14 rounded-2xl bg-muted/80 border grid place-items-center">
@@ -371,8 +374,8 @@ export function Header() {
                       className={cn("absolute right-0 top-2 bottom-2 w-0.5 rounded-full", visuals.stripe)}
                       aria-hidden="true"
                     />
-                    {/* آیکون نوع — مربع رنگی با آیکون سفید */}
-                    <span className={cn("size-9 rounded-lg grid place-items-center shrink-0", visuals.tint)}>
+                    {/* آیکون نوع — مربع رنگی با آیکون سفید (تراز با خط اول) */}
+                    <span className={cn("size-9 rounded-lg grid place-items-center shrink-0 self-start mt-0.5", visuals.tint)}>
                       <Icon name={visuals.icon} size={16} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -400,8 +403,8 @@ export function Header() {
             )}
           </div>
 
-          {/* فوتر پنل — شمارنده + اشاره به به‌روزرسانی خودکار */}
-          <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between gap-2">
+          {/* فوتر دراور — شمارنده + اشاره به به‌روزرسانی خودکار */}
+          <div className="mt-auto shrink-0 border-t px-4 py-2 text-xs text-muted-foreground flex items-center justify-between gap-2">
             <span className="tabular-nums">
               {fa(unread)} خوانده‌نشده از {fa(notifications.length)}
             </span>
@@ -410,8 +413,8 @@ export function Header() {
               به‌روزرسانی خودکار هر ۱۵ ثانیه
             </span>
           </div>
-        </PopoverContent>
-      </Popover>
+        </div>
+      </DetailDrawer>
     </header>
   );
 }

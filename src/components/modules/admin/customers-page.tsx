@@ -31,10 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/components/shared/search-select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
@@ -126,7 +123,7 @@ export function CustomersPage() {
   const [editing, setEditing] = React.useState<CustomerRow | CustomerDetail | null>(null);
   const [form, setForm] = React.useState<CustomerForm>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<FormErrors>({});
-  const [deleting, setDeleting] = React.useState<CustomerRow | null>(null);
+
 
   // Phase 18-b: فهرست مجاز استان/شهر — همان کلید ["locations"] صفحهٔ مدیریت
   // جغرافیا و ویزارد سفارش → کش مشترک react-query
@@ -221,16 +218,8 @@ export function CustomersPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api(`/api/customers/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]);
-      toast.success("مشتری حذف شد");
-      setDeleting(null);
-    },
-    // ۴۰۹ (سفارش ثبت‌شده) → توست فارسی؛ دیالوگ باز می‌ماند تا کاربر ببیند
-    onError: (e: Error) => toast.error(e.message),
-  });
+  // فاز ۲۰ (خواستهٔ ۸): حذف مشتری از ردیف‌ها حذف شد — فقط از انتهای
+  // «پروندهٔ مشتری» (customers-detail-dialog) و با تایید دومرحله‌ای.
 
   // ── فرم ──
   function openNew() {
@@ -381,13 +370,6 @@ export function CustomersPage() {
           >
             <Icon name="edit" size={16} />
           </Button>
-          <Button
-            variant="ghost" size="icon" className="size-8 hover:text-rose-600"
-            onClick={(e) => { e.stopPropagation(); setDeleting(row.original); }}
-            title="حذف"
-          >
-            <Icon name="trash" size={16} />
-          </Button>
         </div>
       ),
       enableSorting: false,
@@ -480,6 +462,8 @@ export function CustomersPage() {
           pageSize={10}
           dense
           onRowClick={(c) => setDetailId(c.id)}
+          // 20-E — نمای کارتی موبایل (کلیک = پروندهٔ مشتری)
+          renderCard={(c) => <CustomerRowMobileCard customer={c} />}
           emptyState={
             <EmptyState
               icon="customers"
@@ -631,41 +615,40 @@ export function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* حذف — با گارد ۴۰۹ سرور (مشتریِ دارای سفارش حذف نمی‌شود) */}
-      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Icon name="alertTriangle" size={18} className="text-rose-500" />
-              حذف «{deleting?.name}»؟
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleting && (deleting.ordersCount ?? 0) > 0
-                ? "این مشتری سفارش ثبت‌شده دارد — سرور اجازهٔ حذف نخواهد داد."
-                : "این عملیات قابل بازگشت نیست."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-rose-600 hover:bg-rose-700"
-              disabled={deleteMut.isPending}
-              onClick={(e) => {
-                e.preventDefault(); // تا خطای ۴۰۹ دیالوگ باز بماند و توست دیده شود
-                if (deleting) deleteMut.mutate(deleting.id);
-              }}
-            >
-              {deleteMut.isPending && <Icon name="loading" size={14} className="animate-spin" />}
-              بله، حذف کن
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
 
 // ─── اجزای کوچک ─────────────────────────────────────────────────────────
+
+// ─── Phase 20-E: کارت موبایل مشتری (نمای کارتی <768px) ───────────────
+// ستارهٔ ویژه + نام + چیپ مانده / تلفن ltr + شهر-استان + تعداد سفارش‌ها.
+function CustomerRowMobileCard({ customer: c }: { customer: CustomerRow }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 min-w-0">
+        {c.isFavorite && <Icon name="star" size={13} className="text-amber-500 shrink-0" />}
+        <span className="text-sm font-semibold truncate">{c.name}</span>
+        <span className="ms-auto shrink-0">
+          <BalanceChip value={c.unsettled} />
+        </span>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground tabular-nums" dir="ltr">
+          {c.phone}
+        </span>
+        {(c.city || c.province) && (
+          <span className="text-[11px] text-muted-foreground">
+            {[c.city, c.province].filter(Boolean).join(" / ")}
+          </span>
+        )}
+        <span className="text-[11px] text-muted-foreground tabular-nums ms-auto">
+          {fa(c.ordersCount)} سفارش
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /** چیپ مانده حساب — کنار نام مشتری (خواستهٔ صریح کارفرما) */
 function BalanceChip({ value }: { value: number }) {

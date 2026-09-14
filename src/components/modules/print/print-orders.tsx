@@ -182,6 +182,61 @@ function KpiCard({ icon, label, value, hint, color, active, onClick }: KpiCardPr
 }
 
 // ─── Component ────────────────────────────────────────────────────────
+// ─── Phase 20-E: کارت موبایل سفارش چاپ (<768px) ──────────────────────
+// #شماره + اولویت + چیپ متریال / مشتری / چیپ آیتم‌ها / موعد چاپ رنگی.
+function PrintOrderMobileCard({ order: o }: { order: PrintOrder }) {
+  const end = effectivePrintDeadline(o);
+  const dr = end ? daysRemaining(end) : null;
+  const materialPending = (o.items ?? []).filter(
+    (it) => it.needsMaterial && !it.materialConfirmed
+  ).length;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-sm font-bold">#{o.number}</span>
+        <PriorityBadge priority={o.priority} />
+        {materialPending > 0 ? (
+          <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 inline-flex items-center gap-0.5">
+            <Icon name="alert" size={10} /> {materialPending.toLocaleString("fa-IR")} آیتم منتظر متریال
+          </span>
+        ) : (
+          <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 inline-flex items-center gap-0.5">
+            <Icon name="check" size={10} /> متریال تأمین‌شده
+          </span>
+        )}
+      </div>
+      <div className="text-sm font-medium truncate">{o.customer?.name ?? "—"}</div>
+      {(o.items ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {o.items.slice(0, 2).map((it) => (
+            <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate max-w-[120px]">
+              {it.product?.name ?? "—"}
+            </span>
+          ))}
+          {o.items.length > 2 && (
+            <span className="text-xs text-muted-foreground self-center">+{o.items.length - 2}</span>
+          )}
+        </div>
+      )}
+      {end ? (
+        <div
+          className={cn(
+            "text-[11px] tabular-nums flex items-center gap-1",
+            dr?.status === "overdue" && "text-rose-600 dark:text-rose-400",
+            dr?.status === "today" && "text-amber-600 dark:text-amber-400",
+            dr?.status === "remaining" && "text-emerald-600 dark:text-emerald-400"
+          )}
+        >
+          <Icon name={dr?.status === "overdue" ? "alertTriangle" : "clock"} size={11} />
+          موعد چاپ {formatDate(end)}{dr && dr.status !== "none" ? ` · ${dr.text}` : ""}
+        </div>
+      ) : (
+        <div className="text-[11px] text-muted-foreground">بدون موعد چاپ</div>
+      )}
+    </div>
+  );
+}
+
 export function PrintOrders() {
   const navigate = useAppStore((s) => s.navigate);
   const boardFilter = useAppStore((s) => s.boardFilter);
@@ -627,6 +682,8 @@ export function PrintOrders() {
               data={filteredNeedsMaterial}
               isLoading={isLoading}
               onRowClick={(row) => openOrder(row.id)}
+              // 20-E — نمای کارتی موبایل
+              renderCard={(o) => <PrintOrderMobileCard order={o} />}
               showColumnToggle={false}
               pageSize={15}
               emptyState={
@@ -655,6 +712,8 @@ export function PrintOrders() {
               data={filteredReady}
               isLoading={isLoading}
               onRowClick={(row) => openOrder(row.id)}
+              // 20-E — نمای کارتی موبایل
+              renderCard={(o) => <PrintOrderMobileCard order={o} />}
               showColumnToggle={false}
               pageSize={15}
               emptyState={

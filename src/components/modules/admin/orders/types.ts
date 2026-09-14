@@ -43,6 +43,13 @@ export type Order = {
   createdBy: string | null;
   customer: { id: string; name: string; phone: string };
   items: OrderItem[];
+  // ─── Phase 20: تجمیع‌های هزینه/پیوست (فقط با ?withAggregates=1 ──
+  // از /api/orders — ستون‌های تب «هزینه‌ها/پیوست‌ها» جدول سفارش‌ها)
+  costsCount?: number;
+  costsTotal?: number;
+  costsApproved?: number;
+  costsPending?: number;
+  attachmentsCount?: number;
 };
 
 // Aggregated filter state used by the filter bar + the client-side filtering

@@ -1,6 +1,7 @@
 "use client";
 
-// Printoo24 ERP — Phase 17-D: دیالوگ «پروندهٔ مشتری» (ماژول ادمین داخلی)
+// Printoo24 ERP — Phase 17-D: «پروندهٔ مشتری» (ماژول ادمین داخلی)
+// فاز ۲۰: دیالوگ → دراور DetailDrawer (دسکتاپ چپ / موبایل بات‌شیت).
 //
 // پروندهٔ کامل یک مشتری: سربرگ پروفایل (آواتار/تماس/موقعیت/آدرس/یادداشت)
 // + ۴ کاشی مالی (جمع سفارش‌ها، پرداخت‌شده، مانده، تعداد سفارش)
@@ -8,14 +9,21 @@
 // GET /api/customers/[id] (تاریخچهٔ additive اضافه‌شده در همین فاز).
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useInvalidate } from "@/lib/use-invalidate";
 import { Icon, type IconName } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState, StatusBadge } from "@/components/shared";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -120,36 +128,63 @@ export function CustomersDetailDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        aria-describedby={undefined}
-        className="max-w-4xl w-[calc(100%-2rem)] max-h-[92vh] overflow-y-auto p-0 gap-0 rounded-xl"
-      >
-        {/* عنوان برای دسترس‌پذیری — پروندهٔ مشتری نام مشتری در سربرگ است */}
-        <DialogTitle className="sr-only">پروندهٔ مشتری</DialogTitle>
-        {isLoading || !data ? (
-          <div className="py-24 grid place-items-center gap-3">
-            <Icon name="loading" size={28} className="animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">در حال بارگذاری پرونده…</span>
-          </div>
-        ) : (
-          <CustomerFile data={data} onEdit={onEdit} />
-        )}
-      </DialogContent>
-    </Dialog>
+    <DetailDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title="پروندهٔ مشتری"
+      description="سوابق سفارش‌ها، فاکتورها و پرداخت‌ها"
+      icon="customers"
+      widthClass="sm:max-w-2xl"
+    >
+      {isLoading || !data ? (
+        <div className="py-24 grid place-items-center gap-3">
+          <Icon name="loading" size={28} className="animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">در حال بارگذاری پرونده…</span>
+        </div>
+      ) : (
+        <CustomerFile
+          data={data}
+          onEdit={onEdit}
+          onClose={() => onOpenChange(false)}
+        />
+      )}
+    </DetailDrawer>
   );
 }
 
 // ─── محتوای پرونده ──────────────────────────────────────────────────────
 
-function CustomerFile({ data, onEdit }: { data: CustomerDetailResponse; onEdit: (c: CustomerDetail) => void }) {
+function CustomerFile({
+  data,
+  onEdit,
+  onClose,
+}: {
+  data: CustomerDetailResponse;
+  onEdit: (c: CustomerDetail) => void;
+  onClose: () => void;
+}) {
   const c = data.customer;
   const t = data.totals;
+  const invalidate = useInvalidate();
+
+  // فاز ۲۰ (خواستهٔ ۸): حذف فقط از اینجا — با تایپ نام مشتری
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [confirmName, setConfirmName] = React.useState("");
+  const deleteMut = useMutation({
+    mutationFn: () => api(`/api/customers/${c.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]);
+      toast.success("مشتری حذف شد");
+      setDeleteOpen(false);
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <>
       {/* سربرگ پروفایل */}
-      <div className="p-5 border-b bg-muted/20">
+      <div className="px-5 py-4 border-b bg-muted/20">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <div className="size-12 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 grid place-items-center text-lg font-bold shrink-0">
@@ -191,7 +226,7 @@ function CustomerFile({ data, onEdit }: { data: CustomerDetailResponse; onEdit: 
       </div>
 
       {/* کاشی‌های مالی */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 px-5 py-4">
         <MetricTile icon="orders" color="violet" label="جمع سفارش‌ها" value={formatCurrency(t.totalBilled)} />
         <MetricTile icon="wallet" color="emerald" label="پرداخت‌شده" value={formatCurrency(t.totalPaid)} />
         <MetricTile
@@ -204,7 +239,7 @@ function CustomerFile({ data, onEdit }: { data: CustomerDetailResponse; onEdit: 
       </div>
 
       {/* تاریخچه — سه تب */}
-      <div className="px-4 pb-5">
+      <div className="px-5 pb-5">
         <Tabs defaultValue="orders">
           <TabsList className="w-full sm:w-fit">
             <TabsTrigger value="orders" className="gap-1.5 text-xs">
@@ -232,6 +267,63 @@ function CustomerFile({ data, onEdit }: { data: CustomerDetailResponse; onEdit: 
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── منطقهٔ خطر — حذف مشتری دور از دسترس (خواستهٔ ۸ فاز ۲۰) ── */}
+      <div className="border-t px-5 py-4">
+        <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 p-3">
+          <div className="text-xs font-bold text-rose-700 dark:text-rose-300">منطقهٔ خطر</div>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            حذف کامل مشتری فقط وقتی ممکن است که هیچ سفارش/فاکتور/سابقه‌ای نداشته باشد.
+            این عمل عمداً از لیست جدا شده و نیازمند تایید با تایپ نام مشتری است.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 text-rose-600 border-rose-300 dark:border-rose-800 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 gap-1.5"
+            onClick={() => {
+              setConfirmName("");
+              setDeleteOpen(true);
+            }}
+          >
+            <Icon name="trash" size={13} /> حذف کامل این مشتری
+          </Button>
+        </div>
+      </div>
+
+      {/* تایید حذف — تایپ نام دقیق مشتری */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف کامل «{c.name}»؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              این عمل قابل بازگشت نیست و کل اطلاعات مشتری پاک می‌شود. برای تایید،
+              نام دقیق مشتری را وارد کنید.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            placeholder={c.name}
+            dir="auto"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={confirmName.trim() !== c.name.trim() || deleteMut.isPending}
+              onClick={() => deleteMut.mutate()}
+              className="gap-1.5"
+            >
+              {deleteMut.isPending ? (
+                <Icon name="loading" size={14} className="animate-spin" />
+              ) : (
+                <Icon name="trash" size={14} />
+              )}
+              حذف قطعی
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

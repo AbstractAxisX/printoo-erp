@@ -380,7 +380,8 @@ export function OrderDetailModal({
   if (!order) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-5xl w-[calc(100%-2rem)] max-h-[90vh] overflow-hidden p-0 gap-0">
+        {/* 20-E — موبایل: تمام‌صفحه با اسکرول واحد؛ دسکتاپ عین قبل */}
+        <DialogContent className="w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-none overflow-y-auto sm:overflow-hidden sm:h-auto sm:max-w-5xl sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:rounded-xl p-0 gap-0 [&>*]:min-w-0">
           <DialogTitle className="sr-only">جزئیات سفارش</DialogTitle>
           <DialogDescription className="sr-only">
             در حال بارگذاری اطلاعات سفارش
@@ -421,7 +422,8 @@ export function OrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-5xl w-[calc(100%-2rem)] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
+        {/* 20-E — موبایل: تمام‌صفحه (h-100dvh + اسکرول کل مودال)؛ دسکتاپ عین قبل */}
+        <DialogContent className="w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-none overflow-y-auto sm:overflow-hidden sm:h-auto sm:max-w-5xl sm:max-h-[92vh] sm:w-[calc(100%-2rem)] sm:rounded-xl p-0 gap-0 [&>*]:min-w-0">
           <DialogTitle className="sr-only">
             سفارش #{order.number} — {order.customer?.name}
           </DialogTitle>
@@ -537,10 +539,11 @@ export function OrderDetailModal({
           </div>
 
           {/* ── Tab nav ── */}
+          {/* 20-E — موبایل: چسبان بالای اسکرولِ مودال تمام‌صفحه */}
           <div
             role="tablist"
             aria-label="بخش‌های سفارش"
-            className="flex border-b px-4 overflow-x-auto scrollbar-thin bg-muted/20"
+            className="flex border-b px-4 overflow-x-auto scrollbar-thin bg-muted/20 sticky top-0 z-20 sm:static"
           >
             {TABS.map((t) => {
               const isActive = activeTab === t.id;
@@ -606,11 +609,11 @@ export function OrderDetailModal({
           </div>
 
           {/* ── Tab body ── */}
+          {/* 20-E — موبایل: بدون سقف (اسکرول واحدِ خود مودال)؛ دسکتاپ عین قبل min(62vh,560px) */}
           <div
             id={`order-tab-${activeTab}`}
             role="tabpanel"
-            className="overflow-y-auto scrollbar-thin px-6 py-4"
-            style={{ maxHeight: "min(62vh, 560px)" }}
+            className="overflow-y-auto scrollbar-thin px-6 py-4 max-h-none sm:max-h-[min(62vh,560px)]"
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -659,8 +662,8 @@ export function OrderDetailModal({
             </AnimatePresence>
           </div>
 
-          {/* ── Footer ── */}
-          <div className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2 flex-wrap">
+          {/* ── Footer — ۲۰-اِ: safe-area موبایل برای دکمه‌های پایین ── */}
+          <div className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2 flex-wrap pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Button
               size="sm"
               variant="outline"

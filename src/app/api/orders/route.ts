@@ -98,6 +98,10 @@ export async function GET(req: NextRequest) {
   const dateTo = searchParams.get("dateTo");
   const amountMin = searchParams.get("amountMin");
   const amountMax = searchParams.get("amountMax");
+  // ─── Phase 20: تجمیع‌های هزینه/پیوست per-order (opt-in) ──
+  // فقط با ?withAggregates=1 محاسبه/الحاق می‌شوند تا پاسخ برد‌های دیگر
+  // (طراح/چاپ/تقویم/…) که پارامتر را نمی‌فرستند عین قبل بماند.
+  const withAggregates = searchParams.get("withAggregates") === "1";
 
   const where: Prisma.OrderWhereInput = {};
   if (status) where.status = status;
@@ -152,6 +156,50 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // ─── Phase 20: تجمیع هزینه/پیوست per-order (خواستهٔ ۵ فاز ۲۰) ──
+  // یک کوئری جمعی روی MaterialCostهای همین سفارش‌ها؛ reduce در JS به یک
+  // map و سپس merge در پاسخ. قرارداد فیلدها:
+  //   costsCount      = تعداد هزینه‌های غیرردشده (pending+approved+…−rejected)
+  //   costsTotal      = Σ amount هزینه‌های غیرردشده
+  //   costsApproved   = Σ amount با status=approved
+  //   costsPending    = Σ amount با status=pending
+  //   attachmentsCount= Σ تعداد CostAttachmentهای همهٔ هزینه‌های سفارش
+  const EMPTY_AGG = {
+    costsCount: 0,
+    costsTotal: 0,
+    costsApproved: 0,
+    costsPending: 0,
+    attachmentsCount: 0,
+  };
+  let aggByOrder: Map<string, typeof EMPTY_AGG> | null = null;
+  if (withAggregates && orders.length > 0) {
+    const costs = await db.materialCost.findMany({
+      where: { orderId: { in: orders.map((o) => o.id) } },
+      select: {
+        orderId: true,
+        amount: true,
+        status: true,
+        _count: { select: { attachments: true } },
+      },
+    });
+    aggByOrder = new Map();
+    for (const c of costs) {
+      if (!c.orderId) continue; // هزینهٔ آزاد — به سفارشی نمی‌چسبد
+      let agg = aggByOrder.get(c.orderId);
+      if (!agg) {
+        agg = { ...EMPTY_AGG };
+        aggByOrder.set(c.orderId, agg);
+      }
+      if (c.status !== "rejected") {
+        agg.costsCount += 1;
+        agg.costsTotal += c.amount;
+      }
+      if (c.status === "approved") agg.costsApproved += c.amount;
+      if (c.status === "pending") agg.costsPending += c.amount;
+      agg.attachmentsCount += c._count.attachments;
+    }
+  }
+
   // ─── Phase 17-A: فیلدهای تخت برای فرم هزینهٔ مالی ─────────────────
   // CostEntryForm (حالت selectableOrder) دراپ‌داون سرچ سفارش دارد و
   // OrderOption آن customerName/preInvoiceCount تخت می‌خواهد؛ ردیف خام
@@ -163,6 +211,8 @@ export async function GET(req: NextRequest) {
       ...o,
       customerName: o.customer?.name ?? "",
       preInvoiceCount: o._count?.preInvoices ?? 0,
+      // Phase 20: تجمیع‌ها فقط با withAggregates=1 (سفارش بدون هزینه → صفر)
+      ...(withAggregates ? (aggByOrder?.get(o.id) ?? EMPTY_AGG) : {}),
     })),
   });
 }

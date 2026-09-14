@@ -53,6 +53,54 @@ type RevenueLog = {
 
 // ─── Page ──────────────────────────────────────────────────────────────
 
+// ─── Phase 20-E: کارت موبایل سفارش لجستیک (<768px) ─────────────────────
+// #شماره + وضعیت / مشتری + تلفن / چیپ آیتم‌ها / جمع + پرداخت‌نشده.
+function LogisticsOrderMobileCard({ order: o }: { order: Order }) {
+  const rem = o.totalAmount - o.paidAmount;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-sm font-bold">#{o.number}</span>
+        <StatusBadge status={o.status} />
+      </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-medium truncate">{o.customer?.name ?? "—"}</span>
+        {o.customer?.phone && (
+          <span className="text-xs text-muted-foreground tabular-nums shrink-0" dir="ltr">
+            {o.customer.phone}
+          </span>
+        )}
+      </div>
+      {(o.items ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {o.items.slice(0, 2).map((it) => (
+            <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate max-w-[120px]">
+              {it.product?.name ?? "—"}
+            </span>
+          ))}
+          {o.items.length > 2 && (
+            <span className="text-xs text-muted-foreground self-center">
+              +{(o.items.length - 2).toLocaleString("fa-IR")}
+            </span>
+          )}
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold tabular-nums" dir="ltr">
+          {formatCurrency(o.totalAmount)}
+        </span>
+        {rem > 0.001 ? (
+          <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 tabular-nums" dir="ltr">
+            پرداخت‌نشده {formatCurrency(rem)}
+          </span>
+        ) : (
+          <span className="text-[11px] font-bold text-emerald-600">تسویه ✓</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LogisticsOrders() {
   const invalidate = useInvalidate();
   const qc = useQueryClient();
@@ -269,6 +317,9 @@ export function LogisticsOrders() {
           isLoading={isLoading}
           pageSize={10}
           onRowClick={(o) => openOrder(o.id)}
+          // 20-E — نمای کارتی موبایل (کلیک = مودال تحویل و دریافت؛
+          // دکمهٔ جدول همان مودال را باز می‌کرد → روی کارت حذف شد)
+          renderCard={(o) => <LogisticsOrderMobileCard order={o} />}
           emptyState={
             <EmptyState
               icon="truck"
@@ -281,9 +332,11 @@ export function LogisticsOrders() {
 
       {/* مودال تحویل + دریافت + هزینه */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        {/* 20-E — min-w-5xl فقط زیرِ viewport ~1056px فعال می‌شد و همان‌جا
+            سرریز می‌ساخت؛ حذف شد (دسکتاپ بزرگ عین قبل). موبایل: اسکرول واحد. */}
         <DialogContent
           aria-describedby={undefined}
-          className="min-w-5xl overflow-hidden p-0 gap-0 rounded-xl"
+          className="max-h-[94dvh] overflow-y-auto scrollbar-thin sm:overflow-hidden sm:max-h-[94vh] p-0 gap-0 rounded-xl [&>*]:min-w-0"
         >
           {selected ? (
             <>
@@ -368,7 +421,7 @@ export function LogisticsOrders() {
 
                 {/* تب دریافت نقدی */}
                 <TabsContent value="collect" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
-                  <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4" style={{ maxHeight: "56vh" }}>
+                  <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4 max-h-none sm:max-h-[56vh]">
                     <div className="rounded-xl border bg-emerald-500/[0.03] p-4 space-y-3">
                       <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                         <Icon name="info" size={13} />
@@ -473,7 +526,7 @@ export function LogisticsOrders() {
 
                 {/* تب هزینه */}
                 <TabsContent value="cost" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
-                  <div className="overflow-y-auto scrollbar-thin px-6 py-4" style={{ maxHeight: "56vh" }}>
+                  <div className="overflow-y-auto scrollbar-thin px-6 py-4 max-h-none sm:max-h-[56vh]">
                     <CostEntryForm
                       mode="order"
                       orderId={selected.id}

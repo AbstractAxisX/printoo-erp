@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
+import { formatCurrency, formatDate, daysRemaining, relativeTime } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,13 @@ import {
   getStageDeadline,
   categorize,
 } from "./open-orders-helpers";
+// Phase 20 — تب‌های جنبه‌ای جدول + نمای کانبان
+import {
+  OrderTableTabs,
+  type OrderTableTab,
+} from "./orders/order-table-tabs";
+import { getOrderTabColumns } from "./orders/columns-by-tab";
+import { OpenOrdersKanban } from "./open-orders-kanban";
 
 // Local alias keeps the rest of this file unchanged (minimal diff).
 type Order = OpenOrder;
@@ -39,6 +46,10 @@ export function OpenOrdersPage() {
 
   const [selectedStage, setSelectedStage] = React.useState<Stage>("all");
   const [cardFilter, setCardFilter] = React.useState<CardFilter | null>(null);
+
+  // Phase 20 — نمای جدول/کانبان + تب جنبه‌ای جدول
+  const [view, setView] = React.useState<"table" | "kanban">("table");
+  const [tableTab, setTableTab] = React.useState<OrderTableTab>("all");
 
   // Search combobox state
   const [customerSearch, setCustomerSearch] = React.useState("");
@@ -55,6 +66,8 @@ export function OpenOrdersPage() {
     queryFn: () => {
       const params = new URLSearchParams();
       params.set("excludeArchived", "true");
+      // Phase 20 — تجمیع هزینه/پیوست برای تب‌های هزینه/پیوست جدول
+      params.set("withAggregates", "1");
       if (customerFilter) params.set("customerId", customerFilter);
       if (productFilter) params.set("productId", productFilter);
       return api<{ orders: Order[] }>(`/api/orders?${params.toString()}`);
@@ -149,6 +162,13 @@ export function OpenOrdersPage() {
 
   function handleRefresh() {
     invalidate(["orders", "open-orders", "dashboard"]);
+  }
+
+  // Phase 20 — سوییچ نمای جدول/کانبان؛ در کانبان ستون‌ها خودِ مراحل‌اند →
+  // فیلتر مرحله به «همه» برمی‌گردد تا کارت‌های آماری/فیلتر با برد سازگار بمانند.
+  function switchView(v: "table" | "kanban") {
+    setView(v);
+    if (v === "kanban") setSelectedStage("all");
   }
 
   function handleCardClick(filter: CardFilter) {
@@ -326,6 +346,14 @@ export function OpenOrdersPage() {
     [selectedStage]
   );
 
+  // Phase 20 — ستون‌های تب جنبه‌ای (غیر از «همه»): همان کارخانهٔ مشترک با
+  // صفحهٔ «همه سفارشات»؛ «همه» = ستون‌های کامل امروز این صفحه.
+  const activeColumns = React.useMemo<ColumnDef<Order>[]>(
+    () =>
+      tableTab === "all" ? columns : getOrderTabColumns<Order>(tableTab),
+    [tableTab, columns]
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -344,8 +372,56 @@ export function OpenOrdersPage() {
         }
       />
 
-      {/* ─── Stage tabs ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      {/* ─── Phase 20: view switch (نمای جدول / نمای کانبان) ── */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div
+          role="tablist"
+          aria-label="نمای سفارشات"
+          className="inline-flex items-center gap-1 rounded-lg border bg-card p-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "table"}
+            onClick={() => switchView("table")}
+            className={cn(
+              "h-9 px-3 rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors",
+              view === "table"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+            )}
+          >
+            <Icon name="grid" size={15} /> نمای جدول
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "kanban"}
+            onClick={() => switchView("kanban")}
+            className={cn(
+              "h-9 px-3 rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors",
+              view === "kanban"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+            )}
+          >
+            <Icon name="dashboard" size={15} /> نمای کانبان
+          </button>
+        </div>
+        {view === "kanban" && (
+          <span className="text-xs text-muted-foreground">
+            کشیدن کارت بین ستون‌ها = تغییر وضعیت · کلیک کارت = جزئیات
+          </span>
+        )}
+      </div>
+
+      {/* ─── Stage tabs (فقط نمای جدول — در کانبان ستون‌ها خودِ مراحل‌اند) ── */}
+      <div
+        className={cn(
+          "grid grid-cols-2 md:grid-cols-4 gap-2",
+          view === "kanban" && "hidden"
+        )}
+      >
         {STAGES.map((s) => {
           const isActive = selectedStage === s.key;
           const count = stageCounts[s.key];
@@ -393,8 +469,8 @@ export function OpenOrdersPage() {
         })}
       </div>
 
-      {/* ─── Summary cards (interactive) ───────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* ─── Summary cards — موبایل: ۴ کارت مینیمال در یک ردیف (۲۰-اِ) ── */}
+      <div className="grid grid-cols-4 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <SummaryCard
           label="کل سفارشات"
           value={stats.total}
@@ -504,29 +580,55 @@ export function OpenOrdersPage() {
         </div>
       </Card>
 
-      {/* ─── Data table ────────────────────────────────────── */}
-      <Card className="p-4">
-        <DataTable
-          columns={columns}
-          data={filteredOrders}
-          isLoading={isLoading}
-          pageSize={10}
-          showColumnToggle
-          onRowClick={(o) => setSelectedOrderId(o.id)}
-          emptyState={
+      {/* ─── Phase 20: جدول (با تب‌های جنبه‌ای) / کانبان ────── */}
+      {view === "kanban" ? (
+        <Card className="p-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+              <Icon name="loading" size={18} className="animate-spin text-primary" />
+              در حال بارگذاری سفارشات...
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <EmptyState
               icon="orders"
               title="سفارشی یافت نشد"
               description="با فیلترهای فعلی سفارش بازی وجود ندارد."
-              action={
-                <Button onClick={() => navigate("admin", "orders-new")} className="gap-2">
-                  <Icon name="plus" size={16} /> ایجاد سفارش
-                </Button>
-              }
             />
-          }
-        />
-      </Card>
+          ) : (
+            <OpenOrdersKanban
+              orders={filteredOrders}
+              onOpenOrder={(id) => setSelectedOrderId(id)}
+            />
+          )}
+        </Card>
+      ) : (
+        <Card className="p-4 space-y-3">
+          {/* Phase 20 — تب‌های جنبه‌ای بالای جدول (همان تب‌های مودال جزئیات) */}
+          <OrderTableTabs value={tableTab} onChange={setTableTab} />
+          <DataTable
+            columns={activeColumns}
+            data={filteredOrders}
+            isLoading={isLoading}
+            pageSize={10}
+            showColumnToggle
+            onRowClick={(o) => setSelectedOrderId(o.id)}
+            // 20-E — نمای کارتی موبایل (کلیک = مودال جزئیات)
+            renderCard={(o) => <OpenOrderMobileCard order={o} stage={selectedStage} />}
+            emptyState={
+              <EmptyState
+                icon="orders"
+                title="سفارشی یافت نشد"
+                description="با فیلترهای فعلی سفارش بازی وجود ندارد."
+                action={
+                  <Button onClick={() => navigate("admin", "orders-new")} className="gap-2">
+                    <Icon name="plus" size={16} /> ایجاد سفارش
+                  </Button>
+                }
+              />
+            }
+          />
+        </Card>
+      )}
 
       {/* ─── Order detail modal ────────────────────────────── */}
       <OrderDetailModal
@@ -546,6 +648,67 @@ export function OpenOrdersPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Phase 20-E: کارت موبایل سفارش باز (نمای کارتی <768px) ───────────
+// #شماره + وضعیت + فوری + زمان نسبی / مشتری + تلفن / چیپ آیتم‌ها /
+// مبلغ کل + موعد مرحلهٔ فعال (getStageDeadline — رز اگر گذشته).
+function OpenOrderMobileCard({ order: o, stage }: { order: Order; stage: Stage }) {
+  const deadline = getStageDeadline(o, stage);
+  const dr = deadline ? daysRemaining(deadline) : null;
+  const overdue = dr?.status === "overdue";
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-sm font-bold">#{o.number}</span>
+        <StatusBadge status={o.status} />
+        {o.priority === "urgent" && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 inline-flex items-center gap-1">
+            <Icon name="alertTriangle" size={10} /> فوری
+          </span>
+        )}
+        <span className="text-[11px] text-muted-foreground ms-auto">{relativeTime(o.createdAt)}</span>
+      </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-medium truncate">{o.customer?.name ?? "—"}</span>
+        {o.customer?.phone && (
+          <span className="text-xs text-muted-foreground tabular-nums shrink-0" dir="ltr">
+            {o.customer.phone}
+          </span>
+        )}
+      </div>
+      {(o.items?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {o.items.slice(0, 2).map((it) => (
+            <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate max-w-[120px]">
+              {it.product?.name ?? "—"}
+            </span>
+          ))}
+          {o.items.length > 2 && (
+            <span className="text-xs text-muted-foreground self-center">+{o.items.length - 2}</span>
+          )}
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold tabular-nums" dir="ltr">
+          {formatCurrency(o.totalAmount)}
+        </span>
+        {deadline ? (
+          <span
+            className={cn(
+              "text-[11px] tabular-nums flex items-center gap-1",
+              overdue ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
+            )}
+          >
+            {overdue && <Icon name="alertTriangle" size={11} />}
+            موعد {formatDate(deadline)}
+          </span>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">بدون موعد</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -596,21 +759,35 @@ function SummaryCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative flex items-center gap-3 rounded-xl border bg-card p-3.5 text-right transition-all",
+        "group relative flex flex-col sm:flex-row items-center sm:items-start justify-center sm:justify-start gap-0.5 sm:gap-3 rounded-xl border bg-card p-2 sm:p-3.5 text-center sm:text-right transition-all",
         active
           ? cn(toneCls.ring, "ring-1 shadow-sm")
           : "border-input hover:border-foreground/30"
       )}
     >
-      <div className={cn("size-10 rounded-lg grid place-items-center shrink-0", toneCls.icon)}>
+      <div
+        className={cn(
+          "size-10 rounded-lg hidden sm:grid place-items-center shrink-0",
+          toneCls.icon
+        )}
+      >
         <Icon name={icon} size={18} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-xs text-muted-foreground truncate">{label}</div>
-        <div className={cn("text-2xl font-bold tabular-nums leading-tight mt-0.5", toneCls.value)}>
+      <div className="flex-1 min-w-0 w-full sm:w-auto">
+        <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{label}</div>
+        <div
+          className={cn(
+            "text-xl sm:text-2xl font-bold tabular-nums leading-tight mt-0.5",
+            toneCls.value
+          )}
+        >
           {value}
         </div>
-        {hint && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{hint}</div>}
+        {hint && (
+          <div className="text-[10px] text-muted-foreground mt-0.5 truncate hidden sm:block">
+            {hint}
+          </div>
+        )}
       </div>
       {active && (
         <div className="absolute top-2 left-2 size-2 rounded-full bg-primary" aria-hidden />

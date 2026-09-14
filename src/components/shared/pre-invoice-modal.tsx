@@ -242,7 +242,7 @@ export function PreInvoiceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="sm:max-w-4xl w-[calc(100%-1.5rem)] max-h-[92vh] overflow-y-auto scrollbar-thin p-0 gap-0 rounded-xl"
+        className="sm:max-w-4xl w-[calc(100%-1rem)] max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto scrollbar-thin p-0 gap-0 rounded-xl [&>*]:min-w-0"
       >
         <DialogTitle className="sr-only">پیش‌فاکتور</DialogTitle>
 
@@ -499,9 +499,11 @@ function PiForm({
 
       {scheduleHint}
 
-      {/* اقلام — نام/تعداد/قیمت واحد/تخفیف ردیف قابل ویرایش */}
+      {/* اقلام — نام/تعداد/قیمت واحد/تخفیف ردیف قابل ویرایش.
+          20-E — موبایل: جدول داخل اسکرول افقی (inputها له نمی‌شوند) */}
       <div className="rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>
               <th className="text-right font-medium px-3 py-2">شرح</th>
@@ -550,6 +552,7 @@ function PiForm({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* شرایط مالی */}
@@ -951,7 +954,11 @@ function DocView({
           </Button>
         )}
         <Button size="sm" onClick={() => {
-            const res = printElementClean("#printable-invoice");
+            // فاز ۲۰: نام فایل PDF = «Quotation No_ N - Customer»
+            const res = printElementClean(
+              "#printable-invoice",
+              `Quotation No_ ${pi.number} - ${pi.customer?.name ?? "Customer"}`
+            );
             if (!res.ok && res.error === "popup-blocked") {
               toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
             }
@@ -960,11 +967,10 @@ function DocView({
         </Button>
       </div>
 
-      {/* ─── سند چاپی A4 — تم P24 ─── */}
-      <div className="doc-frame bg-muted/30 p-4" dir="rtl">
+      {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز ۲۰) ─── */}
+      <div className="doc-frame bg-muted/30 p-4" dir="ltr">
         <P24Doc
           title="Quotation"
-          faTitle="پیش‌فاکتور فروش"
           number={pi.number}
           issueDate={pi.issueDate}
           customerName={pi.customer?.name ?? "—"}
@@ -978,7 +984,7 @@ function DocView({
           taxAmount={pi.taxAmount}
           total={pi.totalAmount}
           paid={pi.paidAmount}
-          paidLabel="پیش‌پرداخت دریافتی"
+          paidLabel="Deposit Received"
           schedule={
             schedule.designFrom || schedule.designTo || schedule.printFrom || schedule.printTo
               ? schedule
@@ -986,7 +992,7 @@ function DocView({
           }
           notes={pi.notes ?? null}
           terms={pi.terms ?? null}
-          closingNote={`این پیش‌فاکتور پس از تایید مشتری به فاکتور نهایی تبدیل می‌شود · ${COMPANY.name}`}
+          closingNote={`This quotation converts to a final invoice upon customer approval · ${COMPANY.name}`}
         />
       </div>
     </div>

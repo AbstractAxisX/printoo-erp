@@ -28,6 +28,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type DataTableMeta<TData> = {
   onRowClick?: (row: TData) => void;
@@ -69,6 +70,10 @@ type DataTableProps<TData, TValue> = {
   className?: string;
   dense?: boolean;
   totalCount?: number; // for server-side pagination
+  /** Phase 20 (20-E) — رندر کارت موبایل: در عرض <768px به‌جای جدول، لیست
+   * کارتی فشرده نمایش داده می‌شود (همان فیلتر/مرتب‌سازی/صفحه‌بندی جدول).
+   * بدون این پراپ رفتار عین قبل می‌ماند (۲۵+ مصرف‌کنندهٔ فعلی). */
+  renderCard?: (row: TData) => React.ReactNode;
 };
 
 export function DataTable<TData, TValue>({
@@ -92,7 +97,9 @@ export function DataTable<TData, TValue>({
   expandOnRowClick = true,
   className,
   dense = false,
+  renderCard,
 }: DataTableProps<TData, TValue>) {
+  const isMobile = useIsMobile();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
@@ -150,7 +157,8 @@ export function DataTable<TData, TValue>({
 
           {toolbar}
 
-          {showColumnToggle && (
+          {/* در نمای کارتی موبایل، منوی «ستون‌ها» بی‌معنی است */}
+          {showColumnToggle && !(isMobile && renderCard) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 mr-auto">
@@ -181,8 +189,18 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
+      {/* Table — یا نمای کارتی موبایل (Phase 20-E: renderCard + <768px) */}
+      {isMobile && renderCard ? (
+        <CardList
+          rows={table.getRowModel().rows}
+          renderCard={renderCard}
+          onRowClick={onRowClick}
+          isLoading={isLoading}
+          emptyState={emptyState}
+        />
+      ) : (
+      <div className="rounded-lg border bg-card overflow-x-auto scrollbar-thin">
+        {/* 20-E — overflow-x-auto: جدول‌های عریض در موبایل اسکرول می‌شوند، نه بریده */}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -273,6 +291,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Pagination */}
       {showPagination && (
@@ -285,6 +304,61 @@ export function DataTable<TData, TValue>({
 function SortIcon({ dir }: { dir: false | "asc" | "desc" }) {
   if (!dir) return <Icon name="arrowUpDown" size={13} className="text-muted-foreground/50" />;
   return <Icon name={dir === "asc" ? "sortUp" : "sortDown"} size={13} className="text-primary" />;
+}
+
+// ─── Phase 20-E: نمای کارتی موبایل ────────────────────────────────────
+// همان ردیف‌های جدول (فیلتر/مرتب‌سازی/صفحه‌بندی زندهٔ table instance) به‌صورت
+// لیست کارتی — divide-y + border + bg-card هم‌خانوادهٔ ظاهر جدول؛ کلیک کارت
+// همان onRowClick جدول را می‌زند.
+function CardList<TData>({
+  rows,
+  renderCard,
+  onRowClick,
+  isLoading,
+  emptyState,
+}: {
+  rows: Row<TData>[];
+  renderCard: (row: TData) => React.ReactNode;
+  onRowClick?: (row: TData) => void;
+  isLoading?: boolean;
+  emptyState?: React.ReactNode;
+}) {
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border bg-card p-10 flex flex-col items-center justify-center gap-2">
+        <Icon name="loading" size={24} className="animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+      </div>
+    );
+  }
+  if (!rows.length) {
+    return (
+      <div className="rounded-lg border bg-card p-10 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+        {emptyState ?? (
+          <>
+            <Icon name="inbox" size={28} className="opacity-40" />
+            <span className="text-sm">موردی یافت نشد</span>
+          </>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="divide-y rounded-lg border bg-card">
+      {rows.map((row) => (
+        <div
+          key={row.id}
+          onClick={() => onRowClick?.(row.original)}
+          className={cn(
+            "p-3.5",
+            onRowClick && "cursor-pointer active:bg-accent/40 transition-colors"
+          )}
+        >
+          {renderCard(row.original)}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function DataTablePagination<TData>({
@@ -316,19 +390,20 @@ function DataTablePagination<TData>({
           </Select>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="size-8" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
+          {/* 20-E — دکمه‌های لمس‌پسندتر در موبایل (size-9)؛ دسکتاپ عین قبل */}
+          <Button variant="outline" size="icon" className="size-9 sm:size-8" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()}>
             <Icon name="chevronRight" size={14} />
           </Button>
-          <Button variant="outline" size="icon" className="size-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+          <Button variant="outline" size="icon" className="size-9 sm:size-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
             <Icon name="arrowRight" size={14} />
           </Button>
           <span className="text-xs px-2">
             صفحه <span className="font-medium">{pageIndex + 1}</span> از <span className="font-medium">{table.getPageCount() || 1}</span>
           </span>
-          <Button variant="outline" size="icon" className="size-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+          <Button variant="outline" size="icon" className="size-9 sm:size-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
             <Icon name="arrowLeft" size={14} />
           </Button>
-          <Button variant="outline" size="icon" className="size-8" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
+          <Button variant="outline" size="icon" className="size-9 sm:size-8" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()}>
             <Icon name="chevronLeft" size={14} />
           </Button>
         </div>

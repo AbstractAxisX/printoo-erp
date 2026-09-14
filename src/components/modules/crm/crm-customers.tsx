@@ -4,7 +4,10 @@ import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useInvalidate } from "@/lib/use-invalidate";
-import { PageHeader, EmptyState } from "@/components/shared";
+import { PageHeader, EmptyState, StatusBadge } from "@/components/shared";
+import { P24StatementDoc } from "@/components/shared/p24-doc";
+import { printElementClean } from "@/lib/print-doc";
+import { COMPANY } from "@/lib/constants";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,13 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -38,6 +35,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import {
   type Activity,
   type Deal,
@@ -53,7 +59,10 @@ type Customer = {
   name: string;
   phone: string;
   isFavorite: boolean;
-  balanceDue: number;
+  /** فاز ۲۰: ستون مرده — فقط برای سازگاری؛ نمایش از unsettled */
+  balanceDue?: number;
+  /** بدهی زندهٔ مشتری (lib/customer-debt) — از همان /api/customers */
+  unsettled?: number;
   note: string | null;
   createdAt: string;
   _count?: { orders: number; deals: number; activities: number };
@@ -64,10 +73,16 @@ type Order = {
   number: number;
   status: string;
   totalAmount: number;
+  paidAmount?: number;
   endDate: string | null;
   createdAt: string;
   customer: { id: string; name: string };
+  items?: { id: string; product?: { name: string } | null }[];
 };
+
+/** سفارش‌های در جریان — نه تکمیل/آرشیو/لغو (خواستهٔ ۶ فاز ۲۰) */
+const ACTIVE_STATUSES = ["pending_design", "in_printing", "warehouse_logistics"];
+const isActiveOrder = (o: Order) => ACTIVE_STATUSES.includes(o.status);
 
 type CustomerDetail = {
   customer: Customer;
@@ -132,14 +147,7 @@ export function CRMCustomers() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api(`/api/customers/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      invalidate(["customers", "crm-dashboard", "deals"]);
-      toast.success("مشتری حذف شد");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  // فاز ۲۰: حذف مشتری از ردیف‌ها حذف شد — فقط از «منطقه خطر» انتهای نمای ۳۶۰
 
   async function toggleFavorite(c: Customer) {
     try {
@@ -238,19 +246,23 @@ export function CRMCustomers() {
       enableSorting: true,
     },
     {
-      accessorKey: "balanceDue",
+      // فاز ۲۰ (باگ ۷): unsettled زنده به‌جای balanceDue مردهٔ همیشه‌صفر
+      accessorKey: "unsettled",
       header: "مانده حساب",
-      cell: ({ row }) => (
-        <span
-          className={cn(
-            "tabular-nums font-medium",
-            row.original.balanceDue > 0 ? "text-rose-600" : "text-emerald-600"
-          )}
-          dir="ltr"
-        >
-          {formatCurrency(row.original.balanceDue)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const due = row.original.unsettled ?? 0;
+        return (
+          <span
+            className={cn(
+              "tabular-nums font-medium",
+              due > 0 ? "text-rose-600" : "text-emerald-600"
+            )}
+            dir="ltr"
+          >
+            {formatCurrency(due)}
+          </span>
+        );
+      },
       enableSorting: true,
     },
     {
@@ -290,20 +302,6 @@ export function CRMCustomers() {
           >
             <Icon name="edit" size={16} />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 hover:text-rose-600"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (confirm(`حذف "${row.original.name}"؟ این عمل قابل بازگشت نیست.`)) {
-                deleteMut.mutate(row.original.id);
-              }
-            }}
-            title="حذف"
-          >
-            <Icon name="trash" size={16} />
-          </Button>
         </div>
       ),
       enableSorting: false,
@@ -334,6 +332,8 @@ export function CRMCustomers() {
           searchPlaceholder="جستجوی نام یا تلفن..."
           pageSize={10}
           onRowClick={(c) => setSelectedId(c.id)}
+          // 20-E — نمای کارتی موبایل (کلیک = نمای ۳۶۰)
+          renderCard={(c) => <CustomerMobileCard customer={c} />}
           toolbar={
             <Select
               value={filter}
@@ -439,6 +439,10 @@ function CustomerDetailDrawer({
   const invalidate = useInvalidate();
   const [activityOpen, setActivityOpen] = React.useState(false);
   const [dealOpen, setDealOpen] = React.useState(false);
+  // فاز ۲۰: فاکتور جمعی سفارش‌های جاری + حذف دور از دسترس
+  const [statementOpen, setStatementOpen] = React.useState(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [confirmName, setConfirmName] = React.useState("");
   const open = !!customerId;
 
   // Track loading/error/not-found explicitly so the UI doesn't show an infinite
@@ -476,24 +480,56 @@ function CustomerDetailDrawer({
     if (!open) {
       setActivityOpen(false);
       setDealOpen(false);
+      setStatementOpen(false);
+      setDeleteOpen(false);
+      setConfirmName("");
     }
   }, [open]);
 
   const detail = data;
   const notFound = !isLoading && !isError && !detail;
 
+  // فاز ۲۰ (خواستهٔ ۶): سفارش‌های جاری + جمع فاکتورها
+  const activeOrders = React.useMemo(
+    () => (detail?.orders ?? []).filter(isActiveOrder),
+    [detail]
+  );
+  const pastOrders = React.useMemo(
+    () => (detail?.orders ?? []).filter((o) => !isActiveOrder(o)),
+    [detail]
+  );
+  const activeTotals = React.useMemo(() => {
+    const subtotal = activeOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const paid = activeOrders.reduce((s, o) => s + (o.paidAmount || 0), 0);
+    return { subtotal, paid, balance: Math.max(0, subtotal - paid) };
+  }, [activeOrders]);
+
+  const deleteMut = useMutation({
+    mutationFn: () => {
+      if (!customerId) throw new Error("مشتری انتخاب نشده است");
+      return api(`/api/customers/${customerId}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      invalidate(["customers", "crm-dashboard", "deals", "customer-detail"]);
+      toast.success("مشتری حذف شد");
+      setDeleteOpen(false);
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <>
-      <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-        <SheetContent side="left" className="w-full sm:max-w-xl overflow-y-auto p-0">
-          <SheetHeader className="px-5 pt-5 pb-3 border-b">
-            <SheetTitle className="flex items-center gap-2">
-              <Icon name="customers" size={18} className="text-primary" />
-              نمای ۳۶۰ درجه مشتری
-            </SheetTitle>
-            <SheetDescription>اطلاعات کامل، سفارش‌ها، معاملات و فعالیت‌ها</SheetDescription>
-          </SheetHeader>
-
+      {/* فاز ۲۰: دراور مشترک DetailDrawer — دسکتاپ چپِ sm:max-w-xl، موبایل بات‌شیت گرد */}
+      <DetailDrawer
+        open={open}
+        onOpenChange={(o) => {
+          if (!o) onClose();
+        }}
+        title="نمای ۳۶۰ درجه مشتری"
+        description="اطلاعات کامل، سفارش‌ها، معاملات و فعالیت‌ها"
+        icon="customers"
+      >
           {isLoading ? (
             <div className="py-20 flex flex-col items-center gap-2">
               <Icon name="loading" size={28} className="animate-spin text-primary" />
@@ -570,14 +606,14 @@ function CustomerDetailDrawer({
                   </div>
                 )}
 
-                {detail.customer.balanceDue > 0 && (
+                {(detail.customer.unsettled ?? 0) > 0 && (
                   <div className="mt-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-2.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-rose-700 dark:text-rose-300 flex items-center gap-1">
                         <Icon name="wallet" size={12} /> مانده حساب
                       </span>
                       <span className="font-bold tabular-nums text-rose-700 dark:text-rose-300" dir="ltr">
-                        {formatCurrency(detail.customer.balanceDue)}
+                        {formatCurrency(detail.customer.unsettled ?? 0)}
                       </span>
                     </div>
                   </div>
@@ -604,43 +640,75 @@ function CustomerDetailDrawer({
                 </div>
 
                 <TabsContent value="orders" className="px-5 py-3 m-0">
-                  <div className="flex items-center justify-end mb-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setDealOpen(true)}
-                      className="gap-1.5"
-                    >
-                      <Icon name="plus" size={14} /> معامله جدید
-                    </Button>
+                  {/* ── سفارش‌های در جریان + فاکتور جمعی (خواستهٔ ۶ فاز ۲۰) ── */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-xs font-bold text-muted-foreground">
+                      سفارش‌های در جریان ({activeOrders.length})
+                    </span>
+                    {activeOrders.length > 0 && (
+                      <Button
+                        size="sm"
+                        onClick={() => setStatementOpen(true)}
+                        className="gap-1.5 h-8"
+                      >
+                        <Icon name="print" size={13} /> چاپ فاکتور سفارشات جاری
+                      </Button>
+                    )}
                   </div>
+
+                  {activeOrders.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="rounded-lg bg-card border p-2 text-center">
+                        <div className="text-[10px] text-muted-foreground">جمع سفارش‌های جاری</div>
+                        <div className="text-xs font-bold tabular-nums" dir="ltr">
+                          {formatCurrency(activeTotals.subtotal)}
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-card border p-2 text-center">
+                        <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+                        <div className="text-xs font-bold text-emerald-600 tabular-nums" dir="ltr">
+                          {formatCurrency(activeTotals.paid)}
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-card border p-2 text-center">
+                        <div className="text-[10px] text-muted-foreground">مانده</div>
+                        <div className="text-xs font-bold text-rose-600 tabular-nums" dir="ltr">
+                          {formatCurrency(activeTotals.balance)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {detail.orders.length === 0 ? (
                     <EmptyState icon="orders" title="سفارشی ندارد" />
                   ) : (
-                    <div className="space-y-2">
-                      {detail.orders.map((o) => (
-                        <div
-                          key={o.id}
-                          className="flex items-center gap-3 rounded-lg border p-2.5 hover:bg-accent/40 transition"
-                        >
-                          <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">
-                            #{o.number}
+                    <>
+                      <div className="space-y-2">
+                        {activeOrders.map((o) => (
+                          <OrderRow key={o.id} o={o} />
+                        ))}
+                        {activeOrders.length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            سفارش در جریانی نیست
+                          </p>
+                        )}
+                      </div>
+
+                      {/* خط جداکننده: بالای خط در جریان، پایین خط پایان‌یافته */}
+                      {pastOrders.length > 0 && (
+                        <>
+                          <div className="border-t my-3.5" />
+                          <span className="text-xs font-bold text-muted-foreground block mb-2">
+                            پایان‌یافته / آرشیو ({pastOrders.length})
+                          </span>
+                          <div className="space-y-2 opacity-75">
+                            {pastOrders.map((o) => (
+                              <OrderRow key={o.id} o={o} />
+                            ))}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium">سفارش #{o.number}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {relativeTime(o.createdAt)}
-                            </div>
-                          </div>
-                          <div className="text-left shrink-0">
-                            <div className="text-sm font-semibold tabular-nums" dir="ltr">
-                              {formatCurrency(o.totalAmount)}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">{o.status}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        </>
+                      )}
+                    </>
                   )}
                 </TabsContent>
 
@@ -744,10 +812,127 @@ function CustomerDetailDrawer({
                   )}
                 </TabsContent>
               </Tabs>
+
+              {/* ── منطقه خطر — حذف مشتری دور از دسترس (خواستهٔ ۸ فاز ۲۰) ── */}
+              <div className="border-t mt-2 px-5 py-4">
+                <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 p-3">
+                  <div className="text-xs font-bold text-rose-700 dark:text-rose-300">
+                    منطقهٔ خطر
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    حذف کامل مشتری فقط وقتی ممکن است که هیچ سفارش/فاکتور/سابقه‌ای نداشته باشد.
+                    برای امنیت داده‌ها این عمل از لیست جدا شده و نیازمند تایید دوباره است.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 text-rose-600 border-rose-300 dark:border-rose-800 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 gap-1.5"
+                    onClick={() => {
+                      setConfirmName("");
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <Icon name="trash" size={13} /> حذف کامل این مشتری
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : null}
-        </SheetContent>
-      </Sheet>
+      </DetailDrawer>
+
+      {/* فاکتور جمعی سفارش‌های جاری (خواستهٔ ۶ فاز ۲۰) */}
+      {detail && (
+        <Dialog open={statementOpen} onOpenChange={setStatementOpen}>
+          <DialogContent
+            aria-describedby={undefined}
+            className="sm:max-w-3xl max-h-[94vh] overflow-y-auto p-0 gap-0"
+          >
+            <DialogTitle className="sr-only">فاکتور سفارشات جاری</DialogTitle>
+            <div className="no-print flex items-center gap-2 px-4 py-3 border-b flex-wrap">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate">فاکتور سفارشات جاری</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {detail.customer.name} — {activeOrders.length} سفارش در جریان
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const res = printElementClean(
+                    "#printable-invoice",
+                    `Invoice - ${detail.customer.name} - Active Orders`
+                  );
+                  if (!res.ok && res.error === "popup-blocked") {
+                    toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+                  }
+                }}
+                className="gap-1.5 h-8 shadow-sm"
+              >
+                <Icon name="print" size={13} /> چاپ / ذخیره PDF
+              </Button>
+            </div>
+            <div className="doc-frame bg-muted/30 p-4" dir="ltr">
+              <P24StatementDoc
+                issueDate={new Date().toISOString()}
+                customerName={detail.customer.name}
+                customerPhone={detail.customer.phone ?? null}
+                rows={activeOrders.map((o) => ({
+                  number: o.number,
+                  date: o.createdAt,
+                  description:
+                    (o.items ?? [])
+                      .map((i) => i.product?.name)
+                      .filter(Boolean)
+                      .join(", ") || "—",
+                  amount: o.totalAmount,
+                }))}
+                subtotal={activeTotals.subtotal}
+                paid={activeTotals.paid}
+                closingNote={`Consolidated invoice for all active orders · ${COMPANY.name}`}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* تایید حذف با تایپ نام مشتری */}
+      {detail && (
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                حذف کامل «{detail.customer.name}»؟
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                این عمل قابل بازگشت نیست و کل اطلاعات مشتری پاک می‌شود. برای تایید،
+                نام دقیق مشتری را وارد کنید.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              placeholder={detail.customer.name}
+              dir="auto"
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel>انصراف</AlertDialogCancel>
+              <Button
+                variant="destructive"
+                disabled={confirmName.trim() !== detail.customer.name.trim() || deleteMut.isPending}
+                onClick={() => deleteMut.mutate()}
+                className="gap-1.5"
+              >
+                {deleteMut.isPending ? (
+                  <Icon name="loading" size={14} className="animate-spin" />
+                ) : (
+                  <Icon name="trash" size={14} />
+                )}
+                حذف قطعی
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {detail && (
         <>
@@ -774,6 +959,78 @@ function CustomerDetailDrawer({
         </>
       )}
     </>
+  );
+}
+
+// ردیف سفارش در تب سفارش‌های نمای ۳۶۰ — با وضعیت فارسی و پرداخت/مانده (فاز ۲۰)
+function OrderRow({ o }: { o: Order }) {
+  const paid = o.paidAmount ?? 0;
+  const due = Math.max(0, o.totalAmount - paid);
+  return (
+    <div className="flex items-center gap-3 rounded-lg border p-2.5 hover:bg-accent/40 transition">
+      <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">
+        #{o.number}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">سفارش #{o.number}</span>
+          <StatusBadge status={o.status} className="text-[10px] px-2 py-0.5" />
+        </div>
+        <div className="text-xs text-muted-foreground">{relativeTime(o.createdAt)}</div>
+      </div>
+      <div className="text-left shrink-0">
+        <div className="text-sm font-semibold tabular-nums" dir="ltr">
+          {formatCurrency(o.totalAmount)}
+        </div>
+        <div className="text-[10px] text-muted-foreground tabular-nums" dir="ltr">
+          پرداخت {formatCurrency(paid)} · مانده {formatCurrency(due)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Phase 20-E: کارت موبایل مشتری (نمای کارتی <768px) ───────────────
+// آواتار حرف اول + نام (+ستارهٔ ویژه) + تلفن ltr + تعداد سفارش‌ها +
+// چیپ مانده حساب (رز اگر بدهی، وگرنه زمرد «تسویه»).
+function CustomerMobileCard({ customer: c }: { customer: Customer }) {
+  const due = c.unsettled ?? 0;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="size-10 rounded-full bg-primary/10 text-primary grid place-items-center text-sm font-bold shrink-0">
+        {c.name.charAt(0).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        {/* ردیف ۱: نام + وضعیت مالی */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-bold truncate flex items-center gap-1 min-w-0">
+            {c.name}
+            {c.isFavorite && <Icon name="star" size={13} className="text-amber-500 shrink-0" />}
+          </span>
+          {due > 0 ? (
+            <span
+              dir="ltr"
+              className="text-[10px] font-semibold tabular-nums rounded-full bg-rose-100 px-2 py-0.5 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 shrink-0"
+            >
+              {formatCurrency(due)}
+            </span>
+          ) : (
+            <span className="text-[10px] font-medium rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 shrink-0">
+              تسویه
+            </span>
+          )}
+        </div>
+        {/* ردیف ۲: تلفن + تعداد سفارش */}
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <span className="text-xs text-muted-foreground tabular-nums truncate" dir="ltr">
+            {c.phone}
+          </span>
+          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+            {(c._count?.orders ?? 0).toLocaleString("fa-IR")} سفارش
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 

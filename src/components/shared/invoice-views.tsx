@@ -486,7 +486,11 @@ export function InvoiceDocPanel({
           </Button>
         )}
         <Button size="sm" onClick={() => {
-            const res = printElementClean("#printable-invoice");
+            // فاز ۲۰: نام فایل PDF = «Invoice No_ N - Customer»
+            const res = printElementClean(
+              "#printable-invoice",
+              `Invoice No_ ${invoice.number} - ${order.customer?.name ?? "Customer"}`
+            );
             if (!res.ok && res.error === "popup-blocked") {
               toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
             }
@@ -495,11 +499,10 @@ export function InvoiceDocPanel({
         </Button>
       </div>
 
-      {/* ─── سند چاپی A4 — تم P24 ─── */}
-      <div className="doc-frame bg-muted/30 p-4" dir="rtl">
+      {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز ۲۰) ─── */}
+      <div className="doc-frame bg-muted/30 p-4" dir="ltr">
         <P24Doc
           title="Invoice"
-          faTitle="فاکتور فروش"
           number={invoice.number}
           issueDate={invoice.issueDate}
           customerName={order.customer?.name ?? "—"}
@@ -513,11 +516,11 @@ export function InvoiceDocPanel({
           taxAmount={invoice.taxAmount}
           total={invoice.totalAmount}
           paid={invoice.paidAmount}
-          paidLabel="پرداخت‌شده"
+          paidLabel="Paid"
           notes={invoice.notes ?? null}
           terms={invoice.terms ?? null}
           schedule={null}
-          closingNote={`این فاکتور پس از صدور، سند مالی نهایی سفارش #${order.number} است · ${COMPANY.name}`}
+          closingNote={`This invoice is the final financial document of Order #${order.number} · ${COMPANY.name}`}
         />
       </div>
 

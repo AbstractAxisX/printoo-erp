@@ -16,16 +16,19 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-5">
+      <div className="flex items-center gap-3 min-w-0">
         {icon && (
-          <div className="size-10 rounded-xl bg-primary/10 text-primary grid place-items-center">
-            <Icon name={icon} size={22} />
+          <div className="size-9 sm:size-10 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+            <Icon name={icon} size={20} />
           </div>
         )}
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">{title}</h1>
-          {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">{title}</h1>
+          {/* ۲۰-اِ: توضیح بلند فقط دسکتاپ — در موبایل فضا عمودی آزاد می‌شود */}
+          {description && (
+            <p className="text-sm text-muted-foreground mt-0.5 hidden sm:block">{description}</p>
+          )}
         </div>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}

@@ -18,20 +18,30 @@ export type UseOrdersQueryArgs = {
   customerId: string | null;
   productId: string | null;
   excludeArchived?: boolean;
+  /** Phase 20 — فیلدهای تجمیعی هزینه/پیوست هر سفارش (?withAggregates=1) */
+  withAggregates?: boolean;
 };
 
 export function useOrdersQuery({
   customerId,
   productId,
   excludeArchived,
+  withAggregates,
 }: UseOrdersQueryArgs) {
   const ordersQ = useQuery({
-    queryKey: ["orders", customerId, productId, excludeArchived ?? false],
+    queryKey: [
+      "orders",
+      customerId,
+      productId,
+      excludeArchived ?? false,
+      withAggregates ?? false,
+    ],
     queryFn: () => {
       const params = new URLSearchParams();
       if (customerId) params.set("customerId", customerId);
       if (productId) params.set("productId", productId);
       if (excludeArchived) params.set("excludeArchived", "true");
+      if (withAggregates) params.set("withAggregates", "1");
       const qs = params.toString();
       return api<{ orders: Order[] }>(`/api/orders${qs ? `?${qs}` : ""}`);
     },

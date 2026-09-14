@@ -364,9 +364,12 @@ export function FinanceOrderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* 20-E — min-w-6xl فقط زیرِ viewport ~1184px فعال می‌شد و همان‌جا
+          سرریز می‌ساخت؛ با sm:max-w-6xl جایگزین شد (دسکتاپ ≥1184 عین قبل).
+          موبایل: عرض کامل منهای 2rem + اسکرول واحد؛ دسکتاپ: overflow-hidden. */}
       <DialogContent
         aria-describedby={undefined}
-        className="min-w-6xl overflow-hidden p-0 gap-0 rounded-xl"
+        className="sm:max-w-6xl max-h-[94dvh] overflow-y-auto scrollbar-thin sm:overflow-hidden sm:max-h-[94vh] p-0 gap-0 rounded-xl [&>*]:min-w-0"
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-violet-500/8 via-violet-500/3 to-transparent">
@@ -461,7 +464,8 @@ export function FinanceOrderModal({
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab} dir="rtl" className="flex-1 flex flex-col min-h-0">
           <div className="px-6 pt-3 pb-0 border-b bg-muted/20">
-            <TabsList className="bg-transparent p-0 h-auto gap-1">
+            {/* 20-E — موبایل: نوار تب عریض داخل اسکرول افقی */}
+            <TabsList className="bg-transparent p-0 h-auto gap-1 max-w-full overflow-x-auto scrollbar-thin">
               <TabsTrigger
                 value="intro"
                 className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
@@ -499,7 +503,7 @@ export function FinanceOrderModal({
 
           {/* ── Tab 1: معرفی سفارش ── */}
           <TabsContent value="intro" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
-            <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4" style={{ maxHeight: "52vh" }}>
+            <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4 max-h-none sm:max-h-[52vh]">
               {/* الان کجاست و دست کیست */}
               {activeStages.length > 0 ? (
                 <div className="rounded-xl border bg-muted/20 p-4">
@@ -541,7 +545,10 @@ export function FinanceOrderModal({
                     ({(order.items ?? []).length.toLocaleString("fa-IR")})
                   </span>
                 </div>
+                {/* 20-E — موبایل: جدول آیتم‌ها داخل اسکرول افقی */}
                 <div className="rounded-xl border overflow-hidden">
+                  <div className="overflow-x-auto scrollbar-thin">
+                    <div className="min-w-[540px]">
                   <div className="grid grid-cols-[1fr_70px_90px_110px_100px] gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
                     <span>محصول</span>
                     <span className="text-center">تعداد</span>
@@ -583,8 +590,10 @@ export function FinanceOrderModal({
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 </div>
+              </div>
               </div>
 
               {order.note && (
@@ -600,7 +609,7 @@ export function FinanceOrderModal({
 
           {/* ── Tab 2: تاریخچهٔ مالی ── */}
           <TabsContent value="money" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
-            <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-5" style={{ maxHeight: "52vh" }}>
+            <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-5 max-h-none sm:max-h-[52vh]">
               {/* پیش‌فاکتورها */}
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -1043,7 +1052,7 @@ export function FinanceOrderModal({
           </TabsContent>
           {/* ── Tab 3: ثبت هزینه (Phase 17-A) ── */}
           <TabsContent value="costs" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
-            <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5" style={{ maxHeight: "52vh" }}>
+            <div className="overflow-y-auto scrollbar-thin px-6 py-5 space-y-5 max-h-none sm:max-h-[52vh]">
               {/* سربرگ: سفارش + خلاصهٔ زندهٔ هزینه‌ها */}
               <div className="rounded-xl border bg-gradient-to-l from-violet-500/[0.04] to-transparent p-4 flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -1118,6 +1127,9 @@ export function FinanceOrderModal({
                   </div>
                 ) : (
                   <div className="rounded-xl border  overflow-hidden">
+                    {/* 20-E — موبایل: جدول هزینه‌ها داخل اسکرول افقی */}
+                    <div className="overflow-x-auto scrollbar-thin">
+                      <div className="min-w-[620px]">
                     {/* سربرگ جدول */}
                     <div className="grid grid-cols-[1fr_90px_110px_90px_170px] items-center gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
                       <span>هزینه</span>
@@ -1180,7 +1192,9 @@ export function FinanceOrderModal({
                           </div>
                         );
                       })}
+                      </div>
                     </div>
+                  </div>
                   </div>
                 )}
               </div>

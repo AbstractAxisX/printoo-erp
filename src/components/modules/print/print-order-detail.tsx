@@ -343,7 +343,10 @@ export function PrintOrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent aria-describedby={undefined}   className="!min-w-7xl max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
+        {/* 20-E — !min-w-7xl فقط در viewport‌های <1312 فعال می‌شد و همان‌جا
+            سرریز افقی می‌ساخت؛ حذف شد (دسکتاپ ≥1312 عین قبل: عرض = viewport−32).
+            موبایل: اسکرول واحد؛ دسکتاپ: overflow-hidden عین قبل. */}
+        <DialogContent aria-describedby={undefined}   className="max-h-[92dvh] overflow-y-auto scrollbar-thin sm:overflow-hidden sm:max-h-[92vh] p-0 gap-0 rounded-xl [&>*]:min-w-0">
           {/* Header — عریض، متریک‌های ۴تایی */}
           <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-amber-500/8 via-amber-500/3 to-transparent">
             <div className="flex items-start justify-between gap-3">
@@ -495,8 +498,7 @@ export function PrintOrderDetailModal({
             {/* ── Tab 1: جزئیات سفارش ── */}
             <TabsContent value="details" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
               <div
-                className="overflow-y-auto scrollbar-thin px-6 py-4"
-                style={{ maxHeight: "52vh" }}
+                className="overflow-y-auto scrollbar-thin px-6 py-4 max-h-none sm:max-h-[52vh]"
               >
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   {/* ستون اصلی: آیتم‌ها */}
@@ -699,8 +701,7 @@ export function PrintOrderDetailModal({
             {/* ── Tab 2: هزینه‌ها — فرم اینلاین + لیست ── */}
             <TabsContent value="costs" className="mt-0 flex-1 min-h-0 data-[state=inactive]:hidden">
               <div
-                className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-5"
-                style={{ maxHeight: "52vh" }}
+                className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-5 max-h-none sm:max-h-[52vh]"
               >
                 {/* فرم ثبت هزینه — عین افزودن آیتم ویزارد (اینلاین، نه دیالوگ) */}
                 <div className="rounded-xl border bg-gradient-to-l from-primary/[0.04] to-transparent p-4">
@@ -759,6 +760,9 @@ export function PrintOrderDetailModal({
                     </div>
                   ) : (
                     <div className="rounded-xl border overflow-hidden">
+                      {/* 20-E — موبایل: جدول عریض داخل اسکرول افقی */}
+                      <div className="overflow-x-auto scrollbar-thin">
+                        <div className="min-w-[620px]">
                       {/* سربرگ جدول */}
                       <div className="grid grid-cols-[1fr_120px_100px_90px_150px_36px] items-center gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
                         <span>هزینه</span>
@@ -849,7 +853,9 @@ export function PrintOrderDetailModal({
                             </div>
                           );
                         })}
+                        </div>
                       </div>
+                    </div>
                     </div>
                   )}
                 </div>

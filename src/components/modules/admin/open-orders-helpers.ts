@@ -20,6 +20,9 @@ export type OpenOrder = {
   totalAmount: number;
   priority: string;
   createdAt: string;
+  // Phase 20 — یادداشت سفارش (تب «یادداشت‌ها» جدول) + تجمیع‌های
+  // هزینه/پیوست (?withAggregates=1 — تب‌های هزینه/پیوست + کانبان)
+  note?: string | null;
   customer: { id: string; name: string; phone: string };
   items: {
     id: string;
@@ -28,9 +31,15 @@ export type OpenOrder = {
     quantity: number;
     totalAmount: number;
     stage: string;
+    note?: string | null;
     designEndDate: string | null;
     printEndDate: string | null;
   }[];
+  costsCount?: number;
+  costsTotal?: number;
+  costsApproved?: number;
+  costsPending?: number;
+  attachmentsCount?: number;
 };
 
 export type Stage = "all" | "pending_design" | "in_printing" | "warehouse_logistics";

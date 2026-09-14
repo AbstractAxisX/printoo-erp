@@ -64,6 +64,57 @@ function activeStageOf(o: Order): { label: string; cls: string } {
   return { label: "تکمیل", cls: STATUS_TONE.completed };
 }
 
+// ─── Phase 20-E: کارت موبایل سفارش — نمای مالی (<768px) ───────────────
+// #شماره + وضعیت + «الان کجاست» / مشتری + تلفن / جمع + پرداخت‌شده (+مانده).
+function FinanceOrderMobileCard({ order: o }: { order: Order }) {
+  const st = activeStageOf(o);
+  const rem = o.totalAmount - o.paidAmount;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-sm font-bold">#{o.number}</span>
+        <StatusBadge status={o.status} />
+        <span className={cn("text-[10px] px-2 py-0.5 rounded-full", st.cls)}>{st.label}</span>
+      </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-medium truncate">{o.customer?.name ?? "—"}</span>
+        {o.customer?.phone && (
+          <span className="text-xs text-muted-foreground tabular-nums shrink-0" dir="ltr">
+            {o.customer.phone}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-4">
+        <div>
+          <div className="text-[10px] text-muted-foreground">جمع</div>
+          <div className="text-sm font-semibold tabular-nums" dir="ltr">
+            {formatCurrency(o.totalAmount)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+          <div
+            className={cn(
+              "text-sm font-medium tabular-nums",
+              rem > 0.001 && o.status !== "cancelled"
+                ? "text-rose-600 dark:text-rose-400"
+                : "text-emerald-600 dark:text-emerald-400"
+            )}
+            dir="ltr"
+          >
+            {formatCurrency(o.paidAmount)}
+          </div>
+        </div>
+        {rem > 0.001 && o.status !== "cancelled" && (
+          <span className="text-[11px] text-rose-600 dark:text-rose-400 tabular-nums ms-auto" dir="ltr">
+            مانده {formatCurrency(rem)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────
 
 export function FinanceOrders() {
@@ -288,6 +339,8 @@ export function FinanceOrders() {
           isLoading={isLoading}
           pageSize={12}
           onRowClick={(o) => openOrder(o.id)}
+          // 20-E — نمای کارتی موبایل (کلیک = مودال مالی سفارش)
+          renderCard={(o) => <FinanceOrderMobileCard order={o} />}
           emptyState={
             <EmptyState
               icon="orders"

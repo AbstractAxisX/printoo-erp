@@ -230,7 +230,8 @@ export function DesignerOrderDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent aria-describedby={undefined} className="max-w-3xl w-[calc(100%-2rem)] max-h-[92vh] overflow-hidden p-0 gap-0 rounded-xl">
+        {/* 20-E — موبایل: اسکرول واحد مودال؛ دسکتاپ عین قبل */}
+        <DialogContent aria-describedby={undefined} className="max-w-3xl w-[calc(100%-2rem)] max-h-[92dvh] overflow-y-auto scrollbar-thin sm:overflow-hidden sm:max-h-[92vh] p-0 gap-0 rounded-xl [&>*]:min-w-0">
           {/* Header */}
           <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-violet-500/5 to-transparent">
             <div className="flex items-start justify-between gap-3">
@@ -328,8 +329,8 @@ export function DesignerOrderDetailModal({
             )}
           </div>
 
-          {/* Body — scrollable */}
-          <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4" style={{ maxHeight: "60vh" }}>
+          {/* Body — scrollable (20-E: موبایل بدون سقف — اسکرول واحد مودال) */}
+          <div className="overflow-y-auto scrollbar-thin px-6 py-4 space-y-4 max-h-none sm:max-h-[60vh]">
             {/* آیتم‌های در صف طراحی (فعال) */}
             <div>
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">

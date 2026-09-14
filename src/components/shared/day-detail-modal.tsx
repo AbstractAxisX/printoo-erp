@@ -1,8 +1,14 @@
 "use client";
 
-// Printoo24 ERP — Day Detail Modal (Phase 6.5 layout rebuild)
+// Printoo24 ERP — Day Detail (فاز ۲۰: مودال → دراور DetailDrawer)
 //
-// ساختار جدید (پس از بازخورد «بهم ریخته»):
+// ساختار دراور جزئیات روز (الگوی مشترک فاز ۲۰):
+//   • دسکتاپ: دراور چپِ تمام‌ارتفاع (sm:max-w-2xl) — موبایل: بات‌شیت گرد.
+//   • سربرگ دراور: روز هفته + تاریخ میلادی + شمار رویدادها.
+//   • ردیف تب‌ها + چیپ‌های فوری/یادداشت.
+//   • بدنهٔ اسکرول‌شونده: سایدبار آمار + محتوای تب.
+//   • ویرایشگر یادداشت روز — سنجاق‌شده پایین.
+// (ساختار قدیمی فاز ۶.۵):
 //   ┌────────────────────────────────────────────┐
 //   │ هدر تمام‌عرض: تاریخ شمسی بزرگ + چیپ‌ها      │ ← X در همین ردیف جا می‌گیرد
 //   ├────────────────────────────────────────────┤
@@ -18,7 +24,7 @@
 
 import * as React from "react";
 import { format, differenceInCalendarDays, parseISO, isValid } from "date-fns";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -147,46 +153,18 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   const urgentCount = urgentOrders.length + urgentTasks.length;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        aria-describedby={undefined}
-        className="sm:max-w-5xl w-[calc(100%-1.5rem)] max-h-[90vh] overflow-hidden p-0 gap-0 rounded-xl flex flex-col"
-      >
-        <DialogTitle className="sr-only">جزئیات روز {format(date, "yyyy/MM/dd")}</DialogTitle>
+    <DetailDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      icon="calendar"
+      title={`${weekdayFmt.format(date)} ${format(date, "yyyy/MM/dd")}`}
+      description={`${faNum(totalEvents)} رویداد در این روز`}
+      widthClass="sm:max-w-2xl"
+    >
+      <div className="flex h-full min-h-0 flex-col">
 
-        {/* ─── هدر تمام‌عرض: تاریخ میلادی + اطلاعات روز ────────── */}
-        <div className="shrink-0 flex items-center gap-4 px-6 pt-4 pb-3.5 pr-14 border-b bg-gradient-to-l from-primary/10 via-primary/5 to-transparent">
-          {/* عدد بزرگ روز (میلادی) */}
-          <div className="text-center shrink-0 -my-1">
-            <div className="text-4xl font-black tabular-nums leading-none bg-gradient-to-b from-primary to-primary/60 bg-clip-text text-transparent" dir="ltr">
-              {format(date, "d")}
-            </div>
-            <div className="text-[10px] font-bold text-muted-foreground tracking-wide mt-1" dir="ltr">{format(date, "yyyy/MM")}</div>
-          </div>
-          <div className="h-10 w-px bg-border shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold flex items-baseline gap-2 flex-wrap">
-              <span>{weekdayFmt.format(date)}</span>
-              <span className="text-muted-foreground font-medium tabular-nums" dir="ltr">{format(date, "yyyy/MM/dd")}</span>
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-              <span>{faNum(totalEvents)} رویداد</span>
-            </div>
-          </div>
-          {urgentCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 shrink-0">
-              <Icon name="alertTriangle" size={11} /> {faNum(urgentCount)} فوری
-            </span>
-          )}
-          {hasNote && (
-            <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 shrink-0">
-              <Icon name="pencil" size={11} /> یادداشت
-            </span>
-          )}
-        </div>
-
-        {/* ─── تب‌های تمام‌عرض ─────────────────────────────────────── */}
-        <div className="shrink-0 flex items-center gap-1.5 px-6 py-2 border-b bg-card/60 flex-wrap">
+        {/* ─── تب‌های تمام‌عرض + چیپ‌های وضعیت ─────────────────── */}
+        <div className="shrink-0 flex items-center gap-1.5 px-5 py-2 border-b bg-card/60 flex-wrap">
           {([
             { id: "overview", label: "نمای کلی", icon: "dashboard" as const },
             { id: "orders", label: `سفارشات (${faNum(orders.length)})`, icon: "orders" as const },
@@ -206,13 +184,28 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
               <Icon name={t.icon} size={13} /> {t.label}
             </button>
           ))}
+
+          {/* چیپ‌های وضعیت — فوری + یادداشت (از هدر قدیمی مودال) */}
+          <span className="ms-auto flex items-center gap-1.5 shrink-0">
+            {urgentCount > 0 && (
+              <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+                <Icon name="alertTriangle" size={11} /> {faNum(urgentCount)} فوری
+              </span>
+            )}
+            {hasNote && (
+              <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                <Icon name="pencil" size={11} /> یادداشت
+              </span>
+            )}
+          </span>
         </div>
 
-        {/* ─── بدنه دوستونه: سایدبار آمار + محتوا ─────────────────── */}
-        <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+        {/* ─── بدنه دوستونه: سایدبار آمار + محتوا (اسکرول واحد) ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+          <div className="flex flex-col md:flex-row">
 
           {/* سایدبار (در RTL سمت راست) */}
-          <aside className="md:w-56 shrink-0 md:overflow-y-auto scrollbar-thin bg-muted/20 p-3.5 flex flex-row md:flex-col gap-2.5 md:gap-2 md:border-l border-b md:border-b-0">
+          <aside className="md:w-56 shrink-0 bg-muted/20 p-3.5 flex flex-row md:flex-col gap-2.5 md:gap-2 md:border-l border-b md:border-b-0">
             <SideStat label="کل رویدادها" value={totalEvents} icon="inbox" tone="text-foreground" />
             <SideStat label="سفارشات" value={orders.length} icon="orders" tone="text-blue-600 dark:text-blue-400" />
             <SideStat label="تسک‌ها" value={tasks.length} icon="task" tone="text-emerald-600 dark:text-emerald-400" />
@@ -230,12 +223,12 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
           </aside>
 
           {/* محتوای اصلی */}
-          <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin p-5">
+          <div className="flex-1 min-w-0 px-5 py-4">
 
             {/* OVERVIEW TAB */}
             {tab === "overview" && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
                   <StatCard label="کل رویدادها" value={totalEvents} icon="inbox" color="bg-primary/10 text-primary" />
                   <StatCard label="سفارشات" value={orders.length} icon="orders" color="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400" />
                   <StatCard label="تسک‌ها" value={tasks.length} icon="task" color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" />
@@ -300,10 +293,11 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
               <EventList events={reports} onEventClick={onEventClick} emptyMessage="گزارشی در این روز نیست" />
             )}
           </div>
+          </div>
         </div>
 
         {/* ─── ویرایشگر یادداشت — تمام‌عرض، در همه تب‌ها ─────────────── */}
-        <div className="shrink-0 border-t bg-muted/30 px-6 py-3">
+        <div className="shrink-0 border-t bg-muted/30 px-5 py-3">
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <div className="text-xs font-semibold flex items-center gap-1.5 shrink-0">
               <Icon name="pencil" size={13} className="text-amber-600" /> یادداشت این روز
@@ -356,8 +350,8 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </DetailDrawer>
   );
 }
 

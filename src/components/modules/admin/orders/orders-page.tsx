@@ -16,7 +16,9 @@
 // 11–100s of orders don't need windowing; simplicity wins.
 
 import * as React from "react";
-import { PageHeader, EmptyState } from "@/components/shared";
+import { PageHeader, EmptyState, StatusBadge } from "@/components/shared";
+import { formatCurrency, formatDate, relativeTime, daysRemaining } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,8 @@ import {
   OrderDeleteDialog,
 } from "./order-modals";
 import { orderMatchesFilters, type Order } from "./types";
+import { OrderTableTabs, type OrderTableTab } from "./order-table-tabs";
+import { getOrderTabColumns } from "./columns-by-tab";
 import { ITEM_STAGE } from "@/lib/constants";
 
 export function OrdersPage() {
@@ -45,10 +49,15 @@ export function OrdersPage() {
   const { openOrder, modal } = useOrderDetail();
   const filters = useOrdersFilters();
 
+  // Phase 20 — تب‌های جنبه‌ای بالای جدول (همه | آیتم‌ها | هزینه‌ها | …)
+  const [tableTab, setTableTab] = React.useState<OrderTableTab>("all");
+
+  // Phase 20 — withAggregates=1: تجمیع هزینه/پیوست برای تب‌های هزینه/پیوست
   const { orders, customers, products, isLoading, isError, refetch } =
     useOrdersQuery({
       customerId: filters.filters.customerFilter,
       productId: filters.filters.productFilter,
+      withAggregates: true,
     });
 
   // Apply client-side dims (status/priority/stage/date). Server already
@@ -82,6 +91,12 @@ export function OrdersPage() {
     onOpenInvoice: (o) => setInvOrder(o),
   });
 
+  // Phase 20 — ستون‌های تب غیر از «همه» (ردیف ساده، کلیک ردیف → مودال).
+  // «همه» عین ستون‌های کامل امروز می‌ماند (expand گروهی + اکشن‌ها).
+  const activeColumns =
+    tableTab === "all" ? columns : getOrderTabColumns<Order>(tableTab);
+  const isAllTab = tableTab === "all";
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-5">
@@ -114,21 +129,30 @@ export function OrdersPage() {
             </Button>
           </div>
         ) : (
-          <Card className="p-4">
+          <Card className="p-4 space-y-3">
+            {/* Phase 20 — تب‌های جنبه‌ای (زیر فیلترها، بالای جدول) */}
+            <OrderTableTabs value={tableTab} onChange={setTableTab} />
             <DataTable
-              columns={columns}
+              columns={activeColumns}
               data={visibleOrders}
               isLoading={isLoading}
               pageSize={10}
               showColumnToggle
               // Phase 9 — ردیف‌های بازشوندهٔ سفارش گروهی (dropdown آیتم‌ها)
-              getRowCanExpand={(o) => (o.items?.length ?? 0) > 1}
+              // Phase 20 — فقط در تب «همه» (بقیه تب‌ها ردیف ساده دارند)
+              getRowCanExpand={
+                isAllTab ? (o) => (o.items?.length ?? 0) > 1 : undefined
+              }
               expandOnRowClick={false}
-              renderExpandedRow={(o) => <GroupedItemsRow order={o} />}
+              renderExpandedRow={
+                isAllTab ? (o) => <GroupedItemsRow order={o} /> : undefined
+              }
               // مرحله/تاریخ ساخت به‌طور پیش‌فرض مخفی — جدول در عرض صفحه جا
               // می‌شود (بدون اسکرول افقی). از منوی «ستون‌ها» قابل بازگشتن‌اند.
-              defaultHidden={["stage", "createdAt"]}
+              defaultHidden={isAllTab ? ["stage", "createdAt"] : undefined}
               onRowClick={(o) => openOrder(o.id)}
+              // 20-E — نمای کارتی موبایل (همان فیلتر/صفحه‌بندی؛ کلیک = مودال جزئیات)
+              renderCard={(o) => <OrderMobileCard order={o} />}
               emptyState={
                 <EmptyState
                   icon="orders"
@@ -168,6 +192,66 @@ export function OrdersPage() {
         {modal}
       </div>
     </TooltipProvider>
+  );
+}
+
+// ─── Phase 20-E: کارت موبایل سفارش (نمای کارتی <768px) ──────────────
+// فشرده و اطلاع‌رسان: #شماره + وضعیت + فوری + زمان نسبی / مشتری + تلفن /
+// چیپ آیتم‌ها (max 2 + +N) / مبلغ کل + موعد تحویل (رز اگر گذشته).
+function OrderMobileCard({ order: o }: { order: Order }) {
+  const dr = o.noEndDate ? null : o.endDate ? daysRemaining(o.endDate) : null;
+  const overdue = dr?.status === "overdue";
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-sm font-bold">#{o.number}</span>
+        <StatusBadge status={o.status} />
+        {o.priority === "urgent" && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 inline-flex items-center gap-1">
+            <Icon name="alertTriangle" size={10} /> فوری
+          </span>
+        )}
+        <span className="text-[11px] text-muted-foreground ms-auto">{relativeTime(o.createdAt)}</span>
+      </div>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm font-medium truncate">{o.customer?.name ?? "—"}</span>
+        {o.customer?.phone && (
+          <span className="text-xs text-muted-foreground tabular-nums shrink-0" dir="ltr">
+            {o.customer.phone}
+          </span>
+        )}
+      </div>
+      {(o.items?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {o.items.slice(0, 2).map((it) => (
+            <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate max-w-[120px]">
+              {it.product?.name ?? "—"}
+            </span>
+          ))}
+          {o.items.length > 2 && (
+            <span className="text-xs text-muted-foreground self-center">+{o.items.length - 2}</span>
+          )}
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold tabular-nums" dir="ltr">
+          {formatCurrency(o.totalAmount)}
+        </span>
+        {o.noEndDate ? (
+          <span className="text-[11px] text-muted-foreground">بدون موعد</span>
+        ) : o.endDate ? (
+          <span
+            className={cn(
+              "text-[11px] tabular-nums flex items-center gap-1",
+              overdue ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground"
+            )}
+          >
+            {overdue && <Icon name="alertTriangle" size={11} />}
+            موعد {formatDate(o.endDate)}
+          </span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

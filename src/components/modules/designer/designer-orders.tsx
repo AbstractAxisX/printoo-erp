@@ -74,6 +74,50 @@ function orderTimeState(o: DesignerOrder): "overdue" | "today" | "near" | "later
 }
 
 // ─── Component ────────────────────────────────────────────────────────
+// ─── Phase 20-E: کارت موبایل سفارش طراحی (<768px) ──────────────────
+// #شماره + اولویت + وضعیت / مشتری / چیپ آیتم‌ها / موعد طراحی رنگی.
+function DesignerOrderMobileCard({ order: o }: { order: DesignerOrder }) {
+  const end = effectiveDesignDeadline(o);
+  const dr = end ? daysRemaining(end) : null;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-mono text-sm font-bold">#{o.number}</span>
+        <PriorityBadge priority={o.priority} />
+        <span className="ms-auto"><StatusBadge status={o.status} /></span>
+      </div>
+      <div className="text-sm font-medium truncate">{o.customer?.name ?? "—"}</div>
+      {(o.items ?? []).length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {o.items.slice(0, 2).map((it) => (
+            <span key={it.id} className="text-xs bg-muted rounded px-1.5 py-0.5 truncate max-w-[120px]">
+              {it.product?.name ?? "—"}
+            </span>
+          ))}
+          {o.items.length > 2 && (
+            <span className="text-xs text-muted-foreground self-center">+{o.items.length - 2}</span>
+          )}
+        </div>
+      )}
+      {end ? (
+        <div
+          className={cn(
+            "text-[11px] tabular-nums flex items-center gap-1",
+            dr?.status === "overdue" && "text-rose-600 dark:text-rose-400",
+            dr?.status === "today" && "text-amber-600 dark:text-amber-400",
+            dr?.status === "remaining" && "text-emerald-600 dark:text-emerald-400"
+          )}
+        >
+          <Icon name={dr?.status === "overdue" ? "alertTriangle" : "clock"} size={11} />
+          موعد طراحی {formatDate(end)}{dr && dr.status !== "none" ? ` · ${dr.text}` : ""}
+        </div>
+      ) : (
+        <div className="text-[11px] text-muted-foreground">بدون موعد طراحی</div>
+      )}
+    </div>
+  );
+}
+
 export function DesignerOrders() {
   const navigate = useAppStore((s) => s.navigate);
   const boardFilter = useAppStore((s) => s.boardFilter);
@@ -369,6 +413,8 @@ export function DesignerOrders() {
           data={orders}
           isLoading={isLoading}
           onRowClick={(row) => openOrder(row.id)}
+          // 20-E — نمای کارتی موبایل
+          renderCard={(o) => <DesignerOrderMobileCard order={o} />}
           showColumnToggle={false}
           pageSize={15}
           emptyState={
