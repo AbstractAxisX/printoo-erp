@@ -58,6 +58,8 @@ export type DashboardData = {
     overdue: { count: number; oldestDays: number };
     pendingCosts: { count: number; sum: number };
     profit: { revenue: number; costs: number; net: number };
+    // Phase 22 (خواستهٔ ۶): سفارش‌های زیان‌ده (هزینهٔ تأییدشده > مبلغ)
+    lossOrders?: { count: number; sum: number; top: { name: string; due: number }[] };
   };
   recentOrders: DashboardOrder[];
   nearDeadlineOrders: DashboardOrder[];

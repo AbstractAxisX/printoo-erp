@@ -184,7 +184,7 @@ export const NAV: ModuleNav[] = [
         label: "گردش مالی",
         icon: "coins",
         items: [
-          { id: "revenues", label: "درآمدها", icon: "trending", page: "revenues" },
+          { id: "revenues", label: "دریافتی‌ها", icon: "trending", page: "revenues" },
           { id: "unsettled", label: "تسویه‌نشده", icon: "wallet", page: "unsettled" },
         ],
       },

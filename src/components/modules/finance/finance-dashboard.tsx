@@ -170,12 +170,12 @@ export function FinanceDashboard() {
     },
     {
       key: "revenue",
-      label: "مجموع درآمدها",
+      label: "مجموع دریافتی‌ها",
       icon: "trending",
       color: "emerald",
       value: s.revenueSum ?? 0,
       isAmount: true,
-      hint: "دریافتی‌های مشتریان",
+      hint: "پولی که هزینه‌ها رویش حساب نشده",
       onClick: () => navigate("finance", "revenues"),
     },
     {
@@ -185,7 +185,7 @@ export function FinanceDashboard() {
       color: "teal",
       value: s.netProfit ?? 0,
       isAmount: true,
-      hint: "درآمد − هزینه",
+      hint: "دریافتی − هزینه",
     },
     {
       key: "unsettled",

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { computeInvoice, isInvoiceStatus } from "@/lib/invoice";
-import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
+import { applyPaidAmountChange, inferRevenueModule, syncOrderTotalFromInvoice } from "@/lib/paid-sync";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -172,6 +172,11 @@ export async function POST(req: NextRequest) {
           note: `صدور فاکتور #${num}`,
         },
       });
+
+      // Phase 22 (خواستهٔ ۱۰): تخفیف/مالیات فاکتور روی دادهٔ مالی سفارش هم
+      // بنشیند — total فاکتور = total سفارش (بدهی مشتری، بستانکار، ۳۶۰،
+      // فاکتور جمعی همه هم‌عدد فاکتور می‌شوند).
+      await syncOrderTotalFromInvoice(tx, orderId, computed.totalAmount);
 
       await tx.notification.create({
         data: {

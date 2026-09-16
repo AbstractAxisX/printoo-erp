@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { computeTotals, itemsFromOrderItems } from "@/lib/pre-invoice";
+import { syncOrderTotalFromInvoice } from "@/lib/paid-sync";
 import { nextNumber, ensureCounters } from "@/lib/counter";
 import { jsonError } from "@/lib/api-error";
 
@@ -144,6 +145,10 @@ export async function POST(
         where: { orderId: existing.orderId, status: "approved" },
         data: { status: "converted" },
       });
+
+      // Phase 22 (خواستهٔ ۱۰): تخفیف/مالیات سند تبدیل‌شده روی دادهٔ مالی
+      // سفارش هم بنشیند (هم‌عدد شدن بدهی/۳۶۰/فاکتور جمعی با فاکتور).
+      await syncOrderTotalFromInvoice(tx, existing.orderId, totalAmount);
 
       const preInvoice = await tx.preInvoice.findUnique({ where: { id } });
 

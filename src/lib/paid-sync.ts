@@ -151,3 +151,41 @@ export async function recomputeOrderPaidFromPIs(tx: Tx, orderId: string): Promis
   const total = agg._sum.paidAmount ?? 0;
   await tx.order.update({ where: { id: orderId }, data: { paidAmount: total } });
 }
+
+// ─── Phase 22 (خواستهٔ ۱۰): فاکتور = حقیقتِ مالی سفارش ──────────────
+// قبلاً تخفیف فقط روی سند فاکتور اعمال می‌شد و order.totalAmount روی
+// جمعِ خامِ اقلام می‌ماند → بدهی مشتری/بستانکار/نمای ۳۶۰/فاکتور جمعی
+// همه «بدون تخفیف» حساب می‌شدند. حالا total فاکتورِ فعال (شامل تخفیف،
+// مالیات و هزینه‌های فاکتوری) روی order.totalAmount هم می‌نشیند.
+// فراخوانی از: صدور/ویرایش فاکتور، تبدیل پیش‌فاکتور.
+export async function syncOrderTotalFromInvoice(
+  tx: Tx,
+  orderId: string,
+  invoiceTotal: number
+): Promise<void> {
+  const total = Math.max(0, Math.round(invoiceTotal));
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    select: { totalAmount: true },
+  });
+  if (!order || Math.abs(order.totalAmount - total) <= 0.001) return;
+  await tx.order.update({ where: { id: orderId }, data: { totalAmount: total } });
+}
+
+// برگشت به حالت «پیش از فاکتور»: total سفارش = Σ مبلغ اقلام − هدیه.
+// برای ابطل/حذف فاکتور (سند دیگر حقیقت مالی نیست). دقت: هدیهٔ ثبت‌شده
+// پابرجا است — total باید مثل لحظهٔ قبل از فاکتور «بعد از هدیه» باشد.
+export async function recomputeOrderTotalFromItems(tx: Tx, orderId: string): Promise<void> {
+  const [agg, order] = await Promise.all([
+    tx.orderItem.aggregate({
+      where: { orderId },
+      _sum: { totalAmount: true },
+    }),
+    tx.order.findUnique({
+      where: { id: orderId },
+      select: { giftAmount: true },
+    }),
+  ]);
+  const total = Math.max(0, Math.round((agg._sum.totalAmount ?? 0) - (order?.giftAmount ?? 0)));
+  await tx.order.update({ where: { id: orderId }, data: { totalAmount: total } });
+}

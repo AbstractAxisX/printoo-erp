@@ -27,11 +27,10 @@ export type KpiCardConfig = {
 };
 
 export const KPI_CARDS: KpiCardConfig[] = [
-  // Phase 19: «درآمد» = پول واقعاً دریافت‌شده (RevenueLog) — subValue = سود خالص
-  // دوره (درآمد − هزینه)؛ KPI قدیمی «پرداخت‌های دریافتی» (مدل Payment بدون
-  // write) و درآمدِ مبتنی بر ارزش سفارش حذف شدند (خواستهٔ صریح: فاکتور بدون
-  // دریافت پول نباید در درآمد بنشیند).
-  { key: "revenue", label: "درآمد دریافتی", icon: "wallet", color: "emerald", isCurrency: true, subValueLabel: "سود خالص (درآمد − هزینه)" },
+  // Phase 19 + فاز ۲۲: «دریافتی» = پول واقعاً دریافت‌شده (RevenueLog) —
+  // subValue = سود خالص دوره (دریافتی − هزینه)؛ نام از «درآمد» به «دریافتی»
+  // تغییر کرد چون درآمد حس سود می‌داد (خواستهٔ صریح کارفرما).
+  { key: "revenue", label: "دریافتی", icon: "wallet", color: "emerald", isCurrency: true, subValueLabel: "سود خالص (دریافتی − هزینه)" },
   { key: "orderValue", label: "ارزش سفارشات جدید", icon: "chart", color: "teal", isCurrency: true },
   { key: "orders", label: "سفارشات جدید", icon: "orders", color: "violet" },
   { key: "avgOrderValue", label: "میانگین ارزش سفارش", icon: "chart", color: "blue", isCurrency: true },

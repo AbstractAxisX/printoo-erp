@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
   if (!isFinanceStaff(user) && user.role !== "master" && !user.modules.includes("admin")) {
-    return NextResponse.json({ error: "دفتر درآمد فقط برای واحد مالی قابل مشاهده است" }, { status: 403 });
+    return NextResponse.json({ error: "دفتر دریافتی فقط برای واحد مالی قابل مشاهده است" }, { status: 403 });
   }
 
   try {

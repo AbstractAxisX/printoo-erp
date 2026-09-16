@@ -20,6 +20,40 @@ function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
 }
 
+// ─── Phase 22 (خواستهٔ ۲): واحدهای فارسی → انگلیسی روی سند چاپی ─────
+// فقط «واحد اندازه‌گیری» ترجمه می‌شود؛ نام محصول/یادداشت دادهٔ کاربر
+// است و دست نمی‌خورد. مقادیر ناشناخته همان‌طور نمایش داده می‌شوند.
+const UNIT_EN: Record<string, string> = {
+  "عدد": "pcs",
+  "ورق": "sheet",
+  "نسخه": "copy",
+  "کیلوگرم": "kg",
+  "کیلو": "kg",
+  "گرم": "g",
+  "لیتر": "L",
+  "متر": "m",
+  "مترمربع": "sqm",
+  "متر مربع": "sqm",
+  "سانتی‌متر": "cm",
+  "سانتیمتر": "cm",
+  "جعبه": "box",
+  "بسته": "pack",
+  "رول": "roll",
+  "ست": "set",
+  "خِدمت": "service",
+  "خدمت": "service",
+  "ساعت": "hr",
+  "روز": "day",
+};
+
+/** واحد را برای سند چاپی به انگلیسی برمی‌گرداند (خواستهٔ کارفرما). */
+function unitEn(unit?: string | null): string | undefined {
+  if (!unit) return undefined;
+  const key = unit.trim();
+  if (!key) return undefined;
+  return UNIT_EN[key] ?? key;
+}
+
 /** تاریخ لاتین dd/MM/yyyy — مطابق نمونهٔ فاکتور */
 function fmtDate(d?: string | null) {
   if (!d) return "—";
@@ -530,7 +564,7 @@ export function P24Doc(props: P24DocProps) {
                 <td className="py-4 text-center text-stone-700 font-semibold tabular-nums text-[12.5px]">
                   {fmt(it.quantity)}
                   {it.unit ? (
-                    <span className="text-stone-400 text-[9px] font-normal block mt-0.5">{it.unit}</span>
+                    <span className="text-stone-400 text-[9px] font-normal block mt-0.5">{unitEn(it.unit)}</span>
                   ) : null}
                 </td>
                 <td className="py-4 text-right text-stone-700 font-semibold tabular-nums text-[12.5px]">

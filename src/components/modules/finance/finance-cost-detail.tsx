@@ -11,6 +11,10 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -165,6 +169,7 @@ export function FinanceCostDetailModal({
   });
 
   // ── Action: reject ────────────────────────────────────────────────
+  // ── Action: reject ──
   const rejectMut = useMutation({
     mutationFn: () =>
       api(`/api/material-costs/${costId}`, {
@@ -175,6 +180,21 @@ export function FinanceCostDetailModal({
       toast.success("هزینه رد شد");
       invalidate(["material-costs", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["material-cost", costId] });
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── فاز ۲۲ (خواسته‌های ۵ و ۸): حذف هزینه ──
+  // مالی/مدیر: هزینهٔ «در انتظار» یا «ردشده» را حذف می‌کند (اشتباه ثبت
+  // شد / ردشده فقط اطلاعات اضافی است). تأییدشده → اول رد، بعد حذف.
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const deleteMut = useMutation({
+    mutationFn: () => api(`/api/material-costs/${costId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("هزینه حذف شد");
+      invalidate(["material-costs", "dashboard", "finance"]);
+      setDeleteOpen(false);
       onOpenChange(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -216,8 +236,14 @@ export function FinanceCostDetailModal({
       icon: "info" as IconName,
     };
 
-  const canAct = cost.status === "pending";
-  const actionPending = approveMut.isPending || rejectMut.isPending;
+  // فاز ۲۲ (خواسته‌های ۵ و ۸): چرخهٔ کامل دکمه‌ها
+  //   pending  → تأیید / رد / حذف
+  //   approved → رد (اصلاح) — بعد از رد، حذف ممکن می‌شود
+  //   rejected → حذف (خواستهٔ ۵: ردشده فقط اطلاعات اضافی است)
+  const canApprove = cost.status === "pending";
+  const canReject = cost.status === "pending" || cost.status === "approved";
+  const canDelete = cost.status !== "approved";
+  const actionPending = approveMut.isPending || rejectMut.isPending || deleteMut.isPending;
 
   // File attachments — Phase 14: پیوست‌های واقعی + legacy fileUrl1/2
   const attachedFiles: { url: string; name: string; size?: number }[] = [];
@@ -479,37 +505,85 @@ export function FinanceCostDetailModal({
         </div>
 
         {/* Footer — action buttons */}
-        {canAct && (
+        {(canApprove || canReject || canDelete) && (
           <div className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={() => approveMut.mutate()}
-              disabled={actionPending}
-            >
-              {approveMut.isPending ? (
-                <Icon name="loading" size={14} className="animate-spin" />
-              ) : (
-                <Icon name="check" size={14} />
-              )}
-              تأیید هزینه
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-              onClick={() => rejectMut.mutate()}
-              disabled={actionPending}
-            >
-              {rejectMut.isPending ? (
-                <Icon name="loading" size={14} className="animate-spin" />
-              ) : (
-                <Icon name="cancel" size={14} />
-              )}
-              رد هزینه
-            </Button>
+            {canApprove && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => approveMut.mutate()}
+                disabled={actionPending}
+              >
+                {approveMut.isPending ? (
+                  <Icon name="loading" size={14} className="animate-spin" />
+                ) : (
+                  <Icon name="check" size={14} />
+                )}
+                تأیید هزینه
+              </Button>
+            )}
+            {canReject && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                onClick={() => rejectMut.mutate()}
+                disabled={actionPending}
+              >
+                {rejectMut.isPending ? (
+                  <Icon name="loading" size={14} className="animate-spin" />
+                ) : (
+                  <Icon name="cancel" size={14} />
+                )}
+                {cost.status === "approved" ? "رد (اصلاح)" : "رد هزینه"}
+              </Button>
+            )}
+            {/* حذف (خواسته‌های ۵ و ۸) — جدا از رد، سمت چپ */}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="gap-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 mr-auto"
+                onClick={() => setDeleteOpen(true)}
+                disabled={actionPending}
+                title="حذف کامل از دیتابیس (هزینهٔ اشتباهی/ردشده)"
+              >
+                <Icon name="trash" size={14} />
+                حذف هزینه
+              </Button>
+            )}
           </div>
         )}
+
+        {/* تایید حذف هزینه (خواسته‌های ۵ و ۸ — دو مرحله‌ای) */}
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>حذف این هزینه؟</AlertDialogTitle>
+              <AlertDialogDescription>
+                «{cost.title || "هزینه"}» به مبلغ {formatCurrency(cost.amount)} برای همیشه
+                از دیتابیس حذف می‌شود. این عمل قابل بازگشت نیست — اگر فقط می‌خواهید در
+                گزارش‌ها نیاید، «رد هزینه» کافی است.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>انصراف</AlertDialogCancel>
+              <Button
+                variant="destructive"
+                disabled={deleteMut.isPending}
+                onClick={() => deleteMut.mutate()}
+                className="gap-1.5"
+              >
+                {deleteMut.isPending ? (
+                  <Icon name="loading" size={14} className="animate-spin" />
+                ) : (
+                  <Icon name="trash" size={14} />
+                )}
+                حذف قطعی
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );

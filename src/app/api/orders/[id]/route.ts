@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toISO } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
-import { canUserViewOrder, requireManager, validateAssigneeForModule } from "@/lib/access";
+import { canUserViewOrder, requireManager, isManager, validateAssigneeForModule } from "@/lib/access";
 import { TASK_INCLUDE } from "@/lib/task-validation";
 import { aggregateStatus, syncItemsToStatus, type OrderStatusStr } from "@/lib/order-flow";
 import { jsonError } from "@/lib/api-error";
@@ -100,6 +100,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     });
     if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
+    // Phase 22 (خواستهٔ ۳): خلاصهٔ هزینه برای «کاشی هزینه/قیمت/سود» مودال
+    // سفارش — برای مستر/مالی/ادمین داخلی (مدیر). طراح/چاپ دادهٔ مالی نمی‌بینند.
+    // مجموع روی هزینه‌های «ردنشده» است (pending + approved)؛ تفکیک هم برمی‌گردد.
+    let costSummary: { total: number; approved: number; pending: number } | undefined;
+    if (canSeeSensitive || isManager(user)) {
+      const [approvedAgg, pendingAgg] = await Promise.all([
+        db.materialCost.aggregate({
+          where: { orderId: id, status: "approved" },
+          _sum: { amount: true },
+        }),
+        db.materialCost.aggregate({
+          where: { orderId: id, status: "pending" },
+          _sum: { amount: true },
+        }),
+      ]);
+      const approved = approvedAgg._sum.amount ?? 0;
+      const pending = pendingAgg._sum.amount ?? 0;
+      costSummary = { total: approved + pending, approved, pending };
+    }
+
     // Phase 14: رویدادهای مالی (sensitive) فقط برای مالی/مستر —
     // «ادمین داخلی نباید از اسناد مالی خبردار بشه»
     if (!canSeeSensitive) {
@@ -115,7 +135,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         { status: 403 }
       );
     }
-    return NextResponse.json({ order });
+    return NextResponse.json({ order: { ...order, costSummary } });
   } catch (e) {
     // این همان endpoint مودال جزئیات سفارش در ماژول طراح/چاپ است —
     // پیام قابل‌اقدام به‌جای «سرور پاسخ نداد» خاموش

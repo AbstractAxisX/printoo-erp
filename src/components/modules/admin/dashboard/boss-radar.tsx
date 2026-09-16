@@ -164,13 +164,34 @@ export function BossRadar() {
       ),
       onClick: () => navigate("finance", "revenues"),
     },
+    // فاز ۲۲ (خواستهٔ ۶): سفارش‌های زیان‌ده — «اون کارها بیاد جلو چشمم»
+    {
+      key: "lossOrders",
+      label: "سفارش‌های زیان‌ده",
+      icon: "arrowDown",
+      tone: (radar.lossOrders?.count ?? 0) > 0 ? "rose" : "emerald",
+      headline: formatNumber(radar.lossOrders?.count ?? 0),
+      detail:
+        (radar.lossOrders?.count ?? 0) > 0 ? (
+          <div className="space-y-1">
+            <span className="text-[10px] text-muted-foreground block mb-0.5">
+              جمع زیان: <span className="tabular-nums font-semibold text-rose-600" dir="ltr">{formatCurrency(radar.lossOrders?.sum ?? 0)}</span>
+            </span>
+            <DebtList items={(radar.lossOrders?.top ?? []) as unknown as Record<string, unknown>[]} valueKey="due" />
+          </div>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">هیچ سفارشی در زیان نیست ✓</span>
+        ),
+      onClick: () => navigate("admin", "orders"),
+    },
   ];
 
   const hasAnyIssue =
     radar.customersDue.count > 0 ||
     radar.supplierDebt.count > 0 ||
     radar.overdue.count > 0 ||
-    radar.pendingCosts.count > 0;
+    radar.pendingCosts.count > 0 ||
+    (radar.lossOrders?.count ?? 0) > 0;
 
   return (
     <section aria-label="رادار مشکلات — نگاه یک‌ثانیه‌ای">
@@ -196,7 +217,7 @@ export function BossRadar() {
           {hasAnyIssue ? "نیاز به توجه" : "سالم"}
         </span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {cards.map((c) => {
           const tone = TONE_MAP[c.tone];
           return (
@@ -266,6 +287,7 @@ const EVENT_ICON: Record<string, IconName> = {
   cost_approved: "check",
   cost_rejected: "cancel",
   payment_recorded: "wallet",
+  gifted: "gift",
 };
 
 function relTime(iso: string): string {

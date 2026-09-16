@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
 import {
   ORDER_STATUS,
@@ -153,6 +154,15 @@ export type OrderDetail = {
     assignedUser?: { id: string; name: string; role: string } | null;
     createdAt: string;
   }[];
+  // Phase 22 (خواستهٔ ۳): خلاصهٔ هزینه برای کاشی هزینه/قیمت/سود — فقط برای
+  // مستر/مالی/ادمین داخلی برمی‌گردد؛ برای طراح/چاپ غایب است.
+  costSummary?: { total: number; approved: number; pending: number };
+  // Phase 22 (خواستهٔ ۶): هدیهٔ ثبت‌شده روی سفارش (بخشش بخشی از مبلغ)
+  giftAmount?: number;
+  giftPercentage?: number;
+  giftNote?: string | null;
+  giftedAt?: string | null;
+  giftedByName?: string | null;
 };
 
 type TabId = OrderDetailTab;
@@ -329,6 +339,12 @@ export function OrderDetailModal({
   const [status, setStatus] = React.useState<OrderStatus>("pending_design");
   const [note, setNote] = React.useState("");
   const [preInvoiceOpen, setPreInvoiceOpen] = React.useState(false);
+  // Phase 22 (خواستهٔ ۶): دیالوگ هدیه دادن سفارش
+  const [giftOpen, setGiftOpen] = React.useState(false);
+  // فقط مستر/مالی می‌توانند هدیه بدهند (تصمیم مالی)
+  const user = useAppStore((s) => s.user);
+  const canGift =
+    !!user && (user.role === "master" || user.modules.includes("finance"));
   // Phase 9 — نمای آغازین PreInvoiceModal: فرم صدور یا سند مشخص
   const [piInitialDocId, setPiInitialDocId] = React.useState<string | null>(null);
   const [piInitialView, setPiInitialView] = React.useState<"list" | "issue" | "doc">("list");
@@ -408,6 +424,9 @@ export function OrderDetailModal({
 
   const dr = daysRemaining(order.endDate);
   const unpaid = Math.max(0, order.totalAmount - order.paidAmount);
+  // Phase 22 (خواستهٔ ۳): هزینه/قیمت/سود — سود = قیمت داده‌شده − هزینهٔ تأییدشده
+  const cost = order.costSummary;
+  const profit = cost != null ? order.totalAmount - cost.approved : null;
   const hasPreInvoice = (order.preInvoices?.length ?? 0) > 0;
   const tasksCount = order.tasks?.length ?? 0;
   const overdueTasks =
@@ -463,6 +482,17 @@ export function OrderDetailModal({
                   onChange={(ns) => statusMut.mutate(ns)}
                   disabled={statusMut.isPending}
                 />
+                {/* فاز ۲۲ (خواستهٔ ۶): هدیه دادن — مستر/مالی */}
+                {canGift && (
+                  <button
+                    onClick={() => setGiftOpen(true)}
+                    className="text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center gap-1 transition bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 hover:opacity-80"
+                    title="بخشیدن بخشی یا تمام مبلغ سفارش — مشتری بدهکار نمی‌شود و زیان در هزینه‌ها دیده می‌شود"
+                  >
+                    <Icon name="gift" size={12} />
+                    {(order.giftAmount ?? 0) > 0 ? "هدیه ثبت شده" : "هدیه"}
+                  </button>
+                )}
                 {order.priority === "urgent" && (
                   <span className="text-xs font-medium px-2 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center gap-1">
                     <Icon name="alertTriangle" size={11} /> فوری
@@ -471,49 +501,141 @@ export function OrderDetailModal({
               </div>
             </div>
 
-            {/* Quick metrics — 4-up strip with icon chips */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-              <MetricTile
-                icon="money"
-                label="مبلغ کل"
-                value={formatCurrency(order.totalAmount)}
+            {/* Quick metrics — Phase 22 (خواستهٔ ۳):
+                مدیر/مالی: ردیف «هزینه / قیمت داده‌شده / سود / موعد» + کاشی
+                کوچک «پرداختی — باقی‌مانده» زیرش. سایر نقش‌ها: چیدمان قبلی. */}
+            {cost != null ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                  <MetricTile
+                    icon="coins"
+                    label="هزینه سفارش"
+                    value={formatCurrency(cost.approved)}
+                    hint={
+                      cost.pending > 0
+                        ? `در انتظار ${formatCurrency(cost.pending)}`
+                        : undefined
+                    }
+                    tone={cost.approved > 0 ? "rose" : undefined}
+                  />
+                  <MetricTile
+                    icon="money"
+                    label="قیمت داده‌شده"
+                    value={formatCurrency(order.totalAmount)}
+                  />
+                  <MetricTile
+                    icon={profit != null && profit >= 0 ? "trending" : "arrowDown"}
+                    label="سود"
+                    value={profit != null ? formatCurrency(profit) : "—"}
+                    hint="قیمت − هزینه"
+                    tone={profit != null && profit < 0 ? "rose" : "emerald"}
+                  />
+                  <MetricTile
+                    icon="clock"
+                    label="موعد تحویل"
+                    value={
+                      order.noEndDate
+                        ? "بدون زمان"
+                        : order.endDate
+                        ? formatDate(order.endDate)
+                        : "—"
+                    }
+                    hint={
+                      !order.noEndDate && dr.status !== "none"
+                        ? `${dr.days} روز`
+                        : undefined
+                    }
+                    tone={
+                      dr.status === "overdue"
+                        ? "rose"
+                        : dr.status === "remaining"
+                        ? "emerald"
+                        : "amber"
+                    }
+                  />
+                </div>
+                {/* کاشی کوچک: پرداختی — باقی‌مانده (خواستهٔ ۳: یک کاشی، جمع‌وجور) */}
+                <div className="mt-2 rounded-xl border bg-background/70 backdrop-blur-sm px-3.5 py-2 flex items-center justify-between gap-2 shadow-sm">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="size-5 rounded-md grid place-items-center shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <Icon name="checkCircle" size={11} />
+                    </span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">پرداختی</span>
+                    <span className="text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400 truncate" dir="ltr">
+                      {formatCurrency(order.paidAmount)}
+                    </span>
+                  </div>
+                  <span className="h-4 w-px bg-border shrink-0" />
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className={cn(
+                        "size-5 rounded-md grid place-items-center shrink-0",
+                        unpaid > 0
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      )}
+                    >
+                      <Icon name="alert" size={11} />
+                    </span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">باقی‌مانده</span>
+                    <span
+                      className={cn(
+                        "text-xs font-bold tabular-nums truncate",
+                        unpaid > 0
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-emerald-600 dark:text-emerald-400"
+                      )}
+                      dir="ltr"
+                    >
+                      {formatCurrency(unpaid)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                <MetricTile
+                  icon="money"
+                  label="مبلغ کل"
+                  value={formatCurrency(order.totalAmount)}
             />
-              <MetricTile
-                icon="checkCircle"
-                label="پرداختی"
-                value={formatCurrency(order.paidAmount)}
-                tone="emerald"
+                <MetricTile
+                  icon="checkCircle"
+                  label="پرداختی"
+                  value={formatCurrency(order.paidAmount)}
+                  tone="emerald"
               />
-              <MetricTile
-                icon="alert"
-                label="باقی‌مانده"
-                value={formatCurrency(unpaid)}
-                tone={unpaid > 0 ? "rose" : "emerald"}
+                <MetricTile
+                  icon="alert"
+                  label="باقی‌مانده"
+                  value={formatCurrency(unpaid)}
+                  tone={unpaid > 0 ? "rose" : "emerald"}
               />
-              <MetricTile
-                icon="clock"
-                label="موعد تحویل"
-                value={
-                  order.noEndDate
-                    ? "بدون زمان"
-                    : order.endDate
-                    ? formatDate(order.endDate)
-                    : "—"
-                }
-                hint={
-                  !order.noEndDate && dr.status !== "none"
-                    ? `${dr.days} روز`
-                    : undefined
-                }
-                tone={
-                  dr.status === "overdue"
-                    ? "rose"
-                    : dr.status === "remaining"
-                    ? "emerald"
-                    : "amber"
-                }
-              />
-            </div>
+                <MetricTile
+                  icon="clock"
+                  label="موعد تحویل"
+                  value={
+                    order.noEndDate
+                      ? "بدون زمان"
+                      : order.endDate
+                      ? formatDate(order.endDate)
+                      : "—"
+                  }
+                  hint={
+                    !order.noEndDate && dr.status !== "none"
+                      ? `${dr.days} روز`
+                      : undefined
+                  }
+                  tone={
+                    dr.status === "overdue"
+                      ? "rose"
+                      : dr.status === "remaining"
+                      ? "emerald"
+                      : "amber"
+                  }
+                />
+              </div>
+            )}
 
             {/* Alert chips — blocking items / overdue tasks */}
             {(blockingItems > 0 || overdueTasks > 0) && (
@@ -707,6 +829,231 @@ export function OrderDetailModal({
         initialView={piInitialView}
         initialItemId={piInitialItemId}
       />
+
+      {/* فاز ۲۲ (خواستهٔ ۶): دیالوگ هدیه دادن سفارش — مستر/مالی */}
+      <GiftDialog
+        order={order}
+        open={giftOpen}
+        onOpenChange={setGiftOpen}
+        onGifted={() => {
+          invalidate(["orders", "order", "dashboard", "customers", "open-orders", "finance"]);
+        }}
+      />
     </>
+  );
+}
+
+// ─── فاز ۲۲ (خواستهٔ ۶): دیالوگ هدیه دادن سفارش ───────────────────
+// مبلغ یا درصد هدیه + یادداشت. بدهی مشتری همان لحظه کم می‌شود؛
+// هزینه‌ها می‌مانند و «زیان» در سود سفارش و رادار رئیس دیده می‌شود.
+function GiftDialog({
+  order,
+  open,
+  onOpenChange,
+  onGifted,
+}: {
+  order: OrderDetail;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onGifted: () => void;
+}) {
+  const [mode, setMode] = React.useState<"percentage" | "amount">("percentage");
+  const [pct, setPct] = React.useState<string>("100");
+  const [amount, setAmount] = React.useState<string>("");
+  const [note, setNote] = React.useState("");
+
+  // مبنای درصد: مبلغ خام (اقلام + هدیهٔ قبلی) — از روت هم همین منطق
+  const itemsSum = (order.items ?? []).reduce((s, it) => s + (it.totalAmount || 0), 0);
+  const rawTotal =
+    order.invoice && order.invoice.status !== "cancelled"
+      ? order.invoice.subtotal
+      : itemsSum + (order.giftAmount ?? 0);
+
+  const pctNum = Number(pct) || 0;
+  const amountNum = Number(amount) || 0;
+  const giftValue =
+    mode === "percentage"
+      ? Math.round((rawTotal * Math.min(100, Math.max(0, pctNum))) / 100)
+      : Math.round(Math.min(Math.max(0, amountNum), rawTotal));
+  const newTotal = Math.max(0, rawTotal - giftValue);
+  const effectivePct = rawTotal > 0 ? Math.round((giftValue / rawTotal) * 100) : 0;
+
+  const giftMut = useMutation({
+    mutationFn: () =>
+      api(`/api/orders/${order.id}/gift`, {
+        method: "POST",
+        body: JSON.stringify(
+          mode === "percentage"
+            ? { percentage: Math.min(100, Math.max(0, pctNum)), note: note.trim() || undefined }
+            : { amount: Math.max(0, amountNum), note: note.trim() || undefined }
+        ),
+      }),
+    onSuccess: () => {
+      toast.success(
+        `هدیه ثبت شد — ${effectivePct.toLocaleString("fa-IR")}٪ معادل ${formatCurrency(giftValue)} بخشیده شد`
+      );
+      onGifted();
+      onOpenChange(false);
+      setNote("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent aria-describedby={undefined} className="max-w-md p-0 gap-0">
+        <div className="px-5 pt-5 pb-4 border-b bg-gradient-to-l from-amber-500/10 to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="size-11 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 grid place-items-center shrink-0">
+              <Icon name="gift" size={20} />
+            </div>
+            <div>
+              <DialogTitle className="text-base font-bold">هدیه دادن سفارش #{order.number}</DialogTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {order.customer?.name} — بخشیدن بخشی یا تمام مبلغ
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* هدیهٔ فعلی */}
+          {(order.giftAmount ?? 0) > 0 && (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-xs">
+              هدیهٔ فعلی این سفارش: <b dir="ltr">{formatCurrency(order.giftAmount ?? 0)}</b>{" "}
+              ({(order.giftPercentage ?? 0).toLocaleString("fa-IR")}٪)
+              {order.giftedByName ? ` — ثبت‌شده توسط ${order.giftedByName}` : ""}
+              . ثبت دوباره، مقدار قبلی را جایگزین می‌کند.
+            </div>
+          )}
+
+          {/* حالت: درصد / مبلغ */}
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="نوع هدیه">
+            <button
+              role="radio"
+              aria-checked={mode === "percentage"}
+              onClick={() => setMode("percentage")}
+              className={cn(
+                "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition",
+                mode === "percentage"
+                  ? "bg-background text-foreground shadow-sm border"
+                  : "text-muted-foreground hover:bg-background/60"
+              )}
+            >
+              به درصد
+            </button>
+            <button
+              role="radio"
+              aria-checked={mode === "amount"}
+              onClick={() => setMode("amount")}
+              className={cn(
+                "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition",
+                mode === "amount"
+                  ? "bg-background text-foreground shadow-sm border"
+                  : "text-muted-foreground hover:bg-background/60"
+              )}
+            >
+              مبلغ ثابت
+            </button>
+          </div>
+
+          {mode === "percentage" ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                {[25, 50, 75, 100].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPct(String(p))}
+                    className={cn(
+                      "flex-1 rounded-lg border py-2 text-xs font-bold tabular-nums transition",
+                      pctNum === p
+                        ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+                        : "hover:bg-muted/50"
+                    )}
+                  >
+                    {p.toLocaleString("fa-IR")}٪
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={pct}
+                  onChange={(e) => setPct(e.target.value)}
+                  dir="ltr"
+                  className="flex-1"
+                />
+                <span className="text-xs text-muted-foreground shrink-0">درصد</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                placeholder="مبلغ هدیه (دینار)"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                dir="ltr"
+                className="flex-1"
+              />
+              <span className="text-xs text-muted-foreground shrink-0">دینار</span>
+            </div>
+          )}
+
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="یادداشت هدیه (اختیاری) — در سوابق مشتری ثبت می‌شود، مثلاً: مناسبت تولد"
+            className="min-h-16 text-xs"
+          />
+
+          {/* پیش‌نمایش محاسبه */}
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">مبلغ خام سفارش</span>
+              <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(rawTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">مبلغ هدیه ({effectivePct.toLocaleString("fa-IR")}٪)</span>
+              <span className="font-bold tabular-nums text-amber-600 dark:text-amber-400" dir="ltr">−{formatCurrency(giftValue)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t pt-1.5">
+              <span className="font-medium">مبلغ نهایی سفارش</span>
+              <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(newTotal)}</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
+              مشتری به‌خاطر هدیه بدهکار نمی‌شود؛ هزینه‌های واقعی سفارش در
+              دیتابیس می‌مانند و «زیان» در سود سفارش و رادار رئیس دیده می‌شود.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-t bg-muted/30 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+          >
+            انصراف
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+            disabled={giftValue <= 0 || giftMut.isPending}
+            onClick={() => giftMut.mutate()}
+          >
+            {giftMut.isPending ? (
+              <Icon name="loading" size={14} className="animate-spin" />
+            ) : (
+              <Icon name="gift" size={14} />
+            )}
+            ثبت هدیه
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

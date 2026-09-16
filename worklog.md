@@ -4268,3 +4268,24 @@ Work Log:
 
 Stage Summary:
 - فاز ۲۰ کامل و روی production فعال است؛ بدون تغییر اسکیمای Prisma (بدون مهاجرت DB)؛ همهٔ ۱۰ خواستهٔ کارفرما پیاده و تست‌شده.
+
+---
+Task ID: PHASE-22
+Agent: main orchestrator (new hire)
+Task: فاز ۲۲ — فاز دیباگ کارفرما: ۱۱ خواسته (erbil→سلیمانیه، انگلیسی‌سازی اسناد، کاشی هزینه/قیمت/سود، بازبینی مالی، حذف هزینه‌ها، هدیه+زیان‌ده‌ها، دریافتی، سینک تخفیف فاکتور، استیتمنت پرداخت‌نشده، امنیت لاگین)
+
+Work Log:
+- (خواستهٔ ۱) constants.ts: COMPANY.address «Erbil» → «Sulaymaniyah, Kurdistan Region» — سربرگ/فوتر همهٔ اسناد چاپی.
+- (خواستهٔ ۲) p24-doc.tsx: UNIT_EN map (عدد→pcs، ورق→sheet، کیلوگرم→kg، متر→m، جعبه→box …) + unitEn() — واحدهای فارسی اقلام روی سند چاپی به انگلیسی نمایش داده می‌شوند (نام محصول دادهٔ کاربر است، دست نمی‌خورد).
+- (خواستهٔ ۱۱ امنیتی) login-form.tsx: حذف کامل پیش‌پرشدن admin@printoo24.com/admin123 و باکس «دسترسی دمو»؛ auth.ts ensureSeedUser: در production رمز تصادفی (فقط کنسول سرور) یا ADMIN_SEED_PASSWORD از env — رمز شناخته‌شدهٔ پیش‌فرض دیگر در prod ساخته نمی‌شود.
+- (خواستهٔ ۳) api/orders/[id]: costSummary {total, approved, pending} برای مستر/مالی/مدیر (ادمین داخلی)؛ order-detail-modal: ردیف «هزینه سفارش | قیمت داده‌شده | سود | موعد تحویل» + کاشی کوچک یکپارچه «پرداختی — باقی‌مانده» زیر آن (برای طراح/چاپ چیدمان قبلی می‌ماند).
+- (خواستهٔ ۴) بازبینی مالی: دریافتی=RevenueLog (تفاضل هوشمند هر تغییر paid)؛ هزینه=MaterialCost تأییدشده؛ سود=دریافتی−هزینه — رویکرد cash-basis درست است؛ ریسکی: هزینهٔ pending در سود نیست (عمداً) — hint «پولی که هزینه‌ها رویش حساب نشده» اضافه شد.
+- (خواستهٔ ۷) تغییر نام «درآمد»→«دریافتی» در همهٔ UI: nav (درآمدها→دریافتی‌ها)، finance-revenues (عنوان/ستون/جمع/خالی)، finance-dashboard (مجموع دریافتی‌ها + hint)، kpi-cards (دریافتی + سود خالص)، finance-order-modal (دفتر دریافتی)، finance-unsettled، warehouse-dashboard (دریافتی لجستیک)، پیام‌های API (payments/revenues routes).
+- (خواسته‌های ۵+۸) material-costs/[id] DELETE: مالی/مستر می‌تواند هزینهٔ pending و rejected را حذف کند (با یا بدون سفارش)؛ تأییدشده→اول رد؛ فاکتوریِ ردنشده→گارد. finance-cost-detail: دکمهٔ «حذف هزینه» (ghost قرمز، سمت چپ) + AlertDialog دو-مرحله‌ای؛ approved هم دکمهٔ «رد (اصلاح)» گرفت. رویداد cost_rejected حساس در تاریخچهٔ سفارش ثبت می‌شود.
+- (خواستهٔ ۱۰) paid-sync.ts: syncOrderTotalFromInvoice (صدور/ویرایش فاکتور + convert) و recomputeOrderTotalFromItems (ابطال/حذف — با کسر giftAmount) — تخفیف/مالیات/هزینهٔ فاکتوری حالا روی order.totalAmount می‌نشیند: بدهی مشتری، بستانکار مالی، نمای ۳۶۰ و فاکتور جمعی همه هم‌عدد فاکتور. scripts/backfill-phase22.mjs برای داده‌های قدیمی.
+- (خواستهٔ ۹) crm-customers ۳۶۰: isUnpaidOrder (هر وضعیتی جز لغو، due>0) جایگزین active — بخش «سفارش‌های پرداخت‌نشده» + دکمهٔ «چاپ فاکتور سفارشات پرداخت‌نشده» + کاشی‌های جمع بدهی؛ خط جداکننده حالا بین بدهکار/بدون‌بدهی؛ استیتمنت P24 «Unpaid Orders Statement» با نام فایل Unpaid Orders.
+- (خواستهٔ ۶) schema.prisma: Order + giftAmount/giftPercentage/giftNote/giftedAt/giftedByName؛ api/orders/[id]/gift: مستر/مالی، درصد یا مبلغ، بدهی همان لحظه کم می‌شود (100%→newTotal=0)، Activity در سوابق مشتری با «درصد+عدد»، OrderEvent حساس gifted؛ اگر فاکتور فعال باشد discount سند به‌روز + tax recompute؛ GiftDialog در مودال سفارش (درصد سریع 25/50/75/100 یا مبلغ + یادداشت + پیش‌نمایش زنده). رادار رئیس: کارت ششم «سفارش‌های زیان‌ده» (هزینهٔ تأییدشده > مبلغ؛ جمع زیان + ۳ زیان‌دهٔ بزرگ) + EVENT_ICON gifted؛ lossOrders در radar API.
+- تست: scripts/test-phase22.mjs — لاگین مستر، costSummary، هدیهٔ ۱۰۰٪ (newTotal=0 + Activity «هدیه — سفارش #7»)، gift 0% → 400، فاکتور ۲۰٪ تخفیف → total سینک 768,000، ابطال+حذف → برگشت با کسر هدیه، radar.lossOrders. همه سبز؛ tsc تمیز (فقط examples/websocket پیش‌موجود).
+
+Stage Summary:
+- هر ۱۱ خواسته پیاده و تست‌شده. تغییر اسکیما: ۵ فیلد جدید Order (gift*) — db push + بک‌فیل لازم روی سرور. قراردادهای API موجود نشکسته (فقط فیلدهای additive). تولید: NODE_ENV=production دیگر رمز پیش‌فرض admin123 نمی‌سازد.

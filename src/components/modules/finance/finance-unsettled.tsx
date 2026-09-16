@@ -100,7 +100,7 @@ export function FinanceUnsettled() {
       const diff = res.diff ?? 0;
       toast.success(
         diff >= 0
-          ? `درآمد جدید ${formatCurrency(diff)} ثبت شد — کل: ${formatCurrency(res.totalAfter ?? 0)}`
+          ? `دریافتی جدید ${formatCurrency(diff)} ثبت شد — کل: ${formatCurrency(res.totalAfter ?? 0)}`
           : `اصلاح کاهشی ${formatCurrency(Math.abs(diff))} ثبت شد — کل: ${formatCurrency(res.totalAfter ?? 0)}`
       );
       setPayOrder(null);
@@ -302,7 +302,7 @@ export function FinanceUnsettled() {
         />
       </Card>
 
-      {/* مودال ثبت پرداخت — عدد کل + محاسبهٔ زندهٔ درآمد جدید */}
+      {/* مودال ثبت پرداخت — عدد کل + محاسبهٔ زندهٔ دریافتی جدید */}
       <Dialog open={!!payOrder} onOpenChange={(v) => !v && setPayOrder(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-md p-0 gap-0">
           {payOrder && (
@@ -381,7 +381,7 @@ export function FinanceUnsettled() {
                     <div>
                       {current.newTotal - payOrder.paidAmount >= 0 ? (
                         <>
-                          <b>درآمد جدید</b> که سیستم ثبت می‌کند:{" "}
+                          <b>دریافتی جدید</b> که سیستم ثبت می‌کند:{" "}
                           <span dir="ltr" className="tabular-nums font-bold">
                             {formatCurrency(current.newTotal - payOrder.paidAmount)}
                           </span>

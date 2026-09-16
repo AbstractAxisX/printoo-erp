@@ -141,28 +141,73 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const user = await requireUser();
     if (user instanceof NextResponse) return user;
-    // فقط مدیر یا ثبت‌کنندهٔ هزینه می‌تواند حذف کند
     const cost = await db.materialCost.findUnique({
       where: { id },
-      select: { createdBy: true, createdById: true, status: true, includeInInvoice: true },
+      select: {
+        createdBy: true,
+        createdById: true,
+        status: true,
+        includeInInvoice: true,
+        title: true,
+        amount: true,
+        orderId: true,
+      },
     });
     if (!cost) return NextResponse.json({ error: "هزینه یافت نشد" }, { status: 404 });
-    if (!isManager(user) && cost.createdBy !== user.id && cost.createdById !== user.id) {
-      return NextResponse.json({ error: "حذف این هزینه مجاز نیست" }, { status: 403 });
-    }
-    if (cost.status === "approved" && !isManager(user)) {
+
+    // ─── فاز ۲۲ (خواسته‌های ۵ و ۸): چه کسی می‌تواند حذف کند؟ ───
+    //   • واحد مالی / مستر: هزینه‌های «در انتظار» و «ردشده» را حذف می‌کند
+    //     (خواستهٔ ۵: هزینهٔ ردشده فقط اطلاعات اضافی است؛ خواستهٔ ۸: هزینهٔ
+    //     اشتباهی ثبت‌شده — با یا بدون سفارش — قابل حذف باشد).
+    //   • هزینهٔ «تأییدشده»: اول باید از مالی رد شود، بعد حذف (گارد مالی).
+    //     مستر/مدیر می‌تواند مستقیم حذف کند (اصلاح سریع رئیس).
+    //   • ثبت‌کنندهٔ خود هزینه (طراح/چاپ/انبار): فقط تا وقتی تأیید نشده.
+    const isFinance = isFinanceStaff(user);
+    const isBoss = isManager(user);
+    const isCreator = cost.createdBy === user.id || cost.createdById === user.id;
+
+    if (!isBoss && !isFinance && !isCreator) {
       return NextResponse.json(
-        { error: "هزینهٔ تأییدشده قابل حذف نیست — از مالی بخواهید ابتدا رد کند" },
+        { error: "حذف این هزینه مجاز نیست — فقط واحد مالی یا ثبت‌کنندهٔ آن" },
+        { status: 403 }
+      );
+    }
+    if (cost.status === "approved" && !isBoss) {
+      return NextResponse.json(
+        { error: "هزینهٔ تأییدشده قابل حذف نیست — ابتدا از مالی آن را رد کنید، سپس حذف کنید" },
         { status: 409 }
       );
     }
-    if (cost.includeInInvoice) {
+    // هزینه‌ای که در سند فاکتور/پیش‌فاکتور «نشسته» و ردنشده است — فقط با
+    // رد شدن از فاکتور کنار می‌کشد (گارد گم‌نشدن هزینه در سند).
+    if (cost.includeInInvoice && cost.status !== "rejected") {
       return NextResponse.json(
-        { error: "هزینهٔ فاکتوری‌شده قابل حذف نیست — در فاکتور سفارش نشسته است" },
+        { error: "هزینهٔ فاکتوری‌شده قابل حذف نیست — ابتدا آن را رد کنید تا از فاکتور کنار برود" },
         { status: 409 }
       );
     }
+
     await db.materialCost.delete({ where: { id } });
+
+    // رویداد حساس برای تاریخچهٔ سفارش (فقط مالی/مستر می‌بیند)
+    if (cost.orderId) {
+      try {
+        const actorName = user.name;
+        await logOrderEvent(db, {
+          orderId: cost.orderId,
+          type: "cost_rejected",
+          stage: "finance",
+          actorId: user.id,
+          actorName,
+          title: "هزینه حذف شد",
+          description: `${cost.title || "هزینه"} — ${cost.amount.toLocaleString("en-US")} دینار (${cost.status === "rejected" ? "ردشده" : cost.status === "pending" ? "در انتظار" : "تأییدشده"}) توسط ${user.name} حذف شد`,
+          sensitive: true,
+        });
+      } catch {
+        // best-effort — حذف اصلی انجام شده
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "حذف ناموفق" }, { status: 500 });

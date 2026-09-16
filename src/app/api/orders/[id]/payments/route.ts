@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (user instanceof NextResponse) return user;
   if (!(await canRecord(user))) {
     return NextResponse.json(
-      { error: "ثبت درآمد فقط توسط مالی، مدیر یا لجستیک (تحویل در محل) انجام می‌شود" },
+      { error: "ثبت دریافتی فقط توسط مالی، مدیر یا لجستیک (تحویل در محل) انجام می‌شود" },
       { status: 403 }
     );
   }
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       actorId: user.id,
       actorName,
       title: "پرداخت مشتری ثبت شد",
-      description: `${result.diff >= 0 ? "درآمد جدید" : "اصلاح کاهشی"}: ${Math.abs(result.diff).toLocaleString("en-US")} دینار — کل پرداخت‌شده: ${result.totalAfter.toLocaleString("en-US")} دینار`,
+      description: `${result.diff >= 0 ? "دریافتی جدید" : "اصلاح کاهشی"}: ${Math.abs(result.diff).toLocaleString("en-US")} دینار — کل پرداخت‌شده: ${result.totalAfter.toLocaleString("en-US")} دینار`,
       sensitive: true,
     });
 
@@ -152,6 +152,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       { status: 201 }
     );
   } catch (e) {
-    return jsonError(e, "خطا در ثبت درآمد");
+    return jsonError(e, "خطا در ثبت دریافتی");
   }
 }

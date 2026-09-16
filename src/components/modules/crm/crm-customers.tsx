@@ -7,7 +7,7 @@ import { useInvalidate } from "@/lib/use-invalidate";
 import { PageHeader, EmptyState, StatusBadge } from "@/components/shared";
 import { P24StatementDoc } from "@/components/shared/p24-doc";
 import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
-import { COMPANY } from "@/lib/constants";
+import { COMPANY, CURRENCY } from "@/lib/constants";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,9 +80,14 @@ type Order = {
   items?: { id: string; product?: { name: string } | null }[];
 };
 
-/** سفارش‌های در جریان — نه تکمیل/آرشیو/لغو (خواستهٔ ۶ فاز ۲۰) */
-const ACTIVE_STATUSES = ["pending_design", "in_printing", "warehouse_logistics"];
-const isActiveOrder = (o: Order) => ACTIVE_STATUSES.includes(o.status);
+/** فاز ۲۲ (خواستهٔ ۹): سفارش‌های «بدهکار» — هر سفارشی (هر وضعیتی جز لغو)
+ * که کامل پرداخت نشده و مشتری هنوز بدهکار است. چاپ صورت‌حساب جمعی و
+ * جداکننده باید روی همین‌ها باشد، نه صرفاً سفارش‌های جاری (خواستهٔ صریح:
+ * «باید باشه رو فاکتور یا سفارش‌هایی که کامل پرداخت نشده و هنوز مشتری
+ * بدهکاره»). سفارش لغو‌شده حسابش بسته است — بدهی ندارد. */
+const isUnpaidOrder = (o: Order) =>
+  o.status !== "cancelled" &&
+  (o.totalAmount || 0) - (o.paidAmount ?? 0) > 0.001;
 
 type CustomerDetail = {
   customer: Customer;
@@ -489,20 +494,20 @@ function CustomerDetailDrawer({
   const detail = data;
   const notFound = !isLoading && !isError && !detail;
 
-  // فاز ۲۰ (خواستهٔ ۶): سفارش‌های جاری + جمع فاکتورها
-  const activeOrders = React.useMemo(
-    () => (detail?.orders ?? []).filter(isActiveOrder),
+  // فاز ۲۲ (خواستهٔ ۹): سفارش‌های پرداخت‌نشده (بدهکار) + بقیه
+  const unpaidOrders = React.useMemo(
+    () => (detail?.orders ?? []).filter(isUnpaidOrder),
     [detail]
   );
-  const pastOrders = React.useMemo(
-    () => (detail?.orders ?? []).filter((o) => !isActiveOrder(o)),
+  const settledOrders = React.useMemo(
+    () => (detail?.orders ?? []).filter((o) => !isUnpaidOrder(o)),
     [detail]
   );
   const activeTotals = React.useMemo(() => {
-    const subtotal = activeOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const paid = activeOrders.reduce((s, o) => s + (o.paidAmount || 0), 0);
+    const subtotal = unpaidOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const paid = unpaidOrders.reduce((s, o) => s + (o.paidAmount || 0), 0);
     return { subtotal, paid, balance: Math.max(0, subtotal - paid) };
-  }, [activeOrders]);
+  }, [unpaidOrders]);
 
   const deleteMut = useMutation({
     mutationFn: () => {
@@ -640,26 +645,26 @@ function CustomerDetailDrawer({
                 </div>
 
                 <TabsContent value="orders" className="px-5 py-3 m-0">
-                  {/* ── سفارش‌های در جریان + فاکتور جمعی (خواستهٔ ۶ فاز ۲۰) ── */}
+                  {/* ── سفارش‌های پرداخت‌نشده (بدهکار) + فاکتور جمعی (خواستهٔ ۹ فاز ۲۲) ── */}
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-bold text-muted-foreground">
-                      سفارش‌های در جریان ({activeOrders.length})
+                      سفارش‌های پرداخت‌نشده ({unpaidOrders.length})
                     </span>
-                    {activeOrders.length > 0 && (
+                    {unpaidOrders.length > 0 && (
                       <Button
                         size="sm"
                         onClick={() => setStatementOpen(true)}
                         className="gap-1.5 h-8"
                       >
-                        <Icon name="print" size={13} /> چاپ فاکتور سفارشات جاری
+                        <Icon name="print" size={13} /> چاپ فاکتور سفارشات پرداخت‌نشده
                       </Button>
                     )}
                   </div>
 
-                  {activeOrders.length > 0 && (
+                  {unpaidOrders.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       <div className="rounded-lg bg-card border p-2 text-center">
-                        <div className="text-[10px] text-muted-foreground">جمع سفارش‌های جاری</div>
+                        <div className="text-[10px] text-muted-foreground">جمع مبلغ بدهی سفارش‌ها</div>
                         <div className="text-xs font-bold tabular-nums" dir="ltr">
                           {formatCurrency(activeTotals.subtotal)}
                         </div>
@@ -671,7 +676,7 @@ function CustomerDetailDrawer({
                         </div>
                       </div>
                       <div className="rounded-lg bg-card border p-2 text-center">
-                        <div className="text-[10px] text-muted-foreground">مانده</div>
+                        <div className="text-[10px] text-muted-foreground">مانده بدهی</div>
                         <div className="text-xs font-bold text-rose-600 tabular-nums" dir="ltr">
                           {formatCurrency(activeTotals.balance)}
                         </div>
@@ -684,25 +689,25 @@ function CustomerDetailDrawer({
                   ) : (
                     <>
                       <div className="space-y-2">
-                        {activeOrders.map((o) => (
+                        {unpaidOrders.map((o) => (
                           <OrderRow key={o.id} o={o} />
                         ))}
-                        {activeOrders.length === 0 && (
+                        {unpaidOrders.length === 0 && (
                           <p className="text-xs text-muted-foreground text-center py-2">
-                            سفارش در جریانی نیست
+                            بدهی بازاری نیست — همه تسویه شده ✓
                           </p>
                         )}
                       </div>
 
-                      {/* خط جداکننده: بالای خط در جریان، پایین خط پایان‌یافته */}
-                      {pastOrders.length > 0 && (
+                      {/* خط جداکننده (خواستهٔ ۹): بالای خط بدهکار، پایین خط بدون بدهی */}
+                      {settledOrders.length > 0 && (
                         <>
                           <div className="border-t my-3.5" />
                           <span className="text-xs font-bold text-muted-foreground block mb-2">
-                            پایان‌یافته / آرشیو ({pastOrders.length})
+                            تسویه‌شده / بدون بدهی ({settledOrders.length})
                           </span>
                           <div className="space-y-2 opacity-75">
-                            {pastOrders.map((o) => (
+                            {settledOrders.map((o) => (
                               <OrderRow key={o.id} o={o} />
                             ))}
                           </div>
@@ -840,32 +845,33 @@ function CustomerDetailDrawer({
           ) : null}
       </DetailDrawer>
 
-      {/* فاکتور جمعی سفارش‌های جاری (خواستهٔ ۶ فاز ۲۰) */}
+      {/* فاکتور جمعی سفارش‌های پرداخت‌نشده (خواستهٔ ۹ فاز ۲۲) */}
       {detail && (
         <Dialog open={statementOpen} onOpenChange={setStatementOpen}>
           <DialogContent
             aria-describedby={undefined}
             className="sm:max-w-3xl max-h-[94vh] overflow-y-auto p-0 gap-0"
           >
-            <DialogTitle className="sr-only">فاکتور سفارشات جاری</DialogTitle>
+            <DialogTitle className="sr-only">فاکتور سفارشات پرداخت‌نشده</DialogTitle>
             <div className="no-print flex items-center gap-2 px-4 py-3 border-b flex-wrap">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">فاکتور سفارشات جاری</p>
+                <p className="text-sm font-bold truncate">فاکتور سفارشات پرداخت‌نشده</p>
                 <p className="text-[11px] text-muted-foreground truncate">
-                  {detail.customer.name} — {activeOrders.length} سفارش در جریان
+                  {detail.customer.name} — {unpaidOrders.length} سفارش پرداخت‌نشده
                 </p>
               </div>
               {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی */}
               <DocPrintButtons
-                fileName={`Invoice - ${detail.customer.name} - Active Orders`}
+                fileName={`Invoice - ${detail.customer.name} - Unpaid Orders`}
               />
             </div>
             <div className="doc-frame bg-muted/30 p-4" dir="ltr">
               <P24StatementDoc
+                subtitle="Unpaid Orders Statement"
                 issueDate={new Date().toISOString()}
                 customerName={detail.customer.name}
                 customerPhone={detail.customer.phone ?? null}
-                rows={activeOrders.map((o) => ({
+                rows={unpaidOrders.map((o) => ({
                   number: o.number,
                   date: o.createdAt,
                   description:
@@ -877,7 +883,8 @@ function CustomerDetailDrawer({
                 }))}
                 subtotal={activeTotals.subtotal}
                 paid={activeTotals.paid}
-                closingNote={`Consolidated invoice for all active orders · ${COMPANY.name}`}
+                notes={`This invoice consolidates all orders of the customer that are NOT fully paid yet. Prices are in Iraqi Dinar (${CURRENCY}).`}
+                closingNote={`Consolidated invoice for unpaid orders · ${COMPANY.name}`}
               />
             </div>
           </DialogContent>

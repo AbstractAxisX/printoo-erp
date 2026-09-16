@@ -170,12 +170,49 @@ export async function GET(req: NextRequest) {
       ? Math.max(...overdueOrders.map((o) => Math.floor((now.getTime() - new Date(o.endDate ?? now).getTime()) / 86400000)))
       : 0;
 
+    // ── Phase 22 (خواستهٔ ۶): سفارش‌های زیان‌ده — «بیاد جلو چشمم» ──
+    // سفارش‌های غیر لغو که هزینهٔ تأییدشده‌شان از مبلغشان بیشتر است.
+    // هدیه‌ها همین‌جا خودشان را نشان می‌دهند: total کم شده، هزینه مانده.
+    const [allOrdersForLoss, costsByOrder] = await Promise.all([
+      db.order.findMany({
+        where: { status: { not: "cancelled" } },
+        select: {
+          id: true,
+          number: true,
+          totalAmount: true,
+          paidAmount: true,
+          customer: { select: { name: true } },
+        },
+      }),
+      db.materialCost.groupBy({
+        by: ["orderId"],
+        where: { status: "approved", orderId: { not: null } },
+        _sum: { amount: true },
+      }),
+    ]);
+    const costByOrder = new Map(
+      costsByOrder.map((c) => [c.orderId as string, c._sum.amount ?? 0])
+    );
+    const lossList = allOrdersForLoss
+      .map((o) => ({
+        name: `#${o.number} — ${o.customer?.name ?? "—"}`,
+        due: Math.round((costByOrder.get(o.id) ?? 0) - o.totalAmount), // زیان = هزینه − مبلغ
+      }))
+      .filter((x) => x.due > 0)
+      .sort((a, b) => b.due - a.due);
+
     const radar = {
       customersDue: { count: unsettledCount, sum: unsettledSum, top: topDebtors },
       supplierDebt: { count: suppliersDebt.length, sum: supplierDebtSum, top: suppliersDebt.slice(0, 3) },
       overdue: { count: overdueOrders.length, oldestDays: oldestOverdueDays },
       pendingCosts: { count: pendingCosts._count, sum: pendingCosts._sum.amount ?? 0 },
       profit: { revenue, costs: expenses, net: revenue - expenses },
+      // Phase 22 (خواستهٔ ۶): زیان‌ده‌ها — count + جمع زیان + بزرگ‌ترین‌ها
+      lossOrders: {
+        count: lossList.length,
+        sum: lossList.reduce((s, x) => s + x.due, 0),
+        top: lossList.slice(0, 3),
+      },
     };
 
     return NextResponse.json({

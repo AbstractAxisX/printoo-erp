@@ -173,7 +173,7 @@ export function WarehouseDashboard() {
     {
       key: "cod",
       icon: "money",
-      label: "درآمد لجستیک ماه",
+      label: "دریافتی لجستیک ماه",
       value: s.codMonth ?? 0,
       isAmount: true,
       hint: "پول در محل — ثبت‌شدهٔ این ماه",

@@ -12,8 +12,8 @@ import { Field } from "@/components/ui/field";
 export function LoginForm() {
   const router = useRouter();
   const setUser = useAppStore((s) => s.setUser);
-  const [email, setEmail] = React.useState("admin@printoo24.com");
-  const [password, setPassword] = React.useState("admin123");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [show, setShow] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
 
@@ -161,13 +161,6 @@ export function LoginForm() {
               {loading ? "در حال ورود..." : "ورود"}
             </button>
           </form>
-
-          <div className="rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5 font-medium text-foreground mb-1">
-              <Icon name="info" size={14} /> دسترسی دمو
-            </div>
-            ایمیل: <span dir="ltr" className="font-mono">admin@printoo24.com</span> — رمز: <span dir="ltr" className="font-mono">admin123</span>
-          </div>
         </div>
       </div>
     </div>

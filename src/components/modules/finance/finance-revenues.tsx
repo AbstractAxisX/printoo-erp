@@ -120,7 +120,7 @@ export function FinanceRevenues() {
       },
       {
         accessorKey: "amount",
-        header: "درآمد جدید",
+        header: "دریافتی جدید",
         meta: { align: "end" },
         cell: ({ row }) => {
           const a = row.original.amount;
@@ -203,7 +203,7 @@ export function FinanceRevenues() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="درآمدها"
+        title="دریافتی‌ها"
         icon="trending"
         actions={<TimeRangePicker value={range} onChange={setRange} compact />}
       />
@@ -213,7 +213,7 @@ export function FinanceRevenues() {
         <Card className="p-3.5 ring-1 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="trending" size={13} className="text-emerald-600" />
-            مجموع درآمد ({range.label})
+            مجموع دریافتی ({range.label})
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
             {formatCurrency(totalRevenue)}
@@ -290,8 +290,8 @@ export function FinanceRevenues() {
           emptyState={
             <EmptyState
               icon="trending"
-              title="درآمدی در این بازه ثبت نشده"
-              description="هر پرداخت مشتری (از مالی، ادمین یا لجستیک) اینجا ریز-به-ریز ثبت می‌شود"
+              title="دریافتی‌ای در این بازه ثبت نشده"
+              description="هر پرداخت مشتری (از مالی، ادمین یا لجستیک) اینجا ریز-به-ریز ثبت می‌شود — هزینه‌ها روی این عدد حساب نشده‌اند"
             />
           }
         />

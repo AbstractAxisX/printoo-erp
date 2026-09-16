@@ -9,7 +9,7 @@ export const COMPANY = {
   phone: "776 227 8666",
   email: "info@printoo24.com",
   website: "printoo24.com",
-  address: "Erbil, Kurdistan Region",
+  address: "Sulaymaniyah, Kurdistan Region",
 };
 
 export const CURRENCY = "IQD";

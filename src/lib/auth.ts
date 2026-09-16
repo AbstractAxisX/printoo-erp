@@ -217,6 +217,10 @@ export async function touchLastSeen(userId: string): Promise<void> {
 }
 
 // ─── Seed (master admin) ───────────────────────────────────────
+// Phase 22 (رفع امنیتی): در محیط production دیگر رمز پیش‌فرض شناخته‌شده
+// ساخته نمی‌شود — اگر ادمین اولیه وجود نداشت، رمز تصادفی تولید و فقط
+// در لاگ سرور (کنسول) چاپ می‌شود تا اپراتور آن را یک‌بار بردارد و
+// بلافاصله عوض کند. در dev همان admin123 می‌ماند (راحتی توسعه).
 export async function ensureSeedUser() {
   const existing = await db.user.findUnique({
     where: { email: "admin@printoo24.com" },
@@ -232,7 +236,23 @@ export async function ensureSeedUser() {
     }
     return existing;
   }
-  const hashed = await hashPassword("admin123");
+  const seedPassword =
+    process.env.NODE_ENV === "production"
+      ? process.env.ADMIN_SEED_PASSWORD ||
+        Array.from({ length: 12 }, () =>
+          "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789".charAt(
+            Math.floor(Math.random() * 56)
+          )
+        ).join("")
+      : "admin123";
+  if (process.env.NODE_ENV === "production" && !process.env.ADMIN_SEED_PASSWORD) {
+    // رمز فقط در کنسول سرور — هرگز در پاسخ HTTP
+    console.warn(
+      "[seed] اولین ادمین ساخته شد — رمز اولیه (فقط این‌جا نمایش داده می‌شود):",
+      seedPassword
+    );
+  }
+  const hashed = await hashPassword(seedPassword);
   return db.user.create({
     data: {
       name: "مدیر سیستم",

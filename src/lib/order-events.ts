@@ -30,7 +30,9 @@ type OrderEventType =
   | "package_cancelled"
   // ─── Phase 17: گیت خروج از انبار ──
   | "invoice_flagged" // مالی: فاکتور همراه بسته ارسال می‌شود (غیرحساس)
-  | "invoice_unflagged";
+  | "invoice_unflagged"
+  // ─── Phase 22 (خواستهٔ ۶): هدیه دادن سفارش ──
+  | "gifted";
 
 export type LogOrderEventInput = {
   orderId: string;

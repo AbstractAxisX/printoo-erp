@@ -6,7 +6,7 @@ import {
   isInvoiceStatus,
   INVOICE_STATUS_TRANSITIONS,
 } from "@/lib/invoice";
-import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
+import { applyPaidAmountChange, inferRevenueModule, syncOrderTotalFromInvoice, recomputeOrderTotalFromItems } from "@/lib/paid-sync";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Invoices API — Phase 9 ────────────────────────────────────────
@@ -130,6 +130,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
           note: `ویرایش پرداختی فاکتور #${existing.number}`,
         },
       });
+
+      // Phase 22 (خواستهٔ ۱۰): ویرایش تخفیف/اقلام فاکتور → total جدید
+      // روی دادهٔ مالی سفارش هم می‌نشیند.
+      await syncOrderTotalFromInvoice(tx, existing.orderId, computed.totalAmount);
       return inv;
     });
 
@@ -217,6 +221,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             note: `ابطال فاکتور #${existing.number}`,
           },
         });
+        // Phase 22 (خواستهٔ ۱۰): total سفارش هم به حالت «پیش از فاکتور»
+        // برمی‌گردد — Σ اقلام (بدون تخفیف/مالیات سندِ باطل‌شده).
+        await recomputeOrderTotalFromItems(tx, existing.orderId);
       }
 
       const inv = await tx.invoice.update({ where: { id }, data, include: INCLUDE });
@@ -264,6 +271,8 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
           note: `حذف فاکتور #${existing.number}`,
         },
       });
+      // Phase 22 (خواستهٔ ۱۰): total سفارش = Σ اقلام (بدون تخفیف سند حذف‌شده)
+      await recomputeOrderTotalFromItems(tx, existing.orderId);
     });
 
     return NextResponse.json({ ok: true });

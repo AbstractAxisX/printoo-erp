@@ -190,7 +190,7 @@ export function FinanceOrderModal({
         body: JSON.stringify({ paidAmount: paid }),
       }),
     onSuccess: () => {
-      toast.success("پیش‌پرداخت ویرایش شد — تغییرات در فاکتور/دفتر درآمد ثبت شد");
+      toast.success("پیش‌پرداخت ویرایش شد — تغییرات در فاکتور/دفتر دریافتی ثبت شد");
       setEditPi(null);
       invalidate(["orders", "revenues", "finance", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["order", orderId] });
@@ -264,7 +264,7 @@ export function FinanceOrderModal({
       toast.success(
         `ثبت شد — ${
           res.diff >= 0
-            ? `درآمد جدید: ${formatCurrency(res.diff)}`
+            ? `دریافتی جدید: ${formatCurrency(res.diff)}`
             : `اصلاح: ${formatCurrency(Math.abs(res.diff))}`
         }`
       );
@@ -917,17 +917,17 @@ export function FinanceOrderModal({
                 )}
               </div>
 
-              {/* دفتر درآمد سفارش */}
+              {/* دفتر دریافتی سفارش */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                  <Icon name="trending" size={13} /> دفتر درآمد این سفارش
+                  <Icon name="trending" size={13} /> دفتر دریافتی این سفارش
                   <span className="text-[10px] font-normal text-muted-foreground/70">
                     (تفاضل هوشمند — کی، کدام ماژول، چه ساعتی)
                   </span>
                 </div>
                 {(order.revenueLogs ?? []).length === 0 ? (
                   <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg border-dashed">
-                    هنوز درآمدی برای این سفارش ثبت نشده
+                    هنوز دریافتی‌ای برای این سفارش ثبت نشده
                   </div>
                 ) : (
                   <div className="rounded-xl border overflow-hidden">
@@ -1256,12 +1256,12 @@ export function FinanceOrderModal({
             </Field>
             {payTotal !== "" && Number.isFinite(Number(payTotal)) && (
               <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/10 p-3 text-xs">
-                <b>درآمد جدید</b> که سیستم ثبت می‌کند:{" "}
+                <b>دریافتی جدید</b> که سیستم ثبت می‌کند:{" "}
                 <span dir="ltr" className="tabular-nums font-bold">
                   {formatCurrency(Math.max(0, Number(payTotal) - order.paidAmount))}
                 </span>
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  ادیت عدد قبلی؟ سیستم خودش فقط تفاضل را به‌عنوان درآمد جدید لاگ می‌کند
+                  ادیت عدد قبلی؟ سیستم خودش فقط تفاضل را به‌عنوان دریافتی جدید لاگ می‌کند
                 </div>
               </div>
             )}
