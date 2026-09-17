@@ -93,50 +93,111 @@ async function main() {
   assert(zero.status === 400, "gift 0% rejected", `status=${zero.status}`);
 
   console.log("\n— تست جریان فاکتور با تخفیف —");
-  // ۶) سفارش بدون فاکتور پیدا کن؛ اگر بود فاکتور با تخفیف بزن و سینک total را چک کن
-  const withNoInvoice = list.find((o) => o.status !== "cancelled");
-  if (withNoInvoice) {
-    // اطمینان: فاکتور ندارد؟
-    const invs = await call(`/api/invoices?orderId=${withNoInvoice.id}`);
-    const existing = (invs.body?.invoices ?? []).length > 0;
-    if (!existing && withNoInvoice.items?.length > 0) {
-      const items = (await call(`/api/orders/${withNoInvoice.id}`)).body.order.items.map((it) => ({
+  // ۶-الف) فاکتور روی سفارشِ هدیه‌شده: هدیه باید داخل تخفیف سند تاخته شود
+  // و مشتری همچنان بدهکار نباشد (خواستهٔ ۶ + ۱۰ — رفع باگ پاک‌شدن هدیه)
+  {
+    // خودترمیمی: فاکتور مانده از اجرای قبلی را پاک کن
+    const invs0 = await call(`/api/invoices?orderId=${target.id}`);
+    for (const lv of invs0.body?.invoices ?? []) {
+      if (lv.status !== "cancelled")
+        await call(`/api/invoices/${lv.id}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
+      await call(`/api/invoices/${lv.id}`, { method: "DELETE" });
+    }
+    const detail0 = await call(`/api/orders/${target.id}`);
+    const hasItems = (detail0.body?.order?.items ?? []).length > 0;
+    if (hasItems) {
+      const items = detail0.body.order.items.map((it) => ({
         name: it.product?.name ?? "قلم",
         quantity: it.quantity,
         unitPrice: it.pricePerUnit,
       }));
-      const sub = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-      const disc = Math.round(sub * 0.2); // ۲۰٪ تخفیف
+      const sub0 = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
       const inv = await call("/api/invoices", {
         method: "POST",
         body: JSON.stringify({
-          orderId: withNoInvoice.id,
+          orderId: target.id,
           items,
-          discountAmount: disc,
+          discountAmount: Math.round(sub0 * 0.2),
           paidAmount: 0,
         }),
       });
-      assert(inv.status === 201, "invoice issued with 20% discount", `status=${inv.status} ${inv.body?.error ?? ""}`);
-      const after = await call(`/api/orders/${withNoInvoice.id}`);
-      const t = after.body.order.totalAmount;
+      assert(inv.status === 201, "invoice on gifted order issued", `status=${inv.status} ${inv.body?.error ?? ""}`);
+      const invDoc = inv.body?.invoice;
       assert(
-        Math.abs(t - (sub - disc)) < 2,
-        "order.totalAmount synced with invoice (خواستهٔ ۱۰)",
-        `total=${fmt(t)} expected≈${fmt(sub - disc)}`
+        invDoc?.totalAmount === 0,
+        "gift folded into invoice discount → doc total=0",
+        `docTotal=${fmt(invDoc?.totalAmount)} disc=${fmt(invDoc?.discountAmount)}`
+      );
+      const after = await call(`/api/orders/${target.id}`);
+      assert(
+        after.body?.order?.totalAmount === 0,
+        "gifted customer stays debt-free after invoice (خواستهٔ ۶)",
+        `total=${fmt(after.body?.order?.totalAmount)}`
       );
       // پاک‌سازی: ابطال + حذف فاکتور تستی
-      const invId = inv.body.invoice.id;
+      const invId = invDoc.id;
       await call(`/api/invoices/${invId}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
       const del = await call(`/api/invoices/${invId}`, { method: "DELETE" });
-      assert(del.status === 200, "cleanup: test invoice cancelled+deleted");
-      const back = await call(`/api/orders/${withNoInvoice.id}`);
+      assert(del.status === 200, "cleanup: gifted-order test invoice deleted");
+      const back = await call(`/api/orders/${target.id}`);
       assert(
-        Math.abs(back.body.order.totalAmount - sub) < 2,
-        "after cancel: total back to items sum",
-        `total=${fmt(back.body.order.totalAmount)} expected≈${fmt(sub)}`
+        back.body?.order?.totalAmount === 0,
+        "after cancel: total = items − gift (هدیه پابرجا)",
+        `total=${fmt(back.body?.order?.totalAmount)}`
       );
     } else {
-      console.log(`   (skip: order #${withNoInvoice.number} already has invoice or no items)`);
+      console.log("   (skip 6a: target has no items)");
+    }
+  }
+
+  // ۶-ب) سفارش تمیز (بدون فاکتور و بدون هدیه): سینک خالص تخفیف (خواستهٔ ۱۰)
+  {
+    const clean = list.find((o) => o.id !== target.id && o.status !== "cancelled");
+    if (clean) {
+      const invs = await call(`/api/invoices?orderId=${clean.id}`);
+      const existing = (invs.body?.invoices ?? []).length > 0;
+      const detail = await call(`/api/orders/${clean.id}`);
+      const items = (detail.body?.order?.items ?? []).map((it) => ({
+        name: it.product?.name ?? "قلم",
+        quantity: it.quantity,
+        unitPrice: it.pricePerUnit,
+      }));
+      if (!existing && items.length > 0) {
+        const sub = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+        const disc = Math.round(sub * 0.2); // ۲۰٪ تخفیف
+        const inv = await call("/api/invoices", {
+          method: "POST",
+          body: JSON.stringify({
+            orderId: clean.id,
+            items,
+            discountAmount: disc,
+            paidAmount: 0,
+          }),
+        });
+        assert(inv.status === 201, "invoice issued with 20% discount", `status=${inv.status} ${inv.body?.error ?? ""}`);
+        const after = await call(`/api/orders/${clean.id}`);
+        const t = after.body.order.totalAmount;
+        assert(
+          Math.abs(t - (sub - disc)) < 2,
+          "order.totalAmount synced with invoice (خواستهٔ ۱۰)",
+          `total=${fmt(t)} expected≈${fmt(sub - disc)}`
+        );
+        // پاک‌سازی: ابطال + حذف فاکتور تستی
+        const invId = inv.body.invoice.id;
+        await call(`/api/invoices/${invId}`, { method: "PATCH", body: JSON.stringify({ status: "cancelled" }) });
+        const del = await call(`/api/invoices/${invId}`, { method: "DELETE" });
+        assert(del.status === 200, "cleanup: test invoice cancelled+deleted");
+        const back = await call(`/api/orders/${clean.id}`);
+        assert(
+          Math.abs(back.body.order.totalAmount - sub) < 2,
+          "after cancel: total back to items sum",
+          `total=${fmt(back.body.order.totalAmount)} expected≈${fmt(sub)}`
+        );
+      } else {
+        console.log(`   (skip 6b: order #${clean.number} already has invoice or no items)`);
+      }
+    } else {
+      console.log("   (skip 6b: no other order)");
     }
   }
 

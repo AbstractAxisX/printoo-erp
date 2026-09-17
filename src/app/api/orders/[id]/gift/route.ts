@@ -69,14 +69,14 @@ export async function POST(
     });
     if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
-    // مبلغ خام سفارش = جمع اقلام + هزینه‌های فاکتوریِ احتمالی (اگر فاکتور
-    // فعال است همان subtotal فاکتور) — مبنای درصدِ هدیه.
+    // مبلغ خام سفارش = جمع اقلام (اگر فاکتور فعال است همان subtotal
+    // فاکتور) — مبنای درصدِ هدیه. توجه: هدیهٔ قبلی روی «total» نشسته،
+    // نه روی اقلام — پس برای درصدِ درستِ هدیهٔ مجدد، itemsSum به‌تنهایی
+    // مبلغ خام است (جمع‌کردن هدیهٔ قبلی با itemsSum درصد را متورم می‌کند).
     const itemsSum = order.items.reduce((s, it) => s + (it.totalAmount || 0), 0);
     const activeInvoice =
       order.invoice && order.invoice.status !== "cancelled" ? order.invoice : null;
-    const rawTotal = activeInvoice
-      ? activeInvoice.subtotal
-      : itemsSum + order.giftAmount; // هدیهٔ قبلی را برگردان تا درصد درست باشد
+    const rawTotal = activeInvoice ? activeInvoice.subtotal : itemsSum;
 
     const hasAmount =
       typeof body.amount === "number" && Number.isFinite(body.amount);

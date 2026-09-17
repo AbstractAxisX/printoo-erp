@@ -61,6 +61,15 @@ export async function POST(
       // شماره‌گذاری اتمیک و خودترمیم — lib/counter
       const num = await nextNumber(tx, "invoice");
 
+      // Phase 22 (خواستهٔ ۶+۱۰): هدیهٔ فعال سفارش — داخل تخفیف فاکتورِ
+      // تبدیل‌شده تاخته می‌شود تا مشتری هدیه‌شده بدهکار نشود و total
+      // سفارش هم‌عدد سند بماند (همان قرارداد صدور مستقیم فاکتور).
+      const giftRow = await tx.order.findUnique({
+        where: { id: existing.orderId },
+        select: { giftAmount: true },
+      });
+      const gift = Math.max(0, Math.round(giftRow?.giftAmount || 0));
+
       // همهٔ سندهای همین سفارش (برای تشخیص حالت per-item و تلفیق)
       const allPIs = await tx.preInvoice.findMany({
         where: { orderId: existing.orderId },
@@ -95,7 +104,8 @@ export async function POST(
             : 0;
         itemsJson = JSON.stringify(invItems);
         subtotal = totals.subtotal;
-        discountAmount = Math.min(sumDisc, subtotal);
+        // تخفیف سند = جمعِ تخفیف PIs + هدیهٔ فعال (سقف‌دار)
+        discountAmount = Math.min(sumDisc + gift, subtotal);
         taxRate = Math.round(avgRate);
         taxAmount = Math.round((subtotal - discountAmount) * (taxRate / 100));
         totalAmount = Math.round(subtotal - discountAmount + taxAmount);
@@ -103,14 +113,15 @@ export async function POST(
         notes = allPIs.find((p) => p.notes)?.notes ?? null;
         terms = allPIs.find((p) => p.terms)?.terms ?? null;
       } else {
-        // حالت تک‌سند (گروهی) → همان PI منتقل می‌شود
+        // حالت تک‌سند (گروهی) → همان PI منتقل می‌شود + هدیهٔ فعال
         itemsJson = existing.items;
         subtotal = existing.subtotal;
-        discountAmount = existing.discountAmount;
+        discountAmount = Math.min(existing.discountAmount + gift, subtotal);
         taxRate = existing.taxRate;
-        taxAmount = existing.taxAmount;
-        totalAmount = existing.totalAmount;
-        paidAmount = existing.paidAmount;
+        // با تخت‌شدن هدیه، مالیات/جمع از نو محاسبه می‌شود
+        taxAmount = Math.round((subtotal - discountAmount) * (taxRate / 100));
+        totalAmount = Math.round(subtotal - discountAmount + taxAmount);
+        paidAmount = Math.min(existing.paidAmount, totalAmount);
         notes = existing.notes;
         terms = existing.terms;
       }

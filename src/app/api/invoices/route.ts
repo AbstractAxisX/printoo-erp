@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     const order = await db.order.findUnique({
       where: { id: orderId },
-      select: { id: true, customerId: true, status: true, number: true },
+      select: { id: true, customerId: true, status: true, number: true, giftAmount: true },
     });
     if (!order) {
       return NextResponse.json(
@@ -120,7 +120,20 @@ export async function POST(req: NextRequest) {
 
     let computed;
     try {
-      computed = computeInvoice({ items, discountAmount, taxRate, paidAmount, dueDays, notes, terms });
+      // Phase 22 (خواستهٔ ۶+۱۰): اگر سفارش هدیهٔ فعال دارد، هدیه داخل
+      // تخفیف خود سند تاخته می‌شود — تا فاکتور هم «بدهی واقعی» را نشان
+      // دهد و sync نیز total سفارش را بدونِ پاک‌کردن هدیه به‌روز کند
+      // (مشتری هدیه‌شده هرگز با صدور فاکتور بدهکار نمی‌شود).
+      const gift = Math.max(0, Math.round(order.giftAmount || 0));
+      computed = computeInvoice({
+        items,
+        discountAmount: (Number(discountAmount) || 0) + gift,
+        taxRate,
+        paidAmount,
+        dueDays,
+        notes,
+        terms,
+      });
     } catch (e) {
       return NextResponse.json(
         { error: (e as Error).message },
