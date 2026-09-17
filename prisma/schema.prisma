@@ -27,6 +27,14 @@ model User {
   phone          String?
   avatar         String?
   status         String   @default("active") // active | inactive
+  // ─── Phase 23: کاربر دمو (فقط مشاهده) ──────────────────────────
+  // isDemo=true → role=master (همه‌چیز را می‌بیند) اما تمام متدهای
+  // غیر-GET در proxy.ts بلاک می‌شوند. demoExpiresAt = لحظهٔ انقضا؛
+  // requireUser در هر فراخوانی چک می‌کند (اکسپایر → 401 + پاک‌سازی).
+  isDemo         Boolean  @default(false)
+  demoExpiresAt  DateTime?
+  // ─── Phase 23: تولتیپ‌های راهنما — ترجیح هر کاربر (دیفالت روشن) ──
+  guideTooltips  Boolean  @default(true)
   lastSeenAt     DateTime?
   lastLoginAt    DateTime?
   loginCount     Int      @default(0)

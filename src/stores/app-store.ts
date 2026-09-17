@@ -24,11 +24,15 @@ type AppUser = {
   name: string;
   email: string;
   role: string;
+  // Phase 23: دمو = فقط مشاهده — api helper متدهای نوشتاری را می‌بندد
+  isDemo?: boolean;
   // Phase 12: ماژول‌های تیک‌خوردهٔ کاربر — منبع فیلتر sidebar/naوبری
   modules: string[];
   // Phase 18: صفحات مجاز هر ماژول — null/غایب = بدون محدودیت.
   // فرم login/me آن را می‌فرستند؛ setUser تب‌ها/فرود را با آن می‌پالایش می‌کند.
   modulePages?: Record<string, string[] | null> | null;
+  // Phase 23: تولتیپ‌های راهنما — ترجیح per-profile (دیفالت روشن)
+  guideTooltips?: boolean;
 };
 
 type AppState = {
@@ -66,6 +70,9 @@ type AppState = {
   commandOpen: boolean;
   setCommandOpen: (open: boolean) => void;
 
+  // Phase 23: ترجیح تولتیپ راهنما — به‌روزرسانی درجا (بدون رفرش)
+  setGuideTooltips: (on: boolean) => void;
+
   // notifications panel
   notifOpen: boolean;
   setNotifOpen: (open: boolean) => void;
@@ -100,6 +107,9 @@ export const useAppStore = create<AppState>()(
             ...u,
             modules: u.modules ?? [],
             modulePages: u.modulePages ?? {},
+            // Phase 23: دیفالت روشن برای تولتیپ راهنما / دمو فقط اگر صریح آمده باشد
+            isDemo: u.isDemo ?? false,
+            guideTooltips: u.guideTooltips ?? true,
           };
           const allowed = allowedModuleKeys(withPages);
           const sanitizedTabs = s.tabs.filter(
@@ -194,6 +204,9 @@ export const useAppStore = create<AppState>()(
 
       commandOpen: false,
       setCommandOpen: (open) => set({ commandOpen: open }),
+
+      setGuideTooltips: (on) =>
+        set((s) => (s.user ? { user: { ...s.user, guideTooltips: on } } : s)),
 
       notifOpen: false,
       setNotifOpen: (open) => set({ notifOpen: open }),

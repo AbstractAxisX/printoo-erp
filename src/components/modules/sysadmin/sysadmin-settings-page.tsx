@@ -1,13 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { PageHeader, EmptyState } from "@/components/shared";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAppStore } from "@/stores/app-store";
 import { MODULES, type ModuleKey } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // ─── تنظیمات سیستم (ماژول «مدیر سیستم») — Phase 13 ──────────────
@@ -15,6 +20,9 @@ import { cn } from "@/lib/utils";
 // نمای کلی سیستم برای مستر: شمار کاربران/ماژول‌ها، شمارنده‌های اسناد
 // و نقشهٔ دسترسی‌ها. تنظیمات عملیاتی‌تر (کاربران/مرخصی) از «مانیتورینگ
 // کاربران» انجام می‌شود.
+//
+// Phase 23: بخش «کاربران دمو» — ساخت/فهرست/اکسپایر حساب‌های دمو
+// (فقط مشاهدهٔ کل سیستم، بدون هیچ امکان تغییر).
 
 type MonitorSummary = {
   summary: {
@@ -30,6 +38,18 @@ type MonitorSummary = {
     modules: string[];
     status: string;
   }[];
+};
+
+type DemoUser = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  demoExpiresAt: string | null;
+  lastLoginAt: string | null;
+  loginCount: number;
+  createdAt: string;
+  expired: boolean;
 };
 
 export function SysadminSettingsPage() {
@@ -50,7 +70,7 @@ export function SysadminSettingsPage() {
     <div className="space-y-5">
       <PageHeader
         title="تنظیمات سیستم"
-        description="نمای کلی سیستم، دسترسی‌ها و شمارنده‌ها — ماژول مدیر سیستم"
+        description="نمای کلی سیستم، دسترسی‌ها، کاربران دمو و شمارنده‌ها — ماژول مدیر سیستم"
         icon="settings"
         actions={
           <div className="flex gap-2">
@@ -95,6 +115,9 @@ export function SysadminSettingsPage() {
               tone="amber"
             />
           </div>
+
+          {/* Phase 23: کاربران دمو */}
+          <DemoUsersSection />
 
           {/* نقشهٔ ماژول‌ها */}
           <Card className="p-0 overflow-hidden">
@@ -156,6 +179,10 @@ export function SysadminSettingsPage() {
                 <b>کاربران ماژول‌دار:</b> فقط ماژول‌های تیک‌خورده — سفارش فقط در پنل مجریِ همان آیتم می‌آید.
               </li>
               <li>
+                <b>کاربر دمو:</b> همهٔ ماژول‌ها حتی ادمین سراسری را می‌بیند — اما فقط مشاهده؛ هیچ
+                ثبت/ویرایش/حذفی ممکن نیست (هم در مرورگر بلاک می‌شود هم در سرور).
+              </li>
+              <li>
                 <b>هر آیتم سفارش مجری خودش را دارد</b> (طراح/چاپ) — تغییر مجری، سفارش را از پنل قبلی
                 برمی‌دارد و به کاربر جدید اعلان می‌دهد.
               </li>
@@ -164,6 +191,221 @@ export function SysadminSettingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+// ─── Phase 23: بخش کاربران دمو ────────────────────────────────────
+
+function DemoUsersSection() {
+  const qc = useQueryClient();
+  const [label, setLabel] = React.useState("");
+  const [creds, setCreds] = React.useState<{ email: string; password: string } | null>(null);
+  const [credsOpen, setCredsOpen] = React.useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["users", "demo"],
+    queryFn: () => api<{ demos: DemoUser[] }>("/api/users/demo"),
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["users", "demo"] });
+
+  const createDemo = useMutation({
+    mutationFn: () =>
+      api<{ user: unknown; credentials: { email: string; password: string } }>("/api/users/demo", {
+        method: "POST",
+        body: JSON.stringify({ label: label.trim() || undefined }),
+      }),
+    onSuccess: (res) => {
+      setCreds(res.credentials);
+      setCredsOpen(true);
+      setLabel("");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const expireDemo = useMutation({
+    mutationFn: (id: string) => api(`/api/users/${id}/demo-expire`, { method: "POST" }),
+    onSuccess: () => {
+      toast.success("حساب دمو اکسپایر شد — کاربر در اولین حرکت بعدی بیرون می‌رود");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const demos = data?.demos ?? [];
+  const activeDemos = demos.filter((d) => !d.expired && d.status === "active").length;
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("کپی شد");
+    } catch {
+      toast.error("کپی نشد — دستی انتخاب و کپی کنید");
+    }
+  };
+
+  return (
+    <Card className="p-0 overflow-hidden" data-guide="demo-users-card">
+      <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2 flex-wrap">
+        <Icon name="eye" size={15} className="text-amber-500" />
+        <span className="text-sm font-bold">کاربران دمو (فقط مشاهده)</span>
+        <span className="text-[10px] text-muted-foreground">
+          دمو همهٔ ماژول‌ها را می‌بیند — حتی ادمین سراسری — اما هیچ تغییری نمی‌تواند بدهد
+        </span>
+        <span className="mr-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+          {activeDemos.toLocaleString("fa-IR")} دموی فعال
+        </span>
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* ساخت دموی جدید */}
+        <div className="rounded-xl border border-dashed p-3 bg-muted/20 space-y-2" data-guide="demo-create-form">
+          <div className="text-[11px] font-bold flex items-center gap-1.5">
+            <Icon name="add" size={13} /> ساخت دموی جدید
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="برچسب دلخواه (اختیاری — مثلاً: نمایش به مشتری)"
+              className="h-8 flex-1 min-w-48 text-xs"
+            />
+            <Button
+              size="sm"
+              className="h-8"
+              disabled={createDemo.isPending}
+              onClick={() => createDemo.mutate()}
+            >
+              {createDemo.isPending ? (
+                <Icon name="spinner" size={14} className="animate-spin" />
+              ) : (
+                <Icon name="add" size={14} />
+              )}
+              ساخت دموی جدید
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            نام کاربری و رمز به‌صورت خودکار ساخته می‌شود و فقط یک بار نمایش داده خواهد شد — همان لحظه کپی کنید.
+          </p>
+        </div>
+
+        {/* فهرست دموها */}
+        {isLoading ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            <Icon name="spinner" size={16} className="animate-spin inline ml-1" /> در حال بارگذاری…
+          </div>
+        ) : demos.length === 0 ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">
+            هنوز کاربر دمویی ساخته نشده است — با دکمهٔ بالا اولین دمو را بسازید
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {demos.map((d) => (
+              <div
+                key={d.id}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg border p-2.5 transition",
+                  d.expired ? "opacity-60" : "hover:bg-accent/40"
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-8 rounded-lg grid place-items-center shrink-0",
+                    d.expired
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                  )}
+                >
+                  <Icon name="eye" size={15} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold truncate">{d.name}</span>
+                    {d.expired ? (
+                      <span className="rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 px-2 py-0.5 text-[10px] font-bold shrink-0">
+                        منقضی‌شده
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold shrink-0">
+                        فعال
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate" dir="ltr">
+                    {d.email}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/80">
+                    ساخته‌شده: {formatDate(d.createdAt)}
+                    {d.lastLoginAt ? ` • آخرین ورود: ${formatDate(d.lastLoginAt, true)}` : " • هنوز وارد نشده"}
+                  </div>
+                </div>
+                {!d.expired && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] text-rose-600 border-rose-200 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400 dark:border-rose-900 shrink-0"
+                    disabled={expireDemo.isPending}
+                    onClick={() => expireDemo.mutate(d.id)}
+                  >
+                    <Icon name="lock" size={12} />
+                    اکسپایر
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* نمایش یک‌بارهٔ credentials دموی جدید */}
+      <Dialog open={credsOpen} onOpenChange={setCredsOpen}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon name="checkCircle" size={18} className="text-emerald-500" />
+              کاربر دمو ساخته شد
+            </DialogTitle>
+            <DialogDescription>
+              نام کاربری و رمز فقط همین یک بار نمایش داده می‌شود — الان کپی کنید و برای کسی که قرار است
+              سیستم را فقط ببیند بفرستید.
+            </DialogDescription>
+          </DialogHeader>
+          {creds && (
+            <div className="space-y-3">
+              <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-muted-foreground mb-0.5">نام کاربری (ایمیل)</div>
+                    <div className="text-xs font-mono font-bold truncate" dir="ltr">{creds.email}</div>
+                  </div>
+                  <Button variant="outline" size="sm" className="h-7 shrink-0" onClick={() => copy(creds.email)}>
+                    <Icon name="copy" size={12} /> کپی
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[10px] text-muted-foreground mb-0.5">رمز عبور</div>
+                    <div className="text-xs font-mono font-bold truncate" dir="ltr">{creds.password}</div>
+                  </div>
+                  <Button variant="outline" size="sm" className="h-7 shrink-0" onClick={() => copy(creds.password)}>
+                    <Icon name="copy" size={12} /> کپی
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-dashed p-2.5 text-[11px] text-muted-foreground">
+                <Icon name="info" size={14} className="shrink-0 mt-0.5" />
+                این حساب همهٔ ماژول‌ها را می‌بیند ولی فقط مشاهده‌گر است؛ هر وقت خواستید از همان
+                لیست بالا دکمهٔ «اکسپایر» را بزنید.
+              </div>
+              <Button className="w-full" onClick={() => setCredsOpen(false)}>
+                متوجه شدم
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }
 

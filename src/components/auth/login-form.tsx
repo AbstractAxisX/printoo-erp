@@ -27,6 +27,8 @@ export function LoginForm() {
           name: string;
           email: string;
           role: string;
+          isDemo?: boolean;
+          guideTooltips?: boolean;
           modules?: string[];
           // Phase 18: صفحات مجاز هر ماژول (null = همه)
           modulePages?: Record<string, string[] | null> | null;
@@ -36,7 +38,13 @@ export function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
       if (!user) throw new Error("ورود ناموفق");
-      setUser({ ...user, modules: user.modules ?? [], modulePages: user.modulePages ?? {} }); // Phase 12/18: sanitize ناوبری بر اساس ماژول‌ها + صفحات
+      setUser({
+        ...user,
+        modules: user.modules ?? [],
+        modulePages: user.modulePages ?? {},
+        isDemo: user.isDemo ?? false,
+        guideTooltips: user.guideTooltips ?? true,
+      }); // Phase 12/18/23: sanitize ناوبری + پرچم دمو + ترجیح تولتیپ
       toast.success(`خوش آمدید، ${user.name}`);
       router.refresh();
     } catch (err) {
@@ -117,6 +125,7 @@ export function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 dir="ltr"
+                data-guide="login:email"
                 className="w-full rounded-lg border border-input bg-transparent pr-10 pl-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition"
                 placeholder="you@example.com"
               />
@@ -132,6 +141,7 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 dir="ltr"
+                data-guide="login:password"
                 className="w-full rounded-lg border border-input bg-transparent pr-10 pl-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition"
                 placeholder="••••••••"
               />
@@ -155,6 +165,7 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={loading}
+              data-guide="login:submit"
               className="w-full rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:bg-primary/90 transition disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {loading ? <Icon name="loading" size={18} className="animate-spin" /> : <Icon name="lockPassword" size={18} />}

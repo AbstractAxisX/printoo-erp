@@ -26,6 +26,7 @@ import { formatDate } from "@/lib/format";
 import { MODULES, USER_ROLE, type ModuleKey } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { TimelineEvent, UserDetailReport } from "@/lib/monitoring";
+import { Switch } from "@/components/ui/switch";
 
 // ─── بازه (yyyy-MM-dd لوکال — قرارداد API) ─────────────────────────
 
@@ -336,6 +337,9 @@ export function ProfilePage() {
             canManage={canManageLeaves}
             selfReadOnly={isSelf && !meIsManager}
           />
+
+          {/* Phase 23: تنظیمات نمایش — تولتیپ‌های راهنما (فقط پروفایل خود) */}
+          {isSelf && <DisplaySettingsSection />}
         </>
       )}
     </div>
@@ -563,6 +567,67 @@ function LeavesSection({
             );
           })
         )}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Phase 23: تنظیمات نمایش (تولتیپ راهنما) ─────────────────────
+
+function DisplaySettingsSection() {
+  const me = useAppStore((s) => s.user);
+  const setGuideTooltips = useAppStore((s) => s.setGuideTooltips);
+  const guideOn = me?.guideTooltips ?? true;
+
+  const savePref = useMutation({
+    mutationFn: (on: boolean) =>
+      api("/api/auth/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ guideTooltips: on }),
+      }),
+    onMutate: (on) => {
+      // optimistic — همان لحظه اعمال شود (بدون انتظار شبکه)
+      setGuideTooltips(on);
+    },
+    onSuccess: (_d, on) => {
+      setGuideTooltips(on);
+      toast.success(on ? "تولتیپ‌های راهنما روشن شد" : "تولتیپ‌های راهنما خاموش شد");
+    },
+    onError: (e: Error, on) => {
+      // rollback
+      setGuideTooltips(!on);
+      toast.error(e.message);
+    },
+  });
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
+        <Icon name="info" size={15} className="text-primary" />
+        <span className="text-sm font-bold">تنظیمات نمایش</span>
+        <span className="text-[10px] text-muted-foreground mr-auto">شخصی — فقط برای حساب شما</span>
+      </div>
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-4 rounded-xl border p-3 hover:bg-accent/30 transition" data-guide="guide-toggle">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+              <Icon name="info" size={17} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold">تولتیپ‌های راهنما</div>
+              <div className="text-[11px] text-muted-foreground leading-5 mt-0.5">
+                با هاور روی هر جزء سایت — دکمه‌ها، ماژول‌های سایدبار، فرم‌ها، کارت‌ها و جدول‌ها — توضیح
+                آموزشی همان قطعه نمایش داده می‌شود. برای کاربران حرفه‌ای می‌توانید خاموشش کنید.
+              </div>
+            </div>
+          </div>
+          <Switch
+            checked={guideOn}
+            onCheckedChange={(v) => savePref.mutate(v)}
+            disabled={savePref.isPending}
+            aria-label="تولتیپ‌های راهنما"
+          />
+        </div>
       </div>
     </Card>
   );

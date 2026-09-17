@@ -39,6 +39,7 @@ function TreeLeafImpl({ item, isActive, moduleKey, onNavigate }: TreeLeafProps) 
     <button
       onClick={() => onNavigate(moduleKey, item.page)}
       aria-current={isActive ? "page" : undefined}
+      data-guide={`page:${moduleKey}:${item.page}`}
       className={cn(
         "group/leaf relative w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 ease-out",
         isActive

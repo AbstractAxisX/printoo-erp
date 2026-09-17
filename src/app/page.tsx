@@ -13,6 +13,8 @@ type MeUser = {
   name: string;
   email: string;
   role: string;
+  isDemo?: boolean;
+  guideTooltips?: boolean;
   modules?: string[];
   // Phase 18: صفحات مجاز هر ماژول (null = همه)
   modulePages?: Record<string, string[] | null> | null;
@@ -40,7 +42,13 @@ export default function Home() {
       try {
         const { user: u } = await api<{ user: MeUser | null }>("/api/auth/me");
         if (!alive) return;
-        if (u) setUser({ ...u, modules: u.modules ?? [], modulePages: u.modulePages ?? {} });
+        if (u) setUser({
+          ...u,
+          modules: u.modules ?? [],
+          modulePages: u.modulePages ?? {},
+          isDemo: u.isDemo ?? false,
+          guideTooltips: u.guideTooltips ?? true,
+        });
       } catch {
         /* not logged in */
       } finally {

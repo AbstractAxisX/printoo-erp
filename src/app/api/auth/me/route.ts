@@ -28,10 +28,18 @@ export async function GET() {
         email: true,
         role: true,
         status: true,
+        isDemo: true,
+        demoExpiresAt: true,
+        guideTooltips: true,
         modules: { select: { module: true, pages: true } },
       },
     });
     if (!fresh || fresh.status !== "active") {
+      await clearSession();
+      return NextResponse.json({ user: null }, { status: 401 });
+    }
+    // Phase 23: انقضای حساب دمو — همان رفتار requireUser (بدون DB-write)
+    if (fresh.isDemo && fresh.demoExpiresAt && fresh.demoExpiresAt.getTime() <= Date.now()) {
       await clearSession();
       return NextResponse.json({ user: null }, { status: 401 });
     }
@@ -47,6 +55,9 @@ export async function GET() {
         name: fresh.name,
         email: fresh.email,
         role: fresh.role,
+        isDemo: fresh.isDemo,
+        // Phase 23: ترجیح تولتیپ راهنما (دیفالت روشن)
+        guideTooltips: fresh.guideTooltips,
         modules:
           fresh.role === "master"
             ? [] // master = همهٔ ماژول‌ها (UI می‌داند)

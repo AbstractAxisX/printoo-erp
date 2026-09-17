@@ -38,6 +38,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Phase 23: حساب دمو منقضی — همان پیام عمومی ورود (بدون افشای دلیل)
+    if (user.isDemo && user.demoExpiresAt && user.demoExpiresAt.getTime() <= Date.now()) {
+      return NextResponse.json(
+        { error: "حساب دمو منقضی شده است — از مدیر سیستم بخواهید دموی جدید بسازد" },
+        { status: 403 }
+      );
+    }
+
     const now = new Date();
     await db.$transaction([
       db.user.update({
@@ -68,11 +76,12 @@ export async function POST(req: NextRequest) {
       name: user.name,
       email: user.email,
       role: user.role,
+      isDemo: user.isDemo,
       modules,
       modulePages,
     });
     return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, modules, modulePages },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, isDemo: user.isDemo, modules, modulePages },
     });
   } catch {
     // Never leak raw exception text to the client (was a leak pre-Phase-1.5).

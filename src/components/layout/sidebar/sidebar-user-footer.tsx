@@ -77,6 +77,7 @@ export function SidebarUserFooter() {
             "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0",
           )}
           aria-label="منوی کاربر"
+          data-guide="app:sidebar-footer"
         >
           {/* آواتار با گرادیانت emerald برای نقش master + نقطهٔ حضور آنلاین */}
           <span className="relative shrink-0">

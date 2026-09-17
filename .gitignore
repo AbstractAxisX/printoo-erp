@@ -54,3 +54,4 @@ server.log
 /skills/
 # tool scratch outputs
 tool-results/
+backups/

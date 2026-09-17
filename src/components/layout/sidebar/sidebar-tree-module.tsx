@@ -83,6 +83,7 @@ function TreeModuleImpl({
             isActive={active}
             tooltip={label}
             size="lg"
+            data-guide={`module:${moduleKey}`}
             className={cn(
               "h-11 gap-3 px-3 rounded-xl font-medium transition-all duration-200 ease-out",
               "hover:bg-sidebar-accent/50",

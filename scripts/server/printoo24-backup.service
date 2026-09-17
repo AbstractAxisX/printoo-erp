@@ -1,0 +1,16 @@
+[Unit]
+Description=Printoo24 Admin (ERP) — Database Backup
+# هر بار اجرا = یک بکاپ کامل + صحت‌سنجی + پاک‌سازی قدیمی‌ها
+
+[Service]
+Type=oneshot
+# اجرای node از node_modules خود پروژه — بدون وابستگی جدید
+WorkingDirectory=/opt/printoo24-admin
+ExecStart=/usr/bin/node /opt/printoo24-admin/scripts/server/backup-db.mjs
+# خروجی به journal (journalctl -u printoo24-backup.service)
+StandardOutput=journal
+StandardError=journal
+# اگر اپ در حال نوشتن باشد، VACUUM INTO سازگار می‌ماند؛ اما اگر خودش
+# شکست خورد، دوباره تلاش کن (شبکه/IO گذرا)
+Restart=on-failure
+RestartSec=30

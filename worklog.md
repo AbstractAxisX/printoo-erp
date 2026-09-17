@@ -4322,3 +4322,36 @@ Work Log:
 
 Stage Summary:
 - فاز ۲۲ + ۲۲.۵ کامل روی production فعال است؛ بکاپ کامل قبل از تغییر؛ دیتای واقعی سالم و هم‌عدد فاکتورها؛ Docker دست‌نخورده. نکتهٔ امنیتی باقی: رمز فعلی admin همچنان admin123 است (کارفرما: «رمز عوض نمی‌کنم») — پس از تصمیم وی، در صورت تغییر نیاز به تنظیم ADMIN_SEED_PASSWORD در systemd نیست چون کاربر موجود است؛ فقط کافی است از پنل پروفایل عوض شود.
+
+---
+Task ID: PHASE-23
+Agent: main orchestrator (session 3)
+Task: سه خواستهٔ جدید کارفرما — (۱) سیستم کاربر دمو فقط-مشاهده با ساخت/اکسپایر خودکار، (۲) بکاپ خودکار دیتابیس هر ۳ ساعت به وقت ایران با نگهداری ۷ روز و بازیابی سریع، (۳) تولتیپ‌های راهنمای آموزشی سراسری با کلید per-profile.
+
+Work Log:
+- بررسی عمیق ساختار: ریپو کلون، auth.ts/access.ts/proxy.ts (نقطه‌های choke امنیتی)، users API، سایدبار، پروفایل، تنظیمات sysadmin؛ محیط لوکال با bun + dev server روی :3000 بالا آمد.
+- فیچر ۱ — کاربر دمو (فقط مشاهده):
+  - schema: User سه ستون جدید گرفت — isDemo (bool)، demoExpiresAt (datetime?)، guideTooltips (bool، دیفالت روشن). db push افزایشی.
+  - proxy.ts (choke-point اصلی): خواندن امن isDemo از payload کوکی امضاشده (بدون DB، edge-safe) → تمام متدهای غیر-GET روی همهٔ routeها (حتی آینده‌ها) ۴۰۳ می‌شوند. استثنا: logout + heartbeat (اثر جانبی سیستمی).
+  - دفاع در عمق: requireUser در «هر» فراخوانی انقضای دمو را از DB چک می‌کند (اکسپایر → 401 + پاک‌سازی کوکی همان لحظه)؛ lib/api.ts سمت کلاینت هم قبل از fetch متدهای نوشتاری دمو را می‌بندد (بازخورد فوری).
+  - APIهای جدید: POST/GET /api/users/demo (فقط master — ساخت با ایمیل/رمز تصادفی؛ رمز فقط یک‌بار در پاسخ؛ پسوند ایمیل فقط حروف کوچک — رفع باگ toLowerCase لاگین) + POST /api/users/[id]/demo-expire.
+  - UI: کارت «کاربران دمو» در تنظیمات سیستم (sysadmin) — دکمهٔ ساخت + دایالوگ credentials با کپی + فهرست دموها با badge فعال/منقضی + دکمهٔ اکسپایر؛ بنر کهربایی «حالت دمو — فقط مشاهده» بالای همهٔ صفحات دمو.
+  - دمو role=master است → همهٔ ماژول‌ها حتی ادمین سراسری را می‌بیند ولی هیچ چیز را تغییر نمی‌دهد.
+- فیچر ۳ — تولتیپ‌های راهنما:
+  - lib/guide-content.ts: رجیستری فارسی ~۹۰ مدخل — ۹ ماژول سایدبار، ~۵۰ صفحه، دکمه‌های پرتکرار (با متن)، سرستون‌های جدول، فیلدهای فرم.
+  - components/shared/guide-tooltips.tsx: event-delegation سراسری (یک لیسنر + یک تولتیپ) — هدف‌ها: data-guide صریح، th، button، input/textarea؛ تاخیر ۵۵۰ms؛ موقعیت‌یاب هوشمند با flip بالا/پایین + clamp؛ title بومی هنگام نمایش موقتاً مخفی می‌شود (بدون دوبار نمایش)؛ بسته شدن با کلیک/اسکرول/خروج.
+  - data-guide به سایدبار (ماژول/برگ/فوتر)، فرم لاگین، کارت دمو، toggle پروفایل وصل شد.
+  - PUT /api/auth/preferences: ذخیرهٔ ترجیح per-profile (User.guideTooltips) — دمو هم (مثل همهٔ نوشتن‌ها) بلاک است.
+  - کارت «تنظیمات نمایش» در پروفایل با Switch + optimistic update + rollback.
+- تست لوکال: scripts/test-phase23-demo.mjs — ۱۹/۱۹ سبز (ساخت/ورود/خواندن مجاز/نوشتن ۴۰۳ در POST+PUT+DELETE/خروج مجاز/heartbeat مجاز/اکسپایر → 401 و login 403). build پروداکشن موفق. QC مرورگر: بنر دمو، همهٔ ماژول‌ها در سایدبار دمو، تولتیپ ماژول مالی (رجیستری)، تولتیپ دکمهٔ عمومی (فال‌بک)، تولتیپ سرستون جدول، toggle خاموش/روشن با ماندگاری سرور — همه تأیید؛ کنسول بدون خطا.
+- فیچر ۲ — بکاپ دیتابیس:
+  - scripts/server/backup-db.mjs (Node خالص + Prisma موجود): VACUUM INTO → snapshot سازگار حتی هنگام نوشتن اپ؛ PRAGMA integrity_check روی خودِ snapshot؛ manifest.json (ساعت ایران + sha256 + شمار جدول/ردیف‌ها)؛ uploads.tar.gz (پیوست‌های هزینه — هر بکاپ یک نقطهٔ بازیابی کامل)؛ پاک‌سازی خودکار >۷ روز؛ ساختار تمیز backups/YYYY-MM-DD/HH-MM/.
+  - scripts/server/restore-backup.sh: latest یا مسیر مشخص → توقف سرویس → نسخهٔ ایمنی از DB فعلی (pre-restore-…) → جایگزینی (DB + uploads) → راه‌اندازی → صحت‌سنجی HTTP.
+  - systemd: printoo24-backup.service (oneshot) + timer با OnCalendar=*-*-* 00/3:00:00 Asia/Tehran (زون داخل خود عبارت — Timezone= جدا در systemd 255 نادیده گرفته می‌شد و باگ ساعت ۱۵:۳۰ ایجاد کرده بود؛ رفع شد) + Persistent=true. فقط پروژهٔ ERP — Docker دست‌نخورده.
+- استقرار production:
+  - اول بکاپ کامل (safety-first): backups/2026-09-17/13-04 — ۵۹۸KB، integrity ok + uploads.
+  - ۲۰ فایل سورس آپلود؛ prisma db push (۳ ستون افزایشی، دیتا دست‌نخورده)؛ npm run build موفق؛ systemctl restart → active، HTTP 200.
+  - راستی‌آزمایی زندهٔ production: scripts/server/prod-verify-phase23.mjs — ۱۴/۱۴ سبز (ساخت دمو در DB، ورود + پرچم‌ها، GET مجاز، POST/PUT/DELETE ۴۰۳، logout مجاز، اکسپایر → 401 فوری + login 403، پاک‌سازی کامل). Docker containers همه Up 2 months دست‌نخورده.
+
+Stage Summary:
+- هر سه خواسته live است: (۱) دمو فقط-مشاهدهٔ کل سیستم با credentials خودکار و اکسپایر آنی — امنیت در proxy+requireUser+client سه‌لایه؛ (۲) بکاپ هر ۳ ساعت به وقت ایران (۰۰/۰۳/۰۶/۰۹/۱۲/۱۵/۱۸/۲۱) با ۷ روز نگهداری و restore یک‌خطی؛ (۳) تولتیپ راهنمای آموزشی روی همهٔ اجزا (سایدبار/دکمه/فرم/جدول/کارت) با کلید per-profile دیفالت روشن. دیتای production سالم؛ Docker پروژهٔ دیگر دست‌نخورده.

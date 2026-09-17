@@ -31,6 +31,9 @@ export type SessionUser = {
   name: string;
   email: string;
   role: string;
+  // Phase 23: کاربر دمو — فقط مشاهده؛ proxy.ts همهٔ متدهای غیر-GET را
+  // می‌بندد و requireUser انقضا را در هر فراخوانی چک می‌کند.
+  isDemo?: boolean;
   // Phase 12: ماژول‌هایی که کاربر به آن‌ها دسترسی دارد (منبع: UserModule).
   // cookie این را حمل می‌کند ولی هر requireUser از DB تازه می‌خواند تا
   // تغییر دسترسی بلافاصله اعمال شود (نه ۷ روز بعد).
@@ -154,6 +157,8 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
         email: true,
         role: true,
         status: true,
+        isDemo: true,
+        demoExpiresAt: true,
         modules: { select: { module: true, pages: true } },
       },
     });
@@ -161,6 +166,15 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
       await clearSession();
       return NextResponse.json(
         { error: "نشست شما منقضی شده — دوباره وارد شوید" },
+        { status: 401 }
+      );
+    }
+    // Phase 23: انقضای حساب دمو — در «هر» فراخوانی چک می‌شود تا
+    // اکسپایر شدن توسط مستر، کاربر دمو را همان لحظه بیرون بیندازد.
+    if (fresh.isDemo && fresh.demoExpiresAt && fresh.demoExpiresAt.getTime() <= Date.now()) {
+      await clearSession();
+      return NextResponse.json(
+        { error: "حساب دمو منقضی شده است — از مدیر سیستم بخواهید دموی جدید بسازد" },
         { status: 401 }
       );
     }
@@ -178,6 +192,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
       name: fresh.name,
       email: fresh.email,
       role: fresh.role,
+      isDemo: fresh.isDemo,
       modules: fresh.modules.map((m) => m.module),
       modulePages,
     };
