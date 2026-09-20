@@ -242,7 +242,7 @@ export function PrintOrders() {
   const boardFilter = useAppStore((s) => s.boardFilter);
   const setBoardFilter = useAppStore((s) => s.setBoardFilter);
   const { openOrder, modal } = usePrintOrderDetail();
-  const [activeTab, setActiveTab] = React.useState("needs-material");
+  const [activeTab, setActiveTab] = React.useState("ready");
 
   // Filter state
   const [search, setSearch] = React.useState("");
@@ -632,19 +632,19 @@ export function PrintOrders() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
 
-      <TabsList>
-          <TabsTrigger value="needs-material" className="gap-1.5">
-            <Icon name="boxes" size={14} />
-            نیازمند متریال
-            <span className="text-[11px] text-muted-foreground">
-              ({filteredNeedsMaterial.length.toLocaleString("fa-IR")})
-            </span>
-          </TabsTrigger>
+      <TabsList >
           <TabsTrigger value="ready" className="gap-1.5">
             <Icon name="print" size={14} />
             آماده چاپ
             <span className="text-[11px] text-muted-foreground">
               ({filteredReady.length.toLocaleString("fa-IR")})
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="needs-material" className="gap-1.5">
+            <Icon name="boxes" size={14} />
+            نیازمند متریال
+            <span className="text-[11px] text-muted-foreground">
+              ({filteredNeedsMaterial.length.toLocaleString("fa-IR")})
             </span>
           </TabsTrigger>
         </TabsList>

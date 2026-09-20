@@ -850,7 +850,7 @@ function CustomerDetailDrawer({
         <Dialog open={statementOpen} onOpenChange={setStatementOpen}>
           <DialogContent
             aria-describedby={undefined}
-            className="sm:max-w-3xl max-h-[94vh] overflow-y-auto p-0 gap-0"
+            className="sm:max-w-4xl max-h-[94vh] overflow-y-auto p-0 gap-0"
           >
             <DialogTitle className="sr-only">فاکتور سفارشات پرداخت‌نشده</DialogTitle>
             <div className="no-print flex items-center gap-2 px-4 py-3 border-b flex-wrap">

@@ -242,7 +242,7 @@ export function PreInvoiceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="sm:max-w-4xl w-[calc(100%-1rem)] max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto scrollbar-thin p-0 gap-0 rounded-xl [&>*]:min-w-0"
+        className="sm:max-w-5xl w-[calc(100%-1rem)] max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto scrollbar-thin p-0 gap-0 rounded-xl [&>*]:min-w-0"
       >
         <DialogTitle className="sr-only">پیش‌فاکتور</DialogTitle>
 
