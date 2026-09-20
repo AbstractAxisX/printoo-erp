@@ -1,9 +1,14 @@
 "use client";
 
-// Printoo24 ERP — Phase 23: «تولتیپ‌های راهنما»
+// Printoo24 ERP — Phase 23 → Phase 24: «تولتیپ‌های راهنما» (نسخهٔ ۲)
 // ─────────────────────────────────────────────────────────────────
 // سیستم آموزشی سراسری با event-delegation: فقط «یک» لیسنر روی document
 // و «یک» تولتیپ رندرشده — بدون wrap کردن هزاران کامپوننت.
+//
+// Phase 24 (خواستهٔ 7): توضیح‌ها بافت‌آگاه شدند — دکمه بر اساس صفحهٔ
+// جاری (module/page از app-store) توضیح مخصوص خودش را می‌گیرد و
+// فال‌بک‌ها از تحلیل فعل، جملهٔ کامل می‌سازند. هیچ «دکمه است، کلیک کن»
+// و متن تکراری باقی نمانده — هدف: سیستمی که آموزش نخواهد.
 //
 // هدف‌ها (به ترتیب اولویت):
 //   1. [data-guide="key"]        → محتوای رجیستری (guide-content.ts)
@@ -21,6 +26,7 @@ import { createPortal } from "react-dom";
 import { useAppStore } from "@/stores/app-store";
 import {
   getGuideEntry,
+  getButtonCtxEntry,
   GUIDE_BY_BUTTON_TEXT,
   GUIDE_BY_FIELD_HINT,
   GUIDE_BY_HEADER_TEXT,
@@ -29,11 +35,15 @@ import {
 
 const SHOW_DELAY_MS = 550;
 const VIEWPORT_MARGIN = 12;
-const TOOLTIP_MAX_WIDTH = 300;
+const TOOLTIP_MAX_WIDTH = 340;
 
-/** پیدا کردن بهترین ورودی راهنما برای یک عنصر DOM. */
-function resolveGuide(el: HTMLElement): GuideEntry | null {
-  // ۱) کلید صریح / متن مستقیم
+/** پیدا کردن بهترین ورودی راهنما برای یک عنصر DOM.
+ *
+ * Phase 24 (خواستهٔ 7): بافت‌آگاه — دکمه‌ها بر اساس «صفحهٔ فعلی» توضیح
+ * مخصوص خودشان را می‌گیرند (BUTTON_CTX) و فال‌بک‌ها هم از فعل + بافت
+ * جملهٔ معنادار می‌سازند — نه «دکمه است، کلیک کن». */
+function resolveGuide(el: HTMLElement, ctx: { module: string; page: string }): GuideEntry | null {
+  // 1) کلید صریح / متن مستقیم
   const key = el.getAttribute("data-guide");
   if (key) {
     const entry = getGuideEntry(key);
@@ -45,7 +55,7 @@ function resolveGuide(el: HTMLElement): GuideEntry | null {
     }
   }
 
-  // ۲) سرستون جدول
+  // 2) سرستون جدول
   const tag = el.tagName.toLowerCase();
   if (tag === "th") {
     const text = visibleTextOf(el).replace(/[▲▼↕]/g, "").trim();
@@ -53,12 +63,12 @@ function resolveGuide(el: HTMLElement): GuideEntry | null {
     return (
       GUIDE_BY_HEADER_TEXT[text] ?? {
         title: text,
-        text: "سرستون جدول — روی ردیف‌ها کلیک کنید تا جزئیات باز شود.",
+        text: `سرستون «${text}» — روی ردیف‌ها کلیک کنید تا جزئیات همان مورد باز شود؛ کلیک روی خود سرستون، جدول را بر اساس آن مرتب می‌کند.`,
       }
     );
   }
 
-  // ۳) دکمه‌ها (شامل [role=button] و لینک‌های عملیاتی)
+  // 3) دکمه‌ها — اول توضیح مخصوص همین صفحه (BUTTON_CTX)
   const isButton =
     tag === "button" ||
     el.getAttribute("role") === "button" ||
@@ -66,16 +76,19 @@ function resolveGuide(el: HTMLElement): GuideEntry | null {
   if (isButton) {
     const text = visibleTextOf(el).trim() || el.getAttribute("aria-label")?.trim() || "";
     if (!text) return null;
-    // اول دنبال متن کامل، بعد کلمهٔ اول (مثل «ثبت مرخصی» → «ثبت»)
+    // بافت‌آگاه: «module:page|متن» → توضیح مخصوص همین دکمه در همین صفحه
+    const ctxHit =
+      getButtonCtxEntry(ctx.module, ctx.page, text) ??
+      getButtonCtxEntry(ctx.module, ctx.page, text.split(/\s+/)[0]);
+    if (ctxHit) return ctxHit;
+    // فال‌بک 1: دیکشنری متن دکمه (کامل اما عمومی)
     const hit = GUIDE_BY_BUTTON_TEXT[text] ?? GUIDE_BY_BUTTON_TEXT[text.split(/\s+/)[0]];
     if (hit) return hit;
-    return {
-      title: text.length > 28 ? text.slice(0, 28) + "…" : text,
-      text: "دکمهٔ عمل — با کلیک اجرا می‌شود.",
-    };
+    // فال‌بک 2: جملهٔ معنادار از فعل — نه «دکمه است، کلیک کن»
+    return smartButtonFallback(text);
   }
 
-  // ۴) فیلدهای فرم
+  // 4) فیلدهای فرم
   if (tag === "input" || tag === "textarea" || tag === "select") {
     const type = el.getAttribute("type");
     if (type === "hidden" || type === "checkbox" || type === "radio" || type === "file") return null;
@@ -85,16 +98,44 @@ function resolveGuide(el: HTMLElement): GuideEntry | null {
       (k) => name.toLowerCase().includes(k) || placeholder.includes(GUIDE_BY_FIELD_HINT[k].title)
     );
     if (hintKey) return GUIDE_BY_FIELD_HINT[hintKey];
-    if (placeholder) {
-      return { title: placeholder, text: "این فیلد را با مقدار درست پر کنید — خالی نماند." };
-    }
-    if (name) {
-      return { title: name, text: "فیلد ورودی — مقدار را همین‌جا وارد کنید." };
+    const label = placeholder || name;
+    if (label) {
+      return {
+        title: label,
+        text: `ورودی «${label}» در همین فرم — مقدار درست را طبق توضیح فیلد وارد کنید؛ فیلدهای ستاره‌دار که خالی بمانند، ثبت را بلاک می‌کنند.`,
+      };
     }
     return null;
   }
 
   return null;
+}
+
+/** فال‌بک هوشمند دکمه — فعل را تحلیل و جملهٔ کامل می‌سازد. */
+function smartButtonFallback(text: string): GuideEntry {
+  const t = text.length > 28 ? text.slice(0, 28) + "…" : text;
+  if (/^(افزودن|اضافه)/.test(text))
+    return { title: t, text: `«${text}» — یک مورد جدید در همین صفحه می‌سازد؛ فرم ورودش باز می‌شود و بعد از ثبت، در همین فهرست ظاهر می‌شود.` };
+  if (/^(حذف|پاک)/.test(text))
+    return { title: t, text: `«${text}» — این مورد را برای همیشه برمی‌دارد؛ هرجا وابستگی باشد سیستم جلویش را می‌گیرد و از شما تایید دوباره می‌خواهد.` };
+  if (/^(ثبت|ذخیره|ایجاد|ساخت)/.test(text))
+    return { title: t, text: `«${text}» — دادهٔ همین فرم را در سیستم ثبت می‌کند؛ بعد از آن برای همکارانِ حوزهٔ مربوط قابل مشاهده و اقدام است.` };
+  if (/^(تایید|تأیید|قبول)/.test(text))
+    return { title: t, text: `«${text}» — این مورد را تأیید می‌کند و به مرحلهٔ بعد جریان کار می‌برد؛ در موارد مالی یعنی وارد‌شدن در محاسبات رسمی.` };
+  if (/^(چاپ|پرینت)/.test(text))
+    return { title: t, text: `«${text}» — نسخهٔ تمیز و رسمی همین سند را برای پرینتر/PDF آماده می‌کند؛ فقط خود سند، بدون منوهای سایت.` };
+  if (/^(دانلود|دریافت)/.test(text))
+    return { title: t, text: `«${text}» — فایل مرتبط با همین مورد را دانلود می‌کند.` };
+  if (/^(باز|مشاهده|جزئیات|نمایش)/.test(text))
+    return { title: t, text: `«${text}» — جزئیات کامل همین مورد را باز می‌کند؛ فقط برای دیدن، بدون تغییری در داده.` };
+  if (/^(کپی|تکرار)/.test(text))
+    return { title: t, text: `«${text}» — از همین مورد یک نسخهٔ تازه می‌سازد تا ورود داده‌های مشابه سریع‌تر انجام شود.` };
+  if (/^(بستن|انصراف|لغو)/.test(text))
+    return { title: t, text: `«${text}» — پنجره را می‌بندد؛ تغییرات ذخیره‌نشده اعمال نمی‌شوند.` };
+  return {
+    title: t,
+    text: `«${text}» — اقدام همین صفحه؛ با اجرا، نتیجهٔ آن در همین فهرست/فرم به‌روز می‌شود و رویدادش در تاریخچه ثبت می‌گردد.`,
+  };
 }
 
 /** متن قابل‌دیدن عنصر (بالا-آمده متن‌های آیکونی). */
@@ -115,6 +156,13 @@ type TipState = {
 
 export function GuideTooltips() {
   const enabled = useAppStore((s) => s.user?.guideTooltips ?? true);
+  // Phase 24 (خواستهٔ 7): بافت فعلی — module/page جاری برای توضیح‌های بافت‌آگاه
+  const ctxModule = useAppStore((s) => s.module);
+  const ctxPage = useAppStore((s) => s.page);
+  const ctxRef = React.useRef({ module: ctxModule, page: ctxPage });
+  React.useEffect(() => {
+    ctxRef.current = { module: ctxModule, page: ctxPage };
+  }, [ctxModule, ctxPage]);
   const [mounted, setMounted] = React.useState(false);
   const [tip, setTip] = React.useState<TipState>(null);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,7 +211,7 @@ export function GuideTooltips() {
       cleanup();
       targetRef.current = el;
 
-      const entry = resolveGuide(el);
+      const entry = resolveGuide(el, ctxRef.current);
       if (!entry) return;
 
       timerRef.current = setTimeout(() => {

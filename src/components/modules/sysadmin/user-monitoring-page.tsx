@@ -6,7 +6,7 @@
 // param = userId) یا «مانیتورینگ کامل من» از پروفایل.
 // منبع داده: GET /api/monitoring/users/{id}?from=&to= → دقیقاً
 // UserDetailReport از src/lib/monitoring.ts (نسخهٔ سریالایز‌شدهٔ JSON).
-// شامل: سوییچ بازه (امروز/هفته/ماه/۳ماه/دلخواه)، کارت پروفایل، KPI،
+// شامل: سوییچ بازه (امروز/هفته/ماه/3ماه/دلخواه)، کارت پروفایل، KPI،
 // «گزارش امروز» (مهم‌ترین بخش)، اوورویو تاخیر سفارش/تسک، چارت BI
 // تعاملی، سفارش‌های باز، خط زمانی بازه با فیلتر نوع رویداد و مرخصی‌ها
 // (CRUD مدیر: POST /api/leaves + DELETE /api/leaves/{id}).
@@ -88,7 +88,7 @@ type RangePresetId = "today" | "week" | "month" | "quarter" | "custom";
 
 // ─── Helper ها ───────────────────────────────────────────────────────
 
-const fa = (n: number): string => n.toLocaleString("fa-IR");
+const fa = (n: number): string => n.toLocaleString("en-US");
 
 function dayKeyOf(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -163,7 +163,7 @@ const RANGE_CHIPS: { id: RangePresetId; label: string }[] = [
   { id: "today", label: "امروز" },
   { id: "week", label: "این هفته" },
   { id: "month", label: "این ماه" },
-  { id: "quarter", label: "۳ ماه" },
+  { id: "quarter", label: "3 ماه" },
   { id: "custom", label: "بازهٔ دلخواه" },
 ];
 
@@ -315,7 +315,7 @@ export function UserMonitoringPage() {
 
   return (
     <div className="space-y-5">
-      {/* ۱) هدر */}
+      {/* 1) هدر */}
       <PageHeader
         title={data ? `مانیتورینگ کاربر — ${data.user.name}` : "مانیتورینگ کاربر"}
         description={
@@ -345,7 +345,7 @@ export function UserMonitoringPage() {
         }
       />
 
-      {/* ۲) سوییچ بازه — بالای صفحه، برجسته */}
+      {/* 2) سوییچ بازه — بالای صفحه، برجسته */}
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
@@ -407,28 +407,28 @@ export function UserMonitoringPage() {
         />
       ) : data ? (
         <>
-          {/* ۳) کارت پروفایل */}
+          {/* 3) کارت پروفایل */}
           <ProfileCard report={data} todayKey={todayKey} />
 
-          {/* ۴) KPI ها */}
+          {/* 4) KPI ها */}
           <KpiGrid kpis={data.kpis} />
 
-          {/* ۵) گزارش امروز — مهم‌ترین بخش */}
+          {/* 5) گزارش امروز — مهم‌ترین بخش */}
           <TodayReport events={data.today.events} />
 
-          {/* ۶) اوورویو تاخیر */}
+          {/* 6) اوورویو تاخیر */}
           <DelayOverview delay={data.delayOverview} />
 
-          {/* ۷) چارت فعالیت (BI) */}
+          {/* 7) چارت فعالیت (BI) */}
           <ActivityChartCard series={data.activitySeries} kpis={data.kpis} />
 
-          {/* ۸) سفارش‌های باز */}
+          {/* 8) سفارش‌های باز */}
           <OpenOrdersCard orders={data.openOrders} isManager={isManager} />
 
-          {/* ۹) خط زمانی بازه */}
+          {/* 9) خط زمانی بازه */}
           <TimelineCard events={data.timeline} />
 
-          {/* ۱۰) مرخصی‌ها */}
+          {/* 10) مرخصی‌ها */}
           <LeavesCard
             userId={param}
             userName={data.user.name}
@@ -443,7 +443,7 @@ export function UserMonitoringPage() {
   );
 }
 
-// ═════════════════════════ ۳) کارت پروفایل ══════════════════════════
+// ═════════════════════════ 3) کارت پروفایل ══════════════════════════
 
 function ProfileCard({ report, todayKey }: { report: UserDetail; todayKey: string }) {
   const u = report.user;
@@ -550,7 +550,7 @@ function MetaItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ═════════════════════════ ۴) KPI ها ═════════════════════════════════
+// ═════════════════════════ 4) KPI ها ═════════════════════════════════
 
 function KpiGrid({ kpis }: { kpis: UserDetail["kpis"] }) {
   const completedTotal = kpis.design.completed + kpis.print.completed + kpis.tasks.done;
@@ -647,7 +647,7 @@ function KpiCard({
   );
 }
 
-// ═════════════════════ ۵) گزارش امروز (بخش مهم) ═════════════════════
+// ═════════════════════ 5) گزارش امروز (بخش مهم) ═════════════════════
 
 function TodayReport({ events }: { events: UserEvent[] }) {
   // روایت روز: صبح → شب (قدیمی → جدید)
@@ -723,7 +723,7 @@ function TodayReport({ events }: { events: UserEvent[] }) {
   );
 }
 
-// ═════════════════════ ۶) اوورویو تاخیر ═════════════════════════════
+// ═════════════════════ 6) اوورویو تاخیر ═════════════════════════════
 
 function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
   return (
@@ -852,7 +852,7 @@ function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
   );
 }
 
-// ═════════════════════ ۷) چارت فعالیت (BI تعاملی) ═══════════════════
+// ═════════════════════ 7) چارت فعالیت (BI تعاملی) ═══════════════════
 
 function ActivityChartCard({
   series,
@@ -941,7 +941,7 @@ function ActivityChartCard({
                     padding: "4px 8px",
                     direction: "rtl",
                   }}
-                  formatter={(value: number, name: string) => [value.toLocaleString("fa-IR"), name]}
+                  formatter={(value: number, name: string) => [value.toLocaleString("en-US"), name]}
                   labelFormatter={(label: string) => fmtDayKey(label)}
                 />
                 {visible.map((s, i) => (
@@ -964,7 +964,7 @@ function ActivityChartCard({
   );
 }
 
-// ═════════════════════ ۸) سفارش‌های باز ═════════════════════════════
+// ═════════════════════ 8) سفارش‌های باز ═════════════════════════════
 
 function OpenOrdersCard({
   orders,
@@ -1043,7 +1043,7 @@ function OpenOrdersCard({
   );
 }
 
-// ═════════════════════ ۹) خط زمانی بازه ═════════════════════════════
+// ═════════════════════ 9) خط زمانی بازه ═════════════════════════════
 
 function TimelineCard({ events }: { events: UserEvent[] }) {
   const [filter, setFilter] = React.useState("all");
@@ -1162,7 +1162,7 @@ function TimelineRow({
   );
 }
 
-// ═════════════════════ ۱۰) مرخصی‌ها ═════════════════════════════════
+// ═════════════════════ 10) مرخصی‌ها ═════════════════════════════════
 
 function LeavesCard({
   userId,

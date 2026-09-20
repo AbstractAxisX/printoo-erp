@@ -274,7 +274,7 @@ export function CostEntryForm({
       }
       if (ok > 0) {
         toast.success(
-          ok === 1 ? "هزینه ثبت شد" : `${ok.toLocaleString("fa-IR")} هزینه ثبت شد`
+          ok === 1 ? "هزینه ثبت شد" : `${ok.toLocaleString("en-US")} هزینه ثبت شد`
         );
         setDrafts([newDraft(defaultModule)]);
         if (!orderId && !isFree) setSelectedOrder(null);
@@ -295,7 +295,7 @@ export function CostEntryForm({
     const room = 6 - row.attachments.length;
     const arr = Array.from(files).slice(0, Math.max(0, room));
     if (!arr.length) {
-      toast.error("حداکثر ۶ پیوست برای هر هزینه");
+      toast.error("حداکثر 6 پیوست برای هر هزینه");
       return;
     }
     setUploadingKey(key);
@@ -354,7 +354,7 @@ export function CostEntryForm({
                 {selectedOrder.preInvoiceCount > 1 && (
                   <span className="text-amber-600 dark:text-amber-400">
                     {" "}
-                    • {selectedOrder.preInvoiceCount.toLocaleString("fa-IR")} پیش‌فاکتور (هزینهٔ
+                    • {selectedOrder.preInvoiceCount.toLocaleString("en-US")} پیش‌فاکتور (هزینهٔ
                     فاکتوری روی سند اول می‌نشیند)
                   </span>
                 )}
@@ -381,7 +381,7 @@ export function CostEntryForm({
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="size-7 rounded-md bg-primary/10 text-primary grid place-items-center text-xs font-bold shrink-0">
-                    {(i + 1).toLocaleString("fa-IR")}
+                    {(i + 1).toLocaleString("en-US")}
                   </div>
                   <span className="text-sm font-semibold truncate">
                     {row.title.trim() || "ردیف هزینه"}
@@ -393,7 +393,7 @@ export function CostEntryForm({
                   )}
                   {row.attachments.length > 0 && (
                     <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
-                      {row.attachments.length.toLocaleString("fa-IR")} پیوست
+                      {row.attachments.length.toLocaleString("en-US")} پیوست
                     </span>
                   )}
                 </div>
@@ -431,7 +431,7 @@ export function CostEntryForm({
                 </div>
               </div>
 
-              {/* فیلدها — گرید ۱۲ ستونه مثل ویزارد */}
+              {/* فیلدها — گرید 12 ستونه مثل ویزارد */}
               <div className="grid grid-cols-2 md:grid-cols-12 gap-x-3 gap-y-2.5">
                 <Field label="نام هزینه" required className="col-span-2 md:col-span-4">
                   <Input
@@ -590,7 +590,7 @@ export function CostEntryForm({
             {submitLabel ??
               (isFree
                 ? "ثبت هزینه"
-                : `ثبت ${validCount > 0 ? validCount.toLocaleString("fa-IR") : ""} هزینه`)}
+                : `ثبت ${validCount > 0 ? validCount.toLocaleString("en-US") : ""} هزینه`)}
           </Button>
         </div>
       </div>

@@ -105,6 +105,12 @@ model UserModule {
   // (مثل ["dashboard","orders"])؛ null = همهٔ صفحات ماژول (سازگاری کامل).
   // منبع حقیقت اعتبارسنجی صفحات = NAV در lib/nav.ts.
   pages     String?
+  // Phase 24 — دسترسی ۳لایه برای هر ماژول:
+  //   view    = فقط مشاهده (همهٔ متدهای نوشتاری بسته)
+  //   edit    = مشاهده + ثبت/ویرایش (حذف بسته)
+  //   delete  = کامل (مشاهده + ویرایش + حذف)
+  // دیفالت delete = رفتار قبلی (سازگاری کامل با داده‌های موجود).
+  level     String   @default("delete")
   createdAt DateTime @default(now())
 
   @@unique([userId, module])

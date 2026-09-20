@@ -57,7 +57,7 @@ const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: s
   { value: "all", label: "همه", icon: "inbox", color: "" },
   { value: "overdue", label: "موعد گذشته", icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
   { value: "today", label: "موعد امروز", icon: "clock", color: "text-amber-600 dark:text-amber-400" },
-  { value: "near", label: "نزدیک موعد (۲روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
+  { value: "near", label: "نزدیک موعد (2روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
 ];
 
 // ─── Time-filter helpers (Phase 17: منتقل از داشبورد حذف‌شده) ────────
@@ -171,7 +171,7 @@ function KpiCard({ icon, label, value, hint, color, active, onClick }: KpiCardPr
         <div className={cn("size-10 rounded-lg grid place-items-center", c.bg, c.text)}>
           <Icon name={icon} size={20} />
         </div>
-        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("fa-IR")}</span>
+        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("en-US")}</span>
       </div>
       <div className="mt-2">
         <div className="text-sm font-medium">{label}</div>
@@ -197,7 +197,7 @@ function PrintOrderMobileCard({ order: o }: { order: PrintOrder }) {
         <PriorityBadge priority={o.priority} />
         {materialPending > 0 ? (
           <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 inline-flex items-center gap-0.5">
-            <Icon name="alert" size={10} /> {materialPending.toLocaleString("fa-IR")} آیتم منتظر متریال
+            <Icon name="alert" size={10} /> {materialPending.toLocaleString("en-US")} آیتم منتظر متریال
           </span>
         ) : (
           <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 inline-flex items-center gap-0.5">
@@ -405,7 +405,7 @@ export function PrintOrders() {
           }
           return (
             <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 inline-flex items-center gap-0.5">
-              <Icon name="alert" size={10} /> {nm.toLocaleString("fa-IR")} آیتم منتظر
+              <Icon name="alert" size={10} /> {nm.toLocaleString("en-US")} آیتم منتظر
             </span>
           );
         },
@@ -513,7 +513,7 @@ export function PrintOrders() {
           icon="calendar"
           label="نزدیک موعد"
           value={timeCounts.near}
-          hint="۲ روز یا کمتر تا موعد چاپ"
+          hint="2 روز یا کمتر تا موعد چاپ"
           color="violet"
           active={timeFilter === "near"}
           onClick={() => applyTimeCard("near")}
@@ -577,7 +577,7 @@ export function PrintOrders() {
                         o.value === "today" && timeCounts.today > 0 && "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
                       )}
                     >
-                      {timeCounts[o.value].toLocaleString("fa-IR")}
+                      {timeCounts[o.value].toLocaleString("en-US")}
                     </span>
                   )}
                 </button>
@@ -637,14 +637,14 @@ export function PrintOrders() {
             <Icon name="print" size={14} />
             آماده چاپ
             <span className="text-[11px] text-muted-foreground">
-              ({filteredReady.length.toLocaleString("fa-IR")})
+              ({filteredReady.length.toLocaleString("en-US")})
             </span>
           </TabsTrigger>
           <TabsTrigger value="needs-material" className="gap-1.5">
             <Icon name="boxes" size={14} />
             نیازمند متریال
             <span className="text-[11px] text-muted-foreground">
-              ({filteredNeedsMaterial.length.toLocaleString("fa-IR")})
+              ({filteredNeedsMaterial.length.toLocaleString("en-US")})
             </span>
           </TabsTrigger>
         </TabsList>
@@ -657,14 +657,14 @@ export function PrintOrders() {
           </span>
           <span className="font-medium">
             <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-              {filteredReady.length.toLocaleString("fa-IR")}
+              {filteredReady.length.toLocaleString("en-US")}
             </span>{" "}
             سفارش در بخش چاپ (آمادهٔ چاپ)
           </span>
           <span className="text-muted-foreground">و</span>
           <span className="font-medium">
             <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 font-bold tabular-nums text-amber-700 dark:text-amber-400">
-              {filteredNeedsMaterial.length.toLocaleString("fa-IR")}
+              {filteredNeedsMaterial.length.toLocaleString("en-US")}
             </span>{" "}
             سفارش در بخش متریال (منتظر تأمین)
           </span>

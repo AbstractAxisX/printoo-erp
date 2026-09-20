@@ -5,9 +5,9 @@
 // مدیریت فهرست مجاز جغرافیا برای دراپ‌داون‌های مشتری:
 //  - ستون استان: افزودن/حذف + شمار شهرها + جستجو
 //  - ستون شهر: افزودن (با انتخاب استان) / حذف + جستجو + فیلتر استان
-//  - حذف با گارد ۴۰۹: استانِ دارای شهر یا مشتری، و شهرِ دارای مشتری
+//  - حذف با گارد 409: استانِ دارای شهر یا مشتری، و شهرِ دارای مشتری
 //    حذف نمی‌شود (پیام فارسی سرور توست می‌شود)
-//  - سید پایه (۱۹ استان عراق) از قبل در DB هست — صفحه فقط مدیریت است
+//  - سید پایه (19 استان عراق) از قبل در DB هست — صفحه فقط مدیریت است
 
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 type ProvinceRow = { id: string; name: string; cityCount: number; createdAt: string };
 type CityRow = { id: string; name: string; provinceId: string; provinceName: string; createdAt: string };
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 // ─── صفحه ───────────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ export function LocationsPage() {
       toast.success("حذف شد");
       setDeleting(null);
     },
-    // ۴۰۹ (شهر/مشتری وابسته) → توست فارسی؛ دیالوگ باز می‌ماند
+    // 409 (شهر/مشتری وابسته) → توست فارسی؛ دیالوگ باز می‌ماند
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -368,7 +368,7 @@ export function LocationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── حذف (گارد ۴۰۹ سرور) ── */}
+      {/* ── حذف (گارد 409 سرور) ── */}
       <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -388,7 +388,7 @@ export function LocationsPage() {
               className={cn("bg-rose-600 hover:bg-rose-700")}
               disabled={deleteMut.isPending}
               onClick={(e) => {
-                e.preventDefault(); // تا خطای ۴۰۹ دیده شود و دیالوگ باز بماند
+                e.preventDefault(); // تا خطای 409 دیده شود و دیالوگ باز بماند
                 if (deleting) deleteMut.mutate({ kind: deleting.kind, id: deleting.id });
               }}
             >

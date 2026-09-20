@@ -31,6 +31,15 @@ export function relativeTime(date: Date | string | null | undefined): string {
   return formatDistanceToNow(d, { addSuffix: true });
 }
 
+// وضعیت‌های «بسته» — سفارش تمام‌شده/آرشیو/لغو دیگر موعد و زمان ندارد
+// (خواستهٔ فاز 24: برای سفارش تموم‌شده کلاً زمان نشان داده نمی‌شود).
+export const CLOSED_ORDER_STATUSES = new Set(["completed", "archived", "cancelled"]);
+
+/** آیا سفارش بسته شده؟ (تمام/آرشیو/لغو) — بدون موعد و شمارش معکوس */
+export function isOrderClosed(status: string | null | undefined): boolean {
+  return CLOSED_ORDER_STATUSES.has(String(status ?? ""));
+}
+
 export function daysRemaining(endDate: Date | string | null | undefined): {
   text: string;
   status: "remaining" | "overdue" | "today" | "none";

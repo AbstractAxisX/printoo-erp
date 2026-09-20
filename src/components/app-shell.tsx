@@ -16,7 +16,7 @@ import { useAppStore } from "@/stores/app-store";
 export function AppShell() {
   useAutoTabs();
   useCrossTabSync();
-  useHeartbeat(); // Phase 12: نبض حضور — هر ۴۵ث وقتی tab مرئی است
+  useHeartbeat(); // Phase 12: نبض حضور — هر 45ث وقتی tab مرئی است
   const headerCollapsed = useAppStore((s) => s.headerCollapsed);
   const toggleHeader = useAppStore((s) => s.toggleHeader);
   const isDemo = useAppStore((s) => !!s.user?.isDemo);
@@ -28,10 +28,10 @@ export function AppShell() {
         {!headerCollapsed && <Header />}
         <TabBar />
         {/* دکمهٔ bookmark: جمع/نمایش هدر — فقط با CSS (بدون جاوااسکریپت اینلاین)
-            فاز ۴: حذف style={{ opacity }} + onMouseEnter/Leave که رفتار ناهماهنگ
+            فاز 4: حذف style={{ opacity }} + onMouseEnter/Leave که رفتار ناهماهنگ
             داشت (inline style بر Tailwind غلبه می‌کرد). حالا با کلاس‌های Tailwind
-            مدیریت می‌شود: ۳۰٪ پیش‌فرض (محو)، ۱۰۰٪ هنگام hover/focus-visible.
-            فاز ۶: گرادیانت emerald + شکل bookmark ظریف‌تر (rounded-b-xl). */}
+            مدیریت می‌شود: 30٪ پیش‌فرض (محو)، 100٪ هنگام hover/focus-visible.
+            فاز 6: گرادیانت emerald + شکل bookmark ظریف‌تر (rounded-b-xl). */}
         <button
           onClick={toggleHeader}
           aria-label={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}

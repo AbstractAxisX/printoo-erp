@@ -6,11 +6,11 @@
 //   1) list  → فهرست سندهای سفارش + وضعیت + اقدام‌ها + صدور جدید (fallback)
 //   2) issue → فرم صدور جدید (per-item یا کل گروه)
 //   3) edit  → ویرایش سند موجود (draft/sent/rejected) — «مودال تمیز و عریض
-//              با جزئیات پیش‌فاکتور که پر می‌شود و ثبت می‌شود» (خواستهٔ ۱)
+//              با جزئیات پیش‌فاکتور که پر می‌شود و ثبت می‌شود» (خواستهٔ 1)
 //   4) doc   → سند چاپی A4 با تم P24 + چرخهٔ وضعیت + چاپ/ذخیره PDF
 //
 // پیش‌فاکتور «همیشگی» است: با ثبت سفارش خودکار ساخته می‌شود (POST
-// /api/orders فاز ۱۱) — این مودال همان اولی را چاپ/ادیت می‌کند یا
+// /api/orders فاز 11) — این مودال همان اولی را چاپ/ادیت می‌کند یا
 // بعد از ادیت چاپ می‌کند. از جدول سفارشات (آیکون) و تب «پیش‌فاکتور»
 // مودال جزئیات هم همین مودال باز می‌شود.
 //
@@ -577,7 +577,7 @@ function PiForm({
 
       <Field label="توضیحات پیش‌فاکتور" hint="روی سند چاپی نمایش داده می‌شود">
         <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-          placeholder="مثلاً: تحویل ۵ روز کاری پس از تایید طرح" />
+          placeholder="مثلاً: تحویل 5 روز کاری پس از تایید طرح" />
       </Field>
 
       {/* محاسبهٔ زنده */}
@@ -916,7 +916,7 @@ function DocView({
         </button>
         <span className={cn("text-[11px] font-medium px-2.5 py-1 rounded-full", meta.badge)}>{meta.label}</span>
         <div className="flex-1" />
-        {/* ویرایش (خواستهٔ ۱: «دکمه ویرایش پیش فاکتور… پر کنه و ثبت کنه») */}
+        {/* ویرایش (خواستهٔ 1: «دکمه ویرایش پیش فاکتور… پر کنه و ثبت کنه») */}
         {editable && (
           <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 h-8">
             <Icon name="edit" size={13} /> ویرایش
@@ -953,13 +953,13 @@ function DocView({
             <Icon name="trash" size={13} /> حذف
           </Button>
         )}
-        {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Quotation No_ N - Customer */}
+        {/* فاز 21: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Quotation No_ N - Customer */}
         <DocPrintButtons
           fileName={`Quotation No_ ${pi.number} - ${pi.customer?.name ?? "Customer"}`}
         />
       </div>
 
-      {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز ۲۰) ─── */}
+      {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز 20) ─── */}
       <div className="doc-frame bg-muted/30 p-4" dir="ltr">
         <P24Doc
           title="Quotation"

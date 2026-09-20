@@ -4,10 +4,7 @@ import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useInvalidate } from "@/lib/use-invalidate";
-import { PageHeader, EmptyState, StatusBadge } from "@/components/shared";
-import { P24StatementDoc } from "@/components/shared/p24-doc";
-import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
-import { COMPANY, CURRENCY } from "@/lib/constants";
+import { PageHeader, EmptyState } from "@/components/shared";
 import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ToggleButton } from "@/components/ui/toggle-button";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate, relativeTime } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -26,8 +23,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { DetailDrawer } from "@/components/ui/detail-drawer";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -35,31 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
-import {
-  type Activity,
-  type Deal,
-  ACTIVITY_META,
-  STAGE_LABELS,
-  STAGE_COLORS,
-} from "./crm-types";
-import { ActivityFormDialog } from "./activity-form-dialog";
-import { DealFormDialog } from "./deal-form-dialog";
+import { Customer360Drawer } from "@/components/shared/customer-360-drawer";
 
 type Customer = {
   id: string;
   name: string;
   phone: string;
   isFavorite: boolean;
-  /** فاز ۲۰: ستون مرده — فقط برای سازگاری؛ نمایش از unsettled */
+  /** فاز 20: ستون مرده — فقط برای سازگاری؛ نمایش از unsettled */
   balanceDue?: number;
   /** بدهی زندهٔ مشتری (lib/customer-debt) — از همان /api/customers */
   unsettled?: number;
@@ -78,23 +56,6 @@ type Order = {
   createdAt: string;
   customer: { id: string; name: string };
   items?: { id: string; product?: { name: string } | null }[];
-};
-
-/** فاز ۲۲ (خواستهٔ ۹): سفارش‌های «بدهکار» — هر سفارشی (هر وضعیتی جز لغو)
- * که کامل پرداخت نشده و مشتری هنوز بدهکار است. چاپ صورت‌حساب جمعی و
- * جداکننده باید روی همین‌ها باشد، نه صرفاً سفارش‌های جاری (خواستهٔ صریح:
- * «باید باشه رو فاکتور یا سفارش‌هایی که کامل پرداخت نشده و هنوز مشتری
- * بدهکاره»). سفارش لغو‌شده حسابش بسته است — بدهی ندارد. */
-const isUnpaidOrder = (o: Order) =>
-  o.status !== "cancelled" &&
-  (o.totalAmount || 0) - (o.paidAmount ?? 0) > 0.001;
-
-type CustomerDetail = {
-  customer: Customer;
-  orders: Order[];
-  deals: Deal[];
-  activities: Activity[];
-  totalSpent: number;
 };
 
 type FilterValue = "all" | "favorite" | "has-orders" | "no-orders";
@@ -152,7 +113,7 @@ export function CRMCustomers() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  // فاز ۲۰: حذف مشتری از ردیف‌ها حذف شد — فقط از «منطقه خطر» انتهای نمای ۳۶۰
+  // فاز 20: حذف مشتری از ردیف‌ها حذف شد — فقط از «منطقه خطر» انتهای نمای 360
 
   async function toggleFavorite(c: Customer) {
     try {
@@ -251,7 +212,7 @@ export function CRMCustomers() {
       enableSorting: true,
     },
     {
-      // فاز ۲۰ (باگ ۷): unsettled زنده به‌جای balanceDue مردهٔ همیشه‌صفر
+      // فاز 20 (باگ 7): unsettled زنده به‌جای balanceDue مردهٔ همیشه‌صفر
       accessorKey: "unsettled",
       header: "مانده حساب",
       cell: ({ row }) => {
@@ -318,7 +279,7 @@ export function CRMCustomers() {
     <div className="space-y-5">
       <PageHeader
         title="مشتریان"
-        description="نمای ۳۶۰ درجه مشتریان، سفارش‌ها و فعالیت‌ها"
+        description="نمای 360 درجه مشتریان، سفارش‌ها و فعالیت‌ها"
         icon="customers"
         actions={
           <Button onClick={openNew} className="gap-2">
@@ -337,7 +298,7 @@ export function CRMCustomers() {
           searchPlaceholder="جستجوی نام یا تلفن..."
           pageSize={10}
           onRowClick={(c) => setSelectedId(c.id)}
-          // 20-E — نمای کارتی موبایل (کلیک = نمای ۳۶۰)
+          // 20-E — نمای کارتی موبایل (کلیک = نمای 360)
           renderCard={(c) => <CustomerMobileCard customer={c} />}
           toolbar={
             <Select
@@ -425,563 +386,11 @@ export function CRMCustomers() {
         </DialogContent>
       </Dialog>
 
-      {/* Customer 360 drawer */}
-      <CustomerDetailDrawer
+      {/* فاز ۲۴: نمای ۳۶۰ مشترک — همان دراور در CRM و مدیریت مشتریان ادمین */}
+      <Customer360Drawer
         customerId={selectedId}
         onClose={() => setSelectedId(null)}
       />
-    </div>
-  );
-}
-
-function CustomerDetailDrawer({
-  customerId,
-  onClose,
-}: {
-  customerId: string | null;
-  onClose: () => void;
-}) {
-  const invalidate = useInvalidate();
-  const [activityOpen, setActivityOpen] = React.useState(false);
-  const [dealOpen, setDealOpen] = React.useState(false);
-  // فاز ۲۰: فاکتور جمعی سفارش‌های جاری + حذف دور از دسترس
-  const [statementOpen, setStatementOpen] = React.useState(false);
-  const [deleteOpen, setDeleteOpen] = React.useState(false);
-  const [confirmName, setConfirmName] = React.useState("");
-  const open = !!customerId;
-
-  // Track loading/error/not-found explicitly so the UI doesn't show an infinite
-  // spinner when the customer is missing.
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["customer-detail", customerId],
-    queryFn: async () => {
-      if (!customerId) return null;
-      const [custRes, ordersRes, dealsRes, actsRes] = await Promise.all([
-        api<{ customer: Customer | null }>(`/api/customers/${customerId}`),
-        api<{ orders: Order[] }>(`/api/orders?customerId=${customerId}`),
-        api<{ deals: Deal[] }>(`/api/deals?customerId=${customerId}`),
-        api<{ activities: Activity[] }>(`/api/activities?customerId=${customerId}&limit=50`),
-      ]);
-      const customer = custRes?.customer ?? null;
-      if (!customer) return null;
-      const totalSpent = (ordersRes?.orders ?? []).reduce(
-        (s, o) => s + (o.totalAmount || 0),
-        0
-      );
-      return {
-        customer,
-        orders: ordersRes?.orders ?? [],
-        deals: dealsRes?.deals ?? [],
-        activities: actsRes?.activities ?? [],
-        totalSpent,
-      } as CustomerDetail;
-    },
-    enabled: !!customerId,
-    refetchInterval: open ? 30000 : false,
-  });
-
-  // Reset internal dialogs when closing drawer
-  React.useEffect(() => {
-    if (!open) {
-      setActivityOpen(false);
-      setDealOpen(false);
-      setStatementOpen(false);
-      setDeleteOpen(false);
-      setConfirmName("");
-    }
-  }, [open]);
-
-  const detail = data;
-  const notFound = !isLoading && !isError && !detail;
-
-  // فاز ۲۲ (خواستهٔ ۹): سفارش‌های پرداخت‌نشده (بدهکار) + بقیه
-  const unpaidOrders = React.useMemo(
-    () => (detail?.orders ?? []).filter(isUnpaidOrder),
-    [detail]
-  );
-  const settledOrders = React.useMemo(
-    () => (detail?.orders ?? []).filter((o) => !isUnpaidOrder(o)),
-    [detail]
-  );
-  const activeTotals = React.useMemo(() => {
-    const subtotal = unpaidOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const paid = unpaidOrders.reduce((s, o) => s + (o.paidAmount || 0), 0);
-    return { subtotal, paid, balance: Math.max(0, subtotal - paid) };
-  }, [unpaidOrders]);
-
-  const deleteMut = useMutation({
-    mutationFn: () => {
-      if (!customerId) throw new Error("مشتری انتخاب نشده است");
-      return api(`/api/customers/${customerId}`, { method: "DELETE" });
-    },
-    onSuccess: () => {
-      invalidate(["customers", "crm-dashboard", "deals", "customer-detail"]);
-      toast.success("مشتری حذف شد");
-      setDeleteOpen(false);
-      onClose();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  return (
-    <>
-      {/* فاز ۲۰: دراور مشترک DetailDrawer — دسکتاپ چپِ sm:max-w-xl، موبایل بات‌شیت گرد */}
-      <DetailDrawer
-        open={open}
-        onOpenChange={(o) => {
-          if (!o) onClose();
-        }}
-        title="نمای ۳۶۰ درجه مشتری"
-        description="اطلاعات کامل، سفارش‌ها، معاملات و فعالیت‌ها"
-        icon="customers"
-      >
-          {isLoading ? (
-            <div className="py-20 flex flex-col items-center gap-2">
-              <Icon name="loading" size={28} className="animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
-            </div>
-          ) : isError ? (
-            <div className="py-20 flex flex-col items-center gap-2">
-              <Icon name="alertTriangle" size={28} className="text-rose-500" />
-              <span className="text-sm text-muted-foreground">
-                {error instanceof Error ? error.message : "خطا در بارگذاری مشتری"}
-              </span>
-              <Button variant="outline" size="sm" onClick={onClose} className="mt-2">
-                بستن
-              </Button>
-            </div>
-          ) : notFound ? (
-            <div className="py-20 flex flex-col items-center gap-2">
-              <Icon name="alertTriangle" size={28} className="text-amber-500" />
-              <span className="text-sm text-muted-foreground">
-                مشتری یافت نشد. ممکن است حذف شده باشد.
-              </span>
-              <Button variant="outline" size="sm" onClick={onClose} className="mt-2">
-                بستن
-              </Button>
-            </div>
-          ) : detail ? (
-            <div className="flex flex-col">
-              {/* Profile header */}
-              <div className="px-5 py-4 border-b bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <div className="size-14 rounded-2xl bg-primary text-primary-foreground grid place-items-center text-xl font-bold shrink-0">
-                    {detail.customer.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-bold truncate">{detail.customer.name}</h3>
-                      {detail.customer.isFavorite && (
-                        <Icon name="star" size={16} className="text-amber-500 shrink-0" />
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-1.5" dir="ltr">
-                      <Icon name="customers" size={12} />
-                      {detail.customer.phone}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      مشتری از {formatDate(detail.customer.createdAt)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 mt-4">
-                  <div className="rounded-lg bg-card border p-2 text-center">
-                    <div className="text-[10px] text-muted-foreground">سفارش‌ها</div>
-                    <div className="text-base font-bold tabular-nums">{detail.orders.length}</div>
-                  </div>
-                  <div className="rounded-lg bg-card border p-2 text-center">
-                    <div className="text-[10px] text-muted-foreground">معاملات</div>
-                    <div className="text-base font-bold tabular-nums">{detail.deals.length}</div>
-                  </div>
-                  <div className="rounded-lg bg-card border p-2 text-center">
-                    <div className="text-[10px] text-muted-foreground">مجموع خرید</div>
-                    <div className="text-xs font-bold tabular-nums" dir="ltr">
-                      {formatCurrency(detail.totalSpent)}
-                    </div>
-                  </div>
-                </div>
-
-                {detail.customer.note && (
-                  <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5 text-xs">
-                    <div className="flex items-start gap-1.5">
-                      <Icon name="info" size={12} className="text-amber-600 mt-0.5 shrink-0" />
-                      <span>{detail.customer.note}</span>
-                    </div>
-                  </div>
-                )}
-
-                {(detail.customer.unsettled ?? 0) > 0 && (
-                  <div className="mt-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-2.5 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-rose-700 dark:text-rose-300 flex items-center gap-1">
-                        <Icon name="wallet" size={12} /> مانده حساب
-                      </span>
-                      <span className="font-bold tabular-nums text-rose-700 dark:text-rose-300" dir="ltr">
-                        {formatCurrency(detail.customer.unsettled ?? 0)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Tabs */}
-              <Tabs defaultValue="orders" className="flex-1">
-                <div className="px-5 pt-3">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="orders" className="flex-1 gap-1">
-                      <Icon name="orders" size={14} />
-                      سفارش‌ها ({detail.orders.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="deals" className="flex-1 gap-1">
-                      <Icon name="orders" size={14} />
-                      معاملات ({detail.deals.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="activities" className="flex-1 gap-1">
-                      <Icon name="task" size={14} />
-                      فعالیت‌ها
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-
-                <TabsContent value="orders" className="px-5 py-3 m-0">
-                  {/* ── سفارش‌های پرداخت‌نشده (بدهکار) + فاکتور جمعی (خواستهٔ ۹ فاز ۲۲) ── */}
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-xs font-bold text-muted-foreground">
-                      سفارش‌های پرداخت‌نشده ({unpaidOrders.length})
-                    </span>
-                    {unpaidOrders.length > 0 && (
-                      <Button
-                        size="sm"
-                        onClick={() => setStatementOpen(true)}
-                        className="gap-1.5 h-8"
-                      >
-                        <Icon name="print" size={13} /> چاپ فاکتور سفارشات پرداخت‌نشده
-                      </Button>
-                    )}
-                  </div>
-
-                  {unpaidOrders.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 mb-3">
-                      <div className="rounded-lg bg-card border p-2 text-center">
-                        <div className="text-[10px] text-muted-foreground">جمع مبلغ بدهی سفارش‌ها</div>
-                        <div className="text-xs font-bold tabular-nums" dir="ltr">
-                          {formatCurrency(activeTotals.subtotal)}
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-card border p-2 text-center">
-                        <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
-                        <div className="text-xs font-bold text-emerald-600 tabular-nums" dir="ltr">
-                          {formatCurrency(activeTotals.paid)}
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-card border p-2 text-center">
-                        <div className="text-[10px] text-muted-foreground">مانده بدهی</div>
-                        <div className="text-xs font-bold text-rose-600 tabular-nums" dir="ltr">
-                          {formatCurrency(activeTotals.balance)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {detail.orders.length === 0 ? (
-                    <EmptyState icon="orders" title="سفارشی ندارد" />
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        {unpaidOrders.map((o) => (
-                          <OrderRow key={o.id} o={o} />
-                        ))}
-                        {unpaidOrders.length === 0 && (
-                          <p className="text-xs text-muted-foreground text-center py-2">
-                            بدهی بازاری نیست — همه تسویه شده ✓
-                          </p>
-                        )}
-                      </div>
-
-                      {/* خط جداکننده (خواستهٔ ۹): بالای خط بدهکار، پایین خط بدون بدهی */}
-                      {settledOrders.length > 0 && (
-                        <>
-                          <div className="border-t my-3.5" />
-                          <span className="text-xs font-bold text-muted-foreground block mb-2">
-                            تسویه‌شده / بدون بدهی ({settledOrders.length})
-                          </span>
-                          <div className="space-y-2 opacity-75">
-                            {settledOrders.map((o) => (
-                              <OrderRow key={o.id} o={o} />
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="deals" className="px-5 py-3 m-0">
-                  <div className="flex items-center justify-end mb-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setDealOpen(true)}
-                      className="gap-1.5"
-                    >
-                      <Icon name="plus" size={14} /> معامله جدید
-                    </Button>
-                  </div>
-                  {detail.deals.length === 0 ? (
-                    <EmptyState icon="orders" title="معامله‌ای ندارد" />
-                  ) : (
-                    <div className="space-y-2">
-                      {detail.deals.map((d) => {
-                        const colors = STAGE_COLORS[d.stage];
-                        return (
-                          <div
-                            key={d.id}
-                            className="rounded-lg border p-2.5 hover:bg-accent/40 transition"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium truncate">{d.title}</div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span
-                                    className={cn(
-                                      "text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1",
-                                      colors.bg,
-                                      colors.text
-                                    )}
-                                  >
-                                    <span className={cn("size-1 rounded-full", colors.dot)} />
-                                    {STAGE_LABELS[d.stage]}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {formatDate(d.expectedCloseDate)}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="text-sm font-semibold tabular-nums shrink-0" dir="ltr">
-                                {formatCurrency(d.value)}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="activities" className="px-5 py-3 m-0">
-                  <div className="flex items-center justify-end mb-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setActivityOpen(true)}
-                      className="gap-1.5"
-                    >
-                      <Icon name="plus" size={14} /> ثبت فعالیت
-                    </Button>
-                  </div>
-                  {detail.activities.length === 0 ? (
-                    <EmptyState icon="task" title="فعالیتی ثبت نشده" />
-                  ) : (
-                    <div className="relative">
-                      <div className="absolute right-[19px] top-2 bottom-2 w-px bg-border" />
-                      <div className="space-y-3">
-                        {detail.activities.map((a) => {
-                          const meta = ACTIVITY_META[a.type];
-                          return (
-                            <div key={a.id} className="flex items-start gap-3 relative">
-                              <div
-                                className={cn(
-                                  "size-9 rounded-full grid place-items-center shrink-0 z-10 border-2 border-background",
-                                  meta.bg
-                                )}
-                              >
-                                <Icon name={meta.icon} size={14} className={meta.color} />
-                              </div>
-                              <div className="flex-1 min-w-0 pt-1">
-                                <div className="text-sm font-medium">{a.title}</div>
-                                {a.description && (
-                                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                    {a.description}
-                                  </div>
-                                )}
-                                <div className="text-[10px] text-muted-foreground mt-1">
-                                  {meta.label} • {relativeTime(a.date)}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-
-              {/* ── منطقه خطر — حذف مشتری دور از دسترس (خواستهٔ ۸ فاز ۲۰) ── */}
-              <div className="border-t mt-2 px-5 py-4">
-                <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 p-3">
-                  <div className="text-xs font-bold text-rose-700 dark:text-rose-300">
-                    منطقهٔ خطر
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                    حذف کامل مشتری فقط وقتی ممکن است که هیچ سفارش/فاکتور/سابقه‌ای نداشته باشد.
-                    برای امنیت داده‌ها این عمل از لیست جدا شده و نیازمند تایید دوباره است.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 text-rose-600 border-rose-300 dark:border-rose-800 hover:bg-rose-100/60 dark:hover:bg-rose-950/40 gap-1.5"
-                    onClick={() => {
-                      setConfirmName("");
-                      setDeleteOpen(true);
-                    }}
-                  >
-                    <Icon name="trash" size={13} /> حذف کامل این مشتری
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-      </DetailDrawer>
-
-      {/* فاکتور جمعی سفارش‌های پرداخت‌نشده (خواستهٔ ۹ فاز ۲۲) */}
-      {detail && (
-        <Dialog open={statementOpen} onOpenChange={setStatementOpen}>
-          <DialogContent
-            aria-describedby={undefined}
-            className="sm:max-w-4xl max-h-[94vh] overflow-y-auto p-0 gap-0"
-          >
-            <DialogTitle className="sr-only">فاکتور سفارشات پرداخت‌نشده</DialogTitle>
-            <div className="no-print flex items-center gap-2 px-4 py-3 border-b flex-wrap">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">فاکتور سفارشات پرداخت‌نشده</p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {detail.customer.name} — {unpaidOrders.length} سفارش پرداخت‌نشده
-                </p>
-              </div>
-              {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی */}
-              <DocPrintButtons
-                fileName={`Invoice - ${detail.customer.name} - Unpaid Orders`}
-              />
-            </div>
-            <div className="doc-frame bg-muted/30 p-4" dir="ltr">
-              <P24StatementDoc
-                subtitle="Unpaid Orders Statement"
-                issueDate={new Date().toISOString()}
-                customerName={detail.customer.name}
-                customerPhone={detail.customer.phone ?? null}
-                rows={unpaidOrders.map((o) => ({
-                  number: o.number,
-                  date: o.createdAt,
-                  description:
-                    (o.items ?? [])
-                      .map((i) => i.product?.name)
-                      .filter(Boolean)
-                      .join(", ") || "—",
-                  amount: o.totalAmount,
-                }))}
-                subtotal={activeTotals.subtotal}
-                paid={activeTotals.paid}
-                notes={`This invoice consolidates all orders of the customer that are NOT fully paid yet. Prices are in Iraqi Dinar (${CURRENCY}).`}
-                closingNote={`Consolidated invoice for unpaid orders · ${COMPANY.name}`}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* تایید حذف با تایپ نام مشتری */}
-      {detail && (
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                حذف کامل «{detail.customer.name}»؟
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                این عمل قابل بازگشت نیست و کل اطلاعات مشتری پاک می‌شود. برای تایید،
-                نام دقیق مشتری را وارد کنید.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <Input
-              value={confirmName}
-              onChange={(e) => setConfirmName(e.target.value)}
-              placeholder={detail.customer.name}
-              dir="auto"
-            />
-            <AlertDialogFooter>
-              <AlertDialogCancel>انصراف</AlertDialogCancel>
-              <Button
-                variant="destructive"
-                disabled={confirmName.trim() !== detail.customer.name.trim() || deleteMut.isPending}
-                onClick={() => deleteMut.mutate()}
-                className="gap-1.5"
-              >
-                {deleteMut.isPending ? (
-                  <Icon name="loading" size={14} className="animate-spin" />
-                ) : (
-                  <Icon name="trash" size={14} />
-                )}
-                حذف قطعی
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-
-      {detail && (
-        <>
-          <ActivityFormDialog
-            open={activityOpen}
-            onOpenChange={setActivityOpen}
-            customers={[{ id: detail.customer.id, name: detail.customer.name }]}
-            deals={detail.deals.map((d) => ({
-              id: d.id,
-              title: d.title,
-              customerId: d.customerId,
-            }))}
-            defaultCustomerId={detail.customer.id}
-            onSaved={() => invalidate(["customer-detail", "activities", "deals"])}
-          />
-          <DealFormDialog
-            open={dealOpen}
-            onOpenChange={setDealOpen}
-            customers={[
-              { id: detail.customer.id, name: detail.customer.name, phone: detail.customer.phone },
-            ]}
-            onSaved={() => invalidate(["customer-detail", "deals", "crm-dashboard"])}
-          />
-        </>
-      )}
-    </>
-  );
-}
-
-// ردیف سفارش در تب سفارش‌های نمای ۳۶۰ — با وضعیت فارسی و پرداخت/مانده (فاز ۲۰)
-function OrderRow({ o }: { o: Order }) {
-  const paid = o.paidAmount ?? 0;
-  const due = Math.max(0, o.totalAmount - paid);
-  return (
-    <div className="flex items-center gap-3 rounded-lg border p-2.5 hover:bg-accent/40 transition">
-      <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center font-bold text-xs shrink-0">
-        #{o.number}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium">سفارش #{o.number}</span>
-          <StatusBadge status={o.status} className="text-[10px] px-2 py-0.5" />
-        </div>
-        <div className="text-xs text-muted-foreground">{relativeTime(o.createdAt)}</div>
-      </div>
-      <div className="text-left shrink-0">
-        <div className="text-sm font-semibold tabular-nums" dir="ltr">
-          {formatCurrency(o.totalAmount)}
-        </div>
-        <div className="text-[10px] text-muted-foreground tabular-nums" dir="ltr">
-          پرداخت {formatCurrency(paid)} · مانده {formatCurrency(due)}
-        </div>
-      </div>
     </div>
   );
 }
@@ -997,7 +406,7 @@ function CustomerMobileCard({ customer: c }: { customer: Customer }) {
         {c.name.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        {/* ردیف ۱: نام + وضعیت مالی */}
+        {/* ردیف 1: نام + وضعیت مالی */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-bold truncate flex items-center gap-1 min-w-0">
             {c.name}
@@ -1016,13 +425,13 @@ function CustomerMobileCard({ customer: c }: { customer: Customer }) {
             </span>
           )}
         </div>
-        {/* ردیف ۲: تلفن + تعداد سفارش */}
+        {/* ردیف 2: تلفن + تعداد سفارش */}
         <div className="flex items-center justify-between gap-2 mt-1">
           <span className="text-xs text-muted-foreground tabular-nums truncate" dir="ltr">
             {c.phone}
           </span>
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-            {(c._count?.orders ?? 0).toLocaleString("fa-IR")} سفارش
+            {(c._count?.orders ?? 0).toLocaleString("en-US")} سفارش
           </span>
         </div>
       </div>

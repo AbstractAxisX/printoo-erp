@@ -3,7 +3,7 @@
 // Printoo24 ERP — Order row actions (Phase 3 atomic split → Phase 11 wiring)
 //
 // Actions: note · edit · pre-invoice · invoice · delete.
-// فاز ۱۱: دکمه‌های پیش‌فاکتور/فاکتور به مودال‌های «مستقل» متصل شدند —
+// فاز 11: دکمه‌های پیش‌فاکتور/فاکتور به مودال‌های «مستقل» متصل شدند —
 // مدیریت کامل (ویرایش/چاپ/چرخهٔ وضعیت/صدور) همان‌جا از جدول:
 //   پیش‌فاکتور → PreInvoiceModal (لیست سندها)
 //   فاکتور     → InvoiceModal (قفل تاییدی → فرم صدور → سند)

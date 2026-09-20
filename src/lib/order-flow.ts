@@ -15,13 +15,13 @@
 //   انتقال سفارش).
 //
 // اصول:
-//   ۱. aggregateStatus(items) — وضعیت موثر سفارش = پایین‌ترین مرحلهٔ
+//   1. aggregateStatus(items) — وضعیت موثر سفارش = پایین‌ترین مرحلهٔ
 //      فعالِ آیتم‌ها (design < print < warehouse < completed).
-//   ۲. recomputeOrderStatus(tx, orderId) — بعد از هر تغییر stage آیتم،
+//   2. recomputeOrderStatus(tx, orderId) — بعد از هر تغییر stage آیتم،
 //      وضعیت سفارش بازمحاسبه می‌شود + نوتیفیکیشن انتقال.
-//   ۳. وضعیت‌های دستیِ پایانی (completed/archived/cancelled) توسط
+//   3. وضعیت‌های دستیِ پایانی (completed/archived/cancelled) توسط
 //      موتور «پایین‌آورده» نمی‌شوند — فقط admin می‌تواند دستی عوضشان کند.
-//   ۴. syncItemsToStatus — تغییر دستی وضعیت توسط ادمین، stage آیتم‌ها را
+//   4. syncItemsToStatus — تغییر دستی وضعیت توسط ادمین، stage آیتم‌ها را
 //      همگام می‌کند تا سفارش و آیتم‌ها هرگز ناهمخوان نشوند.
 
 import type { Prisma } from "@prisma/client";

@@ -107,7 +107,7 @@ function FilterChip({
       {children}
       {count !== undefined && count > 0 && (
         <span className="text-[10px] font-bold tabular-nums opacity-80">
-          {count.toLocaleString("fa-IR")}
+          {count.toLocaleString("en-US")}
         </span>
       )}
     </button>
@@ -263,7 +263,7 @@ export function FinanceCosts() {
                 {(c.attachments?.length ?? 0) > 0 && (
                   <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5 shrink-0">
                     <Icon name="file" size={9} />
-                    {(c.attachments ?? []).length.toLocaleString("fa-IR")}
+                    {(c.attachments ?? []).length.toLocaleString("en-US")}
                   </span>
                 )}
                 {c.includeInInvoice && (
@@ -434,7 +434,7 @@ export function FinanceCosts() {
             {formatCurrency(sumOf("pending"))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {allCosts.filter((c) => c.status === "pending").length.toLocaleString("fa-IR")} مورد
+            {allCosts.filter((c) => c.status === "pending").length.toLocaleString("en-US")} مورد
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/10">
@@ -446,7 +446,7 @@ export function FinanceCosts() {
             {formatCurrency(sumOf("approved"))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {allCosts.filter((c) => c.status === "approved").length.toLocaleString("fa-IR")} مورد
+            {allCosts.filter((c) => c.status === "approved").length.toLocaleString("en-US")} مورد
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10">
@@ -458,7 +458,7 @@ export function FinanceCosts() {
             {formatCurrency(sumOf("rejected"))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {allCosts.filter((c) => c.status === "rejected").length.toLocaleString("fa-IR")} مورد
+            {allCosts.filter((c) => c.status === "rejected").length.toLocaleString("en-US")} مورد
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-primary/20">
@@ -470,7 +470,7 @@ export function FinanceCosts() {
             {formatCurrency(filtered.reduce((s, c) => s + c.amount, 0))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {filtered.length.toLocaleString("fa-IR")} مورد
+            {filtered.length.toLocaleString("en-US")} مورد
           </div>
         </Card>
       </div>
@@ -518,7 +518,7 @@ export function FinanceCosts() {
             فیلترها
             {activeFilterCount > 0 && (
               <span className="size-5 rounded-full bg-primary-foreground/20 text-[10px] font-bold grid place-items-center">
-                {activeFilterCount.toLocaleString("fa-IR")}
+                {activeFilterCount.toLocaleString("en-US")}
               </span>
             )}
           </Button>
@@ -552,7 +552,7 @@ export function FinanceCosts() {
             </Button>
           )}
           <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-            {filtered.length.toLocaleString("fa-IR")} هزینه
+            {filtered.length.toLocaleString("en-US")} هزینه
           </span>
         </div>
 
@@ -644,7 +644,7 @@ export function FinanceCosts() {
                           </span>
                         )}
                         <span className="text-[10px] text-muted-foreground">
-                          {g.costs.length.toLocaleString("fa-IR")} هزینه
+                          {g.costs.length.toLocaleString("en-US")} هزینه
                         </span>
                       </div>
                       <span className="text-sm font-bold tabular-nums" dir="ltr">

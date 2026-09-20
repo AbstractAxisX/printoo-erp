@@ -145,7 +145,7 @@ function KpiCard({ icon, label, value, hint, color, onClick }: KpiCardProps) {
         <div className={cn("size-10 rounded-lg grid place-items-center", c.bg, c.text)}>
           <Icon name={icon} size={20} />
         </div>
-        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("fa-IR")}</span>
+        <span className="text-3xl font-bold tabular-nums">{value.toLocaleString("en-US")}</span>
       </div>
       <div className="mt-2">
         <div className="text-sm font-medium">{label}</div>
@@ -247,7 +247,7 @@ export function DesignerDashboard() {
           icon="calendar"
           label="نزدیک موعد"
           value={nearCount}
-          hint="۲ روز یا کمتر تا موعد"
+          hint="2 روز یا کمتر تا موعد"
           color="amber"
           onClick={() => goWithFilter("near")}
         />
@@ -278,7 +278,7 @@ export function DesignerDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm">
-                {overdueOrders.length.toLocaleString("fa-IR")} سفارش با موعد طراحی گذشته
+                {overdueOrders.length.toLocaleString("en-US")} سفارش با موعد طراحی گذشته
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 موعد طراحی این سفارشات رسیده است. لطفاً هرچه زودتر اقدام کنید.

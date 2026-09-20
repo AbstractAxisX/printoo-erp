@@ -39,7 +39,7 @@ export type SeriesPoint = { date: string; value: number };
 /** Full /api/dashboard response shape. Each consumer reads only its slice. */
 export type DashboardData = {
   range: { from: string; to: string };
-  // Phase 17-D: «unsettledCustomers» point-in-time است — prev/change همیشه ۰
+  // Phase 17-D: «unsettledCustomers» point-in-time است — prev/change همیشه 0
   // و subValue = جمع مطالبات (دینار) است؛ کارتش فقط count را بزرگ نشان می‌دهد.
   // Phase 19: «revenue» = پول دریافتی (subValue = سود خالص)؛ «orderValue» =
   // ارزش سفارشات جدید؛ «payments» حذف شد.
@@ -58,7 +58,7 @@ export type DashboardData = {
     overdue: { count: number; oldestDays: number };
     pendingCosts: { count: number; sum: number };
     profit: { revenue: number; costs: number; net: number };
-    // Phase 22 (خواستهٔ ۶): سفارش‌های زیان‌ده (هزینهٔ تأییدشده > مبلغ)
+    // Phase 22 (خواستهٔ 6): سفارش‌های زیان‌ده (هزینهٔ تأییدشده > مبلغ)
     lossOrders?: { count: number; sum: number; top: { name: string; due: number }[] };
   };
   recentOrders: DashboardOrder[];

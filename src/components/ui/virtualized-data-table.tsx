@@ -254,19 +254,19 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
           <span>
             مجموع{" "}
             <span className="font-semibold text-foreground tabular-nums">
-              {rows.length.toLocaleString("fa-IR")}
+              {rows.length.toLocaleString("en-US")}
             </span>{" "}
             رکورد
           </span>
           {virtualItems.length > 0 && (
             <span className="tabular-nums">
               نمایش{" "}
-              {Math.min(virtualItems[0].index + 1, rows.length).toLocaleString("fa-IR")}{" "}
+              {Math.min(virtualItems[0].index + 1, rows.length).toLocaleString("en-US")}{" "}
               تا{" "}
               {Math.min(
                 virtualItems[virtualItems.length - 1].index + 1,
                 rows.length
-              ).toLocaleString("fa-IR")}
+              ).toLocaleString("en-US")}
             </span>
           )}
         </div>

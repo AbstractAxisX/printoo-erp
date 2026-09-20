@@ -56,7 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
     // ── Gate 2: تخصیص per-item — فقط مجریِ خودِ آیتم (مدیر همیشه مجاز) ──
-    // فاز ۱۳: چک در خود اکشن انجام می‌شود (هر آیتم مجری خودش را دارد).
+    // فاز 13: چک در خود اکشن انجام می‌شود (هر آیتم مجری خودش را دارد).
     if (action !== "report_qc" && !isManager(user)) {
       const designItemsNow = order.items.filter((i) => i.stage === "design");
       const mine = designItemsNow.filter(

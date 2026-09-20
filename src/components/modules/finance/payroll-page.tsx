@@ -2,17 +2,17 @@
 
 // ─── Phase 16: حقوق و دستمزد — مالی (فول) ──────────────────────────────
 // ساختار (تخصصی واحد مالی):
-//   ۱) نوار دوره‌ها — چیپ‌های افقی (مرتب نزولی): دورهٔ بازِ جاری emerald؛
+//   1) نوار دوره‌ها — چیپ‌های افقی (مرتب نزولی): دورهٔ بازِ جاری emerald؛
 //      دوره‌های پرداخت‌شده فقط-خواندنی
-//   ۲) ردیف کارت‌های جمع: جمع حقوق دوره • پرداخت‌شده • کارمندان •
+//   2) ردیف کارت‌های جمع: جمع حقوق دوره • پرداخت‌شده • کارمندان •
 //      اضافه‌کاری+پاداش • کسورات • مساعدهٔ کسرنشده
-//   ۳) جدول ورودی‌ها (قلب صفحه): ویرایش اینلاین در دورهٔ باز (الگوی
+//   3) جدول ورودی‌ها (قلب صفحه): ویرایش اینلاین در دورهٔ باز (الگوی
 //      آیتم‌ردیف ویزارد: اینپوت‌های جمع‌وجور با نمایش گروه‌بندی‌شده)،
 //      خالصِ زنده، ذخیرهٔ per-row + پرداخت با تأیید؛ ردیف paid قفل با
 //      لینک «سند هزینه»
-//   ۴) نوار «پرداخت کل دوره» (AlertDialog + جمع خالص draft)
-//   ۵) پنل مساعده‌ها: فرم ثبت اینلاین + جدول وضعیت/حذف (فقط کسرنشده)
-//   ۶) تاریخچهٔ دوره‌های گذشته
+//   4) نوار «پرداخت کل دوره» (AlertDialog + جمع خالص draft)
+//   5) پنل مساعده‌ها: فرم ثبت اینلاین + جدول وضعیت/حذف (فقط کسرنشده)
+//   6) تاریخچهٔ دوره‌های گذشته
 
 import * as React from "react";
 import { useQuery, useMutation, type UseMutationResult } from "@tanstack/react-query";
@@ -163,12 +163,9 @@ const PERIOD_STATUS: Record<string, { label: string; cls: string }> = {
 // ─── کمکی‌ها ────────────────────────────────────────────────────────────
 
 function fa(n: number): string {
-  return n.toLocaleString("fa-IR");
+  return n.toLocaleString("en-US");
 }
 
-function faDigits(s: string): string {
-  return s.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
-}
 
 function moduleLabel(key: string): string {
   const meta = (MODULES as Record<string, { faLabel: string }>)[key];
@@ -545,7 +542,7 @@ export function PayrollPage() {
         icon="wallet"
         description={
           current
-            ? `دورهٔ ${faDigits(current.key)} • ${fa(entries.length)} کارمند • هر پرداخت به‌عنوان سند هزینهٔ «حقوق» ثبت می‌شود`
+            ? `دورهٔ ${current.key} • ${fa(entries.length)} کارمند • هر پرداخت به‌عنوان سند هزینهٔ «حقوق» ثبت می‌شود`
             : "مدیریت دوره‌های حقوق، مساعده و پرداخت — ثبت خودکار به‌عنوان هزینه"
         }
         actions={
@@ -577,7 +574,7 @@ export function PayrollPage() {
 
       {!isLoading && current && (
         <>
-          {/* ۱) نوار دوره‌ها */}
+          {/* 1) نوار دوره‌ها */}
           <Card className="p-3">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[11px] font-medium text-muted-foreground shrink-0 flex items-center gap-1">
@@ -611,7 +608,7 @@ export function PayrollPage() {
                         size={12}
                         className="opacity-70"
                       />
-                      <span dir="ltr" className="tabular-nums">{faDigits(p.key)}</span>
+                      <span dir="ltr" className="tabular-nums">{p.key}</span>
                       {p.status === "open" && (
                         <span
                           className={cn(
@@ -634,7 +631,7 @@ export function PayrollPage() {
             <div className="rounded-xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/10 px-4 py-2.5 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 flex-wrap">
               <Icon name="lock" size={14} className="shrink-0 mt-0.5" />
               <span>
-                دورهٔ <b dir="ltr" className="tabular-nums">{faDigits(current.key)}</b>{" "}
+                دورهٔ <b dir="ltr" className="tabular-nums">{current.key}</b>{" "}
                 {PERIOD_STATUS[current.status]?.label ?? current.status} است — نمایش فقط-خواندنی؛
                 ویرایش ارقام فقط در دورهٔ باز ممکن است.
                 {current.paidByName && current.paidAt && (
@@ -647,7 +644,7 @@ export function PayrollPage() {
             </div>
           )}
 
-          {/* ۲) کارت‌های جمع */}
+          {/* 2) کارت‌های جمع */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <StatCard
               icon="wallet"
@@ -693,7 +690,7 @@ export function PayrollPage() {
             />
           </div>
 
-          {/* ۳) جدول ورودی‌ها */}
+          {/* 3) جدول ورودی‌ها */}
           <Card className="p-0 overflow-hidden">
             <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2.5">
@@ -702,7 +699,7 @@ export function PayrollPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">
-                    ورودی‌های حقوق — دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(current.key)}</span>
+                    ورودی‌های حقوق — دورهٔ <span dir="ltr" className="tabular-nums">{current.key}</span>
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
                     {fa(rows.length)} کارمند • بازهٔ {current.startDate} تا {current.endDate} •{" "}
@@ -1037,7 +1034,7 @@ export function PayrollPage() {
             )}
           </Card>
 
-          {/* ۴) نوار پرداخت کل دوره */}
+          {/* 4) نوار پرداخت کل دوره */}
           {periodOpen && (
             <Card className="p-4 border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/10">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -1047,7 +1044,7 @@ export function PayrollPage() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">
-                      پرداخت یکجای دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(current.key)}</span>
+                      پرداخت یکجای دورهٔ <span dir="ltr" className="tabular-nums">{current.key}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {draftRows.length === 0
@@ -1069,7 +1066,7 @@ export function PayrollPage() {
             </Card>
           )}
 
-          {/* ۵) پنل مساعده‌ها */}
+          {/* 5) پنل مساعده‌ها */}
           <AdvancesPanel
             advances={data?.advances ?? []}
             employees={entries.map((e) => ({ userId: e.userId, name: e.name }))}
@@ -1077,7 +1074,7 @@ export function PayrollPage() {
             deleteMut={deleteAdvMut}
           />
 
-          {/* ۶) تاریخچهٔ دوره‌ها */}
+          {/* 6) تاریخچهٔ دوره‌ها */}
           <PeriodsHistory periods={data?.periods ?? []} currentId={current.id} />
         </>
       )}
@@ -1120,7 +1117,7 @@ export function PayrollPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              پرداخت کل دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(current?.key ?? "")}</span>
+              پرداخت کل دورهٔ <span dir="ltr" className="tabular-nums">{current?.key ?? ""}</span>
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
@@ -1157,7 +1154,7 @@ export function PayrollPage() {
   );
 }
 
-// ─── ۵) پنل مساعده‌ها ───────────────────────────────────────────────────
+// ─── 5) پنل مساعده‌ها ───────────────────────────────────────────────────
 
 type EmployeeOption = { userId: string; name: string };
 
@@ -1181,7 +1178,7 @@ function AdvancesPanel({
 }) {
   // فرم ثبت
   const [advUserId, setAdvUserId] = React.useState("");
-  // NumInput مقدار ۰ را خالی نمایش می‌دهد — ورودی از اول خالی است
+  // NumInput مقدار 0 را خالی نمایش می‌دهد — ورودی از اول خالی است
   const [advAmount, setAdvAmount] = React.useState(0);
   const [advNote, setAdvNote] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<Advance | null>(null);
@@ -1345,7 +1342,7 @@ function AdvancesPanel({
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            کسر در حقوق دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(a.deductedPeriodKey)}</span>
+                            کسر در حقوق دورهٔ <span dir="ltr" className="tabular-nums">{a.deductedPeriodKey}</span>
                             {a.deductedAt ? ` — ${formatDateTime(a.deductedAt)}` : ""}
                           </TooltipContent>
                         </Tooltip>
@@ -1417,7 +1414,7 @@ function AdvancesPanel({
   );
 }
 
-// ─── ۶) تاریخچهٔ دوره‌ها ────────────────────────────────────────────────
+// ─── 6) تاریخچهٔ دوره‌ها ────────────────────────────────────────────────
 
 function PeriodsHistory({ periods, currentId }: { periods: Period[]; currentId: string }) {
   const past = periods.filter((p) => p.id !== currentId);
@@ -1460,7 +1457,7 @@ function PeriodsHistory({ periods, currentId }: { periods: Period[]; currentId: 
                 <TableRow key={p.id}>
                   <TableCell>
                     <span dir="ltr" className="font-mono text-xs font-bold tabular-nums">
-                      {faDigits(p.key)}
+                      {p.key}
                     </span>
                   </TableCell>
                   <TableCell>

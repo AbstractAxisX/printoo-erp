@@ -34,7 +34,7 @@ export function isModuleKey(v: unknown): v is ModuleKeyStr {
   return typeof v === "string" && (MODULE_KEYS as readonly string[]).includes(v);
 }
 
-/** حضور آنلاین: lastSeenAt جدیدتر از این پنجره = آنلاین (heartbeat هر ۴۵ث). */
+/** حضور آنلاین: lastSeenAt جدیدتر از این پنجره = آنلاین (heartbeat هر 45ث). */
 export const ONLINE_WINDOW_MS = 3 * 60 * 1000;
 
 export function isOnline(lastSeenAt: Date | string | null | undefined): boolean {
@@ -86,7 +86,7 @@ export function isManager(user: { role: string; modules: string[] }): boolean {
   return user.role === "master" || user.modules.includes("admin");
 }
 
-/** کارمند مالی (فاز ۱۵) — هزینه‌ها/درآمدها/تأیید و اسناد را می‌بیند. */
+/** کارمند مالی (فاز 15) — هزینه‌ها/درآمدها/تأیید و اسناد را می‌بیند. */
 export function isFinanceStaff(user: { role: string; modules: string[] }): boolean {
   return user.role === "master" || user.modules.includes("finance");
 }
@@ -99,7 +99,7 @@ export function hasModule(
   return user.role === "master" || user.modules.includes(module);
 }
 
-/** کاربرِ لاگین‌شده + دسترسی ماژول — ۴۰۳ فارسی در غیر این صورت. */
+/** کاربرِ لاگین‌شده + دسترسی ماژول — 403 فارسی در غیر این صورت. */
 export async function requireModuleAccess(module: string) {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
@@ -112,7 +112,7 @@ export async function requireModuleAccess(module: string) {
   return user;
 }
 
-/** کاربرِ لاگین‌شده + نقش مدیریتی — ۴۰۳ فارسی در غیر این صورت. */
+/** کاربرِ لاگین‌شده + نقش مدیریتی — 403 فارسی در غیر این صورت. */
 export async function requireManager() {
   const user = await requireUser();
   if (user instanceof NextResponse) return user;
@@ -228,14 +228,14 @@ export function boardScopeWhere(
 // ─── اسکوپ عمومی لیست سفارش (implicit board scoping) ───────────
 //
 // برای مدیرها بدون board → همه‌چیز. برای بقیه: برد هر ماژولی که دارند
-// + مالکیت تاریخی — حالت item-level (فاز ۱۳).
+// + مالکیت تاریخی — حالت item-level (فاز 13).
 export function orderScopeWhere(user: {
   id: string;
   role: string;
   modules: string[];
 }): Prisma.OrderWhereInput | null {
   if (isManager(user)) return null; // مدیر داخلی: همه (از پنل ادمین)
-  // فاز ۱۵: مالی همهٔ سفارش‌ها را می‌بیند (تاریخچه مالی/فاکتور)؛
+  // فاز 15: مالی همهٔ سفارش‌ها را می‌بیند (تاریخچه مالی/فاکتور)؛
   // انبار-لجستیک سفارش‌های در جریان/تحویل را (دریافت نقدی در محل).
   if (user.modules.includes("finance")) return null;
   if (user.modules.includes("warehouse")) {
@@ -271,7 +271,7 @@ export function canUserViewOrder(
   }
 ): boolean {
   if (isManager(user)) return true;
-  // فاز ۱۵: مالی/انبار-لجستیک به‌صورت سازمانی همهٔ سفارش‌ها را می‌بینند
+  // فاز 15: مالی/انبار-لجستیک به‌صورت سازمانی همهٔ سفارش‌ها را می‌بینند
   if (user.modules.includes("finance")) return true;
   if (user.modules.includes("warehouse")) return true;
   // مالکیت تاریخی
@@ -305,7 +305,7 @@ export function canUserViewOrder(
 }
 
 /** Gate کلی اقدام روی سفارش (compat رفتار قدیمی + پیام روشن).
- *  فاز ۱۳: چک per-item در خود اکشن‌ها انجام می‌شود (isItemActionAllowed). */
+ *  فاز 13: چک per-item در خود اکشن‌ها انجام می‌شود (isItemActionAllowed). */
 export function isOrderAssigneeAllowed(
   user: { id: string; role: string; modules: string[] },
   order: OrderAssigneeFields & {

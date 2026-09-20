@@ -376,7 +376,7 @@ export function SRMServices() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
-                placeholder="مثال: چاپ افست ۴ رنگ"
+                placeholder="مثال: چاپ افست 4 رنگ"
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">

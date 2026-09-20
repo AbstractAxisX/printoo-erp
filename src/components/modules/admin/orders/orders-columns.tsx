@@ -13,7 +13,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
+import { formatCurrency, formatDate, daysRemaining, isOrderClosed } from "@/lib/format";
 import {
   ITEM_STAGE,
   type OrderStatus,
@@ -23,8 +23,8 @@ import { OrderRowActions } from "./order-row-actions";
 import type { Order } from "./types";
 
 /** اعداد فارسی برای چیپ‌های ردیف */
-function toFa(n: number) {
-  return n.toLocaleString("fa-IR");
+function fmtNum(n: number) {
+  return n.toLocaleString("en-US");
 }
 
 export type OrderColumnActions = {
@@ -80,7 +80,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
               {isGrouped && (row.original.items?.length ?? 0) > 1 && (
                 <span className="text-[10px] text-primary bg-primary/10 rounded px-1.5 py-0.5 flex items-center gap-0.5 mt-0.5">
                   <Icon name="layers" size={9} />
-                  گروهی {toFa(row.original.items.length)} آیتم
+                  گروهی {fmtNum(row.original.items.length)} آیتم
                 </span>
               )}
             </div>
@@ -138,7 +138,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
             {canExpand && designCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 flex items-center gap-0.5">
                 <Icon name="design" size={9} />
-                {toFa(designCount)} در طراحی
+                {fmtNum(designCount)} در طراحی
               </span>
             )}
           </div>
@@ -174,6 +174,11 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
           );
         if (!o.endDate)
           return <span className="text-xs text-muted-foreground">—</span>;
+        // فاز 24 (خواستهٔ 2): سفارش بسته‌شده (تمام/آرشیو/لغو) دیگر موعد و
+        // شمارش معکوس ندارد — فقط تاریخ پایان به‌عنوان رکورد تاریخی.
+        if (isOrderClosed(o.status)) {
+          return <div className="text-xs tabular-nums text-muted-foreground">{formatDate(o.endDate)}</div>;
+        }
         const dr = daysRemaining(o.endDate);
         return (
           <div>

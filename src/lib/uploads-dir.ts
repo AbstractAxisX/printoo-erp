@@ -3,14 +3,14 @@ import path from "path";
 // ─── Phase 19: دایرکتوری ماندگار پیوست‌ها ───────────────────────────
 //
 // باگ: پیوست‌ها در `.next/standalone/public/uploads` می‌نوشتند که با هر
-// بیلد production پاک می‌شود → لینک دانلود در پنل مالی ۴۰۴ می‌شد
+// بیلد production پاک می‌شود → لینک دانلود در پنل مالی 404 می‌شد
 // («کروم خطا میداد، هیچ فایلی نمی‌آمد»).
 //
 // اولویت resolution:
-//   ۱) UPLOADS_DIR محیط (systemd: /opt/printoo24-admin/uploads)
-//   ۲) production با cwd داخل .next/standalone → دو سطح بالاتر (ریشهٔ
+//   1) UPLOADS_DIR محیط (systemd: /opt/printoo24-admin/uploads)
+//   2) production با cwd داخل .next/standalone → دو سطح بالاتر (ریشهٔ
 //      پروژه) + /uploads — خارج از پوشهٔ build، مانا در ری‌بیلد
-//   ۳) dev → public/uploads (سندباکس — سرو استاتیک خود Next)
+//   3) dev → public/uploads (سندباکس — سرو استاتیک خود Next)
 
 export function uploadsRoot(): string {
   if (process.env.UPLOADS_DIR && process.env.UPLOADS_DIR.trim()) {

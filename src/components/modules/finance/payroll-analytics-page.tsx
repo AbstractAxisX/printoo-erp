@@ -2,14 +2,14 @@
 
 // ─── Phase 16: تحلیل حقوق — مالی ───────────────────────────────────────
 // تحلیل و مانیتورینگ حقوق (فول اپشن):
-//   ۱) فیلتر سراسری زمان (TimeRangePicker — الگوی داشبورد مالی)
-//   ۲) ردیف KPI: جمع پرداختی بازه • میانگین ماهانه • ماه‌های پرداخت •
+//   1) فیلتر سراسری زمان (TimeRangePicker — الگوی داشبورد مالی)
+//   2) ردیف KPI: جمع پرداختی بازه • میانگین ماهانه • ماه‌های پرداخت •
 //      کارمندان • مساعدهٔ کسرنشده
-//   ۳) کارت مقایسهٔ ماه‌به‌ماه (lastDelta) با دو میلهٔ نرمال‌شده
-//   ۴) نمودار روند ماهانه (BarChart — تولتیپ فارسی، پالت emerald)
-//   ۵) کارت‌های حقوق به تفکیک ماژول (+سهم) با نکتهٔ شمارش چند-ماژولی
-//   ۶) جدول کارمندان (DataTable: جستجو + مرتب‌سازی؛ کلیک فقط برای مدیر)
-//   ۷) کارت‌های لینک: تاریخچه هزینه‌ها / مدیریت دورهٔ جاری
+//   3) کارت مقایسهٔ ماه‌به‌ماه (lastDelta) با دو میلهٔ نرمال‌شده
+//   4) نمودار روند ماهانه (BarChart — تولتیپ فارسی، پالت emerald)
+//   5) کارت‌های حقوق به تفکیک ماژول (+سهم) با نکتهٔ شمارش چند-ماژولی
+//   6) جدول کارمندان (DataTable: جستجو + مرتب‌سازی؛ کلیک فقط برای مدیر)
+//   7) کارت‌های لینک: تاریخچه هزینه‌ها / مدیریت دورهٔ جاری
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -99,12 +99,9 @@ const MODULE_BAR: Record<string, string> = {
 // ─── کمکی‌ها ────────────────────────────────────────────────────────────
 
 function fa(n: number): string {
-  return n.toLocaleString("fa-IR");
+  return n.toLocaleString("en-US");
 }
 
-function faDigits(s: string): string {
-  return s.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
-}
 
 function moduleLabel(key: string): string {
   if (key === "none") return "بدون ماژول";
@@ -191,7 +188,7 @@ function MoMDeltaCard({ delta }: { delta: Analytics["lastDelta"] }) {
   const bar = (label: string, value: number, cls: string) => (
     <div className="flex items-center gap-2">
       <span className="text-[10px] text-muted-foreground w-12 shrink-0 tabular-nums" dir="ltr">
-        {faDigits(label)}
+        {label}
       </span>
       <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
         <div className={cn("h-full rounded-full transition-all", cls)} style={{ width: `${(value / max) * 100}%` }} />
@@ -212,8 +209,8 @@ function MoMDeltaCard({ delta }: { delta: Analytics["lastDelta"] }) {
             {up ? "+" : "−"}{fa(Math.abs(delta.pct))}٪
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(delta.currentKey)}</span> نسبت به{" "}
-            <span dir="ltr" className="tabular-nums">{faDigits(delta.prevKey)}</span>
+            دورهٔ <span dir="ltr" className="tabular-nums">{delta.currentKey}</span> نسبت به{" "}
+            <span dir="ltr" className="tabular-nums">{delta.prevKey}</span>
           </div>
         </div>
       </div>
@@ -254,7 +251,7 @@ function TrendChartCard({ monthly }: { monthly: Analytics["monthly"] }) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" strokeOpacity={0.15} />
                 <XAxis
                   dataKey="key"
-                  tickFormatter={(v: string) => faDigits(v)}
+                  tickFormatter={(v: string) => v}
                   tick={{ fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
@@ -281,7 +278,7 @@ function TrendChartCard({ monthly }: { monthly: Analytics["monthly"] }) {
                   formatter={(value: number) => [formatCurrency(value), "جمع پرداختی"]}
                   labelFormatter={(label: string) => {
                     const m = monthly.find((x) => x.key === label);
-                    return m ? `${faDigits(label)} • ${fa(m.entriesCount)} ورودی` : faDigits(label);
+                    return m ? `${label} • ${fa(m.entriesCount)} ورودی` : label;
                   }}
                 />
                 <Bar dataKey="paidSum" name="جمع پرداختی" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
@@ -339,7 +336,7 @@ function ModuleCardsSection({ byModule, totalPaid }: { byModule: Analytics["byMo
                       style={{ width: `${Math.max(share, 2)}%` }}
                     />
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-1.5">{Math.round(share).toLocaleString("fa-IR")}٪ از کل بازه</div>
+                  <div className="text-[10px] text-muted-foreground mt-1.5">{Math.round(share).toLocaleString("en-US")}٪ از کل بازه</div>
                 </Card>
               );
             })}
@@ -356,7 +353,7 @@ export function PayrollAnalyticsPage() {
   const navigate = useAppStore((s) => s.navigate);
   const user = useAppStore((s) => s.user);
 
-  // الگوی داشبورد مالی — «this-year» برای دید ماهانه (پریست ۶ماهه موجود نیست)
+  // الگوی داشبورد مالی — «this-year» برای دید ماهانه (پریست 6ماهه موجود نیست)
   const [range, setRange] = React.useState<TimeRange>(() => getPreset("this-year"));
   const [q, setQ] = React.useState("");
 

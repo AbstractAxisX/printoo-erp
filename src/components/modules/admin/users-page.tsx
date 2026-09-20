@@ -2,7 +2,7 @@
 
 // Printoo24 ERP — Users & Roles management page (master-only, Phase 12)
 //
-// بازسازی فاز ۱۲ — «چند ماژول به هر کاربر»:
+// بازسازی فاز 12 — «چند ماژول به هر کاربر»:
 // - کاتالوگ ماژول‌ها (با شمار اعضای زنده) به‌جای کاتالوگ نقش‌های تکی
 // - ساخت کاربر: چک‌باکس چند-ماژوله (طراح + چاپ + QC + ... هر ترکیبی)
 // - ویرایش کاربر: همان چک‌باکس‌ها (جایگزینی کامل دسترسی‌ها) + رمز/وضعیت
@@ -25,6 +25,7 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/stores/app-store";
+import { MODULE_LEVEL_META, type ModuleLevel } from "@/lib/module-pages";
 import { PageHeader, LoadingState, EmptyState } from "@/components/shared";
 import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
@@ -56,6 +57,8 @@ type ManagedUser = {
   modules: string[];
   /** Phase 18: صفحات مجاز هر ماژول — null/غایب = همهٔ صفحات */
   modulePages?: Record<string, string[] | null> | null;
+  /** Phase 24: سطح ۳لایهٔ هر ماژول — view / edit / delete */
+  moduleLevels?: Record<string, ModuleLevel> | null;
   status?: string;
   createdAt?: string;
   lastSeenAt?: string | null;
@@ -65,6 +68,7 @@ type ManagedUser = {
 };
 
 type PagesMap = Record<string, string[] | null>;
+type LevelsMap = Record<string, ModuleLevel>;
 
 type FormState = {
   name: string;
@@ -74,6 +78,8 @@ type FormState = {
   modules: string[];
   /** Phase 18: صفحات مجاز ماژول‌های تیک‌خورده (null = همه) */
   modulePages: PagesMap;
+  /** Phase 24: سطح ۳لایهٔ هر ماژول تیک‌خورده (delete = کامل) */
+  moduleLevels: LevelsMap;
 };
 
 const EMPTY_FORM: FormState = {
@@ -83,6 +89,7 @@ const EMPTY_FORM: FormState = {
   phone: "",
   modules: ["designer"],
   modulePages: {},
+  moduleLevels: {},
 };
 
 // ─── Phase 18 helpers ─────────────────────────────────────────────
@@ -105,6 +112,13 @@ function normPages(v: string[] | null | undefined): string[] | null {
 function payloadPages(form: FormState): PagesMap {
   const out: PagesMap = {};
   for (const m of form.modules) out[m] = normPages(form.modulePages[m]);
+  return out;
+}
+
+/** Phase 24: سطح ۳لایهٔ فقط ماژول‌های انتخاب‌شده (بدون کلید → delete). */
+function payloadLevels(form: FormState): LevelsMap {
+  const out: LevelsMap = {};
+  for (const m of form.modules) out[m] = form.moduleLevels[m] ?? "delete";
   return out;
 }
 
@@ -223,6 +237,13 @@ export function UsersPage() {
           body: JSON.stringify({ modulePages: patch.modulePages }),
         });
       }
+      // Phase 24: همان تضمین idempotent برای سطح ۳لایهٔ ماژول‌های مانده
+      if (Array.isArray(patch.modules) && patch.moduleLevels) {
+        await api(`/api/users/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ moduleLevels: patch.moduleLevels }),
+        });
+      }
       return res;
     },
     onSuccess: () => {
@@ -242,6 +263,9 @@ export function UsersPage() {
     // Phase 18: هیدراته‌کردن صفحات مجاز (ماژول بدون رکورد → null = همه)
     const modulePages: PagesMap = {};
     for (const m of modules) modulePages[m] = normPages(u.modulePages?.[m]);
+    // Phase 24: هیدراته‌کردن سطح ۳لایه (ماژول بدون رکورد → delete = کامل)
+    const moduleLevels: LevelsMap = {};
+    for (const m of modules) moduleLevels[m] = u.moduleLevels?.[m] ?? "delete";
     setEditForm({
       name: u.name,
       email: u.email,
@@ -249,6 +273,7 @@ export function UsersPage() {
       phone: u.phone ?? "",
       modules,
       modulePages,
+      moduleLevels,
     });
     setNewPassword("");
   }
@@ -258,11 +283,11 @@ export function UsersPage() {
     if (!createForm.name.trim()) return toast.error("نام الزامی است");
     if (!createForm.email.trim()) return toast.error("ایمیل الزامی است");
     if (createForm.password.length < 6)
-      return toast.error("رمز عبور باید حداقل ۶ کاراکتر باشد");
+      return toast.error("رمز عبور باید حداقل 6 کاراکتر باشد");
     if (createForm.modules.length === 0)
       return toast.error("حداقل یک ماژول (سطح دسترسی) انتخاب کنید");
     // Phase 18: صفحات فقط برای ماژول‌های تیک‌خورده (کلید بیرونی → خطای سرور)
-    createMut.mutate({ ...createForm, modulePages: payloadPages(createForm) });
+    createMut.mutate({ ...createForm, modulePages: payloadPages(createForm), moduleLevels: payloadLevels(createForm) });
   }
 
   function submitEdit(e: React.FormEvent) {
@@ -283,6 +308,7 @@ export function UsersPage() {
         phone: editForm.phone || null,
         ...(modulesChanged ? { modules: editForm.modules } : {}),
         ...(!isMasterTarget ? { modulePages: payloadPages(editForm) } : {}),
+        ...(!isMasterTarget ? { moduleLevels: payloadLevels(editForm) } : {}),
         ...(newPassword ? { password: newPassword } : {}),
       },
       {
@@ -461,9 +487,24 @@ export function UsersPage() {
                       (u.modules ?? []).map((m) => {
                         // Phase 18: ماژول محدودشده → بج «N/M صفحه»
                         const pages = normPages(u.modulePages?.[m]);
+                        // Phase 24: سطح غیرکامل → بج سطح (مشاهده/ادیت)
+                        const lv = u.moduleLevels?.[m] ?? "delete";
                         return (
                           <span key={m} className="inline-flex items-center gap-1">
                             <ModuleChip module={m} />
+                            {lv !== "delete" && (
+                              <span
+                                title={`سطح دسترسی: ${MODULE_LEVEL_META[lv].label} — ${MODULE_LEVEL_META[lv].hint}`}
+                                className={cn(
+                                  "text-[10px] font-medium rounded-full px-1.5 py-0.5",
+                                  lv === "view"
+                                    ? "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300"
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                                )}
+                              >
+                                {MODULE_LEVEL_META[lv].label}
+                              </span>
+                            )}
                             {pages && <PageLimitBadge module={m} pages={pages} />}
                           </span>
                         );
@@ -606,12 +647,16 @@ function UserFormFields({
       // Phase 18: کلید ماژول برداشته‌شده از modulePages پاک شود (کلید
       // بیرونی = خطای اعتبارسنجی سرور)؛ تیک جدید بدون رکورد = null (همه).
       const modulePages: PagesMap = { ...f.modulePages };
+      // Phase 24: همان قرارداد برای سطح ۳لایه
+      const moduleLevels: LevelsMap = { ...f.moduleLevels };
       if (checked) {
         if (modulePages[key] === undefined) modulePages[key] = null;
+        if (moduleLevels[key] === undefined) moduleLevels[key] = "delete";
       } else {
         delete modulePages[key];
+        delete moduleLevels[key];
       }
-      return { ...f, modules, modulePages };
+      return { ...f, modules, modulePages, moduleLevels };
     });
   }
 
@@ -619,6 +664,13 @@ function UserFormFields({
     setForm((f) => ({
       ...f,
       modulePages: { ...f.modulePages, [key]: pages },
+    }));
+  }
+
+  function setModuleLevel(key: string, level: ModuleLevel) {
+    setForm((f) => ({
+      ...f,
+      moduleLevels: { ...f.moduleLevels, [key]: level },
     }));
   }
 
@@ -649,7 +701,7 @@ function UserFormFields({
             type="password"
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            placeholder="حداقل ۶ کاراکتر"
+            placeholder="حداقل 6 کاراکتر"
             dir="ltr"
           />
         </Field>
@@ -690,11 +742,18 @@ function UserFormFields({
                 </label>
                 {/* Phase 18 — صفحات مجازِ همین ماژول (فقط وقتی تیک خورده) */}
                 {checked && (
-                  <ModulePagesPanel
-                    moduleKey={key}
-                    pages={form.modulePages[key] ?? null}
-                    onChange={(pages) => setModulePages(key, pages)}
-                  />
+                  <>
+                    <ModuleLevelPanel
+                      moduleKey={key}
+                      level={form.moduleLevels[key] ?? "delete"}
+                      onChange={(lv) => setModuleLevel(key, lv)}
+                    />
+                    <ModulePagesPanel
+                      moduleKey={key}
+                      pages={form.modulePages[key] ?? null}
+                      onChange={(pages) => setModulePages(key, pages)}
+                    />
+                  </>
                 )}
               </div>
             );
@@ -702,10 +761,82 @@ function UserFormFields({
         </div>
         <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
           کاربر فقط پنل ماژول‌های تیک‌خورده را می‌بیند — مثلاً هم «کنترل کیفی» هم «چاپ»
-          را تیک بزنید تا هر دو پنل برایش باز شود. با برداشتنِ «همهٔ صفحات» می‌توانید
-          صفحات همان ماژول را تک‌به‌تک محدود کنید.
+          را تیک بزنید تا هر دو پنل برایش باز شود. زیر هر ماژول، «سطح دسترسی» را
+          انتخاب کنید: مشاهده (فقط می‌بیند)، ادیت (ثبت/ویرایش بدون حذف) یا حذف
+          (کامل). با برداشتنِ «همهٔ صفحات» می‌توانید صفحات همان ماژول را تک‌به‌تک
+          محدود کنید.
         </p>
       </Field>
+    </div>
+  );
+}
+
+// ─── Phase 24: پنل سطح دسترسی ۳لایهٔ یک ماژول ─────────────────────
+// سه گزینهٔ رادیویی: مشاهده / ادیت / حذف — هرچه بالاتر، دسترسی کامل‌تر.
+// «حذف» دیفالت است (رفتار قبلی سیستم). سطح روی همان ماژولِ تیک‌خورده
+// اعمال می‌شود (چه «همهٔ صفحات» چه زیرمجموعهٔ صفحات) و گیت مرکزی
+// proxy متدهای نوشتاری/حذف را طبق همان سطح می‌بندد.
+const LEVEL_VISUALS: Record<ModuleLevel, { dot: string; active: string }> = {
+  view: {
+    dot: "bg-sky-500",
+    active: "border-sky-400 bg-sky-50 dark:bg-sky-950/40",
+  },
+  edit: {
+    dot: "bg-amber-500",
+    active: "border-amber-400 bg-amber-50 dark:bg-amber-950/40",
+  },
+  delete: {
+    dot: "bg-rose-500",
+    active: "border-rose-400 bg-rose-50 dark:bg-rose-950/40",
+  },
+};
+
+function ModuleLevelPanel({
+  moduleKey,
+  level,
+  onChange,
+}: {
+  moduleKey: string;
+  level: ModuleLevel;
+  onChange: (level: ModuleLevel) => void;
+}) {
+  const meta = (MODULES as Record<string, { faLabel: string }>)[moduleKey];
+  const faLabel = meta?.faLabel ?? moduleKey;
+  return (
+    <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          سطح دسترسی در {faLabel}
+        </span>
+        <span className="text-[11px] font-medium text-foreground">
+          {MODULE_LEVEL_META[level].label}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {(["view", "edit", "delete"] as const).map((lv) => {
+          const active = level === lv;
+          return (
+            <button
+              key={lv}
+              type="button"
+              onClick={() => onChange(lv)}
+              title={MODULE_LEVEL_META[lv].hint}
+              className={cn(
+                "rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors select-none flex items-center justify-center gap-1.5",
+                active
+                  ? LEVEL_VISUALS[lv].active
+                  : "border-border bg-background text-muted-foreground hover:bg-accent/40"
+              )}
+            >
+              <span className={cn("size-1.5 rounded-full", LEVEL_VISUALS[lv].dot)} />
+              {MODULE_LEVEL_META[lv].label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-relaxed">
+        {MODULE_LEVEL_META[level].hint} — اعمال آن حداکثر ۴۵ ثانیه بعد نزد کاربر فعال می‌شود.
+      </p>
     </div>
   );
 }

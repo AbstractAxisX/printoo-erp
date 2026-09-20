@@ -409,7 +409,7 @@ export function OrdersFilterBar({
         )}
 
         <div className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {resultCount.toLocaleString("fa-IR")} سفارش
+          {resultCount.toLocaleString("en-US")} سفارش
         </div>
       </div>
 

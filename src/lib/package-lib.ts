@@ -9,7 +9,7 @@ import { logOrderEvent } from "@/lib/order-events";
 type Tx = Prisma.TransactionClient;
 type CtxUser = { id: string; name: string };
 
-/** کد QR غیرقابل حدس: PKG- + ۶ کاراکتر از الفبای بدون‌ابهام. */
+/** کد QR غیرقابل حدس: PKG- + 6 کاراکتر از الفبای بدون‌ابهام. */
 export function generatePackageCode(): string {
   const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // بدون I,O,0,1
   let out = "";
@@ -50,10 +50,10 @@ export async function isItemPacked(
 
 /**
  * تحویل بسته:
- *   ۱) اقلام → stage=completed؛ سفارشِ کاملاً-تحویل‌شده → status=completed
- *   ۲) COD جمع‌شده → توزیع FIFO روی سفارش‌های بسته (RevenueLog با
+ *   1) اقلام → stage=completed؛ سفارشِ کاملاً-تحویل‌شده → status=completed
+ *   2) COD جمع‌شده → توزیع FIFO روی سفارش‌های بسته (RevenueLog با
  *      module=logistics) — همان مسیر «دریافت نقدی در محل» لجستیک
- *   ۳) رویداد package_delivered برای هر سفارش
+ *   3) رویداد package_delivered برای هر سفارش
  */
 export async function finalizeDelivery(
   tx: Tx,
@@ -72,7 +72,7 @@ export async function finalizeDelivery(
   });
   if (!pkg) throw new Error("بسته یافت نشد");
 
-  // ۱) تکمیل اقلام
+  // 1) تکمیل اقلام
   const orderIds = [...new Set(pkg.items.map((i) => i.orderId))];
   let completedOrders = 0;
   for (const oid of orderIds) {
@@ -89,7 +89,7 @@ export async function finalizeDelivery(
     }
   }
 
-  // ۲) COD — توزیع FIFO روی سفارش‌های بسته (به ترتیب شماره)
+  // 2) COD — توزیع FIFO روی سفارش‌های بسته (به ترتیب شماره)
   const codOrders: { number: number; diff: number }[] = [];
   let codTotal = 0;
   if (args.collectCod && pkg.codAmount > 0) {
@@ -126,7 +126,7 @@ export async function finalizeDelivery(
     }
   }
 
-  // ۳) رویدادها
+  // 3) رویدادها
   for (const oid of orderIds) {
     await logOrderEvent(tx, {
       orderId: oid,

@@ -88,7 +88,7 @@ export async function GET(
       codAmount: pkg.codAmount,
       codCollected: pkg.codCollected,
       orders: [...orderMap.values()],
-      company: { name: "Printoo24", faName: "پرینتو ۲۴", phone: "0770 000 0000" },
+      company: { name: "Printoo24", faName: "پرینتو 24", phone: "0770 000 0000" },
     };
     cache.set(code, { at: Date.now(), body });
     return NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });

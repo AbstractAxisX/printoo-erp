@@ -225,7 +225,7 @@ export function FinanceRevenues() {
             دریافتی‌های جدید
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5">
-            {positiveCount.toLocaleString("fa-IR")}
+            {positiveCount.toLocaleString("en-US")}
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-rose-500/10">
@@ -234,7 +234,7 @@ export function FinanceRevenues() {
             اصلاح‌های کاهشی
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5">
-            {(logs.length - positiveCount).toLocaleString("fa-IR")}
+            {(logs.length - positiveCount).toLocaleString("en-US")}
           </div>
         </Card>
       </div>
@@ -276,7 +276,7 @@ export function FinanceRevenues() {
           ))}
         </div>
         <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {logs.length.toLocaleString("fa-IR")} ثبت
+          {logs.length.toLocaleString("en-US")} ثبت
         </span>
       </Card>
 

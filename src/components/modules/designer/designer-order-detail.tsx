@@ -309,8 +309,8 @@ export function DesignerOrderDetailModal({
                     پیشرفت طراحی سفارش گروهی
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    {completedDesign.length.toLocaleString("fa-IR")} از{" "}
-                    {designScope.toLocaleString("fa-IR")} آیتم
+                    {completedDesign.length.toLocaleString("en-US")} از{" "}
+                    {designScope.toLocaleString("en-US")} آیتم
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -337,7 +337,7 @@ export function DesignerOrderDetailModal({
                 <Icon name="design" size={13} />
                 آیتم‌های نیازمند طراحی
                 <span className="text-[10px] font-normal text-muted-foreground/70">
-                  ({designItems.length.toLocaleString("fa-IR")})
+                  ({designItems.length.toLocaleString("en-US")})
                 </span>
               </div>
               <div className="space-y-2">
@@ -404,7 +404,7 @@ export function DesignerOrderDetailModal({
                   <Icon name="checkCircle" size={13} className="text-emerald-600" />
                   طراحی‌شده‌ها
                   <span className="text-[10px] font-normal text-muted-foreground/70">
-                    ({completedDesign.length.toLocaleString("fa-IR")})
+                    ({completedDesign.length.toLocaleString("en-US")})
                   </span>
                 </div>
                 <div className="space-y-1">
@@ -430,7 +430,7 @@ export function DesignerOrderDetailModal({
             {otherItems.length > 0 && (
               <div className="text-[11px] text-muted-foreground rounded-lg border border-dashed px-3 py-2 flex items-center gap-1.5">
                 <Icon name="info" size={12} className="shrink-0" />
-                {otherItems.length.toLocaleString("fa-IR")} آیتم دیگرِ این سفارش
+                {otherItems.length.toLocaleString("en-US")} آیتم دیگرِ این سفارش
                 طراحی نمی‌خواهند (مرحلهٔ چاپ/انبار) — پس از تکمیل طراحیِ
                 آیتم‌های بالا، سفارش با همهٔ آیتم‌ها به مرحلهٔ بعد می‌رود.
               </div>

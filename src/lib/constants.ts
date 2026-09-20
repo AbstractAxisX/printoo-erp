@@ -4,7 +4,7 @@
 // این مقادیر روی سربرگ پیش‌فاکتور/فاکتور چاپی درج می‌شوند.
 export const COMPANY = {
   name: "Printoo24",
-  faName: "پرینتو ۲۴",
+  faName: "پرینتو 24",
   tagline: "سامانه یکپارچه مدیریت چاپ",
   phone: "776 227 8666",
   email: "info@printoo24.com",

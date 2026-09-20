@@ -21,7 +21,7 @@ import { jsonError } from "@/lib/api-error";
 //     orderId, customerId?, status? ("draft" پیش‌فرض),
 //     items: [{name, quantity, unit?, unitPrice, discount?}],
 //     discountAmount?, taxRate?, paidAmount?,
-//     validDays? (پیش‌فرض ۱۵), notes?, terms?
+//     validDays? (پیش‌فرض 15), notes?, terms?
 //   }
 // مبلغ paidAmount به‌صورت افزایشی روی order.paidAmount اعمال می‌شود
 // (مدل قبلی مقدار را بازنویسی می‌کرد — با چند پیش‌فاکتور غلط بود).

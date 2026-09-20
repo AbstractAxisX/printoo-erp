@@ -38,7 +38,7 @@ type ItemDraft = {
   description: string;
   stage: "design" | "print" | "warehouse" | "completed" | "archive";
   needsMaterial: boolean;
-  // Phase 10: زمان‌بندی per-item (خواستهٔ ۳: «تاریخ طراحی و چاپ برای هر
+  // Phase 10: زمان‌بندی per-item (خواستهٔ 3: «تاریخ طراحی و چاپ برای هر
   // ایتم مجزا ثبت شه») — yyyy-MM-dd
   designStart: string;
   designEnd: string;
@@ -140,7 +140,7 @@ export function OrderWizardPage() {
   const [noEndDate, setNoEndDate] = React.useState(false);
   const [note, setNote] = React.useState("");
   // Phase 10: تاریخ‌های طراحی/چاپ per-item شدند (در ItemDraft هر آیتم) —
-  // این‌ها فقط ابزار «اعمال روی همه» در مرحلهٔ ۳ هستند.
+  // این‌ها فقط ابزار «اعمال روی همه» در مرحلهٔ 3 هستند.
 
   // ─── Phase 12: تخصیص مسئوِِستان (طراح/چاپ اختصاصی) ───
   // «اگر سیستم بیش از یک نقش طراح داشته باشه بگه این سفارش به کدوم کاربر بره»
@@ -216,7 +216,7 @@ export function OrderWizardPage() {
     }
   }, [printerUsers]);
 
-  // Phase 11 — پیش‌فاکتور دیگر در مرحلهٔ ۴ ویزارد نیست — «همیشگی» است و
+  // Phase 11 — پیش‌فاکتور دیگر در مرحلهٔ 4 ویزارد نیست — «همیشگی» است و
   // خودکار با سفارش ساخته می‌شود؛ مدیریت آن دقیقاً پس از ثبت کامل
   // (صفحهٔ موفقیت) انجام می‌شود: ویرایش per-item / چاپ.
 
@@ -354,13 +354,13 @@ export function OrderWizardPage() {
     if (activeCustomer === id) setActiveCustomer(customers[0] ?? "");
   }
 
-  function newItem(productId = "", productName = ""): ItemDraft {
+  function newItem(productId = "", productName = "", pricePerUnit = 0): ItemDraft {
     return {
       id: safeUuid(),
       productId,
       productName,
       quantity: 1,
-      pricePerUnit: 0,
+      pricePerUnit,
       note: "",
       description: "",
       stage: "design",
@@ -381,8 +381,16 @@ export function OrderWizardPage() {
       [cid]: (s[cid] ?? []).map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
     }));
   }
-  function addItem(cid: string) {
-    setItemsByCustomer((s) => ({ ...s, [cid]: [...(s[cid] ?? []), newItem()] }));
+  function addItem(cid: string, prefill?: { productId: string; productName: string; pricePerUnit: number }) {
+    setItemsByCustomer((s) => ({
+      ...s,
+      [cid]: [
+        ...(s[cid] ?? []),
+        prefill
+          ? newItem(prefill.productId, prefill.productName, prefill.pricePerUnit)
+          : newItem(),
+      ],
+    }));
   }
   function copyItem(cid: string, itemId: string) {
     setItemsByCustomer((s) => {
@@ -443,7 +451,7 @@ export function OrderWizardPage() {
     return true;
   }
 
-  // ابزار «اعمال روی همه» مرحلهٔ ۳ — تاریخ‌ها را روی تمام آیتم‌ها می‌نویسد
+  // ابزار «اعمال روی همه» مرحلهٔ 3 — تاریخ‌ها را روی تمام آیتم‌ها می‌نویسد
   function applyDatesToAll(patch: Partial<Pick<ItemDraft, "designStart" | "designEnd" | "printStart" | "printEnd">>) {
     setItemsByCustomer((s) => {
       const next: Record<string, ItemDraft[]> = {};
@@ -520,7 +528,7 @@ export function OrderWizardPage() {
         assignedDesignerId: derivedDesignerId || null,
         assignedPrinterId: derivedPrinterId || null,
       };
-      // Phase 11: پیش‌فاکتور در مرحلهٔ ۴ ایجاد نمی‌شود — سرور خودکار
+      // Phase 11: پیش‌فاکتور در مرحلهٔ 4 ایجاد نمی‌شود — سرور خودکار
       // با سفارش می‌سازد (مجزا/چند-مشتری → per-item؛ گروهی تک-مشتری →
       // یک سند کل گروه) و پاسخ کامل می‌دهد تا صفحهٔ موفقیت
       // مدیریت (ویرایش/چاپ) همان‌جا انجام شود.
@@ -592,12 +600,12 @@ export function OrderWizardPage() {
     const nums = success.orderNumbers;
     const numsFa = nums.length
       ? nums.length === 1
-        ? `#${toFa(nums[0])}`
-        : `${toFa(nums.length)} سفارش (#${nums.map((n) => toFa(n)).join("، #")})`
+        ? `#${fmtNum(nums[0])}`
+        : `${fmtNum(nums.length)} سفارش (#${nums.map((n) => fmtNum(n)).join("، #")})`
       : "سفارش";
     const pis = success.preInvoices;
 
-    // گروه‌بندی به تفکیک مشتری (خواستهٔ ۲ فاز ۹۸/۱۱)
+    // گروه‌بندی به تفکیک مشتری (خواستهٔ 2 فاز 98/11)
     const byCustomer = new Map<string, typeof pis>();
     for (const pi of pis) {
       const arr = byCustomer.get(pi.customerId) ?? [];
@@ -626,14 +634,14 @@ export function OrderWizardPage() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               {pis.length > 1 ? (
                 <>
-                  <span className="font-bold text-foreground">{toFa(pis.length)} پیش‌فاکتور</span>{" "}
+                  <span className="font-bold text-foreground">{fmtNum(pis.length)} پیش‌فاکتور</span>{" "}
                   به‌ازای هر آیتم صادر شد — هر سند را می‌توانید ویرایش کنید،
                   پر کنید و هر وقت خواستید چاپ کنید.
                 </>
               ) : pis.length === 1 ? (
                 <>
                   پیش‌فاکتور{" "}
-                  <span className="font-bold text-foreground">#{toFa(pis[0].number)}</span>{" "}
+                  <span className="font-bold text-foreground">#{fmtNum(pis[0].number)}</span>{" "}
                   به‌صورت خودکار صادر شد — می‌توانید همین اولی را
                   چاپ کنید یا ابتدا ویرایش کنید و سپس چاپ.
                 </>
@@ -666,7 +674,7 @@ export function OrderWizardPage() {
                   {multiCustomer && " (به تفکیک مشتری)"}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {toFa(pis.length)} سند · جمع مبلغ:{" "}
+                  {fmtNum(pis.length)} سند · جمع مبلغ:{" "}
                   <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(piTotal)}</span>
                 </div>
               </div>
@@ -691,7 +699,7 @@ export function OrderWizardPage() {
                           {pi.itemLabel}
                           {pi.itemId && (
                             <span className="text-[11px] text-muted-foreground font-normal mr-2">
-                              سفارش #{toFa(pi.orderNumber)}
+                              سفارش #{fmtNum(pi.orderNumber)}
                             </span>
                           )}
                         </div>
@@ -743,7 +751,7 @@ export function OrderWizardPage() {
               {isEditing && editData?.order ? `ویرایش سفارش #${editData.order.number}` : "سفارش جدید"}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isEditing ? "ویرایش سفارش چاپ در ۴ مرحله" : "ایجاد سفارش چاپ در ۴ مرحله"}
+              {isEditing ? "ویرایش سفارش چاپ در 4 مرحله" : "ایجاد سفارش چاپ در 4 مرحله"}
             </p>
           </div>
         </div>
@@ -1151,7 +1159,7 @@ function Step2({
   activeCustomer: string;
   setActiveCustomer: (v: string) => void;
   itemsByCustomer: Record<string, ItemDraft[]>;
-  addItem: (cid: string) => void;
+  addItem: (cid: string, prefill?: { productId: string; productName: string; pricePerUnit: number }) => void;
   updateItem: (cid: string, itemId: string, patch: Partial<ItemDraft>) => void;
   copyItem: (cid: string, itemId: string) => void;
   deleteItem: (cid: string, itemId: string) => void;
@@ -1167,13 +1175,24 @@ function Step2({
   const invalidate = useInvalidate();
 
   const createProduct = useMutation({
-    mutationFn: (name: string) => api<{ product: { id: string; name: string } }>("/api/products", { method: "POST", body: JSON.stringify({ name }) }),
+    mutationFn: (name: string) => api<{ product: { id: string; name: string; basePrice: number | null } }>("/api/products", { method: "POST", body: JSON.stringify({ name }) }),
     onSuccess: (data) => {
       invalidate(["products"]);
       invalidate(["products-wizard"]);
       // R7: orders-page + open-orders use ["products-list"] — was missing.
       invalidate(["products-list"]);
-      toast.success("محصول ایجاد شد");
+      // فاز ۲۴ (خواستهٔ ۴): مثل مشتریِ تازه‌ساخت — محصول جدید خودکار در یک
+      // سطرِ جدید «انتخاب‌شده» می‌آید (قیمت پایه هم پیش‌پر می‌شود) تا کاربر
+      // لازم نباشد دوباره از دراپ‌داون همان را بگردد و انتخاب کند.
+      const p = data.product;
+      if (p?.id) {
+        addItem(cid, {
+          productId: p.id,
+          productName: p.name,
+          pricePerUnit: p.basePrice ?? 0,
+        });
+      }
+      toast.success("محصول ایجاد شد" + (p?.name ? ` — «${p.name}» به آیتم‌ها اضافه شد` : ""));
       setProductModal(false);
       setNewProduct("");
     },
@@ -1350,7 +1369,7 @@ function ItemRow({
         </Field>
 
         <Field label="توضیح آیتم" className="col-span-2 md:col-span-5">
-          <Input value={item.description} onChange={(e) => onUpdate({ description: e.target.value })} placeholder="مثلاً: کوت گلاسه ۱۳۵ گرمی" />
+          <Input value={item.description} onChange={(e) => onUpdate({ description: e.target.value })} placeholder="مثلاً: کوت گلاسه 135 گرمی" />
         </Field>
 
         <Field label="جمع کل" className="col-span-2 md:col-span-3">
@@ -1494,7 +1513,7 @@ function missingCountLabel(designN: number, printN: number) {
 }
 
 // ─── STEP 3: Timing & priority ────────────────────────────────
-// Phase 10: زمان‌بندی per-item — هر آیتم ۴ تاریخ خودش را دارد
+// Phase 10: زمان‌بندی per-item — هر آیتم 4 تاریخ خودش را دارد
 // (شروع/پایان طراحی + شروع/پایان چاپ). ابزار «اعمال روی همه» برای
 // تسریع کار؛ اگر چند مشتری هست، آیتم‌ها به تفکیک مشتری گروه می‌شوند.
 function Step3(props: {
@@ -1652,7 +1671,7 @@ function Step3(props: {
                 <>
                   <b>حالت چند-مشتری + گروهی:</b> آیتم‌های هر مشتری در یک سفارش
                   گروهی مخصوص همان مشتری ثبت می‌شوند — یعنی{" "}
-                  <b>{customerCount.toLocaleString("fa-IR")} سفارش گروهی</b>{" "}
+                  <b>{customerCount.toLocaleString("en-US")} سفارش گروهی</b>{" "}
                   (هر مشتری، سفارش جداگانهٔ خودش) و به‌ازای هر آیتم یک پیش‌فاکتور جدا.
                 </>
               ) : (
@@ -1688,7 +1707,7 @@ function Step3(props: {
             <h3 className="font-medium text-sm">زمان‌بندی آیتم‌ها (هر آیتم مجزا)</h3>
           </div>
           <span className="text-[10px] px-2 py-1 rounded-full bg-muted text-muted-foreground">
-            {toFa(scheduledCount)} از {toFa(allItems.length)} آیتم زمان‌بندی شده
+            {fmtNum(scheduledCount)} از {fmtNum(allItems.length)} آیتم زمان‌بندی شده
           </span>
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -1882,7 +1901,7 @@ function Step4(props: {
   const allItems = Object.values(itemsByCustomer).flat();
   const activeCustomer = allCustomers.find((c) => c.id === activeCid);
 
-  // Phase 11 — پیش‌فاکتور همیشگی: مرحلهٔ ۴ فقط اطلاع‌رسانی می‌دهد که پس از ثبت،
+  // Phase 11 — پیش‌فاکتور همیشگی: مرحلهٔ 4 فقط اطلاع‌رسانی می‌دهد که پس از ثبت،
   // سندها خودکار صادر می‌شوند و در صفحهٔ موفقیت ویرایش/چاپ می‌شوند.
   const perItemPI = splitMode === "separated" || customers.length > 1;
   const piDocCount = perItemPI ? allItems.length : customers.length;
@@ -1906,7 +1925,7 @@ function Step4(props: {
         <div><h2 className="font-semibold">بازنگری و ثبت نهایی</h2><p className="text-xs text-muted-foreground">مرور کامل جزئیات — پیش‌فاکتور پس از ثبت خودکار صادر می‌شود</p></div>
       </div>
 
-      {/* ═══ ۱. خلاصهٔ سفارش ═══ */}
+      {/* ═══ 1. خلاصهٔ سفارش ═══ */}
       <section className="rounded-xl border overflow-hidden">
         <SectionTitle icon="orders" title="خلاصهٔ سفارش" />
         <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1933,7 +1952,7 @@ function Step4(props: {
         </div>
       </section>
 
-      {/* ═══ ۲. زمان‌بندی — خلاصهٔ گروه + جزئیات per-item ═══ */}
+      {/* ═══ 2. زمان‌بندی — خلاصهٔ گروه + جزئیات per-item ═══ */}
       <section className="rounded-xl border overflow-hidden">
         <SectionTitle icon="calendar" title="زمان‌بندی مراحل (هر آیتم مجزا)" />
         <div className="p-4 space-y-3">
@@ -2023,9 +2042,9 @@ function Step4(props: {
         </div>
       </section>
 
-      {/* ═══ ۳. اقلام سفارش ═══ */}
+      {/* ═══ 3. اقلام سفارش ═══ */}
       <section className="rounded-xl border overflow-hidden">
-        <SectionTitle icon="checkList" title={`اقلام سفارش (${toFa(allItems.length)} قلم)`} />
+        <SectionTitle icon="checkList" title={`اقلام سفارش (${fmtNum(allItems.length)} قلم)`} />
         <div className="p-4 space-y-4">
           {customers.length > 1 && (
             <div className="flex flex-wrap gap-1.5">
@@ -2045,7 +2064,7 @@ function Step4(props: {
         </div>
       </section>
 
-      {/* ═══ ۴. یادداشت سفارش ═══ */}
+      {/* ═══ 4. یادداشت سفارش ═══ */}
       {note && (
         <section className="rounded-xl border overflow-hidden">
           <SectionTitle icon="checkList" title="یادداشت سفارش" />
@@ -2053,7 +2072,7 @@ function Step4(props: {
         </section>
       )}
 
-      {/* ═══ ۵. پیش‌فاکتور (Phase 11 — همیشگی) ═══ */}
+      {/* ═══ 5. پیش‌فاکتور (Phase 11 — همیشگی) ═══ */}
       <section className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 overflow-hidden">
         <div className="px-4 py-3 flex items-center gap-2.5">
           <div className="size-8 rounded-lg bg-emerald-500/15 text-emerald-600 grid place-items-center">
@@ -2061,7 +2080,7 @@ function Step4(props: {
           </div>
           <div>
             <div className="font-semibold text-sm">
-              پیش‌فاکتور {perItemPI ? `(به‌ازای هر آیتم — ${toFa(piDocCount)} سند)` : "(یک سند برای کل گروه)"}
+              پیش‌فاکتور {perItemPI ? `(به‌ازای هر آیتم — ${fmtNum(piDocCount)} سند)` : "(یک سند برای کل گروه)"}
             </div>
             <div className="text-[11px] text-muted-foreground">
               سندها همزمان با ثبت سفارش به‌صورت خودکار صادر می‌شوند — بلافاصله پس از ثبت، همان‌جا ویرایش و چاپ می‌شوند
@@ -2148,7 +2167,7 @@ function fmtDate(iso: string) {
 function fmtShort(iso: string) {
   return gregISO(iso);
 }
-function toFa(n: number) { return n.toLocaleString("fa-IR"); }
+function fmtNum(n: number) { return n.toLocaleString("en-US"); }
 
 function CustomerReviewTable({ cid, items }: { cid: string; items: ItemDraft[] }) {
   const total = items.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
@@ -2179,7 +2198,7 @@ function CustomerReviewTable({ cid, items }: { cid: string; items: ItemDraft[] }
         </tbody>
         <tfoot>
           <tr className="bg-muted/30 font-semibold">
-            <td colSpan={3} className="px-3 py-2 text-left">مجموع کل {items.length > 1 ? `(${toFa(items.length)} قلم)` : ""}:</td>
+            <td colSpan={3} className="px-3 py-2 text-left">مجموع کل {items.length > 1 ? `(${fmtNum(items.length)} قلم)` : ""}:</td>
             <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatCurrency(total)}</td>
             <td />
           </tr>

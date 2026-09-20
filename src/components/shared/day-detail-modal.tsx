@@ -1,14 +1,14 @@
 "use client";
 
-// Printoo24 ERP — Day Detail (فاز ۲۰: مودال → دراور DetailDrawer)
+// Printoo24 ERP — Day Detail (فاز 20: مودال → دراور DetailDrawer)
 //
-// ساختار دراور جزئیات روز (الگوی مشترک فاز ۲۰):
+// ساختار دراور جزئیات روز (الگوی مشترک فاز 20):
 //   • دسکتاپ: دراور چپِ تمام‌ارتفاع (sm:max-w-2xl) — موبایل: بات‌شیت گرد.
 //   • سربرگ دراور: روز هفته + تاریخ میلادی + شمار رویدادها.
 //   • ردیف تب‌ها + چیپ‌های فوری/یادداشت.
 //   • بدنهٔ اسکرول‌شونده: سایدبار آمار + محتوای تب.
 //   • ویرایشگر یادداشت روز — سنجاق‌شده پایین.
-// (ساختار قدیمی فاز ۶.۵):
+// (ساختار قدیمی فاز 6.5):
 //   ┌────────────────────────────────────────────┐
 //   │ هدر تمام‌عرض: تاریخ شمسی بزرگ + چیپ‌ها      │ ← X در همین ردیف جا می‌گیرد
 //   ├────────────────────────────────────────────┤
@@ -44,8 +44,8 @@ type DayDetailModalProps = {
 type DayNote = { id: string; date: string; content: string; color: string };
 
 // ─── Gregorian helpers (کل سیستم میلادی است) ────────────────────────────
-const weekdayFmt = new Intl.DateTimeFormat("fa-IR", { weekday: "long" });
-const faNum = (n: number) => n.toLocaleString("fa-IR");
+const weekdayFmt = new Intl.DateTimeFormat("en-US", { weekday: "long" });
+const faNum = (n: number) => n.toLocaleString("en-US");
 
 function toDate(d: string | Date): Date | null {
   try {

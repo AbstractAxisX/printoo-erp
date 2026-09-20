@@ -2,11 +2,11 @@
 
 // ─── Phase 16: موجودی و مواد اولیهٔ انبار ──────────────────────────
 // ساختار صفحه:
-//   ۱) نوار KPI: تعداد مواد / کم‌موجودها (قرمز) / جمع اقلام
-//   ۲) فرم اینلاین افزودن ماده (جمع‌وجور، بازشونده)
-//   ۳) جدول مواد: موجودی (نوار پیشرفت برای کم‌موجودها)، حداقل، وضعیت،
+//   1) نوار KPI: تعداد مواد / کم‌موجودها (قرمز) / جمع اقلام
+//   2) فرم اینلاین افزودن ماده (جمع‌وجور، بازشونده)
+//   3) جدول مواد: موجودی (نوار پیشرفت برای کم‌موجودها)، حداقل، وضعیت،
 //      آخرین گردش + اقدام‌های ورود/خروج (دیالوگ گردش) و ویرایش
-//   ۴) بخش «گردش انبار» (بازشونده): ۱۰۰ گردش آخر + فیلتر ماده
+//   4) بخش «گردش انبار» (بازشونده): 100 گردش آخر + فیلتر ماده
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -66,7 +66,7 @@ type Move = {
 
 const UNITS = ["عدد", "ورق", "بسته", "کیلوگرم", "لیتر", "متر", "رول"] as const;
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 // ─── Page ──────────────────────────────────────────────────────────────
 
@@ -519,7 +519,7 @@ export function InventoryPage() {
                   <Input
                     value={newMat.name}
                     onChange={(e) => setNewMat((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="مثلاً کاغذ گلاسه ۱۳۵ گرم"
+                    placeholder="مثلاً کاغذ گلاسه 135 گرم"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newMat.name.trim() && !addMut.isPending)
                         addMut.mutate();
@@ -615,7 +615,7 @@ export function InventoryPage() {
               <div>
                 <h3 className="font-semibold text-sm">گردش انبار</h3>
                 <p className="text-[11px] text-muted-foreground">
-                  ۱۰۰ گردش آخر — ورود و خروج مواد با ثبت‌کننده
+                  100 گردش آخر — ورود و خروج مواد با ثبت‌کننده
                 </p>
               </div>
             </div>
@@ -703,7 +703,7 @@ export function InventoryPage() {
                   <Input
                     value={moveReason}
                     onChange={(e) => setMoveReason(e.target.value)}
-                    placeholder={moveDlg.mode === "in" ? "مثلاً خرید جدید…" : "مثلاً مصرف سفارش #۱۲…"}
+                    placeholder={moveDlg.mode === "in" ? "مثلاً خرید جدید…" : "مثلاً مصرف سفارش #12…"}
                   />
                 </Field>
                 {moveQtyValid && moveAfter !== null && (

@@ -289,7 +289,7 @@ export async function POST(req: NextRequest) {
 
       const seq = await nextNumber(tx, "package");
       let code = generatePackageCode();
-      // یکتایی کد (تا ۵ تلاش)
+      // یکتایی کد (تا 5 تلاش)
       for (let i = 0; i < 5; i++) {
         const exists = await tx.package.findUnique({ where: { code }, select: { id: true } });
         if (!exists) break;

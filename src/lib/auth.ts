@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { createHmac, timingSafeEqual } from "crypto";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { isModuleLevel } from "@/lib/module-pages";
 
 // Re-export password primitives so existing imports
 // `import { hashPassword } from "@/lib/auth"` keep working.
@@ -36,12 +37,17 @@ export type SessionUser = {
   isDemo?: boolean;
   // Phase 12: ماژول‌هایی که کاربر به آن‌ها دسترسی دارد (منبع: UserModule).
   // cookie این را حمل می‌کند ولی هر requireUser از DB تازه می‌خواند تا
-  // تغییر دسترسی بلافاصله اعمال شود (نه ۷ روز بعد).
+  // تغییر دسترسی بلافاصله اعمال شود (نه 7 روز بعد).
   modules: string[];
   // Phase 18: صفحات مجازِ هر ماژول (JSON در UserModule.pages) —
   // null/غایب = بدون محدودیت. مثل modules، هر requireUser تازه خوانده
   // می‌شود تا تغییر سطح دسترسی فوری اعمال شود.
   modulePages?: Record<string, string[] | null>;
+  // Phase 24: سطح دسترسی ۳لایهٔ هر ماژول (view/edit/delete) —
+  // proxy.ts روی همین مقدارِ داخل کوکی، متدهای نوشتاری را می‌بندد.
+  // login/heartbeat/me کوکی را تازه می‌کنند تا تغییر سطح حداکثر
+  // ۴۵ ثانیه بعد اعمال شود.
+  moduleLevels?: Record<string, string>;
 };
 
 // ─── Phase 18: parse امن JSON صفحات UserModule.pages ─────────────
@@ -159,7 +165,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
         status: true,
         isDemo: true,
         demoExpiresAt: true,
-        modules: { select: { module: true, pages: true } },
+        modules: { select: { module: true, pages: true, level: true } },
       },
     });
     if (!fresh || fresh.status !== "active") {
@@ -184,8 +190,11 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
     // not 7 days later when the cookie expires.
     // Phase 18: pages هر ماژول هم تازه — null = همهٔ صفحات.
     const modulePages: Record<string, string[] | null> = {};
+    // Phase 24: سطح ۳لایهٔ هر ماژول هم تازه (view/edit/delete).
+    const moduleLevels: Record<string, string> = {};
     for (const m of fresh.modules) {
       modulePages[m.module] = m.pages ? safeParsePages(m.pages) : null;
+      moduleLevels[m.module] = isModuleLevel(m.level) ? m.level : "delete";
     }
     return {
       id: fresh.id,
@@ -195,6 +204,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
       isDemo: fresh.isDemo,
       modules: fresh.modules.map((m) => m.module),
       modulePages,
+      moduleLevels,
     };
   } catch {
     // DB unreachable — fail closed.
@@ -211,7 +221,7 @@ export async function isAuthed(): Promise<boolean> {
 }
 
 // ─── Phase 12: presence (حضور آنلاین) ──────────────────────────
-// با throttle ۴۵ثانیه‌ای — روی هر requireUser صدا زده می‌شود تا «فعال بودن»
+// با throttle 45ثانیه‌ای — روی هر requireUser صدا زده می‌شود تا «فعال بودن»
 // واقعی باشد (هر فراخوانی API = کاربر پشت صفحه است)، بی‌آنکه هر GET یک
 // نوشتهٔ DB بگذارد. اینجا مانده تا import-cycle با access.ts نداشته باشیم.
 export async function touchLastSeen(userId: string): Promise<void> {

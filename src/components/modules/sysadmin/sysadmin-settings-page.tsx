@@ -150,7 +150,7 @@ export function SysadminSettingsPage() {
                             : "bg-muted text-muted-foreground"
                         )}
                       >
-                        {count.toLocaleString("fa-IR")} نفر
+                        {count.toLocaleString("en-US")} نفر
                       </span>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-1">
@@ -254,7 +254,7 @@ function DemoUsersSection() {
           دمو همهٔ ماژول‌ها را می‌بیند — حتی ادمین سراسری — اما هیچ تغییری نمی‌تواند بدهد
         </span>
         <span className="mr-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-          {activeDemos.toLocaleString("fa-IR")} دموی فعال
+          {activeDemos.toLocaleString("en-US")} دموی فعال
         </span>
       </div>
 
@@ -433,7 +433,7 @@ function KpiCard({
       </span>
       <div>
         <div className="text-xl font-bold tabular-nums" dir="ltr">
-          {value.toLocaleString("fa-IR")}
+          {value.toLocaleString("en-US")}
         </div>
         <div className="text-[11px] text-muted-foreground">{label}</div>
       </div>

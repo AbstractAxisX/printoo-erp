@@ -127,7 +127,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ...(stockIn
         ? {
             stockIn,
-            message: `هزینه تأیید شد — ${stockIn.quantity.toLocaleString("fa-IR")} ${stockIn.unit} «${stockIn.material}» به انبار اضافه شد`,
+            message: `هزینه تأیید شد — ${stockIn.quantity.toLocaleString("en-US")} ${stockIn.unit} «${stockIn.material}» به انبار اضافه شد`,
           }
         : {}),
     });
@@ -155,9 +155,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     });
     if (!cost) return NextResponse.json({ error: "هزینه یافت نشد" }, { status: 404 });
 
-    // ─── فاز ۲۲ (خواسته‌های ۵ و ۸): چه کسی می‌تواند حذف کند؟ ───
+    // ─── فاز 22 (خواسته‌های 5 و 8): چه کسی می‌تواند حذف کند؟ ───
     //   • واحد مالی / مستر: هزینه‌های «در انتظار» و «ردشده» را حذف می‌کند
-    //     (خواستهٔ ۵: هزینهٔ ردشده فقط اطلاعات اضافی است؛ خواستهٔ ۸: هزینهٔ
+    //     (خواستهٔ 5: هزینهٔ ردشده فقط اطلاعات اضافی است؛ خواستهٔ 8: هزینهٔ
     //     اشتباهی ثبت‌شده — با یا بدون سفارش — قابل حذف باشد).
     //   • هزینهٔ «تأییدشده»: اول باید از مالی رد شود، بعد حذف (گارد مالی).
     //     مستر/مدیر می‌تواند مستقیم حذف کند (اصلاح سریع رئیس).

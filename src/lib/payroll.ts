@@ -29,7 +29,7 @@ export function computeNetPay(n: PayrollEntryNumbers): number {
   return Math.round(raw * 100) / 100;
 }
 
-/** نرمال‌سازی ورودی‌های عددی فرم (منفی/NaN/Infinity → 0؛ سقف ۱ میلیارد) */
+/** نرمال‌سازی ورودی‌های عددی فرم (منفی/NaN/Infinity → 0؛ سقف 1 میلیارد) */
 export function sanitizePayrollNumbers(n: Partial<PayrollEntryNumbers>): PayrollEntryNumbers {
   const clamp = (v: unknown): number => {
     const num = Number(v);

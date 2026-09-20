@@ -2,8 +2,8 @@
 
 // ─── Phase 15: مودال سفارش چاپ — بازطراحی کامل (tabs) ───────────────
 // ساختار جدید: مودال عریض (5xl) با دو تب:
-//   ۱) «جزئیات سفارش» — آیتم‌ها، متریال، اقدامات چاپ
-//   ۲) «ثبت هزینه» — فرم اینلاین (عین افزودن آیتم ویزارد) + لیست هزینه‌ها
+//   1) «جزئیات سفارش» — آیتم‌ها، متریال، اقدامات چاپ
+//   2) «ثبت هزینه» — فرم اینلاین (عین افزودن آیتم ویزارد) + لیست هزینه‌ها
 // دیالوگ ثبت هزینه حذف شد — فرم داخل تب می‌نشیند (خواستهٔ صریح:
 // «فرم ثبت هزینه اولا نباید مودال باز بشه براش»).
 
@@ -23,7 +23,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/ui/field";
 import { CostEntryForm } from "@/components/shared/cost-entry-form";
-import { formatDate, daysRemaining, formatCurrency, formatDateTime } from "@/lib/format";
+import { formatDate, daysRemaining, formatCurrency, formatDateTime, isOrderClosed } from "@/lib/format";
 import { PRIORITY, ITEM_STAGE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -320,6 +320,10 @@ export function PrintOrderDetailModal({
       ).toISOString()
     : null;
   const dr = daysRemaining(printEnd);
+  // فاز 24 (خواستهٔ 2): سفارش بسته (تمام/آرشیو/لغو) — بدون زمان و موعد
+  const orderClosed = isOrderClosed(order.status);
+  const closedLabel =
+    order.status === "cancelled" ? "لغو شده" : order.status === "archived" ? "آرشیو" : "تکمیل شده";
   const priorityInfo =
     PRIORITY[order.priority as keyof typeof PRIORITY] ?? PRIORITY.normal;
 
@@ -347,7 +351,7 @@ export function PrintOrderDetailModal({
             سرریز افقی می‌ساخت؛ حذف شد (دسکتاپ ≥1312 عین قبل: عرض = viewport−32).
             موبایل: اسکرول واحد؛ دسکتاپ: overflow-hidden عین قبل. */}
         <DialogContent aria-describedby={undefined}   className="sm:max-w-6xl max-h-[94dvh] overflow-y-auto scrollbar-thin sm:overflow-hidden sm:max-h-[92vh] p-0 gap-0 rounded-xl [&>*]:min-w-0">
-          {/* Header — عریض، متریک‌های ۴تایی */}
+          {/* Header — عریض، متریک‌های 4تایی */}
           <div className="px-6 pt-5 pb-4 border-b bg-gradient-to-l from-amber-500/8 via-amber-500/3 to-transparent">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -377,7 +381,7 @@ export function PrintOrderDetailModal({
                     <span className="tabular-nums">{formatDate(order.createdAt)}</span>
                     <span>•</span>
                     <span className="text-[11px]">
-                      {printItemsActive.length.toLocaleString("fa-IR")} آیتم فعال چاپ
+                      {printItemsActive.length.toLocaleString("en-US")} آیتم فعال چاپ
                     </span>
                   </div>
                 </div>
@@ -394,7 +398,7 @@ export function PrintOrderDetailModal({
               </div>
             </div>
 
-            {/* Print dates + progress — ۴ تایل */}
+            {/* Print dates + progress — 4 تایل */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
               <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -418,32 +422,42 @@ export function PrintOrderDetailModal({
                   {formatDate(printEnd)}
                 </div>
               </div>
+              {/* فاز 24 (خواستهٔ 2): سفارش بسته‌شده دیگر زمان/شمارش معکوس ندارد —
+                  کاشی «باقی‌مانده» به «تکمیل شده» تبدیل می‌شود. */}
               <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
                 <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <span
                     className={cn(
                       "size-5 rounded-md grid place-items-center",
-                      dr.status === "overdue"
+                      orderClosed
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : dr.status === "overdue"
                         ? "bg-rose-500/10 text-rose-600"
                         : dr.status === "today"
                         ? "bg-amber-500/10 text-amber-600"
                         : "bg-emerald-500/10 text-emerald-600"
                     )}
                   >
-                    <Icon name="clock" size={10} />
+                    <Icon name={orderClosed ? "checkCircle" : "clock"} size={10} />
                   </span>
-                  باقی‌مانده
+                  {orderClosed ? closedLabel : "باقی‌مانده"}
                 </div>
                 <div
                   className={cn(
                     "text-sm font-bold mt-1.5 tabular-nums",
-                    dr.status === "overdue" && "text-rose-600",
-                    dr.status === "remaining" && "text-emerald-600",
-                    dr.status === "today" && "text-amber-600",
-                    dr.status === "none" && "text-muted-foreground"
+                    orderClosed
+                      ? "text-emerald-600"
+                      : dr.status === "overdue" && "text-rose-600",
+                    !orderClosed && dr.status === "remaining" && "text-emerald-600",
+                    !orderClosed && dr.status === "today" && "text-amber-600",
+                    !orderClosed && dr.status === "none" && "text-muted-foreground"
                   )}
                 >
-                  {dr.status === "none" ? "—" : dr.text}
+                  {orderClosed
+                    ? closedLabel
+                    : dr.status === "none"
+                    ? "—"
+                    : dr.text}
                 </div>
               </div>
               <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
@@ -459,7 +473,7 @@ export function PrintOrderDetailModal({
                       (i) => i.stage === "print" || i.printCompletedAt
                     );
                     const done = printScope.filter((i) => i.printCompletedAt).length;
-                    return `${done.toLocaleString("fa-IR")} از ${printScope.length.toLocaleString("fa-IR")}`;
+                    return `${done.toLocaleString("en-US")} از ${printScope.length.toLocaleString("en-US")}`;
                   })()}
                 </div>
               </div>
@@ -485,7 +499,7 @@ export function PrintOrderDetailModal({
                   ثبت هزینه
                   {costs.length > 0 && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                      {costs.length.toLocaleString("fa-IR")}
+                      {costs.length.toLocaleString("en-US")}
                     </span>
                   )}
                   {pendingCosts > 0 && (
@@ -514,7 +528,7 @@ export function PrintOrderDetailModal({
                             <div className="text-sm font-semibold flex items-center gap-2">
                               تأمین متریال
                               <span className="text-[11px] font-normal text-muted-foreground">
-                                ({itemsNeedingMaterial.length.toLocaleString("fa-IR")} آیتم منتظر)
+                                ({itemsNeedingMaterial.length.toLocaleString("en-US")} آیتم منتظر)
                               </span>
                             </div>
                             <ul className="mt-2 space-y-1">
@@ -548,7 +562,7 @@ export function PrintOrderDetailModal({
                       <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
                         <Icon name="orders" size={13} /> آیتم‌های سفارش
                         <span className="text-[10px] font-normal text-muted-foreground/70">
-                          ({(order.items ?? []).length.toLocaleString("fa-IR")})
+                          ({(order.items ?? []).length.toLocaleString("en-US")})
                         </span>
                       </div>
                       <div className="space-y-2">
@@ -678,11 +692,11 @@ export function PrintOrderDetailModal({
                           <div className="min-w-0">
                             <div className="text-sm font-semibold">هزینه‌های سفارش</div>
                             <div className="text-[11px] text-muted-foreground truncate">
-                              {costs.length.toLocaleString("fa-IR")} ثبت • مجموع{" "}
+                              {costs.length.toLocaleString("en-US")} ثبت • مجموع{" "}
                               <span dir="ltr" className="tabular-nums">
                                 {formatCurrency(totalCosts)}
                               </span>
-                              {pendingCosts > 0 && ` • ${pendingCosts.toLocaleString("fa-IR")} در انتظار مالی`}
+                              {pendingCosts > 0 && ` • ${pendingCosts.toLocaleString("en-US")} در انتظار مالی`}
                             </div>
                           </div>
                         </div>
@@ -735,7 +749,7 @@ export function PrintOrderDetailModal({
                     <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                       <Icon name="checkList" size={13} /> هزینه‌های ثبت‌شده
                       <span className="text-[10px] font-normal text-muted-foreground/70">
-                        ({costs.length.toLocaleString("fa-IR")})
+                        ({costs.length.toLocaleString("en-US")})
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -797,7 +811,7 @@ export function PrintOrderDetailModal({
                                   {filesCount > 0 && (
                                     <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5 shrink-0">
                                       <Icon name="file" size={9} />
-                                      {filesCount.toLocaleString("fa-IR")}
+                                      {filesCount.toLocaleString("en-US")}
                                     </span>
                                   )}
                                 </div>

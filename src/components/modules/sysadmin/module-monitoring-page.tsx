@@ -43,7 +43,7 @@ type SortMode = "workload" | "delay" | "completion";
 const RANGE_CHIPS: { id: RangeMode; label: string }[] = [
   { id: "week", label: "این هفته" },
   { id: "month", label: "این ماه" },
-  { id: "quarter", label: "۳ ماه" },
+  { id: "quarter", label: "3 ماه" },
   { id: "custom", label: "بازهٔ دلخواه" },
 ];
 
@@ -86,7 +86,7 @@ function presetRange(mode: RangeMode): { from: string; to: string } {
   return { from: localDayKey(new Date(now.getFullYear(), now.getMonth(), 1)), to }; // این ماه
 }
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 // ─── رنگ‌ها (بدون blue/indigo) ──────────────────────────────────────
 

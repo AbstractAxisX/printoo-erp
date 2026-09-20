@@ -8,11 +8,11 @@
 //    سودها و در آخر هم لاگ‌ها»
 //
 // پنج کارت هشدار (کلیک → مستقیم صفحهٔ همان مشکل):
-//   ۱) طلب از مشتریان (بدهکارترین‌ها با عدد) → صفحهٔ مشتریان با فیلتر تسویه‌نشده
-//   ۲) بدهی ما به تامین‌کنندگان → صفحهٔ تامین‌کنندگان
-//   ۳) سفارش‌های تاخیری (قدیمی‌ترین تاخیر) → سفارشات باز
-//   ۴) هزینه‌های در انتظار تأیید مالی → هزینه‌های مالی
-//   ۵) سود دوره (درآمد دریافتی − هزینه) → درآمدهای مالی
+//   1) طلب از مشتریان (بدهکارترین‌ها با عدد) → صفحهٔ مشتریان با فیلتر تسویه‌نشده
+//   2) بدهی ما به تامین‌کنندگان → صفحهٔ تامین‌کنندگان
+//   3) سفارش‌های تاخیری (قدیمی‌ترین تاخیر) → سفارشات باز
+//   4) هزینه‌های در انتظار تأیید مالی → هزینه‌های مالی
+//   5) سود دوره (درآمد دریافتی − هزینه) → درآمدهای مالی
 // داده‌ها point-in-time هستند (بدون فیلتر بازه) — «الان» مهم است.
 
 import * as React from "react";
@@ -81,7 +81,7 @@ export function BossRadar() {
       tone: "rose",
       headline: radar.customersDue.count > 0
         ? `${formatCurrency(radar.customersDue.sum)}`
-        : "۰",
+        : "0",
       detail: radar.customersDue.count > 0 ? (
         <div className="space-y-1">
           <span className="text-[10px] text-muted-foreground block mb-0.5">
@@ -164,7 +164,7 @@ export function BossRadar() {
       ),
       onClick: () => navigate("finance", "revenues"),
     },
-    // فاز ۲۲ (خواستهٔ ۶): سفارش‌های زیان‌ده — «اون کارها بیاد جلو چشمم»
+    // فاز 22 (خواستهٔ 6): سفارش‌های زیان‌ده — «اون کارها بیاد جلو چشمم»
     {
       key: "lossOrders",
       label: "سفارش‌های زیان‌ده",
@@ -223,6 +223,7 @@ export function BossRadar() {
           return (
             <Card
               key={c.key}
+              data-guide={`boss-radar:${c.key}`}
               className={cn(
                 "p-3.5 group relative overflow-hidden transition-all",
                 c.onClick && "cursor-pointer hover:shadow-md active:scale-[0.99] hover:ring-2",
@@ -294,11 +295,11 @@ function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return "همین الان";
-  if (m < 60) return `${m.toLocaleString("fa-IR")} دقیقه پیش`;
+  if (m < 60) return `${m.toLocaleString("en-US")} دقیقه پیش`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h.toLocaleString("fa-IR")} ساعت پیش`;
+  if (h < 24) return `${h.toLocaleString("en-US")} ساعت پیش`;
   const d = Math.floor(h / 24);
-  return `${d.toLocaleString("fa-IR")} روز پیش`;
+  return `${d.toLocaleString("en-US")} روز پیش`;
 }
 
 export function LatestEvents() {

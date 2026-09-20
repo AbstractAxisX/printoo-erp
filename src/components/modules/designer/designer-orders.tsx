@@ -45,7 +45,7 @@ const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: s
   { value: "all", label: "همه", icon: "inbox", color: "" },
   { value: "overdue", label: "موعد گذشته", icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
   { value: "today", label: "موعد امروز", icon: "clock", color: "text-amber-600 dark:text-amber-400" },
-  { value: "near", label: "نزدیک موعد (۲روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
+  { value: "near", label: "نزدیک موعد (2روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
 ];
 
 function effectiveDesignDeadline(o: DesignerOrder): string | null {
@@ -349,7 +349,7 @@ export function DesignerOrders() {
                         o.value === "today" && timeCounts.today > 0 && "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
                       )}
                     >
-                      {timeCounts[o.value].toLocaleString("fa-IR")}
+                      {timeCounts[o.value].toLocaleString("en-US")}
                     </span>
                   )}
                 </button>
@@ -400,7 +400,7 @@ export function DesignerOrders() {
           </div>
 
           <div className="mr-auto text-xs text-muted-foreground">
-            {orders.length.toLocaleString("fa-IR")} از {allOrders.length.toLocaleString("fa-IR")} سفارش
+            {orders.length.toLocaleString("en-US")} از {allOrders.length.toLocaleString("en-US")} سفارش
             {timeFilter !== "all" && activeTime && ` (${activeTime.label})`}
           </div>
         </div>

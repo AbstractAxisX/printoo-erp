@@ -61,7 +61,7 @@ export async function POST(
       // شماره‌گذاری اتمیک و خودترمیم — lib/counter
       const num = await nextNumber(tx, "invoice");
 
-      // Phase 22 (خواستهٔ ۶+۱۰): هدیهٔ فعال سفارش — داخل تخفیف فاکتورِ
+      // Phase 22 (خواستهٔ 6+10): هدیهٔ فعال سفارش — داخل تخفیف فاکتورِ
       // تبدیل‌شده تاخته می‌شود تا مشتری هدیه‌شده بدهکار نشود و total
       // سفارش هم‌عدد سند بماند (همان قرارداد صدور مستقیم فاکتور).
       const giftRow = await tx.order.findUnique({
@@ -157,8 +157,8 @@ export async function POST(
         data: { status: "converted" },
       });
 
-      // Phase 22 (خواستهٔ ۱۰): تخفیف/مالیات سند تبدیل‌شده روی دادهٔ مالی
-      // سفارش هم بنشیند (هم‌عدد شدن بدهی/۳۶۰/فاکتور جمعی با فاکتور).
+      // Phase 22 (خواستهٔ 10): تخفیف/مالیات سند تبدیل‌شده روی دادهٔ مالی
+      // سفارش هم بنشیند (هم‌عدد شدن بدهی/360/فاکتور جمعی با فاکتور).
       await syncOrderTotalFromInvoice(tx, existing.orderId, totalAmount);
 
       const preInvoice = await tx.preInvoice.findUnique({ where: { id } });

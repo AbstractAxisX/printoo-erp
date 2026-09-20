@@ -6,9 +6,9 @@ import { useAppStore } from "@/stores/app-store";
 /**
  * useHeartbeat — Phase 12 presence pulse.
  *
- * هر ۴۵ ثانیه (فقط وقتی tab مرئی است) به /api/auth/heartbeat زنگ می‌زند
+ * هر 45 ثانیه (فقط وقتی tab مرئی است) به /api/auth/heartbeat زنگ می‌زند
  * تا «آنلاین» بودن کاربر زنده بماند — حضور و غیاب واقعی به‌جای ثبت دستی.
- * سرور خودش با throttle ۴۵s از نوشتن بی‌مورد جلوگیری می‌کند.
+ * سرور خودش با throttle 45s از نوشتن بی‌مورد جلوگیری می‌کند.
  */
 export function useHeartbeat() {
   const user = useAppStore((s) => s.user);

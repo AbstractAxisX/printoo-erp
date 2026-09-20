@@ -442,7 +442,7 @@ export function CRMDeals() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر ۳۰ ثانیه
+        به‌روزرسانی خودکار هر 30 ثانیه
       </div>
     </div>
   );

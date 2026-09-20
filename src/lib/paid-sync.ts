@@ -9,11 +9,11 @@
 //   • Invoice.paidAmount = نمایشِ همان کل روی فاکتور نهایی (سقفِ total).
 //
 // قواعد:
-//   ۱) تغییر paid فاکتور (POST/PUT/PATCH paid) → order.paid مقدار جدید می‌شود
+//   1) تغییر paid فاکتور (POST/PUT/PATCH paid) → order.paid مقدار جدید می‌شود
 //      و مبلغ PIs از نو توزیع می‌شود (redistributePiPaid).
-//   ۲) تغییر paid پیش‌فاکتور (PUT/POST) → delta روی order.paid و اگر
+//   2) تغییر paid پیش‌فاکتور (PUT/POST) → delta روی order.paid و اگر
 //      فاکتور صادرشده (غیر cancelled) باشد، آینه می‌شود (mirrorInvoicePaid).
-//   ۳) ابطال/حذف فاکتور → order.paid به حالت «پیش از فاکتور» برمی‌گردد
+//   3) ابطال/حذف فاکتور → order.paid به حالت «پیش از فاکتور» برمی‌گردد
 //      (Σ paid پیش‌فاکتورهای همان سفارش).
 //
 // همهٔ توابع tx می‌گیرند تا داخل تراکنشِ route فراخوانی شوند.
@@ -70,10 +70,10 @@ export async function mirrorInvoicePaid(tx: Tx, orderId: string): Promise<void> 
 
 // ─── Phase 15: تغییر متمرکز مبلغ پرداخت‌شده + دفتر درآمد ──────────
 // applyPaidAmountChange — تنها نقطهٔ تغییرِ order.paidAmount:
-//   ۱) diff هوشمند = newPaid − current (ادیت ۱۰۰۰→۶۰۰۰ → درآمد جدید ۵۰۰۰)
-//   ۲) order.paidAmount = newPaid
-//   ۳) RevenueLog با (amount=diff, totalAfter, module, کارمند, زمان)
-//   ۴) redistributePiPaid + mirrorInvoicePaid → سند‌ها همیشه هم‌عدد
+//   1) diff هوشمند = newPaid − current (ادیت 1000→6000 → درآمد جدید 5000)
+//   2) order.paidAmount = newPaid
+//   3) RevenueLog با (amount=diff, totalAfter, module, کارمند, زمان)
+//   4) redistributePiPaid + mirrorInvoicePaid → سند‌ها همیشه هم‌عدد
 // فراخوانی از: PUT/POST/DELETE پیش‌فاکتور، PUT/POST/صدور فاکتور،
 // ثبت درآمد مالی، دریافت نقدی لجستیک.
 export type PaidChangeActor = {
@@ -152,9 +152,9 @@ export async function recomputeOrderPaidFromPIs(tx: Tx, orderId: string): Promis
   await tx.order.update({ where: { id: orderId }, data: { paidAmount: total } });
 }
 
-// ─── Phase 22 (خواستهٔ ۱۰): فاکتور = حقیقتِ مالی سفارش ──────────────
+// ─── Phase 22 (خواستهٔ 10): فاکتور = حقیقتِ مالی سفارش ──────────────
 // قبلاً تخفیف فقط روی سند فاکتور اعمال می‌شد و order.totalAmount روی
-// جمعِ خامِ اقلام می‌ماند → بدهی مشتری/بستانکار/نمای ۳۶۰/فاکتور جمعی
+// جمعِ خامِ اقلام می‌ماند → بدهی مشتری/بستانکار/نمای 360/فاکتور جمعی
 // همه «بدون تخفیف» حساب می‌شدند. حالا total فاکتورِ فعال (شامل تخفیف،
 // مالیات و هزینه‌های فاکتوری) روی order.totalAmount هم می‌نشیند.
 // فراخوانی از: صدور/ویرایش فاکتور، تبدیل پیش‌فاکتور.

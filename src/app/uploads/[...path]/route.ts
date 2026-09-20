@@ -54,7 +54,7 @@ export async function GET(
       return NextResponse.json({ error: "مسیر نامعتبر" }, { status: 400 });
     }
 
-    // ۱) ریشهٔ ماندگار
+    // 1) ریشهٔ ماندگار
     const full = safeUploadPath(rel);
     if (full) {
       try {
@@ -68,7 +68,7 @@ export async function GET(
       }
     }
 
-    // ۲) fallback: public/uploads (فایل‌های قبل از Phase 19)
+    // 2) fallback: public/uploads (فایل‌های قبل از Phase 19)
     const legacy = path.join(process.cwd(), "public", "uploads", ...segments);
     try {
       const st = await stat(legacy);

@@ -4,13 +4,14 @@ import { requireUser } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { activeLeaveToday, isModuleKey, isOnline, localDayKey, type LeaveSpan } from "@/lib/access";
 import { safeParsePages } from "@/lib/auth";
-import { serializePages, validateModulePages } from "@/lib/module-pages";
+import { serializePages, validateModulePages, validateModuleLevels, serializeLevel, type ModuleLevel } from "@/lib/module-pages";
 
 // GET  /api/users → کاربران فعال برای pickers
 //                ?module=designer → فقط کاربرانی که این ماژول را تیک خورده‌اند
 //                ?all=1 (master) → شامل غیرفعال‌ها + آمار حضور (صفحهٔ مدیریت)
 // POST /api/users → ایجاد کاربر (master) — با «چند ماژول» (Phase 12)
 //   Phase 18: modulePages?: Record<module, page[]|null> — صفحات مجاز هر ماژول
+//   Phase 24: moduleLevels?: Record<module, "view"|"edit"|"delete"> — سطح ۳لایه
 //
 // POST body: { name, email, password, phone?, modules: string[], modulePages? }
 //   - modules: حداقل یک ماژول معتبر (designer/print/qc/...) — هر تعداد.
@@ -29,6 +30,15 @@ const BASE_SELECT = {
 function modulesOf(u: { role: string; modules: { module: string; pages: string | null }[] }): string[] {
   if (u.role === "master") return [];
   return u.modules.map((m) => m.module);
+}
+
+/** Phase 24: سطح ۳لایهٔ هر ماژول — از ردیف‌های UserModule. */
+function moduleLevelsOf(u: { role: string; modules: { module: string; level: string }[] }): Record<string, ModuleLevel> {
+  const out: Record<string, ModuleLevel> = {};
+  for (const m of u.modules) {
+    out[m.module] = serializeLevel(m.level);
+  }
+  return out;
 }
 
 /** Phase 18: صفحات مجاز هر ماژول — از ردیف‌های UserModule. */
@@ -129,7 +139,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, email, password, phone, status, modules, role, modulePages } = body ?? {};
+    const { name, email, password, phone, status, modules, role, modulePages, moduleLevels } = body ?? {};
 
     // name — required
     if (typeof name !== "string" || !name.trim()) {
@@ -151,7 +161,7 @@ export async function POST(req: NextRequest) {
     // password — required, min 6 chars
     if (typeof password !== "string" || password.length < 6) {
       return NextResponse.json(
-        { error: "رمز عبور باید حداقل ۶ کاراکتر باشد" },
+        { error: "رمز عبور باید حداقل 6 کاراکتر باشد" },
         { status: 400 }
       );
     }
@@ -186,6 +196,13 @@ export async function POST(req: NextRequest) {
     }
     const pagesMap = pagesCheck.value;
 
+    // Phase 24: سطح ۳لایهٔ هر ماژول (اختیاری) — اعتبارسنجی ساختاری
+    const levelsCheck = validateModuleLevels(uniqueMods, moduleLevels);
+    if (!levelsCheck.ok) {
+      return NextResponse.json({ error: levelsCheck.error }, { status: 400 });
+    }
+    const levelsMap = levelsCheck.value;
+
     // uniqueness — friendly Persian error instead of raw P2002
     const existing = await db.user.findUnique({ where: { email: emailNorm } });
     if (existing) {
@@ -208,14 +225,16 @@ export async function POST(req: NextRequest) {
             module: m,
             // Phase 18: محدودیت صفحه‌ای — null = همه
             pages: serializePages(pagesMap[m] ?? null),
+            // Phase 24: سطح ۳لایه — دیفالت delete (رفتار قبلی)
+            level: serializeLevel(levelsMap[m] ?? "delete"),
           })),
         },
       },
-      select: { ...BASE_SELECT, modules: { select: { module: true, pages: true } } },
+      select: { ...BASE_SELECT, modules: { select: { module: true, pages: true, level: true } } },
     });
 
     return NextResponse.json(
-      { user: { ...user, modules: modulesOf(user), modulePages: modulePagesOf(user) } },
+      { user: { ...user, modules: modulesOf(user), modulePages: modulePagesOf(user), moduleLevels: moduleLevelsOf(user) } },
       { status: 201 }
     );
   } catch {

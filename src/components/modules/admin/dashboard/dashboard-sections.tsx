@@ -28,7 +28,7 @@ export function NearDeadlineOrders() {
       <div className="flex items-center justify-between px-5 py-3.5 border-b">
         <div className="flex items-center gap-2">
           <Icon name="clock" size={18} className="text-amber-500" />
-          <h3 className="font-semibold text-sm">سفارشات نزدیک به سررسید (۵ روز)</h3>
+          <h3 className="font-semibold text-sm">سفارشات نزدیک به سررسید (5 روز)</h3>
         </div>
         <button onClick={() => navigate("admin", DASHBOARD_PAGES.openOrders)} className="text-xs text-primary hover:underline flex items-center gap-1">
           مشاهده همه <Icon name="arrowLeft" size={12} />

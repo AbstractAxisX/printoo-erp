@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 // POST /api/users/[id]/demo-expire  (فقط master)
 //
 // demoExpiresAt = «الان» → هر فراخوانیِ بعدیِ کاربر دمو (requireUser/me/
-// login) ۴۰۱ می‌دهد + کوکی پاک می‌شود → پرتاب فوری به صفحهٔ ورود.
+// login) 401 می‌دهد + کوکی پاک می‌شود → پرتاب فوری به صفحهٔ ورود.
 // ثبت لاگ ورود/خروج دمو دست‌نخورده می‌ماند (تاریخچه قابل ممیزی).
 
 export async function POST(

@@ -319,7 +319,7 @@ export function SRMSuppliers() {
     <div className="space-y-5">
       <PageHeader
         title="تامین‌کنندگان"
-        description="نمای ۳۶۰ درجه تامین‌کنندگان، خدمات و هزینه‌ها"
+        description="نمای 360 درجه تامین‌کنندگان، خدمات و هزینه‌ها"
         icon="suppliers"
         actions={
           <Button onClick={openNew} className="gap-2">
@@ -519,7 +519,7 @@ function SupplierDetailDrawer({
         <SheetHeader className="px-5 pt-5 pb-3 border-b">
           <SheetTitle className="flex items-center gap-2">
             <Icon name="suppliers" size={18} className="text-orange-500" />
-            نمای ۳۶۰ درجه تامین‌کننده
+            نمای 360 درجه تامین‌کننده
           </SheetTitle>
           <SheetDescription>اطلاعات کامل، خدمات و هزینه‌ها</SheetDescription>
         </SheetHeader>

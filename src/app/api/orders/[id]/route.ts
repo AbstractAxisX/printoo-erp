@@ -100,7 +100,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     });
     if (!order) return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
 
-    // Phase 22 (خواستهٔ ۳): خلاصهٔ هزینه برای «کاشی هزینه/قیمت/سود» مودال
+    // Phase 22 (خواستهٔ 3): خلاصهٔ هزینه برای «کاشی هزینه/قیمت/سود» مودال
     // سفارش — برای مستر/مالی/ادمین داخلی (مدیر). طراح/چاپ دادهٔ مالی نمی‌بینند.
     // مجموع روی هزینه‌های «ردنشده» است (pending + approved)؛ تفکیک هم برمی‌گردد.
     let costSummary: { total: number; approved: number; pending: number } | undefined;

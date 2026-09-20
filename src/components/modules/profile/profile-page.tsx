@@ -35,7 +35,7 @@ type RangeMode = "week" | "month" | "quarter";
 const RANGE_CHIPS: { id: RangeMode; label: string }[] = [
   { id: "week", label: "این هفته" },
   { id: "month", label: "این ماه" },
-  { id: "quarter", label: "۳ ماه" },
+  { id: "quarter", label: "3 ماه" },
 ];
 
 function localDayKey(d: Date = new Date()): string {
@@ -65,7 +65,7 @@ function presetRange(mode: RangeMode): { from: string; to: string } {
   return { from: localDayKey(new Date(now.getFullYear(), now.getMonth(), 1)), to }; // این ماه
 }
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 // ─── فرا‌یابی رویدادها ──────────────────────────────────────────────
 
@@ -315,7 +315,7 @@ export function ProfilePage() {
               <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2 shrink-0">
                 <Icon name="chartLine" size={15} className="text-primary" />
                 <span className="text-sm font-bold">آخرین فعالیت‌ها</span>
-                <span className="text-[10px] text-muted-foreground mr-auto">۱۲ مورد اخیر</span>
+                <span className="text-[10px] text-muted-foreground mr-auto">12 مورد اخیر</span>
               </div>
               <div className="p-3">
                 {data.timeline.length === 0 ? (

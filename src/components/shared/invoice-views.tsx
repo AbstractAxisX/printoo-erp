@@ -485,13 +485,13 @@ export function InvoiceDocPanel({
             <Icon name="cancel" size={13} /> ابطال
           </Button>
         )}
-        {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Invoice No_ N - Customer */}
+        {/* فاز 21: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Invoice No_ N - Customer */}
         <DocPrintButtons
           fileName={`Invoice No_ ${invoice.number} - ${order.customer?.name ?? "Customer"}`}
         />
       </div>
 
-      {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز ۲۰) ─── */}
+      {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز 20) ─── */}
       <div className="doc-frame bg-muted/30 p-4" dir="ltr">
         <P24Doc
           title="Invoice"

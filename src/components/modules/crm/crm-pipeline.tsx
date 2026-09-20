@@ -219,7 +219,7 @@ export function CRMPipeline() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر ۳۰ ثانیه • کارت‌ها را بکشید تا بین مراحل جابجا شوند
+        به‌روزرسانی خودکار هر 30 ثانیه • کارت‌ها را بکشید تا بین مراحل جابجا شوند
       </div>
     </div>
   );

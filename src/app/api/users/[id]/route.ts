@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser, safeParsePages } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { isModuleKey } from "@/lib/access";
-import { serializePages, validateModulePages } from "@/lib/module-pages";
+import { serializePages, validateModulePages, validateModuleLevels, serializeLevel } from "@/lib/module-pages";
 
 // PUT /api/users/[id] — update a user (master only).
 //
@@ -24,7 +24,10 @@ import { serializePages, validateModulePages } from "@/lib/module-pages";
 //   - فقط همراه modules (یا مستقل برای به‌روزرسانی صفحات بدون تغییر ماژول‌ها).
 //   - جایگزینی کامل ستِ صفحات همان ماژول‌ها؛ ماژول بدون کلید → null (همه).
 //
-// Response: { user } — public shape + modules + modulePages (no password).
+// Phase 24 — moduleLevels (Record<module, "view"|"edit"|"delete">):
+//   - سطح ۳لایهٔ هر ماژول — همراه modules یا مستقل؛ اعمال فوری (proxy).
+//
+// Response: { user } — public shape + modules + modulePages + moduleLevels (no password).
 
 const PUBLIC_SELECT = {
   id: true,
@@ -35,7 +38,7 @@ const PUBLIC_SELECT = {
   avatar: true,
   status: true,
   createdAt: true,
-  modules: { select: { module: true, pages: true } },
+  modules: { select: { module: true, pages: true, level: true } },
 } as const;
 
 export async function PUT(
@@ -55,11 +58,11 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, phone, status, password, modules, role, modulePages } = body ?? {};
+    const { name, phone, status, password, modules, role, modulePages, moduleLevels } = body ?? {};
 
     const target = await db.user.findUnique({
       where: { id },
-      include: { modules: { select: { module: true, pages: true } } },
+      include: { modules: { select: { module: true, pages: true, level: true } } },
     });
     if (!target) {
       return NextResponse.json(
@@ -81,6 +84,8 @@ export async function PUT(
     let newModules: string[] | null = null;
     // Phase 18: صفحات مجاز (جایگزینی/به‌روزرسانی)
     let newModulePages: Record<string, string[] | null> | null = null;
+    // Phase 24: سطح ۳لایهٔ ماژول‌ها (جایگزینی/به‌روزرسانی)
+    let newModuleLevels: Record<string, string> | null = null;
     if (Array.isArray(modules)) {
       if (target.role === "master") {
         return NextResponse.json(
@@ -138,6 +143,23 @@ export async function PUT(
       newModulePages = pagesCheck.value;
     }
 
+    // ─── Phase 24: سطح ۳لایهٔ هر ماژول ───────────────────────
+    const hasModuleLevels =
+      moduleLevels !== undefined && moduleLevels !== null && typeof moduleLevels === "object";
+    if (hasModuleLevels) {
+      if (target.role === "master") {
+        return NextResponse.json(
+          { error: "مدیر ارشد دسترسی کامل دارد — سطح محدود نمی‌گیرد" },
+          { status: 400 }
+        );
+      }
+      const levelsCheck = validateModuleLevels(finalModules, moduleLevels);
+      if (!levelsCheck.ok) {
+        return NextResponse.json({ error: levelsCheck.error }, { status: 400 });
+      }
+      newModuleLevels = levelsCheck.value;
+    }
+
     if (phone !== undefined) {
       data.phone = phone ? String(phone).trim() : null;
     }
@@ -161,14 +183,19 @@ export async function PUT(
     if (password !== undefined && password !== null && password !== "") {
       if (typeof password !== "string" || password.length < 6) {
         return NextResponse.json(
-          { error: "رمز عبور باید حداقل ۶ کاراکتر باشد" },
+          { error: "رمز عبور باید حداقل 6 کاراکتر باشد" },
           { status: 400 }
         );
       }
       data.password = await hashPassword(password);
     }
 
-    if (Object.keys(data).length === 0 && newModules === null && newModulePages === null) {
+    if (
+      Object.keys(data).length === 0 &&
+      newModules === null &&
+      newModulePages === null &&
+      newModuleLevels === null
+    ) {
       return NextResponse.json(
         { error: "هیچ فیلدی برای به‌روزرسانی ارسال نشده است" },
         { status: 400 }
@@ -197,6 +224,8 @@ export async function PUT(
               module: m,
               // Phase 18: صفحات ماژول تازه (کلید نداشته باشد = همه)
               pages: serializePages(newModulePages?.[m] ?? null),
+              // Phase 24: سطح ماژول تازه (کلید نداشته باشد = delete کامل)
+              level: serializeLevel(newModuleLevels?.[m] ?? "delete"),
             })),
           });
         }
@@ -212,6 +241,16 @@ export async function PUT(
             });
           }
         }
+        // Phase 24: سطح ماژول‌های «مانده» هم همین‌جا نوشته شود
+        if (newModuleLevels) {
+          for (const [m, level] of Object.entries(newModuleLevels)) {
+            if (toCreate.includes(m)) continue; // بالا نوشته شد
+            await tx.userModule.updateMany({
+              where: { userId: id, module: m },
+              data: { level: serializeLevel(level) },
+            });
+          }
+        }
       }
       // Phase 18: به‌روزرسانی صفحات ماژول‌ها بدون تغییر خود ماژول‌ها
       if (newModulePages && !newModules) {
@@ -219,6 +258,15 @@ export async function PUT(
           await tx.userModule.updateMany({
             where: { userId: id, module: m },
             data: { pages: serializePages(pages) },
+          });
+        }
+      }
+      // Phase 24: به‌روزرسانی سطح ماژول‌ها بدون تغییر خود ماژول‌ها
+      if (newModuleLevels && !newModules) {
+        for (const [m, level] of Object.entries(newModuleLevels)) {
+          await tx.userModule.updateMany({
+            where: { userId: id, module: m },
+            data: { level: serializeLevel(level) },
           });
         }
       }
@@ -236,6 +284,15 @@ export async function PUT(
                 (user?.modules ?? []).map((m) => [
                   m.module,
                   m.pages ? safeParsePages(m.pages) : null,
+                ])
+              ),
+        moduleLevels:
+          user?.role === "master"
+            ? {}
+            : Object.fromEntries(
+                (user?.modules ?? []).map((m) => [
+                  m.module,
+                  serializeLevel(m.level),
                 ])
               ),
       },

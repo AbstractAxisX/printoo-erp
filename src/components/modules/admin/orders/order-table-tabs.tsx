@@ -1,6 +1,6 @@
 "use client";
 
-// Printoo24 ERP — Order table aspect tabs (Phase 20, خواستهٔ ۵)
+// Printoo24 ERP — Order table aspect tabs (Phase 20, خواستهٔ 5)
 //
 // نوار تب مشترک بالای جدول سفارش‌ها — همان تب‌های مودال جزئیات سفارش،
 // این‌بار روی «همه سفارشات» و «سفارشات باز»:

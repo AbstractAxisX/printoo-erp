@@ -25,7 +25,7 @@ export function PageHeader({
         )}
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">{title}</h1>
-          {/* ۲۰-اِ: توضیح بلند فقط دسکتاپ — در موبایل فضا عمودی آزاد می‌شود */}
+          {/* 20-اِ: توضیح بلند فقط دسکتاپ — در موبایل فضا عمودی آزاد می‌شود */}
           {description && (
             <p className="text-sm text-muted-foreground mt-0.5 hidden sm:block">{description}</p>
           )}

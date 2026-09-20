@@ -259,7 +259,7 @@ export function FinanceUnsettled() {
             {formatCurrency(totalRemaining)}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {rows.filter((o) => o.totalAmount - o.paidAmount > 0.001).length.toLocaleString("fa-IR")}{" "}
+            {rows.filter((o) => o.totalAmount - o.paidAmount > 0.001).length.toLocaleString("en-US")}{" "}
             سفارش با مانده
           </div>
         </Card>
@@ -281,7 +281,7 @@ export function FinanceUnsettled() {
           />
         </div>
         <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {rows.length.toLocaleString("fa-IR")} سفارش
+          {rows.length.toLocaleString("en-US")} سفارش
         </span>
       </Card>
 

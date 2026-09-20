@@ -1,9 +1,9 @@
 "use client";
 
-// ─── Phase 16: بج بسته — QR + PDF (۱۰۰×۵۰ میلی‌متر) ──────────────
+// ─── Phase 16: بج بسته — QR + PDF (100×50 میلی‌متر) ──────────────
 // طراحی بج به‌صورت HTML با استایل‌های inline (فقط رنگ RGB — سازگار با
 // html2canvas؛ Tailwind/oklch هرگز به‌کار نمی‌رود) → اسکرین‌شات →
-// صفحهٔ PDF دقیقاً ۱۰۰×۵۰mm (برچسب استیکری کوچک مستطیلی).
+// صفحهٔ PDF دقیقاً 100×50mm (برچسب استیکری کوچک مستطیلی).
 // متن فارسی توسط مرورگر رندر می‌شود (کیفیت کامل RTL).
 //
 // چیدمان (RTL):
@@ -56,7 +56,7 @@ export async function makePackageQr(code: string): Promise<string> {
   });
 }
 
-/** ساخت المان بج (۳۷۸×۱۸۹px ≈ ۱۰۰×۵۰mm @96dpi) — استایل inline خالص. */
+/** ساخت المان بج (378×189px ≈ 100×50mm @96dpi) — استایل inline خالص. */
 export async function buildBadgeElement(pkg: BadgePackage): Promise<HTMLDivElement> {
   const qr = await makePackageQr(pkg.code);
   const line2 =
@@ -100,7 +100,7 @@ export async function buildBadgeElement(pkg: BadgePackage): Promise<HTMLDivEleme
   logo.src = LOGO_DATA_URL;
   logo.style.cssText = "width: 42px; height: 42px;";
   const brandName = document.createElement("div");
-  brandName.textContent = "پرینتو ۲۴";
+  brandName.textContent = "پرینتو 24";
   brandName.style.cssText = "font-size: 12px; font-weight: 700; white-space: nowrap;";
   const brandEn = document.createElement("div");
   brandEn.textContent = "Printoo24";
@@ -168,7 +168,7 @@ export async function buildBadgeElement(pkg: BadgePackage): Promise<HTMLDivEleme
   }
   if (pkg.codAmount && pkg.codAmount > 0) {
     const cod = document.createElement("div");
-    cod.textContent = `COD: ${pkg.codAmount.toLocaleString("fa-IR")}`;
+    cod.textContent = `COD: ${pkg.codAmount.toLocaleString("en-US")}`;
     cod.style.cssText =
       "font-size: 9px; font-weight: 800; color: #92400e; background: #fef3c7; padding: 1px 7px; border-radius: 4px;";
     metaRow.append(cod);
@@ -200,7 +200,7 @@ export async function buildBadgeElement(pkg: BadgePackage): Promise<HTMLDivEleme
   return el;
 }
 
-/** اسکرین‌شات باکیفیت بج → canvas (scale 4 ≈ ۳۸۴dpi). */
+/** اسکرین‌شات باکیفیت بج → canvas (scale 4 ≈ 384dpi). */
 async function badgeCanvas(el: HTMLElement): Promise<HTMLCanvasElement> {
   // رندر خارج از دید (fixed تا layout نگیرد)
   el.style.position = "fixed";
@@ -219,7 +219,7 @@ async function badgeCanvas(el: HTMLElement): Promise<HTMLCanvasElement> {
   }
 }
 
-/** دانلود PDF بج — صفحه دقیقاً ۱۰۰×۵۰ میلی‌متر. */
+/** دانلود PDF بج — صفحه دقیقاً 100×50 میلی‌متر. */
 export async function downloadBadgePdf(pkg: BadgePackage): Promise<void> {
   const el = await buildBadgeElement(pkg);
   const canvas = await badgeCanvas(el);

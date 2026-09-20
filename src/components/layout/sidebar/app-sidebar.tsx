@@ -18,7 +18,7 @@ import { TreeModule } from "./sidebar-tree-module";
 import { SidebarUserFooter } from "./sidebar-user-footer";
 
 /**
- * پوستهٔ سایدبار (AppSidebar) — نسخهٔ زیباسازی‌شدهٔ فاز ۶
+ * پوستهٔ سایدبار (AppSidebar) — نسخهٔ زیباسازی‌شدهٔ فاز 6
  * ─────────────────────────────────────────────────────────────
  * اسکلت اصلی سایدبار ERP: هدر (لوگو + نام ماژول فعّال) + محتوای
  * ناوبری (TreeModule برای هر ماژول) + پاص (SidebarUserFooter).
@@ -28,7 +28,7 @@ import { SidebarUserFooter } from "./sidebar-user-footer";
  * TreeModule/TreeGroup کپسوله شده است (اصل اتمیک: هر کامپوننت
  * یک دغدغه).
  *
- * طراحی بصری (فاز ۶):
+ * طراحی بصری (فاز 6):
  *   - هدر با لوگوی گرادیانت emerald + سایهٔ ظریف.
  *   - مرز پایین هدر برای جداسازی بصری از محتوا.
  *   - پاص با کامپوننت SidebarUserFooter زیباسازی‌شده.

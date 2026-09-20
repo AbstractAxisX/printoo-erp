@@ -2,9 +2,9 @@
 
 // ─── Phase 15: انبار و لجستیک — پنل سادهٔ عملیات تحویل ───────────────
 // دو کارِ روزمرهٔ لجستیک:
-//   ۱) «ثبت درآمد» — پولی که مشتری در محل تحویل می‌دهد؛ به پرداخت‌شدهٔ
+//   1) «ثبت درآمد» — پولی که مشتری در محل تحویل می‌دهد؛ به پرداخت‌شدهٔ
 //      سفارش اضافه می‌شود و مالی با تفاضل هوشمند و نام این کارمند می‌بیند.
-//   ۲) «ثبت هزینه» — هزینه‌های تحویل/بسته‌بندی (عین فرم چاپ، اینلاین).
+//   2) «ثبت هزینه» — هزینه‌های تحویل/بسته‌بندی (عین فرم چاپ، اینلاین).
 
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -80,7 +80,7 @@ function LogisticsOrderMobileCard({ order: o }: { order: Order }) {
           ))}
           {o.items.length > 2 && (
             <span className="text-xs text-muted-foreground self-center">
-              +{(o.items.length - 2).toLocaleString("fa-IR")}
+              +{(o.items.length - 2).toLocaleString("en-US")}
             </span>
           )}
         </div>
@@ -211,7 +211,7 @@ export function LogisticsOrders() {
             ))}
             {row.original.items.length > 2 && (
               <span className="text-[10px] text-muted-foreground">
-                +{(row.original.items.length - 2).toLocaleString("fa-IR")}
+                +{(row.original.items.length - 2).toLocaleString("en-US")}
               </span>
             )}
           </div>
@@ -305,7 +305,7 @@ export function LogisticsOrders() {
           />
         </div>
         <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {rows.length.toLocaleString("fa-IR")} سفارش در دست لجستیک
+          {rows.length.toLocaleString("en-US")} سفارش در دست لجستیک
         </span>
       </Card>
 
@@ -363,7 +363,7 @@ export function LogisticsOrders() {
                   </div>
                   <StatusBadge status={selected.status} />
                 </div>
-                {/* ۳ تایل */}
+                {/* 3 تایل */}
                 <div className="grid grid-cols-3 gap-2.5 mt-4">
                   <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
                     <div className="text-[10px] text-muted-foreground">جمع سفارش</div>

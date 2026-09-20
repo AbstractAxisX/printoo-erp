@@ -471,8 +471,8 @@ export function OverviewTab({
 
 // ─── 2. Items tab ───────────────────────────────────────────────
 // Phase 10: نمایش تاریخ طراحی/چاپ per-item + ویرایش همان‌جا
-// (خواستهٔ ۳: «براشون زمان طراحی و چاپ ثبت کنیم همونجا») — ادیتور
-// هر آیتم ۴ DatePicker دارد و فقط مقادیر غیرتهی ذخیره می‌شوند
+// (خواستهٔ 3: «براشون زمان طراحی و چاپ ثبت کنیم همونجا») — ادیتور
+// هر آیتم 4 DatePicker دارد و فقط مقادیر غیرتهی ذخیره می‌شوند
 // (PUT /api/orders/[id]/item-dates → تاریخ قبلی هرگز پاک نمی‌شود).
 export function ItemsTab({ order }: { order: OrderDetail }) {
   const invalidate = useInvalidate();
@@ -640,7 +640,7 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
               </div>
             )}
 
-            {/* حالت ویرایش — ۴ تاریخ per-item */}
+            {/* حالت ویرایش — 4 تاریخ per-item */}
             {isEditing && (
               <div className="mt-3 rounded-lg border bg-card p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
@@ -695,7 +695,7 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
   );
 }
 
-// ─── 3. Tasks tab (Phase 4: inline quick-create — ارجاع در <۵ ثانیه) ──
+// ─── 3. Tasks tab (Phase 4: inline quick-create — ارجاع در <5 ثانیه) ──
 //
 // Scenario-3 (cross-panel referral): from an open order, the admin creates
 // a task ALREADY linked to this order (orderId pre-filled), routes it to the
@@ -780,7 +780,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
           <Input
             value={qcTitle}
             onChange={(e) => setQcTitle(e.target.value)}
-            placeholder="مثلاً: طراحی فایل لگو — نسخه ۲"
+            placeholder="مثلاً: طراحی فایل لگو — نسخه 2"
             autoFocus
           />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1044,7 +1044,7 @@ export function CostsTab({ order }: { order: OrderDetail }) {
   );
 }
 
-// ─── 5. Pre-invoice tab (فاز ۹ → بازسازی Phase 10) ─────────────
+// ─── 5. Pre-invoice tab (فاز 9 → بازسازی Phase 10) ─────────────
 // به‌ازای چه پیش‌فاکتور صادر می‌شود؟
 //   • سفارش تفکیکی (مجزا) → هر آیتم = سفارش خودش → سند تک-آیتمی
 //   • چند-مشتری گروهی → هر آیتمِ مشتری سند خودش (تفکیک مشتری)
@@ -1140,7 +1140,7 @@ export function PreInvoiceTab({
               <Icon name="checkList" size={13} /> پیش‌فاکتور آیتم‌ها
             </span>
             <span className="text-[10px] text-muted-foreground">
-              {toFaLocal(itemDocs.length)} از {toFaLocal(order.items.length)} آیتم سند دارد
+              {fmtNum(itemDocs.length)} از {fmtNum(order.items.length)} آیتم سند دارد
             </span>
           </div>
           <div className="divide-y">
@@ -1257,7 +1257,7 @@ export function PreInvoiceTab({
               <Icon name="receipt" size={13} />
               {perItemMode ? "سندهای کل گروه (اختیاری)" : "پیش‌فاکتور کل گروه"}
             </span>
-            {/* زمان‌بندی کل گروه — خواستهٔ ۳ */}
+            {/* زمان‌بندی کل گروه — خواستهٔ 3 */}
             {hasAnySchedule && (
               <span className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
                 {groupSchedule.designFrom && (
@@ -1362,8 +1362,8 @@ export function PreInvoiceTab({
   );
 }
 
-function toFaLocal(n: number) {
-  return n.toLocaleString("fa-IR");
+function fmtNum(n: number) {
+  return n.toLocaleString("en-US");
 }
 
 // ─── 6. History tab — Phase 14: رویدادهای واقعی OrderEvent ──

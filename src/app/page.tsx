@@ -34,7 +34,7 @@ export default function Home() {
   }, []);
 
   // Check existing session on mount
-  // Phase 12: me هر ۶۰ ثانیه هم دوباره صدا زده می‌شود تا اگر مدیر دسترسی‌های
+  // Phase 12: me هر 60 ثانیه هم دوباره صدا زده می‌شود تا اگر مدیر دسترسی‌های
   // کاربر را کم/زیاد کرد، sidebar او بلافاصله (نه بعد از رفرش دستی) فیلتر شود.
   React.useEffect(() => {
     let alive = true;

@@ -52,7 +52,7 @@ export async function PUT(
     if (nums.advanceDeducted > pendingTotal + 0.001) {
       return jsonError(
         new Error("adv-exceed"),
-        `کسر مساعده بیشتر از مانده (${pendingTotal.toLocaleString("fa-IR")}) نیست`
+        `کسر مساعده بیشتر از مانده (${pendingTotal.toLocaleString("en-US")}) نیست`
       , 400);
     }
 

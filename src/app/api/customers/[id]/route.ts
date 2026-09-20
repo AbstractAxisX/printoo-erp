@@ -23,6 +23,9 @@ export async function GET(
             select: {
               id: true, number: true, status: true, priority: true,
               totalAmount: true, paidAmount: true, endDate: true, createdAt: true,
+              // فاز ۲۴ (خواستهٔ ۵): نام محصولات هر سفارش — برای شرح ردیف‌های
+              // «فاکتور جمعی سفارشات پرداخت‌نشده» در نمای ۳۶۰ مشترک (CRM + ادمین)
+              items: { select: { id: true, product: { select: { name: true } } } },
             },
           },
           invoices: {
@@ -111,7 +114,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 // ─── DELETE /api/customers/[id] — حذف با گارد سوابق ─────────────────────
-// قبلاً raw delete بود و رابطه‌های FK خطای خام ۵۰۰ می‌دادند؛ حالا اگر
+// قبلاً raw delete بود و رابطه‌های FK خطای خام 500 می‌دادند؛ حالا اگر
 // مشتری سفارش/فاکتور/پیش‌فاکتور/پرداخت (یا سابقهٔ CRM) داشته باشد → 409.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -156,7 +159,7 @@ function optionalText(v: unknown): string | null {
   return textOrEmpty(v).length ? textOrEmpty(v) : null;
 }
 
-/** Prisma P2025 (رکورد غایب) → ۴۰۴ فارسی؛ بقیه → jsonError */
+/** Prisma P2025 (رکورد غایب) → 404 فارسی؛ بقیه → jsonError */
 function notFoundOrError(e: unknown, fallback: string): NextResponse {
   const err = e as { name?: string; code?: string } | null;
   if (err?.name === "PrismaClientKnownRequestError" && err?.code === "P2025") {

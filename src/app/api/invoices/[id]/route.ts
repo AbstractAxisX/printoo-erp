@@ -131,7 +131,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
         },
       });
 
-      // Phase 22 (خواستهٔ ۱۰): ویرایش تخفیف/اقلام فاکتور → total جدید
+      // Phase 22 (خواستهٔ 10): ویرایش تخفیف/اقلام فاکتور → total جدید
       // روی دادهٔ مالی سفارش هم می‌نشیند.
       await syncOrderTotalFromInvoice(tx, existing.orderId, computed.totalAmount);
       return inv;
@@ -221,7 +221,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             note: `ابطال فاکتور #${existing.number}`,
           },
         });
-        // Phase 22 (خواستهٔ ۱۰): total سفارش هم به حالت «پیش از فاکتور»
+        // Phase 22 (خواستهٔ 10): total سفارش هم به حالت «پیش از فاکتور»
         // برمی‌گردد — Σ اقلام (بدون تخفیف/مالیات سندِ باطل‌شده).
         await recomputeOrderTotalFromItems(tx, existing.orderId);
       }
@@ -271,7 +271,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
           note: `حذف فاکتور #${existing.number}`,
         },
       });
-      // Phase 22 (خواستهٔ ۱۰): total سفارش = Σ اقلام (بدون تخفیف سند حذف‌شده)
+      // Phase 22 (خواستهٔ 10): total سفارش = Σ اقلام (بدون تخفیف سند حذف‌شده)
       await recomputeOrderTotalFromItems(tx, existing.orderId);
     });
 

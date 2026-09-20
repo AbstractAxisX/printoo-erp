@@ -119,12 +119,9 @@ const PERIOD_STATUS: Record<string, { label: string; cls: string }> = {
 // ─── کمکی‌ها ────────────────────────────────────────────────────────────
 
 function fa(n: number): string {
-  return n.toLocaleString("fa-IR");
+  return n.toLocaleString("en-US");
 }
 
-function faDigits(s: string): string {
-  return s.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
-}
 
 function ModuleChip({ module }: { module: string }) {
   const meta = (MODULES as Record<string, { faLabel: string }>)[module];
@@ -248,7 +245,7 @@ export function PayrollSimplePage() {
         icon="wallet"
         description={
           current
-            ? `دورهٔ ${faDigits(current.key)} • بازهٔ ${current.startDate} تا ${current.endDate}`
+            ? `دورهٔ ${current.key} • بازهٔ ${current.startDate} تا ${current.endDate}`
             : "پرداخت سریع حقوق دورهٔ جاری"
         }
         actions={
@@ -333,7 +330,7 @@ export function PayrollSimplePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">
-                    کارمندان دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(current.key)}</span>
+                    کارمندان دورهٔ <span dir="ltr" className="tabular-nums">{current.key}</span>
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
                     {fa(paidCount)} پرداخت‌شده • {fa(draftEntries.length)} آمادهٔ پرداخت
@@ -483,7 +480,7 @@ export function PayrollSimplePage() {
                     {pastPeriods.map((p) => (
                       <TableRow key={p.id}>
                         <TableCell>
-                          <span dir="ltr" className="font-mono text-xs font-bold tabular-nums">{faDigits(p.key)}</span>
+                          <span dir="ltr" className="font-mono text-xs font-bold tabular-nums">{p.key}</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-muted-foreground tabular-nums" dir="ltr">
@@ -553,7 +550,7 @@ export function PayrollSimplePage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              پرداخت حقوق کل دورهٔ <span dir="ltr" className="tabular-nums">{faDigits(current?.key ?? "")}</span>
+              پرداخت حقوق کل دورهٔ <span dir="ltr" className="tabular-nums">{current?.key ?? ""}</span>
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">

@@ -170,7 +170,7 @@ export async function GET(req: NextRequest) {
       ? Math.max(...overdueOrders.map((o) => Math.floor((now.getTime() - new Date(o.endDate ?? now).getTime()) / 86400000)))
       : 0;
 
-    // ── Phase 22 (خواستهٔ ۶): سفارش‌های زیان‌ده — «بیاد جلو چشمم» ──
+    // ── Phase 22 (خواستهٔ 6): سفارش‌های زیان‌ده — «بیاد جلو چشمم» ──
     // سفارش‌های غیر لغو که هزینهٔ تأییدشده‌شان از مبلغشان بیشتر است.
     // هدیه‌ها همین‌جا خودشان را نشان می‌دهند: total کم شده، هزینه مانده.
     const [allOrdersForLoss, costsByOrder] = await Promise.all([
@@ -207,7 +207,7 @@ export async function GET(req: NextRequest) {
       overdue: { count: overdueOrders.length, oldestDays: oldestOverdueDays },
       pendingCosts: { count: pendingCosts._count, sum: pendingCosts._sum.amount ?? 0 },
       profit: { revenue, costs: expenses, net: revenue - expenses },
-      // Phase 22 (خواستهٔ ۶): زیان‌ده‌ها — count + جمع زیان + بزرگ‌ترین‌ها
+      // Phase 22 (خواستهٔ 6): زیان‌ده‌ها — count + جمع زیان + بزرگ‌ترین‌ها
       lossOrders: {
         count: lossList.length,
         sum: lossList.reduce((s, x) => s + x.due, 0),

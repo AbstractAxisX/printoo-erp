@@ -257,10 +257,10 @@ export async function PATCH(
           message:
             `بستهٔ ${pkg.code} تحویل شد` +
             (result.completedOrders > 0
-              ? ` — ${result.completedOrders.toLocaleString("fa-IR")} سفارش تکمیل شد`
+              ? ` — ${result.completedOrders.toLocaleString("en-US")} سفارش تکمیل شد`
               : "") +
             (result.codTotal > 0
-              ? ` — پول در محل: ${result.codTotal.toLocaleString("fa-IR")} دینار ثبت درآمد شد`
+              ? ` — پول در محل: ${result.codTotal.toLocaleString("en-US")} دینار ثبت درآمد شد`
               : ""),
           completedOrders: result.completedOrders,
           codTotal: result.codTotal,

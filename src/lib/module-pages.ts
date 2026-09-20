@@ -30,6 +30,92 @@ export const PAGES_BY_MODULE: Record<string, string[]> = {
 
 export type ModulePagesMap = Record<string, string[] | null>;
 
+// ─── Phase 24: دسترسی ۳لایهٔ هر ماژول (مشاهده / ادیت / حذف) ───────────
+export const MODULE_LEVELS = ["view", "edit", "delete"] as const;
+export type ModuleLevel = (typeof MODULE_LEVELS)[number];
+
+export const MODULE_LEVEL_META: Record<
+  ModuleLevel,
+  { label: string; hint: string; rank: number }
+> = {
+  view: {
+    label: "مشاهده",
+    hint: "فقط می‌بیند — هیچ ثبت، ویرایش یا حذفی نمی‌تواند انجام دهد",
+    rank: 1,
+  },
+  edit: {
+    label: "ادیت",
+    hint: "می‌بیند و ثبت/ویرایش می‌کند — فقط حذف برایش بسته است",
+    rank: 2,
+  },
+  delete: {
+    label: "حذف",
+    hint: "دسترسی کامل — مشاهده، ثبت/ویرایش و حذف",
+    rank: 3,
+  },
+};
+
+export function isModuleLevel(v: unknown): v is ModuleLevel {
+  return typeof v === "string" && (MODULE_LEVELS as readonly string[]).includes(v);
+}
+
+/** اعتبارسنجی/نرمال‌سازی سطح دسترسی ماژول‌ها از body.
+ *  - فقط ماژول‌های داخل mods معتبرند
+ *  - مقدار نامعتبر/غایب → "delete" (دیفالت = رفتار قبلی)
+ *  خروجی: Record<module, level> */
+export function validateModuleLevels(
+  mods: string[],
+  raw: unknown
+): { ok: true; value: Record<string, ModuleLevel> } | { ok: false; error: string } {
+  const value: Record<string, ModuleLevel> = {};
+  if (raw === null || raw === undefined) return { ok: true, value };
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "ساختار moduleLevels نامعتبر است" };
+  }
+  for (const [key, level] of Object.entries(raw as Record<string, unknown>)) {
+    if (!mods.includes(key)) {
+      return { ok: false, error: `ماژول ${key} در دسترسی‌های کاربر انتخاب نشده است` };
+    }
+    if (level === null || level === undefined || level === "") {
+      value[key] = "delete";
+      continue;
+    }
+    if (!isModuleLevel(level)) {
+      return {
+        ok: false,
+        error: `سطح دسترسی «${String(level)}» معتبر نیست (مشاهده / ادیت / حذف)`,
+      };
+    }
+    value[key] = level;
+  }
+  return { ok: true, value };
+}
+
+/** serialize برای UserModule.level — همیشه مقدار معتبر. */
+export function serializeLevel(level: ModuleLevel | string | null | undefined): ModuleLevel {
+  return isModuleLevel(level) ? level : "delete";
+}
+
+/** بالاترین سطح از میان ماژول‌های داده‌شده — برای گیت مرکزی proxy.
+ *  ماژولِ نداشته = سطح 0 (در محاسبهٔ max بی‌اثر می‌ماند). */
+export function maxLevel(
+  moduleLevels: Record<string, ModuleLevel> | null | undefined,
+  modules: string[]
+): ModuleLevel {
+  let rank = 0;
+  for (const m of modules) {
+    const lv = moduleLevels?.[m];
+    if (isModuleLevel(lv)) {
+      const r = MODULE_LEVEL_META[lv].rank;
+      if (r > rank) rank = r;
+    }
+  }
+  if (rank >= 3) return "delete";
+  if (rank === 2) return "edit";
+  if (rank === 1) return "view";
+  return "view"; // هیچ ماژولی نبود → محافظه‌کارانه view
+}
+
 /** اعتبارسنجی/نرمال‌سازی ورودی modulePages از body.
  *  - فقط ماژول‌هایِ داخل mods معتبرند (کلید دیگر → خطا)
  *  - صفحهٔ ناموجود در آن ماژول → خطا (پیام فارسی)

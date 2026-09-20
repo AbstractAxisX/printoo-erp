@@ -5,7 +5,7 @@ import { isFinanceStaff } from "@/lib/access";
 import { logOrderEvent } from "@/lib/order-events";
 import { jsonError } from "@/lib/api-error";
 
-// ─── Phase 22 (خواستهٔ ۶): هدیه دادن سفارش ─────────────────────────
+// ─── Phase 22 (خواستهٔ 6): هدیه دادن سفارش ─────────────────────────
 //
 // POST /api/orders/[id]/gift
 //   body: { amount?: number, percentage?: number, note?: string }
@@ -25,7 +25,7 @@ import { jsonError } from "@/lib/api-error";
 //   • OrderEvent حساس + Activity مشتری (سوابق مشتری) با «درصد + عدد» ثبت
 //     می‌شود تا پروندهٔ مشتری همیشه هدیه را نشان دهد.
 //   • اگر فاکتور فعال باشد: تخفیف فاکتور به‌روز می‌شود و total سفارش از
-//     روی همان سند سینک می‌ماند (خواستهٔ ۱۰).
+//     روی همان سند سینک می‌ماند (خواستهٔ 10).
 //
 // دسترسی: مستر یا واحد مالی (تصمیم مالی — نه ادمین داخلی، نه طراح/چاپ).
 
@@ -153,12 +153,12 @@ export async function POST(
         },
       });
 
-      // سوابق مشتری (خواستهٔ ۶): هدیه با درصد و عدد در Activity ذکر می‌شود
+      // سوابق مشتری (خواستهٔ 6): هدیه با درصد و عدد در Activity ذکر می‌شود
       await tx.activity.create({
         data: {
           type: "note",
           title: `هدیه — سفارش #${order.number}`,
-          description: `تخفیف ${giftPercentage.toLocaleString("fa-IR")}٪ معادل ${giftAmount.toLocaleString("fa-IR")} دینار روی سفارش #${order.number} بخشیده شد.${note ? ` (${note})` : ""}`,
+          description: `تخفیف ${giftPercentage.toLocaleString("en-US")}٪ معادل ${giftAmount.toLocaleString("en-US")} دینار روی سفارش #${order.number} بخشیده شد.${note ? ` (${note})` : ""}`,
           customerId: order.customerId,
           date: new Date(),
         },
@@ -175,7 +175,7 @@ export async function POST(
       actorId: user.id,
       actorName: user.name,
       title: "هدیه ثبت شد",
-      description: `تخفیف ${giftPercentage.toLocaleString("fa-IR")}٪ = ${giftAmount.toLocaleString("en-US")} دینار — مانده سفارش: ${result.totalAmount.toLocaleString("en-US")} دینار${note ? ` — ${note}` : ""}`,
+      description: `تخفیف ${giftPercentage.toLocaleString("en-US")}٪ = ${giftAmount.toLocaleString("en-US")} دینار — مانده سفارش: ${result.totalAmount.toLocaleString("en-US")} دینار${note ? ` — ${note}` : ""}`,
       sensitive: true,
     });
 

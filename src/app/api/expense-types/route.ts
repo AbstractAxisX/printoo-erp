@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     const { name } = await req.json();
     const clean = typeof name === "string" ? name.trim() : "";
     if (!clean) return NextResponse.json({ error: "نام الزامی است" }, { status: 400 });
-    if (clean.length > 60) return NextResponse.json({ error: "نام دسته حداکثر ۶۰ حرف" }, { status: 400 });
+    if (clean.length > 60) return NextResponse.json({ error: "نام دسته حداکثر 60 حرف" }, { status: 400 });
     const type = await db.expenseType.create({ data: { name: clean } });
     return NextResponse.json({ expenseType: type }, { status: 201 });
   } catch (e) {

@@ -469,7 +469,7 @@ export function OpenOrdersPage() {
         })}
       </div>
 
-      {/* ─── Summary cards — موبایل: ۴ کارت مینیمال در یک ردیف (۲۰-اِ) ── */}
+      {/* ─── Summary cards — موبایل: 4 کارت مینیمال در یک ردیف (20-اِ) ── */}
       <div className="grid grid-cols-4 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <SummaryCard
           label="کل سفارشات"

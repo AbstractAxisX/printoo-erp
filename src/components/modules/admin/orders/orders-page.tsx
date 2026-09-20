@@ -17,7 +17,7 @@
 
 import * as React from "react";
 import { PageHeader, EmptyState, StatusBadge } from "@/components/shared";
-import { formatCurrency, formatDate, relativeTime, daysRemaining } from "@/lib/format";
+import { formatCurrency, formatDate, relativeTime, daysRemaining, isOrderClosed } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { DataTable } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
@@ -199,7 +199,9 @@ export function OrdersPage() {
 // فشرده و اطلاع‌رسان: #شماره + وضعیت + فوری + زمان نسبی / مشتری + تلفن /
 // چیپ آیتم‌ها (max 2 + +N) / مبلغ کل + موعد تحویل (رز اگر گذشته).
 function OrderMobileCard({ order: o }: { order: Order }) {
-  const dr = o.noEndDate ? null : o.endDate ? daysRemaining(o.endDate) : null;
+  // فاز 24 (خواستهٔ 2): سفارش بسته‌شده (تمام/آرشیو/لغو) — بدون موعد و هشدار زمان
+  const closed = isOrderClosed(o.status);
+  const dr = closed || o.noEndDate ? null : o.endDate ? daysRemaining(o.endDate) : null;
   const overdue = dr?.status === "overdue";
   return (
     <div className="space-y-2">
@@ -237,7 +239,7 @@ function OrderMobileCard({ order: o }: { order: Order }) {
         <span className="text-sm font-semibold tabular-nums" dir="ltr">
           {formatCurrency(o.totalAmount)}
         </span>
-        {o.noEndDate ? (
+        {closed ? null : o.noEndDate ? (
           <span className="text-[11px] text-muted-foreground">بدون موعد</span>
         ) : o.endDate ? (
           <span
@@ -268,7 +270,7 @@ function GroupedItemsRow({ order }: { order: Order }) {
           <Icon name="layers" size={12} />
           آیتم‌های سفارش گروهی #{order.number}
           <span className="text-muted-foreground/60">
-            ({items.length.toLocaleString("fa-IR")} آیتم — با هم پیش می‌روند)
+            ({items.length.toLocaleString("en-US")} آیتم — با هم پیش می‌روند)
           </span>
         </div>
         <div className="divide-y">

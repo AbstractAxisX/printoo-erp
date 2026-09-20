@@ -2,12 +2,12 @@
 
 // ─── Phase 15: مودال مالی سفارش ──────────────────────────────────────
 // نمای مالی از یک سفارش — سه بخش:
-//   ۱) «معرفی سفارش»: کد، مشتری، وضعیت، و «الان کجاست و دست کیست»
+//   1) «معرفی سفارش»: کد، مشتری، وضعیت، و «الان کجاست و دست کیست»
 //      (مرحلهٔ فعال هر آیتم + مجری مؤثر آن)
-//   ۲) «تاریخچهٔ مالی»: پیش‌فاکتورها + فاکتور (با ادیت پرداختیِ سینک‌شونده)،
+//   2) «تاریخچهٔ مالی»: پیش‌فاکتورها + فاکتور (با ادیت پرداختیِ سینک‌شونده)،
 //      دفتر درآمد (تفاضل هوشمند)، هزینه‌های سفارش (به تفکیک ماژول/کارمند)
 //      + ثبت پرداخت جدید + وضعیت خروج از انبار (گیت فاکتور).
-//   ۳) «ثبت هزینه» (Phase 17): فرم هزینه روی همین سفارش + جدول هزینه‌های
+//   3) «ثبت هزینه» (Phase 17): فرم هزینه روی همین سفارش + جدول هزینه‌های
 //      ثبت‌شده — مالی ماژول ثبت‌کننده را آزادانه انتخاب می‌کند.
 
 import * as React from "react";
@@ -352,9 +352,9 @@ export function FinanceOrderModal({
   const pendingCosts = costs.filter((c) => c.status === "pending").length;
 
   // ── Phase 17: وضعیت خروج از انبار ──
-  // ۱) پرچم مالی «فاکتور همراه بسته» → خروج آزاد
-  // ۲) تسویهٔ کامل فاکتور (باقطل‌نشده و مبلغ > ۰) → خروج آزاد
-  // ۳) غیر از این → قفل؛ مالی می‌تواند پرچم را بزند
+  // 1) پرچم مالی «فاکتور همراه بسته» → خروج آزاد
+  // 2) تسویهٔ کامل فاکتور (باقطل‌نشده و مبلغ > 0) → خروج آزاد
+  // 3) غیر از این → قفل؛ مالی می‌تواند پرچم را بزند
   const invoiceFlagged = order.invoiceWithPackage === true;
   const orderSettled =
     !!order.invoice &&
@@ -406,7 +406,7 @@ export function FinanceOrderModal({
             </div>
           </div>
 
-          {/* ۴ تایل مالی */}
+          {/* 4 تایل مالی */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
             <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
               <div className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -481,7 +481,7 @@ export function FinanceOrderModal({
                 تاریخچهٔ مالی
                 {(order.revenueLogs ?? []).length > 0 && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-                    {(order.revenueLogs ?? []).length.toLocaleString("fa-IR")}
+                    {(order.revenueLogs ?? []).length.toLocaleString("en-US")}
                   </span>
                 )}
               </TabsTrigger>
@@ -494,7 +494,7 @@ export function FinanceOrderModal({
                 ثبت هزینه
                 {costs.length > 0 && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-                    {costs.length.toLocaleString("fa-IR")}
+                    {costs.length.toLocaleString("en-US")}
                   </span>
                 )}
               </TabsTrigger>
@@ -520,7 +520,7 @@ export function FinanceOrderModal({
                           {s.label}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {s.count.toLocaleString("fa-IR")} آیتم
+                          {s.count.toLocaleString("en-US")} آیتم
                         </span>
                         <span className="flex items-center gap-1 text-xs">
                           <Icon name="user" size={11} className="text-muted-foreground" />
@@ -542,7 +542,7 @@ export function FinanceOrderModal({
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
                   <Icon name="orders" size={13} /> آیتم‌های سفارش
                   <span className="text-[10px] font-normal text-muted-foreground/70">
-                    ({(order.items ?? []).length.toLocaleString("fa-IR")})
+                    ({(order.items ?? []).length.toLocaleString("en-US")})
                   </span>
                 </div>
                 {/* 20-E — موبایل: جدول آیتم‌ها داخل اسکرول افقی */}
@@ -569,12 +569,12 @@ export function FinanceOrderModal({
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="text-[10px] text-muted-foreground w-4 shrink-0">
-                              {(i + 1).toLocaleString("fa-IR")}
+                              {(i + 1).toLocaleString("en-US")}
                             </span>
                             <span className="text-sm truncate">{it.product?.name ?? "—"}</span>
                           </div>
                           <span className="text-center text-xs tabular-nums">
-                            {it.quantity.toLocaleString("fa-IR")}
+                            {it.quantity.toLocaleString("en-US")}
                           </span>
                           <span className="text-center">
                             <span className={cn("text-[10px] px-1.5 py-0.5 rounded", STAGE_COLOR[it.stage] ?? "bg-muted")}>
@@ -616,7 +616,7 @@ export function FinanceOrderModal({
                   <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Icon name="file" size={13} /> پیش‌فاکتورها
                     <span className="text-[10px] font-normal text-muted-foreground/70">
-                      ({(order.preInvoices ?? []).length.toLocaleString("fa-IR")})
+                      ({(order.preInvoices ?? []).length.toLocaleString("en-US")})
                     </span>
                   </div>
                   <Button
@@ -1070,7 +1070,7 @@ export function FinanceOrderModal({
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-                    {costs.length.toLocaleString("fa-IR")} هزینه
+                    {costs.length.toLocaleString("en-US")} هزینه
                   </span>
                   <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
                     مجموع{" "}
@@ -1080,7 +1080,7 @@ export function FinanceOrderModal({
                   </span>
                   {pendingCosts > 0 && (
                     <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                      {pendingCosts.toLocaleString("fa-IR")} در انتظار
+                      {pendingCosts.toLocaleString("en-US")} در انتظار
                     </span>
                   )}
                 </div>
@@ -1107,7 +1107,7 @@ export function FinanceOrderModal({
                   <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <Icon name="checkList" size={13} /> هزینه‌های ثبت‌شده
                     <span className="text-[10px] font-normal text-muted-foreground/70">
-                      ({costs.length.toLocaleString("fa-IR")})
+                      ({costs.length.toLocaleString("en-US")})
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground">

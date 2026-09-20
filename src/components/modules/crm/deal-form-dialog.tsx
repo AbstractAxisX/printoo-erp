@@ -154,7 +154,7 @@ export function DealFormDialog({
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="مثلاً: چاپ کاتالوگ ۵۰۰ نسخه"
+              placeholder="مثلاً: چاپ کاتالوگ 500 نسخه"
               required
             />
           </Field>

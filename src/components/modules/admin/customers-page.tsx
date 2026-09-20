@@ -7,9 +7,9 @@
 //  - چیپ‌های فیلتر همه | تسویه‌نشده | مورد علاقه + مصرف boardFilter
 //    (کارت «مشتریان تسویه‌نکرده»ی داشبورد → اینجا می‌نشیند)
 //  - جدول فشرده با «مانده حساب» کنار نام هر مشتری (چیپ رز/زمرد)
-//  - کلیک ردیف → دیالوگ «پروندهٔ مشتری» (customers-detail-dialog)
+//  - کلیک ردیف → دراور «نمای ۳۶۰ مشتری» مشترک با CRM (فاز ۲۴)
 //  - فرم ساخت/ویرایش با نام/تلفن/آدرس الزامی + شهر/استان/یادداشت/ویژه
-//  - حذف با AlertDialog و پیام ۴۰۹-aware (مشتری با سفارش حذف نمی‌شود)
+//  - حذف با AlertDialog و پیام 409-aware (مشتری با سفارش حذف نمی‌شود)
 // Phase 18-b: شهر/استان فرم از فهرست مجاز /api/locations می‌آید (دراپ‌داون) —
 // Customer همچنان «نام» رشته‌ای ذخیره می‌کند؛ value دراپ‌داون = نام، نه id.
 // تا استان انتخاب نشود شهر قفل است؛ تغییر استان → پاک‌شدن شهرِ نا متعلق؛
@@ -36,8 +36,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
 import {
-  CustomersDetailDialog, type CustomerDetail,
-} from "./customers/customers-detail-dialog";
+  Customer360Drawer, type Customer360,
+} from "@/components/shared/customer-360-drawer";
 import { cn } from "@/lib/utils";
 
 // ─── تایپ‌ها ─────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ type LocationsData = {
 };
 
 /** شمارش فارسی برای اعداد کوچک */
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 const EMPTY_FORM: CustomerForm = {
   name: "", phone: "", address: "", city: "", province: "", note: "", isFavorite: false,
@@ -120,7 +120,7 @@ export function CustomersPage() {
   // دیالوگ‌ها
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<CustomerRow | CustomerDetail | null>(null);
+  const [editing, setEditing] = React.useState<CustomerRow | Customer360 | null>(null);
   const [form, setForm] = React.useState<CustomerForm>(EMPTY_FORM);
   const [errors, setErrors] = React.useState<FormErrors>({});
 
@@ -218,8 +218,8 @@ export function CustomersPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  // فاز ۲۰ (خواستهٔ ۸): حذف مشتری از ردیف‌ها حذف شد — فقط از انتهای
-  // «پروندهٔ مشتری» (customers-detail-dialog) و با تایید دومرحله‌ای.
+  // فاز 20 (خواستهٔ 8): حذف مشتری از ردیف‌ها حذف شد — فقط از انتهای
+  // «نمای ۳۶۰ مشتری» (دراور مشترک فاز ۲۴) و با تایید دومرحله‌ای.
 
   // ── فرم ──
   function openNew() {
@@ -228,7 +228,7 @@ export function CustomersPage() {
     setErrors({});
     setFormOpen(true);
   }
-  function openEdit(c: CustomerRow | CustomerDetail) {
+  function openEdit(c: CustomerRow | Customer360) {
     setEditing(c);
     setForm({
       name: c.name,
@@ -487,11 +487,13 @@ export function CustomersPage() {
         />
       </Card>
 
-      {/* پروندهٔ مشتری — کلیک روی ردیف */}
-      <CustomersDetailDialog
+      {/* فاز ۲۴ (خواستهٔ ۵): نمای ۳۶۰ مشترک — همان دراور CRM با همهٔ اپشن‌ها
+          (سفارش‌های پرداخت‌نشده + فاکتور جمعی چاپی + فاکتورها/پرداخت‌ها +
+          معاملات + فعالیت‌ها) — حالا در مدیریت مشتریان ادمین داخلی هم هست */}
+      <Customer360Drawer
         customerId={detailId}
-        open={!!detailId}
-        onOpenChange={(o) => { if (!o) setDetailId(null); }}
+        onClose={() => setDetailId(null)}
+        invalidateKeys={["customers-list"]}
         onEdit={(c) => { setDetailId(null); openEdit(c); }}
       />
 

@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
+import { formatCurrency, formatDate, daysRemaining, isOrderClosed } from "@/lib/format";
 import {
   ORDER_STATUS,
   ITEM_STAGE,
@@ -154,10 +154,10 @@ export type OrderDetail = {
     assignedUser?: { id: string; name: string; role: string } | null;
     createdAt: string;
   }[];
-  // Phase 22 (خواستهٔ ۳): خلاصهٔ هزینه برای کاشی هزینه/قیمت/سود — فقط برای
+  // Phase 22 (خواستهٔ 3): خلاصهٔ هزینه برای کاشی هزینه/قیمت/سود — فقط برای
   // مستر/مالی/ادمین داخلی برمی‌گردد؛ برای طراح/چاپ غایب است.
   costSummary?: { total: number; approved: number; pending: number };
-  // Phase 22 (خواستهٔ ۶): هدیهٔ ثبت‌شده روی سفارش (بخشش بخشی از مبلغ)
+  // Phase 22 (خواستهٔ 6): هدیهٔ ثبت‌شده روی سفارش (بخشش بخشی از مبلغ)
   giftAmount?: number;
   giftPercentage?: number;
   giftNote?: string | null;
@@ -339,7 +339,7 @@ export function OrderDetailModal({
   const [status, setStatus] = React.useState<OrderStatus>("pending_design");
   const [note, setNote] = React.useState("");
   const [preInvoiceOpen, setPreInvoiceOpen] = React.useState(false);
-  // Phase 22 (خواستهٔ ۶): دیالوگ هدیه دادن سفارش
+  // Phase 22 (خواستهٔ 6): دیالوگ هدیه دادن سفارش
   const [giftOpen, setGiftOpen] = React.useState(false);
   // فقط مستر/مالی می‌توانند هدیه بدهند (تصمیم مالی)
   const user = useAppStore((s) => s.user);
@@ -422,9 +422,11 @@ export function OrderDetailModal({
     );
   }
 
+  // فاز 24 (خواستهٔ 2): سفارش بسته (تمام/آرشیو/لغو) — بدون موعد/شمارش معکوس
+  const closed = isOrderClosed(order.status);
   const dr = daysRemaining(order.endDate);
   const unpaid = Math.max(0, order.totalAmount - order.paidAmount);
-  // Phase 22 (خواستهٔ ۳): هزینه/قیمت/سود — سود = قیمت داده‌شده − هزینهٔ تأییدشده
+  // Phase 22 (خواستهٔ 3): هزینه/قیمت/سود — سود = قیمت داده‌شده − هزینهٔ تأییدشده
   const cost = order.costSummary;
   const profit = cost != null ? order.totalAmount - cost.approved : null;
   const hasPreInvoice = (order.preInvoices?.length ?? 0) > 0;
@@ -482,7 +484,7 @@ export function OrderDetailModal({
                   onChange={(ns) => statusMut.mutate(ns)}
                   disabled={statusMut.isPending}
                 />
-                {/* فاز ۲۲ (خواستهٔ ۶): هدیه دادن — مستر/مالی */}
+                {/* فاز 22 (خواستهٔ 6): هدیه دادن — مستر/مالی */}
                 {canGift && (
                   <button
                     onClick={() => setGiftOpen(true)}
@@ -501,7 +503,7 @@ export function OrderDetailModal({
               </div>
             </div>
 
-            {/* Quick metrics — Phase 22 (خواستهٔ ۳):
+            {/* Quick metrics — Phase 22 (خواستهٔ 3):
                 مدیر/مالی: ردیف «هزینه / قیمت داده‌شده / سود / موعد» + کاشی
                 کوچک «پرداختی — باقی‌مانده» زیرش. سایر نقش‌ها: چیدمان قبلی. */}
             {cost != null ? (
@@ -541,12 +543,14 @@ export function OrderDetailModal({
                         : "—"
                     }
                     hint={
-                      !order.noEndDate && dr.status !== "none"
+                      !order.noEndDate && !closed && dr.status !== "none"
                         ? `${dr.days} روز`
                         : undefined
                     }
                     tone={
-                      dr.status === "overdue"
+                      closed
+                        ? undefined
+                        : dr.status === "overdue"
                         ? "rose"
                         : dr.status === "remaining"
                         ? "emerald"
@@ -554,7 +558,7 @@ export function OrderDetailModal({
                     }
                   />
                 </div>
-                {/* کاشی کوچک: پرداختی — باقی‌مانده (خواستهٔ ۳: یک کاشی، جمع‌وجور) */}
+                {/* کاشی کوچک: پرداختی — باقی‌مانده (خواستهٔ 3: یک کاشی، جمع‌وجور) */}
                 <div className="mt-2 rounded-xl border bg-background/70 backdrop-blur-sm px-3.5 py-2 flex items-center justify-between gap-2 shadow-sm">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="size-5 rounded-md grid place-items-center shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -622,12 +626,14 @@ export function OrderDetailModal({
                       : "—"
                   }
                   hint={
-                    !order.noEndDate && dr.status !== "none"
+                    !order.noEndDate && !closed && dr.status !== "none"
                       ? `${dr.days} روز`
                       : undefined
                   }
                   tone={
-                    dr.status === "overdue"
+                    closed
+                      ? undefined
+                      : dr.status === "overdue"
                       ? "rose"
                       : dr.status === "remaining"
                       ? "emerald"
@@ -784,7 +790,7 @@ export function OrderDetailModal({
             </AnimatePresence>
           </div>
 
-          {/* ── Footer — ۲۰-اِ: safe-area موبایل برای دکمه‌های پایین ── */}
+          {/* ── Footer — 20-اِ: safe-area موبایل برای دکمه‌های پایین ── */}
           <div className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2 flex-wrap pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Button
               size="sm"
@@ -830,7 +836,7 @@ export function OrderDetailModal({
         initialItemId={piInitialItemId}
       />
 
-      {/* فاز ۲۲ (خواستهٔ ۶): دیالوگ هدیه دادن سفارش — مستر/مالی */}
+      {/* فاز 22 (خواستهٔ 6): دیالوگ هدیه دادن سفارش — مستر/مالی */}
       <GiftDialog
         order={order}
         open={giftOpen}
@@ -843,7 +849,7 @@ export function OrderDetailModal({
   );
 }
 
-// ─── فاز ۲۲ (خواستهٔ ۶): دیالوگ هدیه دادن سفارش ───────────────────
+// ─── فاز 22 (خواستهٔ 6): دیالوگ هدیه دادن سفارش ───────────────────
 // مبلغ یا درصد هدیه + یادداشت. بدهی مشتری همان لحظه کم می‌شود؛
 // هزینه‌ها می‌مانند و «زیان» در سود سفارش و رادار رئیس دیده می‌شود.
 function GiftDialog({
@@ -890,7 +896,7 @@ function GiftDialog({
       }),
     onSuccess: () => {
       toast.success(
-        `هدیه ثبت شد — ${effectivePct.toLocaleString("fa-IR")}٪ معادل ${formatCurrency(giftValue)} بخشیده شد`
+        `هدیه ثبت شد — ${effectivePct.toLocaleString("en-US")}٪ معادل ${formatCurrency(giftValue)} بخشیده شد`
       );
       onGifted();
       onOpenChange(false);
@@ -921,7 +927,7 @@ function GiftDialog({
           {(order.giftAmount ?? 0) > 0 && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-xs">
               هدیهٔ فعلی این سفارش: <b dir="ltr">{formatCurrency(order.giftAmount ?? 0)}</b>{" "}
-              ({(order.giftPercentage ?? 0).toLocaleString("fa-IR")}٪)
+              ({(order.giftPercentage ?? 0).toLocaleString("en-US")}٪)
               {order.giftedByName ? ` — ثبت‌شده توسط ${order.giftedByName}` : ""}
               . ثبت دوباره، مقدار قبلی را جایگزین می‌کند.
             </div>
@@ -971,7 +977,7 @@ function GiftDialog({
                         : "hover:bg-muted/50"
                     )}
                   >
-                    {p.toLocaleString("fa-IR")}٪
+                    {p.toLocaleString("en-US")}٪
                   </button>
                 ))}
               </div>
@@ -1017,7 +1023,7 @@ function GiftDialog({
               <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(rawTotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">مبلغ هدیه ({effectivePct.toLocaleString("fa-IR")}٪)</span>
+              <span className="text-muted-foreground">مبلغ هدیه ({effectivePct.toLocaleString("en-US")}٪)</span>
               <span className="font-bold tabular-nums text-amber-600 dark:text-amber-400" dir="ltr">−{formatCurrency(giftValue)}</span>
             </div>
             <div className="flex items-center justify-between border-t pt-1.5">

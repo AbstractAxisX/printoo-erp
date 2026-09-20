@@ -46,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // باشند (خواستهٔ صریح کاربر: تاریخ چاپ موقع برگشت/ادیت نباید بپرد).
       await syncItemsToStatus(tx, id, status as OrderStatusStr);
 
-      // Phase 10 (باگ «تاریخ می‌پره»): قبلاً هر ۴ تاریخ بی‌قیدوشرط با
+      // Phase 10 (باگ «تاریخ می‌پره»): قبلاً هر 4 تاریخ بی‌قیدوشرط با
       // toISO(null) بازنویسی می‌شد → هر تغییر وضعیت، زمان‌بندی را پاک
       // می‌کرد. حالا فقط تاریخ‌های «ارسال‌شدهٔ غیرتهی» اعمال می‌شوند
       // (partial update) و بقیه دست‌نخورده می‌مانند.

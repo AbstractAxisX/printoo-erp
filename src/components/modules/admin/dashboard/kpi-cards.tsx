@@ -27,7 +27,7 @@ export type KpiCardConfig = {
 };
 
 export const KPI_CARDS: KpiCardConfig[] = [
-  // Phase 19 + فاز ۲۲: «دریافتی» = پول واقعاً دریافت‌شده (RevenueLog) —
+  // Phase 19 + فاز 22: «دریافتی» = پول واقعاً دریافت‌شده (RevenueLog) —
   // subValue = سود خالص دوره (دریافتی − هزینه)؛ نام از «درآمد» به «دریافتی»
   // تغییر کرد چون درآمد حس سود می‌داد (خواستهٔ صریح کارفرما).
   { key: "revenue", label: "دریافتی", icon: "wallet", color: "emerald", isCurrency: true, subValueLabel: "سود خالص (دریافتی − هزینه)" },
@@ -104,7 +104,7 @@ export function KpiCardsGrid({
         >
           <Icon name="refresh" size={15} />
         </button>
-        <div className="text-xs text-muted-foreground mr-auto">به‌روزرسانی خودکار هر ۱۵ ثانیه</div>
+        <div className="text-xs text-muted-foreground mr-auto">به‌روزرسانی خودکار هر 15 ثانیه</div>
       </div>
 
       {/* KPI cards grid */}
@@ -147,7 +147,7 @@ function KpiCard({
   const fmt = (v: number) => config.isCurrency ? formatCurrency(v) : formatNumber(v);
   // Phase 19: کارت‌های subValueدار (point-in-time مثل طلب مشتریان، یا درآمد
   // با سود خالص) زیرمتن را جای پیکان تغییر نشان می‌دهند. درآمد وقتی
-  // subValue=۰ است پیکان می‌ماند (سود صفر بی‌معنا نیست — فقط نمایش پویا).
+  // subValue=0 است پیکان می‌ماند (سود صفر بی‌معنا نیست — فقط نمایش پویا).
   const showSubRow =
     kpi != null &&
     typeof kpi.subValue === "number" &&

@@ -2,12 +2,12 @@
 
 // ─── Phase 15: داشبورد مالی — بازطراحی کامل ─────────────────────────
 // ساختار (تحلیل وظیفه‌محور واحد مالی):
-//   ۱) اوورویو: ۵ کارت فیلتردار (فیلتر سراسری زمان — هزینه و درآمد با هم):
+//   1) اوورویو: 5 کارت فیلتردار (فیلتر سراسری زمان — هزینه و درآمد با هم):
 //      هزینه‌های در انتظار تأیید • مجموع هزینه‌ها • مجموع درآمدها •
 //      سود خالص • تسویه‌نشده (بستانکار) — هر کارت کلیک‌پذیر → لیست فیلترشده
-//   ۲) فرم ثبت هزینه جدید (دو حالت: روی سفارش / آزاد) — اینلاین، عین
+//   2) فرم ثبت هزینه جدید (دو حالت: روی سفارش / آزاد) — اینلاین، عین
 //      افزودن آیتم ویزارد؛ حالت سفارش: سرچ سفارش + «ثبت در فاکتور»
-//   ۳) دسته‌بندی هزینه‌های آزاد: کارتِ هر دسته (Σ در بازه + تعداد) +
+//   3) دسته‌بندی هزینه‌های آزاد: کارتِ هر دسته (Σ در بازه + تعداد) +
 //      مدیریت دسته‌ها (حقوق هاردکد-پیش‌فرض) + دکمهٔ تاریخچه هزینه‌ها
 
 import * as React from "react";
@@ -99,7 +99,7 @@ function KpiCard({ def, rangeLabel }: { def: KpiDef; rangeLabel: string }) {
         )}
       </div>
       <div className="text-2xl font-bold tabular-nums mt-2.5" dir="ltr">
-        {def.isAmount ? formatCurrency(def.value) : def.value.toLocaleString("fa-IR")}
+        {def.isAmount ? formatCurrency(def.value) : def.value.toLocaleString("en-US")}
       </div>
       <div className="text-xs font-medium text-muted-foreground mt-1">{def.label}</div>
       <div className="text-[10px] text-muted-foreground/70 mt-1.5 pt-1.5 border-t">
@@ -194,7 +194,7 @@ export function FinanceDashboard() {
       color: "violet",
       value: s.unsettledSum ?? 0,
       isAmount: true,
-      hint: `${(s.unsettledCount ?? 0).toLocaleString("fa-IR")} سفارش با مانده`,
+      hint: `${(s.unsettledCount ?? 0).toLocaleString("en-US")} سفارش با مانده`,
       onClick: () => navigate("finance", "unsettled"),
     },
   ];
@@ -252,7 +252,7 @@ export function FinanceDashboard() {
         </div>
       } />
 
-      {/* اوورویو — ۵ کارت فیلتردار */}
+      {/* اوورویو — 5 کارت فیلتردار */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k) => (
           <KpiCard key={k.key} def={k} rangeLabel={rangeLabel} />
@@ -413,7 +413,7 @@ export function FinanceDashboard() {
                   {formatCurrency(cat.sum)}
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {cat.count.toLocaleString("fa-IR")} ثبت در {rangeLabel}
+                  {cat.count.toLocaleString("en-US")} ثبت در {rangeLabel}
                 </div>
               </Card>
             ))}

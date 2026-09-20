@@ -49,7 +49,7 @@ type FetchState =
   | { status: "error"; message: string }
   | { status: "ok"; data: PublicPkg };
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 // ─── Status meta ───────────────────────────────────────────────────────
 
@@ -225,7 +225,7 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
         <div className="flex items-center gap-3">
           <BrandLogo />
           <div>
-            <div className="font-bold text-base">{company?.faName ?? "پرینتو ۲۴"}</div>
+            <div className="font-bold text-base">{company?.faName ?? "پرینتو 24"}</div>
             <div className="text-[10px] text-muted-foreground tracking-wide" dir="ltr">
               {company?.name ?? "Printoo24"} — printoo24.com
             </div>
@@ -309,7 +309,7 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
         ) : (
           <div className="rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/20 px-4 py-3 text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
             <Icon name="cancel" size={16} className="shrink-0" />
-            این بسته لغو شده است — برای پیگیری با پرینتو ۲۴ تماس بگیرید
+            این بسته لغو شده است — برای پیگیری با پرینتو 24 تماس بگیرید
           </div>
         )}
 

@@ -192,7 +192,7 @@ export function FinanceOrders() {
             ))}
             {row.original.items.length > 2 && (
               <span className="text-[10px] text-muted-foreground">
-                +{(row.original.items.length - 2).toLocaleString("fa-IR")}
+                +{(row.original.items.length - 2).toLocaleString("en-US")}
               </span>
             )}
           </div>
@@ -309,7 +309,7 @@ export function FinanceOrders() {
             ))}
           </div>
           <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-            {rows.length.toLocaleString("fa-IR")} سفارش
+            {rows.length.toLocaleString("en-US")} سفارش
           </span>
         </div>
         {/* وضعیت‌ها */}

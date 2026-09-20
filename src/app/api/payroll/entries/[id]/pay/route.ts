@@ -27,7 +27,7 @@ export async function POST(
     }
     return NextResponse.json({
       netPay: result.netPay,
-      message: `حقوق پرداخت شد و به‌عنوان هزینه ثبت گردید (${result.netPay.toLocaleString("fa-IR")} دینار)`,
+      message: `حقوق پرداخت شد و به‌عنوان هزینه ثبت گردید (${result.netPay.toLocaleString("en-US")} دینار)`,
     });
   } catch (e) {
     return jsonError(e, "خطا در پرداخت حقوق");

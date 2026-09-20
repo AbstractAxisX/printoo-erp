@@ -516,7 +516,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
       title: log.action === "login" ? "ورود به سیستم" : "خروج از سیستم",
     });
   }
-  // برآورد ساعت آنلاین: هر login تا رویداد بعدی (حداکثر ۶ ساعت)
+  // برآورد ساعت آنلاین: هر login تا رویداد بعدی (حداکثر 6 ساعت)
   for (let i = 0; i < activityLogs.length; i++) {
     const log = activityLogs[i];
     if (log.action !== "login") continue;

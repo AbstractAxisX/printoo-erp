@@ -1,10 +1,10 @@
 "use client";
 
 // ─── Phase 16: داشبورد انبار و لجستیک ─────────────────────────────
-// الگوی داشبورد چاپ/مالی: ۶ کارت KPI کلیک‌شون (کلیک → صفحهٔ بسته‌ها با
+// الگوی داشبورد چاپ/مالی: 6 کارت KPI کلیک‌شون (کلیک → صفحهٔ بسته‌ها با
 // همان فیلتر وضعیت — boardFilter)، کارت مواد کم‌موجود (با نوار پیشرفت)
 // و اقدام‌های سریع روزمرهٔ انبار.
-// داده: GET /api/warehouse/stats (هر ۳۰ ثانیه).
+// داده: GET /api/warehouse/stats (هر 30 ثانیه).
 
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,7 +36,7 @@ type Stats = {
   }[];
 };
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 // ─── KPI card (سبک داشبورد مالی — کلیک‌شون) ──────────────────────────
 

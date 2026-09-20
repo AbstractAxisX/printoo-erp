@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
     // ── پیوست‌ها ──
     const drafts: AttachmentDraft[] = Array.isArray(attachments) ? attachments : [];
     if (drafts.length > 6) {
-      return NextResponse.json({ error: "حداکثر ۶ پیوست برای هر هزینه" }, { status: 400 });
+      return NextResponse.json({ error: "حداکثر 6 پیوست برای هر هزینه" }, { status: 400 });
     }
     for (const a of drafts) {
       if (typeof a?.url !== "string" || !a.url.startsWith("/uploads/")) {
@@ -202,8 +202,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // هزینهٔ خودِ مالی → مستقیم تأییدشده (نیازی به تأیید خودش ندارد)
-    const status = finance && (isFree || mod === "finance" || includeInInvoice) ? "approved" : "pending";
+    // Phase 24 (خواستهٔ 1): مالی «تأییدکنندهٔ» هزینه‌هاست — پس هزینه‌ای که
+    // خودِ ماژول مالی ثبت می‌کند (آزاد، روی سفارش، یا فاکتوری) مستقیم
+    // approved می‌شود و در صف تأییدِ خودش نمی‌نشیند. فقط هزینه‌های ثبت‌شدهٔ
+    // ماژول‌های دیگر (چاپ/متریال/انبار/لجستیک) pending می‌مانند تا مالی تأیید کند.
+    const status = finance ? "approved" : "pending";
     const actorName = await actorNameOf(user.id);
 
     const matStock =

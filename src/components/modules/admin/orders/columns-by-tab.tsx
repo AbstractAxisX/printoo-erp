@@ -1,6 +1,6 @@
 "use client";
 
-// Printoo24 ERP — per-aspect order columns (Phase 20, خواستهٔ ۵)
+// Printoo24 ERP — per-aspect order columns (Phase 20, خواستهٔ 5)
 //
 // کارخانهٔ ستون‌های تب‌های جنبه‌ای جدول سفارش‌ها («آیتم‌ها»/«هزینه‌ها»/
 // «پیوست‌ها»/«یادداشت‌ها») — مشترک بین «همه سفارشات» و «سفارشات باز».
@@ -42,9 +42,9 @@ export type OrderTabRow = {
   attachmentsCount?: number;
 };
 
-/** اعداد فارسی برای شمارش‌ها */
-function toFa(n: number) {
-  return n.toLocaleString("fa-IR");
+/** شمارش‌ها با ارقام لاتین (فاز ۲۴) */
+function fmtNum(n: number) {
+  return n.toLocaleString("en-US");
 }
 
 /** مبلغ جمع‌وجور ltr (مثل ستون‌های موجود) */
@@ -117,7 +117,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
         const n = row.original.items?.length ?? 0;
         return n > 0 ? (
           <span className="text-sm font-semibold tabular-nums">
-            {toFa(n)}
+            {fmtNum(n)}
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -144,7 +144,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
             ))}
             {items.length > 2 && (
               <span className="text-xs text-muted-foreground tabular-nums">
-                +{toFa(items.length - 2)}
+                +{fmtNum(items.length - 2)}
               </span>
             )}
             {items.length === 0 && (
@@ -169,7 +169,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
         return n > 0 ? (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 flex items-center gap-0.5 w-fit">
             <Icon name="design" size={9} />
-            {toFa(n)} در طراحی
+            {fmtNum(n)} در طراحی
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -201,7 +201,7 @@ function costColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
         return n > 0 ? (
           <span className="inline-flex items-center gap-1 text-sm font-semibold tabular-nums">
             <Icon name="coins" size={13} className="text-muted-foreground" />
-            {toFa(n)}
+            {fmtNum(n)}
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -281,7 +281,7 @@ function attachmentColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
         return n > 0 ? (
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums text-primary">
             <Icon name="file" size={14} />
-            {toFa(n)}
+            {fmtNum(n)}
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -347,7 +347,7 @@ function noteColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
           <div className="min-w-0 max-w-[260px]">
             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">
               <Icon name="info" size={9} />
-              {toFa(withNotes.length)} یادداشت
+              {fmtNum(withNotes.length)} یادداشت
             </span>
             <div className="text-xs text-muted-foreground truncate mt-0.5">
               {withNotes[0]?.note}

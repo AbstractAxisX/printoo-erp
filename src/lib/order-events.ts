@@ -31,7 +31,7 @@ type OrderEventType =
   // ─── Phase 17: گیت خروج از انبار ──
   | "invoice_flagged" // مالی: فاکتور همراه بسته ارسال می‌شود (غیرحساس)
   | "invoice_unflagged"
-  // ─── Phase 22 (خواستهٔ ۶): هدیه دادن سفارش ──
+  // ─── Phase 22 (خواستهٔ 6): هدیه دادن سفارش ──
   | "gifted";
 
 export type LogOrderEventInput = {

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: emp.id,
           title: "پرداخت مساعده",
-          message: `مساعده ${amount.toLocaleString("fa-IR")} دینار به شما پرداخت شد — در حقوق دورهٔ بعد کسر می‌شود`,
+          message: `مساعده ${amount.toLocaleString("en-US")} دینار به شما پرداخت شد — در حقوق دورهٔ بعد کسر می‌شود`,
           type: "info",
           link: "profile:view",
         },

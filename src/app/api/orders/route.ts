@@ -30,7 +30,7 @@ type ItemDraft = {
   description?: string | null;
   stage: string;
   needsMaterial?: boolean;
-  // Phase 10: تاریخ‌های per-item (خواستهٔ ۳: «تاریخ طراحی و چاپ برای هر
+  // Phase 10: تاریخ‌های per-item (خواستهٔ 3: «تاریخ طراحی و چاپ برای هر
   // ایتم مجزا ثبت شه») — fallback به moduleDates مشترک (compat).
   designStartDate?: string | null;
   designEndDate?: string | null;
@@ -57,7 +57,7 @@ type CreateBody = {
   note?: string | null;
   moduleDates?: ModuleDates;
   // Phase 11: پیش‌فاکتور «همیشگی» است — همیشه با سفارش ساخته می‌شود.
-  // پارامترهای مالی اختیاری‌اند (پیش‌فرض صفر/۱۵ روز) و پس از ثبت از
+  // پارامترهای مالی اختیاری‌اند (پیش‌فرض صفر/15 روز) و پس از ثبت از
   // صفحهٔ موفقیت قابل ویرایش/چاپ‌اند. فاکتور دیگر از ویزارد صادر نمی‌شود
   // (هر زمان کارفرما بخواهد، از تب فاکتور/آیکون جدول).
   preInvoice?: {
@@ -156,7 +156,7 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // ─── Phase 20: تجمیع هزینه/پیوست per-order (خواستهٔ ۵ فاز ۲۰) ──
+  // ─── Phase 20: تجمیع هزینه/پیوست per-order (خواستهٔ 5 فاز 20) ──
   // یک کوئری جمعی روی MaterialCostهای همین سفارش‌ها؛ reduce در JS به یک
   // map و سپس merge در پاسخ. قرارداد فیلدها:
   //   costsCount      = تعداد هزینه‌های غیرردشده (pending+approved+…−rejected)

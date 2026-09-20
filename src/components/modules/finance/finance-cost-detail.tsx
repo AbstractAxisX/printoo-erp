@@ -185,7 +185,7 @@ export function FinanceCostDetailModal({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // ── فاز ۲۲ (خواسته‌های ۵ و ۸): حذف هزینه ──
+  // ── فاز 22 (خواسته‌های 5 و 8): حذف هزینه ──
   // مالی/مدیر: هزینهٔ «در انتظار» یا «ردشده» را حذف می‌کند (اشتباه ثبت
   // شد / ردشده فقط اطلاعات اضافی است). تأییدشده → اول رد، بعد حذف.
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -236,10 +236,10 @@ export function FinanceCostDetailModal({
       icon: "info" as IconName,
     };
 
-  // فاز ۲۲ (خواسته‌های ۵ و ۸): چرخهٔ کامل دکمه‌ها
+  // فاز 22 (خواسته‌های 5 و 8): چرخهٔ کامل دکمه‌ها
   //   pending  → تأیید / رد / حذف
   //   approved → رد (اصلاح) — بعد از رد، حذف ممکن می‌شود
-  //   rejected → حذف (خواستهٔ ۵: ردشده فقط اطلاعات اضافی است)
+  //   rejected → حذف (خواستهٔ 5: ردشده فقط اطلاعات اضافی است)
   const canApprove = cost.status === "pending";
   const canReject = cost.status === "pending" || cost.status === "approved";
   const canDelete = cost.status !== "approved";
@@ -421,7 +421,7 @@ export function FinanceCostDetailModal({
               <Icon name="file" size={13} /> پیوست‌ها
               {files.length > 0 && (
                 <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
-                  {files.length.toLocaleString("fa-IR")}
+                  {files.length.toLocaleString("en-US")}
                 </span>
               )}
             </div>
@@ -449,7 +449,7 @@ export function FinanceCostDetailModal({
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         {f.size ? `${formatSize(f.size)} • ` : ""}پیوست{" "}
-                        {(i + 1).toLocaleString("fa-IR")}
+                        {(i + 1).toLocaleString("en-US")}
                       </div>
                     </div>
                     <div className="size-7 rounded-md grid place-items-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition shrink-0">
@@ -538,7 +538,7 @@ export function FinanceCostDetailModal({
                 {cost.status === "approved" ? "رد (اصلاح)" : "رد هزینه"}
               </Button>
             )}
-            {/* حذف (خواسته‌های ۵ و ۸) — جدا از رد، سمت چپ */}
+            {/* حذف (خواسته‌های 5 و 8) — جدا از رد، سمت چپ */}
             {canDelete && (
               <Button
                 size="sm"
@@ -555,7 +555,7 @@ export function FinanceCostDetailModal({
           </div>
         )}
 
-        {/* تایید حذف هزینه (خواسته‌های ۵ و ۸ — دو مرحله‌ای) */}
+        {/* تایید حذف هزینه (خواسته‌های 5 و 8 — دو مرحله‌ای) */}
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>

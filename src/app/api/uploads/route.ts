@@ -10,7 +10,7 @@ import { uploadsRoot } from "@/lib/uploads-dir";
 // POST multipart/form-data: files under key "file" (single or multiple).
 // ذخیره در دایرکتوری ماندگار (lib/uploads-dir — Phase 19: قبلاً داخل
 // .next/standalone/public می‌نوشت که با هر بیلد پاک می‌شد → لینک
-// دانلود ۴۰۴). آدرس عمومی /uploads/costs/<uuid>.<ext> از route
+// دانلود 404). آدرس عمومی /uploads/costs/<uuid>.<ext> از route
 // /uploads/[...path] سرو می‌شود.
 // Constraints: ≤10MB/file; pdf/images/office/zip types allowed.
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "فایلی ارسال نشده است" }, { status: 400 });
     }
     if (files.length > 6) {
-      return NextResponse.json({ error: "حداکثر ۶ فایل در هر بار آپلود" }, { status: 400 });
+      return NextResponse.json({ error: "حداکثر 6 فایل در هر بار آپلود" }, { status: 400 });
     }
 
     const dir = path.join(uploadsRoot(), "costs");
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     for (const file of files) {
       if (file.size > MAX_SIZE) {
         return NextResponse.json(
-          { error: `حجم فایل «${file.name}» بیشتر از ۱۰ مگابایت است` },
+          { error: `حجم فایل «${file.name}» بیشتر از 10 مگابایت است` },
           { status: 400 }
         );
       }

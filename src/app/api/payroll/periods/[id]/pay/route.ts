@@ -37,7 +37,7 @@ export async function POST(
       skipped: result.skipped,
       total,
       message:
-        `دورهٔ ${period.key} پرداخت شد — ${result.paid.length} کارمند، جمع ${total.toLocaleString("fa-IR")} دینار` +
+        `دورهٔ ${period.key} پرداخت شد — ${result.paid.length} کارمند، جمع ${total.toLocaleString("en-US")} دینار` +
         (result.skipped.length > 0
           ? ` (⚠ ${result.skipped.length} مورد رد شد — خالص ≤ 0)`
           : ""),

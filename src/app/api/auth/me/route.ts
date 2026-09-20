@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSession, clearSession, touchLastSeen, safeParsePages } from "@/lib/auth";
+import { getSession, clearSession, touchLastSeen, safeParsePages, setSession } from "@/lib/auth";
+import { isModuleLevel } from "@/lib/module-pages";
 import { db } from "@/lib/db";
 
 // /api/auth/me — session bootstrap for the client shell.
@@ -31,7 +32,7 @@ export async function GET() {
         isDemo: true,
         demoExpiresAt: true,
         guideTooltips: true,
-        modules: { select: { module: true, pages: true } },
+        modules: { select: { module: true, pages: true, level: true } },
       },
     });
     if (!fresh || fresh.status !== "active") {
@@ -46,9 +47,25 @@ export async function GET() {
     void touchLastSeen(fresh.id);
     // Phase 18: صفحات مجاز هر ماژول هم تازه برمی‌گردند (مثل modules)
     const modulePages: Record<string, string[] | null> = {};
+    // Phase 24: سطح ۳لایهٔ هر ماژول (view/edit/delete)
+    const moduleLevels: Record<string, string> = {};
     for (const m of fresh.modules) {
       modulePages[m.module] = m.pages ? safeParsePages(m.pages) : null;
+      moduleLevels[m.module] = isModuleLevel(m.level) ? m.level : "delete";
     }
+    // Phase 24: کوکی دوباره prime می‌شود تا گیت proxy در edge همیشه
+    // سطح‌های تازه ببیند (بعد از تغییر دسترسی توسط master، بارگذاری
+    // بعدی صفحه یا heartbeat ۴۵ثانیه‌ای آن را اعمال می‌کند).
+    await setSession({
+      id: fresh.id,
+      name: fresh.name,
+      email: fresh.email,
+      role: fresh.role,
+      isDemo: fresh.isDemo,
+      modules: fresh.role === "master" ? [] : fresh.modules.map((m) => m.module),
+      modulePages,
+      moduleLevels,
+    });
     return NextResponse.json({
       user: {
         id: fresh.id,
@@ -63,6 +80,7 @@ export async function GET() {
             ? [] // master = همهٔ ماژول‌ها (UI می‌داند)
             : fresh.modules.map((m) => m.module),
         modulePages,
+        moduleLevels,
       },
     });
   } catch {

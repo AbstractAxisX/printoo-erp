@@ -1,8 +1,8 @@
 "use client";
 
-// Printoo24 ERP — Open Orders Kanban (Phase 20, خواستهٔ ۴)
+// Printoo24 ERP — Open Orders Kanban (Phase 20, خواستهٔ 4)
 //
-// نمای کانبان سفارشات باز: ۳ ستون = ۳ وضعیت جریان کار (در حال طراحی /
+// نمای کانبان سفارشات باز: 3 ستون = 3 وضعیت جریان کار (در حال طراحی /
 // در حال چاپ / انبار و لجستیک). کشیدن کارت بین ستون‌ها وضعیت سفارش را
 // با PUT /api/orders/[id]/status عوض می‌کند (همگام‌سازی آیتم‌ها سمت سرور).
 //
@@ -93,7 +93,7 @@ export function OpenOrdersKanban({
 
   const serverOrders = orders;
 
-  // بعد از رفرش (۳۰ثانیه‌ای / invalidate) اگر سرور هم‌راز override شد، پاکش کن.
+  // بعد از رفرش (30ثانیه‌ای / invalidate) اگر سرور هم‌راز override شد، پاکش کن.
   React.useEffect(() => {
     if (Object.keys(statusOverride).length === 0) return;
     setStatusOverride((prev) => {
@@ -345,7 +345,7 @@ function KanbanCard({
         {order.customer?.name ?? "—"}
       </div>
 
-      {/* آیتم‌ها (حداکثر ۲ + +N) */}
+      {/* آیتم‌ها (حداکثر 2 + +N) */}
       <div className="flex flex-wrap gap-1 mt-1.5">
         {items.slice(0, 2).map((it) => (
           <span

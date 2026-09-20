@@ -12,9 +12,9 @@ import { hashPassword } from "@/lib/password";
 //                             plaintext ندارد — bcrypt مثل بقیهٔ کاربران).
 //
 // کاربر دمو: role=master (همهٔ ماژول‌ها حتی ادمین سراسری را می‌بیند) اما
-// isDemo=true → proxy.ts تمام متدهای غیر-GET را ۴۰۳ می‌کند → فقط مشاهده.
+// isDemo=true → proxy.ts تمام متدهای غیر-GET را 403 می‌کند → فقط مشاهده.
 // انقضا: POST /api/users/[id]/demo-expire (demoExpiresAt = الان) — کاربرِ
-// فعال در همان فراخوانی بعدی ۴۰۱ می‌خورد و به صفحهٔ ورود برمی‌گردد.
+// فعال در همان فراخوانی بعدی 401 می‌خورد و به صفحهٔ ورود برمی‌گردد.
 
 // الفبای بدون ابهام (بدون 0/O/1/l/I) برای رمز و پسوند ایمیل
 const SAFE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";

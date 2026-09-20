@@ -2,12 +2,12 @@
 
 // ─── Phase 16: بسته‌بندی و ارسال — بسته‌ها، بج QR، ارسال و تحویل ────
 // ساختار صفحه:
-//   ۱) «بسته جدید» — فرم اینلاین (بدون دیالوگ، عین ثبت هزینهٔ فاز ۱۵):
+//   1) «بسته جدید» — فرم اینلاین (بدون دیالوگ، عین ثبت هزینهٔ فاز 15):
 //      انتخاب اقلام انبار از سفارش‌های packable + مشخصات مقصد + جمع زنده
 //      → POST /api/packages → مودال جزئیات بستهٔ تازه (تب بج) باز می‌شود.
-//   ۲) فیلتر وضعیت (چیپ‌های زنده) + جستجوی سرور (q) + شمارنده
-//   ۳) جدول بسته‌ها (کد، سفارش‌ها، مشتری، آدرس، اقلام، پیک، COD، وضعیت)
-//   ۴) مودال عریض ۳-تبی: جزئیات (تایم‌لاین + اقدام وضعیت) / محتویات /
+//   2) فیلتر وضعیت (چیپ‌های زنده) + جستجوی سرور (q) + شمارنده
+//   3) جدول بسته‌ها (کد، سفارش‌ها، مشتری، آدرس، اقلام، پیک، COD، وضعیت)
+//   4) مودال عریض 3-تبی: جزئیات (تایم‌لاین + اقدام وضعیت) / محتویات /
 //      بج و QR (پیش‌نمایش + دانلود PDF/PNG + کپی لینک عمومی)
 
 import * as React from "react";
@@ -181,7 +181,7 @@ const STAGE_CHIP: Record<string, { label: string; cls: string }> = {
   archive: { label: "آرشیو", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
 };
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
 function PkgStatusChip({ status, className }: { status: string; className?: string }) {
   const m = PKG_STATUS_META[status as PkgStatus];
@@ -339,7 +339,7 @@ export function PackagesPage() {
   React.useEffect(() => {
     if (touched.address && touched.contentsNote) return;
     const firstOrder = packableOrders.find((o) => o.items.some((it) => selected.has(it.id))) ?? null;
-    // شرح پیشنهادی: «۲× کارت ویزیت + ۱× تراکت»
+    // شرح پیشنهادی: «2× کارت ویزیت + 1× تراکت»
     const byName = new Map<string, number>();
     for (const it of selectedItems) byName.set(it.productName, (byName.get(it.productName) ?? 0) + it.quantity);
     const suggestion = [...byName.entries()].map(([name, qty]) => `${fa(qty)}× ${name}`).join(" + ");
@@ -614,7 +614,7 @@ export function PackagesPage() {
           }
         />
 
-        {/* ─── ۱) بسته جدید — فرم اینلاین (بدون دیالوگ) ─── */}
+        {/* ─── 1) بسته جدید — فرم اینلاین (بدون دیالوگ) ─── */}
         <Card className="p-0 overflow-hidden">
           <Collapsible open={createOpen} onOpenChange={setCreateOpen}>
             <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
@@ -638,12 +638,12 @@ export function PackagesPage() {
             </div>
             <CollapsibleContent>
               <div className="p-4 space-y-4">
-                {/* ۱-۱) انتخاب اقلام */}
+                {/* 1-1) انتخاب اقلام */}
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="text-sm font-semibold flex items-center gap-2">
                       <span className="size-5 rounded-md bg-primary/10 text-primary grid place-items-center text-[10px] font-bold shrink-0">
-                        ۱
+                        1
                       </span>
                       انتخاب اقلام (دریافت‌شده از چاپ)
                     </div>
@@ -683,11 +683,11 @@ export function PackagesPage() {
                   )}
                 </div>
 
-                {/* ۱-۲) مشخصات مقصد و ارسال */}
+                {/* 1-2) مشخصات مقصد و ارسال */}
                 <div className="space-y-2.5">
                   <div className="text-sm font-semibold flex items-center gap-2">
                     <span className="size-5 rounded-md bg-primary/10 text-primary grid place-items-center text-[10px] font-bold shrink-0">
-                      ۲
+                      2
                     </span>
                     مشخصات مقصد و ارسال
                   </div>
@@ -729,7 +729,7 @@ export function PackagesPage() {
                           setForm((f) => ({ ...f, contentsNote: e.target.value }));
                           setTouched((t) => ({ ...t, contentsNote: true }));
                         }}
-                        placeholder="۲× کارت ویزیت + ۱× تراکت"
+                        placeholder="2× کارت ویزیت + 1× تراکت"
                       />
                     </Field>
                     <Field label="شرکت پیک">
@@ -773,7 +773,7 @@ export function PackagesPage() {
                   </div>
                 </div>
 
-                {/* ۱-۳) جمع و ثبت */}
+                {/* 1-3) جمع و ثبت */}
                 <div className="rounded-xl border bg-primary/[0.04] p-3.5 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2.5 flex-wrap text-xs">
                     <span className="font-medium">
@@ -816,7 +816,7 @@ export function PackagesPage() {
           </Collapsible>
         </Card>
 
-        {/* ─── ۲) فیلترها ─── */}
+        {/* ─── 2) فیلترها ─── */}
         <Card className="p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
@@ -882,7 +882,7 @@ export function PackagesPage() {
           </div>
         </Card>
 
-        {/* ─── ۳) جدول بسته‌ها ─── */}
+        {/* ─── 3) جدول بسته‌ها ─── */}
         <Card className="p-4">
           <DataTable
             columns={columns}
@@ -909,7 +909,7 @@ export function PackagesPage() {
           />
         </Card>
 
-        {/* ─── ۴) مودال جزئیات بسته ─── */}
+        {/* ─── 4) مودال جزئیات بسته ─── */}
         <PackageDetailModal
           pkgId={modalId}
           open={modalOpen}
@@ -988,7 +988,7 @@ function PackableOrderCard({
   );
 }
 
-// ─── Modal: جزئیات بسته (عریض + ۳ تب) ─────────────────────────────────
+// ─── Modal: جزئیات بسته (عریض + 3 تب) ─────────────────────────────────
 
 function PackageDetailModal({
   pkgId,
@@ -1453,7 +1453,7 @@ function PackageDetailModal({
 
                       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                         <Icon name="info" size={13} className="shrink-0" />
-                        سایز بج: ۱۰۰×۵۰ میلی‌متر — مناسب چاپ استیکر
+                        سایز بج: 100×50 میلی‌متر — مناسب چاپ استیکر
                       </div>
                     </div>
                   </div>

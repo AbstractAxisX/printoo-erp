@@ -5,7 +5,7 @@ import { requireManager } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
 
 // ─── Notifications API — Phase 12 / Phase 17 ───────────────────────
-// GET  → ۳۰ اعلان آخر + شمار خوانده‌نشده
+// GET  → 30 اعلان آخر + شمار خوانده‌نشده
 //        Phase 12: اعلانِ هدفمند (userId) فقط در پنل همان کاربر می‌آید؛
 //        برای غیرمدیرها اعلان‌های عمومی (userId=null) + اعلان‌های خودشان.
 //        Phase 17: «خوانده» per-user از NotificationRead محاسبه می‌شود

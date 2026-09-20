@@ -158,7 +158,7 @@ export async function PUT(
       });
 
       // همگام‌سازی delta مبلغ پرداختی سفارش — Phase 15: مسیر متمرکز
-      // با دفتر درآمد هوشمند (ادیت ۱۰۰۰→۶۰۰۰ → درآمد جدید ۵۰۰۰ ثبت می‌شود)
+      // با دفتر درآمد هوشمند (ادیت 1000→6000 → درآمد جدید 5000 ثبت می‌شود)
       const delta = newPaid - existing.paidAmount;
       if (delta !== 0) {
         const cur = await tx.order.findUnique({

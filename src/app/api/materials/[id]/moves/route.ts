@@ -60,7 +60,7 @@ export async function POST(
     if (mat.quantity + delta < 0) {
       return jsonError(
         new Error("stock"),
-        `موجودی کافی نیست (موجودی فعلی: ${mat.quantity.toLocaleString("fa-IR")} ${mat.unit})`,
+        `موجودی کافی نیست (موجودی فعلی: ${mat.quantity.toLocaleString("en-US")} ${mat.unit})`,
         400
       );
     }
@@ -87,7 +87,7 @@ export async function POST(
       {
         move,
         quantityAfter: after?.quantity ?? 0,
-        message: `گردش ثبت شد — موجودی جدید: ${(after?.quantity ?? 0).toLocaleString("fa-IR")} ${mat.unit}`,
+        message: `گردش ثبت شد — موجودی جدید: ${(after?.quantity ?? 0).toLocaleString("en-US")} ${mat.unit}`,
       },
       { status: 201 }
     );

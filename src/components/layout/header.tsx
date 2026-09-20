@@ -1,22 +1,22 @@
 "use client";
 
 /**
- * هدر ERP (Header) — نسخهٔ زیباسازی‌شدهٔ فاز ۶ / اعلان‌های فاز ۲۰
+ * هدر ERP (Header) — نسخهٔ زیباسازی‌شدهٔ فاز 6 / اعلان‌های فاز 20
  * ─────────────────────────────────────────────────────────────
  * هدر چسبان بالای محتوای اصلی: همبرگر + breadcrumb + اکشن‌سریع
  * (سفارش جدید) + سوییچ تم + دراور اعلان‌ها.
  *
- * فاز ۲۰:
+ * فاز 20:
  *   - اعلان‌ها از Popover به DetailDrawer مشترک تبدیل شدند: دسکتاپ
  *     دراور چپِ جمع‌وجور (sm:max-w-md)، موبایل بات‌شیت با گوشهٔ گرد.
  *   - همبرگر مرده (toggleSidebar Zustand) به سایدبار واقعی وصل شد:
  *     موبایل → sidebar.setOpenMobile(true)، دسکتاپ → sidebar.setOpen(...).
  *
- * اعلان‌ها (منطق فاز ۱۷، دست‌نخورده):
+ * اعلان‌ها (منطق فاز 17، دست‌نخورده):
  *   - وضعیت «خوانده» per-user (NotificationRead).
  *   - نوار ابزار (بج ناخوانده + «همه را خواندم» + رفرش) + چیپ فیلتر.
  *   - آیتم‌ها با نوار رنگی نوع + آیکون رنگی + نسبی/تاریخ دقیق.
- *   - فوتر شمارنده + اشاره به به‌روزرسانی خودکار ۱۵ ثانیه‌ای.
+ *   - فوتر شمارنده + اشاره به به‌روزرسانی خودکار 15 ثانیه‌ای.
  *   - کوئری ["notifications"] با refetchInterval=15000.
  *   - badge اعلان: z-10 + ring-2 ring-background؛ aria-label روی همهٔ
  *     دکمه‌های فقط-آیکون؛ navigate از Zustand store (useAppStore).
@@ -32,7 +32,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { useAppStore } from "@/stores/app-store";
 import { api } from "@/lib/api";
-import { relativeTime } from "@/lib/format";
+import { relativeTime, formatDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { findModule } from "@/lib/nav";
 import { cn } from "@/lib/utils";
@@ -46,7 +46,7 @@ type Notification = {
 type NotificationType = "info" | "success" | "warning" | "error";
 
 // نقشهٔ نوع اعلان → (آیکون، پس‌زمینهٔ آیکون، نوار کناری) — یک منبع حقیقت.
-// فاز ۱۷: رنگ‌ها بولدتر — info=violet (بدون آبی)، success=emerald،
+// فاز 17: رنگ‌ها بولدتر — info=violet (بدون آبی)، success=emerald،
 // warning=amber، error=rose؛ آیکون روی پس‌زمینهٔ تختِ رنگی، سفید.
 const TYPE_VISUALS: Record<NotificationType, { icon: IconName; tint: string; stripe: string }> = {
   info:    { icon: "info",          tint: "bg-violet-500 text-white shadow-sm shadow-violet-500/30",   stripe: "bg-violet-500" },
@@ -58,15 +58,12 @@ const TYPE_VISUALS: Record<NotificationType, { icon: IconName; tint: string; str
 // fallback دفاعی برای انواع ناشناخته از API
 const FALLBACK_VISUAL = TYPE_VISUALS.info;
 
-const fa = (n: number) => n.toLocaleString("fa-IR");
+const fa = (n: number) => n.toLocaleString("en-US");
 
-// تاریخ دقیق فارسی برای سطر meta (نسبی + دقیق)
+// فاز ۲۴ (خواستهٔ ۳): تاریخ دقیق میلادی یک‌دست با کل سیستم (yyyy/MM/dd HH:mm)
 const faExactDate = (d: string) => {
   try {
-    return new Intl.DateTimeFormat("fa-IR", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(d));
+    return formatDateTime(d);
   } catch {
     return "";
   }
@@ -92,7 +89,7 @@ export function Header() {
   React.useEffect(() => setMounted(true), []);
 
   const { navigate, module: modKey, page } = useAppStore();
-  // فاز ۲۰: سایدبار واقعی (Radix sidebar) — toggleSidebar مردهٔ Zustand حذف شد
+  // فاز 20: سایدبار واقعی (Radix sidebar) — toggleSidebar مردهٔ Zustand حذف شد
   const sidebar = useSidebar();
   const isMobile = useIsMobile();
   const qc = useQueryClient();
@@ -114,7 +111,7 @@ export function Header() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  // فاز ۱۷: همهٔ اعلان‌های قابل‌مشاهدهٔ این کاربر را خوانده کن (per-user)
+  // فاز 17: همهٔ اعلان‌های قابل‌مشاهدهٔ این کاربر را خوانده کن (per-user)
   const readAll = useMutation({
     mutationFn: () =>
       api<{ ok: boolean; marked: number }>("/api/notifications/read-all", { method: "POST" }),
@@ -124,7 +121,7 @@ export function Header() {
   const notifications = data?.notifications ?? [];
   const unread = data?.unread ?? 0;
 
-  // فیلتر سمت کلاینت روی همان ۳۰ اعلانِ واکشی‌شده
+  // فیلتر سمت کلاینت روی همان 30 اعلانِ واکشی‌شده
   const filtered = notifications.filter((n) => {
     if (readFilter === "unread" && n.read) return false;
     if (typeFilter !== "all" && n.type !== typeFilter) return false;
@@ -229,7 +226,7 @@ export function Header() {
         />
       </Button>
 
-      {/* ── اعلان‌ها — دراور DetailDrawer (فاز ۲۰: Popover → دراور) ── */}
+      {/* ── اعلان‌ها — دراور DetailDrawer (فاز 20: Popover → دراور) ── */}
       <Button
         variant="ghost"
         size="icon"
@@ -410,7 +407,7 @@ export function Header() {
             </span>
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
               <Icon name="clock" size={11} className="shrink-0" />
-              به‌روزرسانی خودکار هر ۱۵ ثانیه
+              به‌روزرسانی خودکار هر 15 ثانیه
             </span>
           </div>
         </div>

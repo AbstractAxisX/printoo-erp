@@ -4,11 +4,11 @@ import { computeNetPay, allocateAdvanceDeduction, ensureSalaryExpenseType } from
 
 // ─── Phase 16: پرداختِ یک ورودی حقوق — منطق مشترک (رگانی/جاری) ──
 // داخل transaction:
-//   ۱) کسر FIFO مساعده‌های کسرنشده (تا سقف advanceDeducted)
-//   ۲) ساخت MaterialCost با دستهٔ «حقوق» (هزینهٔ سیستم — خواستهٔ کاربر)
-//   ۳) قفل ورودی (status=paid + paidAt + costId + snapshot ماژول‌ها)
-//   ۴) نوتیف به کارمند
-//   ۵) اگر همهٔ ورودی‌های دوره پرداخت شدند → دوره paid + اسنپ‌شات جمع
+//   1) کسر FIFO مساعده‌های کسرنشده (تا سقف advanceDeducted)
+//   2) ساخت MaterialCost با دستهٔ «حقوق» (هزینهٔ سیستم — خواستهٔ کاربر)
+//   3) قفل ورودی (status=paid + paidAt + costId + snapshot ماژول‌ها)
+//   4) نوتیف به کارمند
+//   5) اگر همهٔ ورودی‌های دوره پرداخت شدند → دوره paid + اسنپ‌شات جمع
 
 type Tx = Prisma.TransactionClient;
 type CtxUser = { id: string; name: string };
@@ -41,7 +41,7 @@ export async function payPayrollEntry(
   const net = computeNetPay(nums);
   if (net <= 0) return { ok: false, reason: "خالص حقوق باید مثبت باشد" };
 
-  // ۱) کسر مساعده (FIFO تا سقف بودجهٔ کسرِ همین ورودی)
+  // 1) کسر مساعده (FIFO تا سقف بودجهٔ کسرِ همین ورودی)
   const { advances: deducted } = await allocateAdvanceDeduction(
     entry.userId,
     entry.advanceDeducted,
@@ -55,19 +55,19 @@ export async function payPayrollEntry(
     });
   }
 
-  // ۲) سند هزینه — «حقوق و دستمزد در سیستم به‌عنوان هزینه ثبت شود»
+  // 2) سند هزینه — «حقوق و دستمزد در سیستم به‌عنوان هزینه ثبت شود»
   const salaryType = await ensureSalaryExpenseType(tx);
   const breakdown =
-    `پایه ${nums.baseSalary.toLocaleString("fa-IR")}` +
+    `پایه ${nums.baseSalary.toLocaleString("en-US")}` +
     (nums.overtimeHours > 0
-      ? ` + اضافه‌کاری ${nums.overtimeHours}ساعت × ${nums.overtimeRate.toLocaleString("fa-IR")}`
+      ? ` + اضافه‌کاری ${nums.overtimeHours}ساعت × ${nums.overtimeRate.toLocaleString("en-US")}`
       : "") +
-    (nums.bonus > 0 ? ` + پاداش ${nums.bonus.toLocaleString("fa-IR")}` : "") +
-    (nums.deduction > 0 ? ` − کمکرد ${nums.deduction.toLocaleString("fa-IR")}` : "") +
-    (nums.insurance > 0 ? ` − بیمه ${nums.insurance.toLocaleString("fa-IR")}` : "") +
-    (nums.tax > 0 ? ` − مالیات ${nums.tax.toLocaleString("fa-IR")}` : "") +
+    (nums.bonus > 0 ? ` + پاداش ${nums.bonus.toLocaleString("en-US")}` : "") +
+    (nums.deduction > 0 ? ` − کمکرد ${nums.deduction.toLocaleString("en-US")}` : "") +
+    (nums.insurance > 0 ? ` − بیمه ${nums.insurance.toLocaleString("en-US")}` : "") +
+    (nums.tax > 0 ? ` − مالیات ${nums.tax.toLocaleString("en-US")}` : "") +
     (nums.advanceDeducted > 0
-      ? ` − کسر مساعده ${nums.advanceDeducted.toLocaleString("fa-IR")}`
+      ? ` − کسر مساعده ${nums.advanceDeducted.toLocaleString("en-US")}`
       : "");
 
   const cost = await tx.materialCost.create({
@@ -83,7 +83,7 @@ export async function payPayrollEntry(
     },
   });
 
-  // ۳) قفل ورودی
+  // 3) قفل ورودی
   await tx.payrollEntry.update({
     where: { id: entry.id },
     data: {
@@ -95,18 +95,18 @@ export async function payPayrollEntry(
     },
   });
 
-  // ۴) نوتیف به کارمند
+  // 4) نوتیف به کارمند
   await tx.notification.create({
     data: {
       userId: entry.userId,
       title: "پرداخت حقوق",
-      message: `حقوق دورهٔ ${entry.period.key} پرداخت شد — خالص ${net.toLocaleString("fa-IR")} دینار`,
+      message: `حقوق دورهٔ ${entry.period.key} پرداخت شد — خالص ${net.toLocaleString("en-US")} دینار`,
       type: "success",
       link: "profile:view",
     },
   });
 
-  // ۵) دوره: اگر همه پرداخت شدند
+  // 5) دوره: اگر همه پرداخت شدند
   const remaining = await tx.payrollEntry.count({
     where: { periodId: entry.periodId, status: "draft" },
   });

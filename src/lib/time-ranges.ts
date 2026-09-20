@@ -69,12 +69,12 @@ export const RANGE_PRESETS: { id: string; label: string; getRange: () => TimeRan
   },
   {
     id: "last-3-months",
-    label: "۳ ماه اخیر",
+    label: "3 ماه اخیر",
     getRange: () => {
       const now = new Date();
       const from = new Date(now);
       from.setMonth(now.getMonth() - 3);
-      return { from, to: now, label: "۳ ماه اخیر", preset: "last-3-months" };
+      return { from, to: now, label: "3 ماه اخیر", preset: "last-3-months" };
     },
   },
   {
@@ -109,8 +109,8 @@ export function customRange(from: Date, to: Date): TimeRange {
   const diffDays = Math.round((t.getTime() - f.getTime()) / 86400000);
   let label = "بازه دلخواه";
   if (diffDays === 0) label = "یک روز";
-  else if (diffDays === 6) label = "۷ روز";
-  else if (diffDays === 29) label = "۳۰ روز";
+  else if (diffDays === 6) label = "7 روز";
+  else if (diffDays === 29) label = "30 روز";
   return { from: f, to: t, label, preset: "custom" };
 }
 
