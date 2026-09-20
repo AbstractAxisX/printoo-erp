@@ -4374,3 +4374,23 @@ Work Log:
 
 Stage Summary:
 - هر ۷ خواسته live و تست‌شده: هزینه مالی بی‌صف، سفارش بسته بی‌زمان، صفر عدد فارسی/شمسی در کل سیستم (+ مهاجرت داده‌های قدیمی)، انتخاب خودکار محصول، ۳۶۰+فاکتور جمعی در ادمین، RBAC ۳لایه با گیت مرکزی proxy و اعمال ≤۴۵ث، تولتیپ‌های کامل غیرتکراری بافت‌آگاه. آمادهٔ دیپلوی (بدون دست زدن به Docker): بکاپ → آپلود سورس → prisma db push (ستون افزایشی level) → backfill-phase24 → build → restart.
+
+---
+Task ID: PHASE-24-DEPLOY
+Agent: main orchestrator (session 5 — continuation)
+Task: استقرار فاز ۲۴ (+ پوش «تغییرات ظاهری» کارفرما) روی سرور production — دیتای واقعی، بدون کوچک‌ترین تغییر داده
+
+Work Log:
+- اتصال paramiko (sshpass نصب نشد) + کشف وضعیت: سرور روی بیلد فاز ۲۳ (Sep 17) بود؛ 22a691c کارفرما + eecbdb4 فاز ۲۴ هنوز دیپلوی نشده بودند. Docker (Printoo24 customer site) دست‌نخورده ماند.
+- safety-first: بکاپ کامل DB → db/custom.db.bak-phase24-20260920-1946 + snapshot شمار ردیف‌ها (user=12, customer=12, order=18, orderItem=34, invoice=10, materialCost=24, orderEvent=97, userModule=21 …).
+- تاربال ۱۳۸ فایل سورس تغییرکرده (۳۲۰۵f8d→eecbdb4؛ بدون هیچ فایل db/env — فایل‌های custom.db ریپو عمداً مستثنی) → آپلود → استخراج؛ حذف customers-detail-dialog.tsx (جایگزین customer-360-drawer).
+- prisma generate + db push افزایشی: User.isDemo/demoExpiresAt/guideTooltips + UserModule.level (دیفالت delete = رفتار قبلی) — diff شمار ردیف‌ها قبل/بعد: IDENTICAL.
+- backfill-phase24 روی prod: 1 notification + 6 orderEvent ارقام لاتین شد.
+- NODE_ENV=production build (BUILD_EXIT=0، ~۶۰ث) → systemctl restart printoo24-admin → active، HTTP 200، 401 صحیح برای API بدون کوکی.
+- راستی‌آزمایی production (read-only، scripts/prod-verify-phase24.mjs — ۱۶/۱۶ سبز): لاگین master + moduleLevels در پاسخ، heartbeat 200، داشبورد/سفارشات (۱۸ + تجمیع‌ها)/مشتریان (۱۲)/اعلان‌ها همه ۲۰۰؛ اعلان‌ها و رویدادهای DB بدون هیچ رقم فارسی؛ UserModule.level زنده (۲۱ ردیف delete)؛ ۳ کاربر دمو موجود؛ products 200.
+- QC مرورگر زنده (agent-browser، بدون هیچ mutation): لاگین بدون پیش‌پرشدن؛ داشبورد — صفر رقم فارسی (VLM 8/10)؛ مدیریت مشتریان ادمین: ۱۲ مشتری/۵ تسویه‌نشده/۶,۵۰۶,۰۰۰ IQD با دیتای واقعی → دراور «نمای ۳۶۰ درجه» با سفارش‌های پرداخت‌نشده + فاکتور جمعی + منطقهٔ خطر (VLM 8/10)؛ آرشیو سفارشات: ستون‌ها فقط شماره/مشتری/آیتم‌ها/وضعیت/مبلغ/تاریخ — بدون هیچ زمان/موعد؛ فرم ویرایش کاربر: پنل «سطح دسترسی» مشاهده/ادیت/حذف + صفحات مجاز زیر هر ماژول؛ تولتیپ داشبورد با متن کامل بافت‌آگاه. صفر خطای کنسول.
+- فیکس ۱ (هزینهٔ مالی بی‌صف) و ۴ (پیش‌انتخاب محصول) در کد دیپلوی‌شده grep-تأیید شد (status = finance ? approved : pending؛ addItem prefill) — تست نوشتاری روی prod عمداً انجام نشد (دیتای واقعی؛ سناریوی کامل ۳۳/۳۳ قبلاً در سندباکس سبز).
+- تایید نهایی: شمار ردیف‌ها قبل/بعد کل دیپلوی IDENTICAL — دیتا ۱۰۰٪ سالم؛ تاربال پاک شد؛ سرویس active.
+
+Stage Summary:
+- فاز ۲۴ + تغییرات ظاهری کارفرما روی production فعال است (http://187.124.27.96:3000) — هر ۷ خواسته live. دیتای واقعی دست‌نخورده (بکاپ phase24 + snapshot + diff صفر). Docker دست‌نخورده. بکاپ ۳ساعته timer همچنان فعال (آخرین اجرا امروز 17:30 UTC).
