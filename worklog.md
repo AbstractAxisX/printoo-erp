@@ -4417,3 +4417,23 @@ Work Log:
 
 Stage Summary:
 - کل خواستهٔ فاز ۲۵ در سندباکس کامل و live: مبنای دینار + سه‌ارز همه‌جا، API نرخ لحظه‌ای (خودکار + دستی)، نرخ بالای همهٔ فاکتور/پیش‌فاکتور/صورت‌حساب، گیت انتخاب ارز قبل چاپ با تبدیل و رند لحظه‌ای، فیلترهای ارزی + جمع تفکیکی + معادل دیناری + پنل نرخ در مالی، فرم هزینه/ویزارد/مساعده ارزی، حقوق شناور ۴نوع×۳ارز. آمادهٔ دیپلوی روی سرور (پروتکل ایمن فاز ۲۴: بکاپ → تاربال سورس → prisma generate + db push افزایشی (currency/payType/daysWorked/FxRate) → build → restart → راستی‌آزمایی).
+
+---
+Task ID: PHASE-25-DEPLOY
+Agent: main orchestrator (session 7 — continuation)
+Task: استقرار فاز ۲۵ (چندارزی IQD/USD/IRT + حقوق شناور) روی production — دیتای واقعی، بدون کوچک‌ترین تغییر داده
+
+Work Log:
+- اتصال paramiko + کشف وضعیت: سرور روی بیلد فاز ۲۴، دیتای واقعی با رشد طبیعی کاربر (user=12, customer=13, order=19, orderItem=35, invoice=10, preInvoice=19, materialCost=25, notification=46, orderEvent=99 — فعالیت واقعی از ۲۰ سپتامبر).
+- رفع ابهام مسیر DB: rowcount اول با مسیر نسبی به prisma/db/custom.db قدیمی (۷ سپتامبر، دیتای ریپوی اول کارفرما — استفاده‌نشده) می‌خورد؛ مسیر زندهٔ واقعی file:/opt/printoo24-admin/db/custom.db با snapshot مطلق تأیید شد.
+- safety-first: بکاپ کامل → db/custom.db.bak-phase25-20260922-2126 + snapshot قبل.
+- تاربال ۳۹ فایل سورس (eecbdb4→ae6d85b؛ صفر فایل db/env — تأیید محتوایی) → آپلود → استخراج.
+- prisma generate + db push افزایشی: currency روی Order/OrderItem-محور/Invoice/PreInvoice/MaterialCost/RevenueLog/PriceList/PayrollAdvance/Package.cod + User.salaryCurrency + PayrollEntry.payType/daysWorked + جدول جدید FxRate — همه با دیفالت امن IQD؛ diff شمار ردیف‌ها: IDENTICAL (فقط fxRate: n/a→2 پس از fetch خودکار).
+- build پروداکشن: تلاش موازی تصادفی (retry paramiko) → یک build قفل را برد و موفق شد (BUILD_EXIT=0، BUILD_ID تازه 21:31)؛ کد فاز ۲۵ در standalone گریپ-تأیید (USD_IQD در chunks + salaryCurrency در prisma client).
+- systemctl restart → active، HTTP 200، /api/fx بدون کوکی 401 (route زنده + auth-gated).
+- راستی‌آزمایی read-only (prod-verify-phase25.mjs): ۱۵/۱۵ سبز — لاگین master، heartbeat (POST)، /api/fx با نرخ واقعی (USD_IQD=1312، USD_IRT=149,759 تومان)، finance/summary با sums تفکیکی (costs/revenue/pending/unsettled/netProfitIqd/rates)، payroll با payType/currency، سفارشات با currency=IQD، هزینه‌ها با currency، customers با unsettledPer.
+- QC مرورگر زنده (بدون هیچ mutation): داشبورد مالی — پنل «نرخ لحظه‌ای ارز» (1 USD = 1,312 IQD / 149,759 تومان) + KPIهای واقعی (مجموع هزینه‌ها 2,215,200 IQD، دریافتی‌ها 5,175,000 IQD، سود خالص 2,959,800 IQD، تسویه‌نشده 6,556,000 IQD با ۱۲ سفارش)؛ صفحه حقوق — رادیوهای نوع پرداخت (ماهانه/روزانه/ساعتی/موردی-عشقی) + ارز در هر ردیف + «خالص 8 ورودی» 750,000 IQD + سقف مساعده هم‌ارز؛ مودال پیش‌فاکتور #۲۱ — نوار LIVE EXCHANGE RATE روی سند؛ دکمه چاپ → گیت «با کدام ارز چاپ؟» سه‌گزینه‌ای (دینار 50,000 IQD / دلار 38.11 USD تبدیل لحظه‌ای / تومان 5,707,279 تبدیل لحظه‌ای) → انتخاب دلار → سند کامل USD با یادداشت «Converted from IQD to USD... Original total: 50,000 IQD». صفر خطای کنسول. CurrencySelect ویزارد در bundle گریپ-تأیید.
+- تایید نهایی: شمار ردیف‌ها قبل/بعد IDENTICAL — دیتای واقعی ۱۰۰٪ سالم؛ Docker (سایت مشتریان) دست‌نخورده؛ پاک‌سازی فایل‌های موقت سرور.
+
+Stage Summary:
+- فاز ۲۵ روی production فعال است (http://187.124.27.96:3000): مبنای دینار + سه‌ارز همه‌جا، نرخ لحظه‌ای (auto از open.er-api.com + دستی از پنل مالی)، نرخ روی همهٔ اسناد، گیت ارز قبل چاپ با تبدیل/رند لحظه‌ای، فیلتر/جمع تفکیکی/معادل دیناری، حقوق شناور ۴نوع×۳ارز. دیتای واقعی دست‌نخورده (بکاپ phase25 + snapshot + diff صفر). سرور dev سندباکس هم با همان کد بالا است.
