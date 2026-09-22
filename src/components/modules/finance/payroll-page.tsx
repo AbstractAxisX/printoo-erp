@@ -53,6 +53,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatNumber, formatDateTime, formatDate } from "@/lib/format";
 import { MODULES, USER_ROLE } from "@/lib/constants";
+import { PAY_TYPES, PAY_TYPE_LIST, parsePayType, parseCurrency, formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
+import { CurrencySelect, CurrencyChip, FxBar } from "@/components/shared/fx-widgets";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -68,7 +70,10 @@ type PayrollEntry = {
   modules: string[];
   userBaseSalary: number;
   status: "draft" | "paid";
+  payType: string; // فاز ۲۵: monthly | daily | hourly | casual
+  currency: string; // فاز ۲۵: IQD | USD | IRT
   baseSalary: number;
+  daysWorked: number; // فاز ۲۵: روز کارشده (daily)
   overtimeHours: number;
   overtimeRate: number;
   bonus: number;
@@ -81,6 +86,7 @@ type PayrollEntry = {
   paidAt: string | null;
   costId: string | null;
   pendingAdvanceSum: number;
+  pendingAdvanceSums?: Record<string, number>; // فاز ۲۵: به تفکیک ارز
 };
 
 type Period = {
@@ -102,6 +108,7 @@ type Advance = {
   name: string;
   modules: string[];
   amount: number;
+  currency?: string; // فاز ۲۵
   note: string | null;
   costId: string | null;
   createdAt: string;
@@ -135,6 +142,11 @@ type PayrollData = {
       net: number;
       paidCount: number;
       paidSum: number;
+    };
+    currencyTotals?: {
+      net: { per: Record<string, number>; iqdEq: number };
+      paid: { per: Record<string, number>; iqdEq: number };
+      rates: { USD_IQD: number; USD_IRT: number };
     };
   };
   periods: Period[];
@@ -235,10 +247,13 @@ function NumInput({
   );
 }
 
-// ─── ویرایش اینلاین: state دلتا per-row ────────────────────────────────
+// ─── ویرایش اینلاین: state دلتا per-row (فاز ۲۵: payType + currency + daysWorked) ──
 
 type RowEdit = {
+  payType?: string;
+  currency?: string;
   baseSalary?: number;
+  daysWorked?: number;
   overtimeHours?: number;
   overtimeRate?: number;
   bonus?: number;
@@ -251,7 +266,10 @@ type RowEdit = {
 };
 
 type EntryVals = {
+  payType: string;
+  currency: string;
   baseSalary: number;
+  daysWorked: number;
   overtimeHours: number;
   overtimeRate: number;
   bonus: number;
@@ -264,7 +282,10 @@ type EntryVals = {
 
 function mergedVals(entry: PayrollEntry, edit?: RowEdit): EntryVals {
   return {
+    payType: edit?.payType ?? entry.payType ?? "monthly",
+    currency: edit?.currency ?? entry.currency ?? "IQD",
     baseSalary: edit?.baseSalary ?? entry.baseSalary,
+    daysWorked: edit?.daysWorked ?? entry.daysWorked ?? 0,
     overtimeHours: edit?.overtimeHours ?? entry.overtimeHours,
     overtimeRate: edit?.overtimeRate ?? entry.overtimeRate,
     bonus: edit?.bonus ?? entry.bonus,
@@ -276,23 +297,30 @@ function mergedVals(entry: PayrollEntry, edit?: RowEdit): EntryVals {
   };
 }
 
+/** خالص — آینهٔ فرمول سرور (lib/payroll.computeNetPay) بر اساس نوع پرداخت. */
 function computeNet(v: EntryVals): number {
-  return Math.round(
-    v.baseSalary +
-      v.overtimeHours * v.overtimeRate +
-      v.bonus -
-      v.deduction -
-      v.insurance -
-      v.tax -
-      v.advanceDeducted
-  );
+  const pt = v.payType;
+  let gross = v.baseSalary;
+  let ot = v.overtimeHours * v.overtimeRate;
+  if (pt === "daily") gross = v.baseSalary * v.daysWorked;
+  else if (pt === "hourly") {
+    gross = v.overtimeHours * v.overtimeRate;
+    ot = 0;
+  } else if (pt === "casual") {
+    gross = v.baseSalary;
+    ot = 0;
+  }
+  return Math.round(gross + ot + v.bonus - v.deduction - v.insurance - v.tax - v.advanceDeducted);
 }
 
 function rowDirty(entry: PayrollEntry, edit?: RowEdit): boolean {
   if (!edit) return false;
   const v = mergedVals(entry, edit);
   return (
+    v.payType !== (entry.payType ?? "monthly") ||
+    v.currency !== (entry.currency ?? "IQD") ||
     v.baseSalary !== entry.baseSalary ||
+    v.daysWorked !== (entry.daysWorked ?? 0) ||
     v.overtimeHours !== entry.overtimeHours ||
     v.overtimeRate !== entry.overtimeRate ||
     v.bonus !== entry.bonus ||
@@ -301,6 +329,53 @@ function rowDirty(entry: PayrollEntry, edit?: RowEdit): boolean {
     v.tax !== entry.tax ||
     v.advanceDeducted !== entry.advanceDeducted ||
     v.note !== (entry.note ?? "")
+  );
+}
+
+// ─── انتخاب نوع پرداخت — سگمنت چهارتایی (فاز ۲۵: فرم ساده و شناور) ──
+
+function PayTypeSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (p: string) => void;
+  disabled?: boolean;
+}) {
+  const cur = parsePayType(value);
+  return (
+    <div className={cn("inline-flex items-center rounded-lg border bg-muted/30 p-0.5", disabled && "opacity-60 pointer-events-none")} role="radiogroup" aria-label="نوع پرداخت">
+      {PAY_TYPE_LIST.map((p) => (
+        <button
+          key={p}
+          type="button"
+          role="radio"
+          aria-checked={cur === p}
+          disabled={disabled}
+          onClick={() => onChange(p)}
+          title={PAY_TYPES[p].hint}
+          className={cn(
+            "rounded-md px-2 py-1 text-[11px] font-medium transition whitespace-nowrap",
+            cur === p
+              ? "bg-background text-foreground shadow-sm border"
+              : "text-muted-foreground hover:bg-background/60"
+          )}
+        >
+          {PAY_TYPES[p].label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** چیپ نوع پرداخت (نمایش فقط-خواندنی). */
+function PayTypeChip({ payType }: { payType: string }) {
+  const p = parsePayType(payType);
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap", PAY_TYPES[p].chip)} title={PAY_TYPES[p].hint}>
+      {PAY_TYPES[p].label}
+    </span>
   );
 }
 
@@ -402,7 +477,10 @@ export function PayrollPage() {
       api<{ entry: { id: string }; netPay: number }>(`/api/payroll/entries/${p.entry.id}`, {
         method: "PUT",
         body: JSON.stringify({
+          payType: p.vals.payType, // فاز ۲۵
+          currency: p.vals.currency, // فاز ۲۵
           baseSalary: p.vals.baseSalary,
+          daysWorked: p.vals.daysWorked, // فاز ۲۵
           overtimeHours: p.vals.overtimeHours,
           overtimeRate: p.vals.overtimeRate,
           bonus: p.vals.bonus,
@@ -416,7 +494,7 @@ export function PayrollPage() {
       }),
     onSuccess: (res, v) => {
       toast.success(
-        `حقوق ${v.entry.name} ذخیره شد — خالص ${formatNumber(res.netPay)} IQD`
+        `حقوق ${v.entry.name} ذخیره شد — خالص ${formatMoney(res.netPay, v.vals.currency)}`
       );
       setEdits((prev) => {
         const next = { ...prev };
@@ -459,7 +537,7 @@ export function PayrollPage() {
   });
 
   const createAdvMut = useMutation({
-    mutationFn: (p: { userId: string; amount: number; note: string }) =>
+    mutationFn: (p: { userId: string; amount: number; currency: string; note: string }) =>
       api<{ message: string }>("/api/payroll/advances", {
         method: "POST",
         body: JSON.stringify(p),
@@ -483,22 +561,34 @@ export function PayrollPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // ── محاسبات زنده (واکنش به ویرایش‌های ذخیره‌نشده) ──
+  // ── محاسبات زنده (واکنش به ویرایش‌های ذخیره‌نشده) — فاز ۲۵: به تفکیک ارز ──
 
   const rows = React.useMemo(
     () => entries.map((e) => ({ e, v: mergedVals(e, edits[e.id]) })),
     [entries, edits]
   );
 
-  const liveNet = rows.reduce(
-    (s, r) => s + (r.e.status === "paid" ? r.e.netPay : computeNet(r.v)),
-    0
+  // خالص هر ردیف در ارز خودش → جمع تفکیکی
+  const netPer = sumByCurrency(
+    rows.map((r) => ({
+      amount: r.e.status === "paid" ? r.e.netPay : computeNet(r.v),
+      currency: r.v.currency,
+    }))
   );
-  const paidSum = rows.reduce((s, r) => s + (r.e.status === "paid" ? r.e.netPay : 0), 0);
+  const paidPer = sumByCurrency(
+    rows.filter((r) => r.e.status === "paid").map((r) => ({ amount: r.e.netPay, currency: r.e.currency }))
+  );
+  const liveNet = (netPer.IQD || 0) + (netPer.USD || 0) + (netPer.IRT || 0); // فقط وقتی هم‌ارز معنادار
+  const paidSum = (paidPer.IQD || 0) + (paidPer.USD || 0) + (paidPer.IRT || 0);
+  const mixedCurrencies = (["IQD", "USD", "IRT"] as Currency[]).filter((c) => netPer[c] > 0.0001).length > 1;
   const paidCount = rows.filter((r) => r.e.status === "paid").length;
   const draftRows = rows.filter((r) => r.e.status === "draft");
-  const draftNet = draftRows.reduce((s, r) => s + computeNet(r.v), 0);
-  const otBonus = rows.reduce((s, r) => s + r.v.overtimeHours * r.v.overtimeRate + r.v.bonus, 0);
+  const draftNetPer = sumByCurrency(draftRows.map((r) => ({ amount: computeNet(r.v), currency: r.v.currency })));
+  const draftNet = (draftNetPer.IQD || 0) + (draftNetPer.USD || 0) + (draftNetPer.IRT || 0);
+  const otBonus = rows.reduce(
+    (s, r) => s + (r.v.payType === "hourly" ? 0 : r.v.overtimeHours * r.v.overtimeRate) + r.v.bonus,
+    0
+  );
   const deductions = rows.reduce(
     (s, r) => s + r.v.deduction + r.v.insurance + r.v.tax + r.v.advanceDeducted,
     0
@@ -518,7 +608,7 @@ export function PayrollPage() {
   );
 
   const pendingAdvances = (data?.advances ?? []).filter((a) => a.deductedPeriodKey === null);
-  const pendingAdvSum = pendingAdvances.reduce((s, a) => s + a.amount, 0);
+  const advPer = sumByCurrency(pendingAdvances.map((a) => ({ amount: a.amount, currency: a.currency ?? "IQD" })));
 
   // خالصِ هدف دیالوگ پرداخت — از فرمول سرور روی ارقام ذخیره‌شدهٔ ردیف
   const payTargetNet = payTarget ? computeNet(mergedVals(payTarget)) : 0;
@@ -644,20 +734,20 @@ export function PayrollPage() {
             </div>
           )}
 
-          {/* 2) کارت‌های جمع */}
+          {/* 2) کارت‌های جمع — فاز ۲۵: جمع تفکیکی ارزی */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <StatCard
               icon="wallet"
               tone="emerald"
               label="جمع حقوق دوره"
-              value={formatCurrency(liveNet)}
-              hint={`خالص ${fa(rows.length)} ورودی`}
+              value={formatSumPerCurrency(netPer)}
+              hint={`خالص ${fa(rows.length)} ورودی${mixedCurrencies ? " — تفکیک ارزی" : ""}`}
             />
             <StatCard
               icon="checkCircle"
               tone="teal"
               label="پرداخت‌شده"
-              value={formatCurrency(paidSum)}
+              value={formatSumPerCurrency(paidPer)}
               hint={`${fa(paidCount)} از ${fa(rows.length)} نفر`}
             />
             <StatCard
@@ -685,10 +775,13 @@ export function PayrollPage() {
               icon="giftCard"
               tone="amber"
               label="مساعدهٔ کسرنشده"
-              value={formatCurrency(pendingAdvSum)}
+              value={formatSumPerCurrency(advPer)}
               hint={`${fa(pendingAdvances.length)} مساعده — کسر در دورهٔ بعد`}
             />
           </div>
+
+          {/* فاز ۲۵: نوار نرخ لحظه‌ای — مبنا تبدیل‌های حقوق */}
+          {mixedCurrencies && <FxBar className="mb-1" />}
 
           {/* 3) جدول ورودی‌ها */}
           <Card className="p-0 overflow-hidden">
@@ -725,11 +818,12 @@ export function PayrollPage() {
               />
             ) : (
               <div className="overflow-x-auto">
-                <Table className="min-w-[1180px]">
+                <Table className="min-w-[1280px]">
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
                       <TableHead className="h-10 text-xs font-semibold text-muted-foreground min-w-[170px]">کارمند</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground">حقوق پایه</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground min-w-[150px]">نوع پرداخت + ارز</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">مبلغ اصلی</TableHead>
                       <TableHead className="text-xs font-semibold text-muted-foreground">اضافه‌کاری (ساعت × نرخ)</TableHead>
                       <TableHead className="text-xs font-semibold text-muted-foreground">پاداش</TableHead>
                       <TableHead className="text-xs font-semibold text-muted-foreground">کمکرد</TableHead>
@@ -772,45 +866,109 @@ export function PayrollPage() {
                               </div>
                             </TableCell>
 
-                            {/* حقوق پایه */}
+                            {/* نوع پرداخت + ارز — فاز ۲۵: فرم ساده و شناور */}
                             <TableCell>
                               {editable ? (
-                                <div className="space-y-1">
-                                  <NumInput value={v.baseSalary} onChange={(n) => editRow(entry.id, { baseSalary: n })} className="w-28" title="حقوق پایهٔ ماه" />
-                                  <label
-                                    className={cn(
-                                      "flex items-center gap-1 text-[10px] cursor-pointer select-none transition",
-                                      v.baseSalary !== entry.userBaseSalary ? "text-primary" : "text-muted-foreground"
-                                    )}
-                                    title={`ذخیرهٔ حقوق پایهٔ جدید در قرارداد کارمند (قرارداد فعلی: ${formatNumber(entry.userBaseSalary)} IQD)`}
-                                  >
-                                    <Checkbox
-                                      checked={edits[entry.id]?.updateContract === true}
-                                      onCheckedChange={(c) => editRow(entry.id, { updateContract: c === true })}
-                                      className="size-3.5"
-                                    />
-                                    قرارداد
-                                  </label>
+                                <div className="space-y-1.5">
+                                  <PayTypeSelect
+                                    value={v.payType}
+                                    onChange={(p) => editRow(entry.id, { payType: p })}
+                                  />
+                                  <CurrencySelect
+                                    size="sm"
+                                    value={v.currency}
+                                    onChange={(c) => editRow(entry.id, { currency: c })}
+                                  />
                                 </div>
                               ) : (
-                                <span className="text-xs font-medium tabular-nums" dir="ltr">{formatNumber(entry.baseSalary)}</span>
+                                <div className="flex flex-col items-start gap-1.5">
+                                  <PayTypeChip payType={entry.payType} />
+                                  <CurrencyChip currency={entry.currency} />
+                                </div>
                               )}
                             </TableCell>
 
-                            {/* اضافه‌کاری */}
+                            {/* مبلغ اصلی — contextual بر اساس نوع پرداخت */}
                             <TableCell>
                               {editable ? (
-                                <div className="flex items-center gap-1">
-                                  <NumInput value={v.overtimeHours} onChange={(n) => editRow(entry.id, { overtimeHours: n })} className="w-12" title="ساعت اضافه‌کاری" />
-                                  <span className="text-[10px] text-muted-foreground">×</span>
-                                  <NumInput value={v.overtimeRate} onChange={(n) => editRow(entry.id, { overtimeRate: n })} className="w-24" title="نرخ هر ساعت" />
+                                <div className="space-y-1">
+                                  {v.payType === "daily" ? (
+                                    <div className="flex items-center gap-1" title="نرخ روزانه × تعداد روز">
+                                      <NumInput value={v.baseSalary} onChange={(n) => editRow(entry.id, { baseSalary: n })} className="w-24" title="نرخ هر روز" />
+                                      <span className="text-[10px] text-muted-foreground">×</span>
+                                      <NumInput value={v.daysWorked} onChange={(n) => editRow(entry.id, { daysWorked: n })} className="w-14" title="تعداد روز کارشده" />
+                                      <span className="text-[10px] text-muted-foreground">روز</span>
+                                    </div>
+                                  ) : v.payType === "hourly" ? (
+                                    <div className="text-[11px] text-muted-foreground" title="مبلغ اصلی = ساعت × نرخ در ستون اضافه‌کاری">
+                                      ساعت × نرخ
+                                      <div className="font-medium text-foreground tabular-nums" dir="ltr">
+                                        {fa(v.overtimeHours)} × {formatNumber(v.overtimeRate)}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <NumInput
+                                      value={v.baseSalary}
+                                      onChange={(n) => editRow(entry.id, { baseSalary: n })}
+                                      className="w-28"
+                                      title={v.payType === "casual" ? "مبلغ پرداخت موردی" : "حقوق پایهٔ ماه"}
+                                    />
+                                  )}
+                                  {v.payType === "monthly" && (
+                                    <label
+                                      className={cn(
+                                        "flex items-center gap-1 text-[10px] cursor-pointer select-none transition",
+                                        v.baseSalary !== entry.userBaseSalary ? "text-primary" : "text-muted-foreground"
+                                      )}
+                                      title={`ذخیرهٔ حقوق پایهٔ جدید در قرارداد کارمند (قرارداد فعلی: ${formatNumber(entry.userBaseSalary)} IQD)`}
+                                    >
+                                      <Checkbox
+                                        checked={edits[entry.id]?.updateContract === true}
+                                        onCheckedChange={(c) => editRow(entry.id, { updateContract: c === true })}
+                                        className="size-3.5"
+                                      />
+                                      قرارداد
+                                    </label>
+                                  )}
+                                  {v.payType === "daily" && v.baseSalary * v.daysWorked > 0 && (
+                                    <div className="text-[10px] text-muted-foreground" dir="ltr">
+                                      = {formatMoney(v.baseSalary * v.daysWorked, v.currency)}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
-                                <span className="text-xs tabular-nums" dir="ltr">
-                                  {fa(entry.overtimeHours)} × {formatNumber(entry.overtimeRate)}
+                                <span className="text-xs font-medium tabular-nums" dir="ltr">
+                                  {v.payType === "daily"
+                                    ? `${formatNumber(entry.baseSalary)} × ${fa(entry.daysWorked || 0)}`
+                                    : v.payType === "hourly"
+                                      ? `${fa(entry.overtimeHours)} × ${formatNumber(entry.overtimeRate)}`
+                                      : formatNumber(entry.baseSalary)}
                                 </span>
                               )}
-                              {v.overtimeHours * v.overtimeRate > 0 && (
+                            </TableCell>
+
+                            {/* اضافه‌کاری — ساعتی: خودِ حقوق اصلی است */}
+                            <TableCell>
+                              {editable ? (
+                                v.payType === "hourly" || v.payType === "casual" ? (
+                                  <span className="text-[11px] text-muted-foreground" title={v.payType === "hourly" ? "در ستون مبلغ اصلی" : "پرداخت موردی اضافه‌کاری ندارد"}>
+                                    {v.payType === "hourly" ? "← ستون مبلغ اصلی" : "—"}
+                                  </span>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <NumInput value={v.overtimeHours} onChange={(n) => editRow(entry.id, { overtimeHours: n })} className="w-12" title="ساعت اضافه‌کاری" />
+                                    <span className="text-[10px] text-muted-foreground">×</span>
+                                    <NumInput value={v.overtimeRate} onChange={(n) => editRow(entry.id, { overtimeRate: n })} className="w-24" title="نرخ هر ساعت" />
+                                  </div>
+                                )
+                              ) : (
+                                <span className="text-xs tabular-nums" dir="ltr">
+                                  {v.payType === "hourly" || v.payType === "casual"
+                                    ? "—"
+                                    : `${fa(entry.overtimeHours)} × ${formatNumber(entry.overtimeRate)}`}
+                                </span>
+                              )}
+                              {v.payType !== "hourly" && v.payType !== "casual" && v.overtimeHours * v.overtimeRate > 0 && (
                                 <div className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">
                                   = {formatNumber(v.overtimeHours * v.overtimeRate)}
                                 </div>
@@ -835,29 +993,36 @@ export function PayrollPage() {
                               </TableCell>
                             ))}
 
-                            {/* کسر مساعده */}
+                            {/* کسر مساعده — فاز ۲۵: سقف هم‌ارز */}
                             <TableCell>
                               {editable ? (
                                 <div className="space-y-1">
-                                  <NumInput
-                                    value={v.advanceDeducted}
-                                    onChange={(n) => editRow(entry.id, { advanceDeducted: Math.min(n, entry.pendingAdvanceSum) })}
-                                    className="w-24"
-                                    title={
-                                      entry.pendingAdvanceSum > 0
-                                        ? `سقف: ${formatNumber(entry.pendingAdvanceSum)} IQD`
-                                        : "مساعدهٔ کسرنشده ندارد"
-                                    }
-                                  />
-                                  {entry.pendingAdvanceSum > 0 && (
-                                    <span
-                                      className="block text-[9px] text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 rounded-full px-1.5 py-0.5 text-center whitespace-nowrap"
-                                      dir="ltr"
-                                      title="مجموع مساعده‌های کسرنشدهٔ این کارمند"
-                                    >
-                                      مساعدهٔ مانده: {formatNumber(entry.pendingAdvanceSum)}
-                                    </span>
-                                  )}
+                                  {(() => {
+                                    const cap = entry.pendingAdvanceSums?.[v.currency] ?? (v.currency === "IQD" ? entry.pendingAdvanceSum : 0);
+                                    return (
+                                      <>
+                                        <NumInput
+                                          value={Math.min(v.advanceDeducted, cap)}
+                                          onChange={(n) => editRow(entry.id, { advanceDeducted: Math.min(n, cap) })}
+                                          className="w-24"
+                                          title={
+                                            cap > 0
+                                              ? `سقف: ${formatMoney(cap, v.currency)}`
+                                              : `مساعدهٔ کسرنشدهٔ ${v.currency} ندارد`
+                                          }
+                                        />
+                                        {cap > 0 && (
+                                          <span
+                                            className="block text-[9px] text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/60 rounded-full px-1.5 py-0.5 text-center whitespace-nowrap"
+                                            dir="ltr"
+                                            title="مجموع مساعده‌های کسرنشدهٔ این کارمند در همین ارز"
+                                          >
+                                            مانده: {formatMoney(cap, v.currency)}
+                                          </span>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               ) : (
                                 <span className="text-xs tabular-nums" dir="ltr">
@@ -882,10 +1047,10 @@ export function PayrollPage() {
                                 title={
                                   shownNet <= 0
                                     ? "خالص منفی/صفر — قبل از پرداخت، کسورات را تنظیم کنید"
-                                    : "پایه + اضافه‌کاری + پاداش − کمکرد − بیمه − مالیات − مساعده"
+                                    : "مبلغ اصلی + اضافه‌کاری + پاداش − کمکرد − بیمه − مالیات − مساعده"
                                 }
                               >
-                                {formatNumber(shownNet)}
+                                {formatMoney(shownNet, v.currency)}
                               </span>
                             </TableCell>
 
@@ -979,7 +1144,7 @@ export function PayrollPage() {
                           {/* ردیف یادداشت (جمع‌شونده) */}
                           {noteOpen && (
                             <TableRow className="bg-muted/20 hover:bg-muted/20">
-                              <TableCell colSpan={11} className="py-2">
+                              <TableCell colSpan={12} className="py-2">
                                 <div className="flex items-center gap-2 max-w-xl">
                                   <Icon name="document" size={13} className="text-muted-foreground shrink-0" />
                                   {editable ? (
@@ -1008,8 +1173,10 @@ export function PayrollPage() {
                       <TableCell className="text-xs">
                         جمع دوره ({fa(rows.length)} ردیف)
                       </TableCell>
-                      <TableCell className="text-xs tabular-nums" dir="ltr">{formatNumber(colSums.base)}</TableCell>
-                      <TableCell className="text-xs tabular-nums" dir="ltr">{formatNumber(colSums.ot)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-normal" colSpan={2}>
+                        {mixedCurrencies ? "جمع خالص تفکیکی ↓" : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs tabular-nums" dir="ltr">—</TableCell>
                       <TableCell className="text-xs tabular-nums" dir="ltr">{formatNumber(colSums.bonus)}</TableCell>
                       <TableCell className="text-xs tabular-nums" dir="ltr">{formatNumber(colSums.deduction)}</TableCell>
                       <TableCell className="text-xs tabular-nums" dir="ltr">{formatNumber(colSums.insurance)}</TableCell>
@@ -1021,8 +1188,9 @@ export function PayrollPage() {
                           liveNet > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600"
                         )}
                         dir="ltr"
+                        title={mixedCurrencies ? "جمع به تفکیک ارز — ارزهای مختلف جمع نمی‌شوند" : undefined}
                       >
-                        {formatNumber(liveNet)}
+                        {formatSumPerCurrency(netPer)}
                       </TableCell>
                       <TableCell colSpan={2} className="text-[10px] text-muted-foreground font-normal">
                         {fa(paidCount)} پرداخت‌شده • {fa(draftRows.length)} آماده
@@ -1049,7 +1217,7 @@ export function PayrollPage() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {draftRows.length === 0
                         ? "همهٔ ورودی‌ها پرداخت شده‌اند"
-                        : `${fa(draftRows.length)} ردیف آماده — جمع خالص ${formatCurrency(draftNet)} • ردیف‌های خالصِ ≤ 0 رد می‌شوند`}
+                        : `${fa(draftRows.length)} ردیف آماده — جمع خالص ${formatSumPerCurrency(draftNetPer)} • ردیف‌های خالصِ ≤ 0 رد می‌شوند`}
                     </div>
                   </div>
                 </div>
@@ -1089,12 +1257,13 @@ export function PayrollPage() {
                 <div>
                   خالص پرداختی:{" "}
                   <b dir="ltr" className="tabular-nums text-foreground">
-                    {formatCurrency(payTargetNet)}
-                  </b>
+                    {formatMoney(payTargetNet, payTarget?.currency)}
+                  </b>{" "}
+                  {payTarget && <CurrencyChip currency={payTarget.currency} />}
                 </div>
                 <div>
                   پس از پرداخت، این ردیف قفل می‌شود، سند هزینهٔ «حقوق» در تاریخچه هزینه‌ها ثبت
-                  می‌شود و مساعده‌های کسرنشده (تا سقف کسر همین ردیف) به‌صورت FIFO بسته می‌شوند.
+                  می‌شود و مساعده‌های کسرنشدهٔ هم‌ارز (تا سقف کسر همین ردیف) به‌صورت FIFO بسته می‌شوند.
                 </div>
               </div>
             </AlertDialogDescription>
@@ -1106,7 +1275,7 @@ export function PayrollPage() {
               onClick={() => payTarget && payEntryMut.mutate(payTarget.id)}
             >
               <Icon name="money" size={14} />
-              پرداخت {formatCurrency(payTargetNet)}
+              پرداخت {formatMoney(payTargetNet, payTarget?.currency)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1124,7 +1293,7 @@ export function PayrollPage() {
                 <div>
                   {fa(draftRows.length)} ردیف پرداخت می‌شود — جمع خالص:{" "}
                   <b dir="ltr" className="tabular-nums text-foreground">
-                    {formatCurrency(draftNet)}
+                    {formatSumPerCurrency(draftNetPer)}
                   </b>
                 </div>
                 <div className="text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
@@ -1161,7 +1330,7 @@ type EmployeeOption = { userId: string; name: string };
 type CreateAdvMut = UseMutationResult<
   { message: string },
   Error,
-  { userId: string; amount: number; note: string }
+  { userId: string; amount: number; currency: string; note: string }
 >;
 type DeleteAdvMut = UseMutationResult<{ message: string }, Error, string>;
 
@@ -1180,6 +1349,7 @@ function AdvancesPanel({
   const [advUserId, setAdvUserId] = React.useState("");
   // NumInput مقدار 0 را خالی نمایش می‌دهد — ورودی از اول خالی است
   const [advAmount, setAdvAmount] = React.useState(0);
+  const [advCurrency, setAdvCurrency] = React.useState<string>("IQD"); // فاز ۲۵
   const [advNote, setAdvNote] = React.useState("");
   const [deleteTarget, setDeleteTarget] = React.useState<Advance | null>(null);
 
@@ -1190,18 +1360,19 @@ function AdvancesPanel({
   }, [employees]);
 
   const pending = advances.filter((a) => a.deductedPeriodKey === null);
-  const pendingSum = pending.reduce((s, a) => s + a.amount, 0);
+  const pendingPer = sumByCurrency(pending.map((a) => ({ amount: a.amount, currency: a.currency ?? "IQD" })));
 
   const canSubmit = !!advUserId && advAmount > 0 && !createMut.isPending;
 
   const submit = () => {
     if (!canSubmit) return;
     createMut.mutate(
-      { userId: advUserId, amount: advAmount, note: advNote.trim() },
+      { userId: advUserId, amount: advAmount, currency: advCurrency, note: advNote.trim() },
       {
         onSuccess: () => {
           setAdvUserId("");
           setAdvAmount(0);
+          setAdvCurrency("IQD");
           setAdvNote("");
         },
       }
@@ -1228,7 +1399,7 @@ function AdvancesPanel({
             title={`${fa(pending.length)} مساعدهٔ کسرنشده`}
           >
             <Icon name="clock" size={12} />
-            کسرنشده: <span dir="ltr" className="tabular-nums">{formatCurrency(pendingSum)}</span>
+            کسرنشده: <span dir="ltr" className="tabular-nums">{formatSumPerCurrency(pendingPer)}</span>
           </span>
         )}
       </div>
@@ -1257,13 +1428,21 @@ function AdvancesPanel({
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] text-muted-foreground">مبلغ (IQD)</label>
-              <NumInput
-                value={advAmount}
-                onChange={setAdvAmount}
-                className="h-9 text-sm"
-                title="مبلغ مساعده"
-              />
+              <label className="text-[10px] text-muted-foreground">مبلغ + ارز</label>
+              <div className="flex items-center gap-1.5">
+                <NumInput
+                  value={advAmount}
+                  onChange={setAdvAmount}
+                  className="h-9 text-sm"
+                  title="مبلغ مساعده"
+                />
+                <CurrencySelect
+                  size="sm"
+                  value={advCurrency}
+                  onChange={(c) => setAdvCurrency(c)}
+                  className="shrink-0"
+                />
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] text-muted-foreground">یادداشت (اختیاری)</label>
@@ -1317,9 +1496,12 @@ function AdvancesPanel({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-xs font-bold tabular-nums" dir="ltr">
-                        {formatCurrency(a.amount)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold tabular-nums" dir="ltr">
+                          {formatMoney(a.amount, a.currency)}
+                        </span>
+                        <CurrencyChip currency={a.currency} />
+                      </div>
                       {a.note?.trim() && (
                         <div className="text-[10px] text-muted-foreground truncate max-w-[180px] mt-0.5" title={a.note}>
                           {a.note}
@@ -1387,8 +1569,9 @@ function AdvancesPanel({
                 <div>
                   مبلغ:{" "}
                   <b dir="ltr" className="tabular-nums text-foreground">
-                    {formatCurrency(deleteTarget?.amount ?? 0)}
-                  </b>
+                    {formatMoney(deleteTarget?.amount ?? 0, deleteTarget?.currency)}
+                  </b>{" "}
+                  {deleteTarget && <CurrencyChip currency={deleteTarget.currency} />}
                 </div>
                 <div>
                   مساعده به‌همراه سند هزینهٔ وصل‌شدهٔ آن حذف می‌شود (برگشت کامل پول). این عمل
@@ -1469,8 +1652,8 @@ function PeriodsHistory({ periods, currentId }: { periods: Period[]; currentId: 
                     {fa(p.entriesCount)}
                   </TableCell>
                   <TableCell>
-                    <span className="text-xs font-semibold tabular-nums" dir="ltr">
-                      {formatCurrency(p.totalNet)}
+                    <span className="text-xs font-semibold tabular-nums" dir="ltr" title="معادل دیناری لحظهٔ پرداخت">
+                      {formatCurrency(p.totalNet)} <span className="text-[9px] text-muted-foreground font-normal">IQD-eq</span>
                     </span>
                   </TableCell>
                   <TableCell>

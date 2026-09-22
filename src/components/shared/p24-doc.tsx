@@ -15,9 +15,64 @@
 
 import * as React from "react";
 import { COMPANY, CURRENCY } from "@/lib/constants";
+import { CURRENCIES, parseCurrency, type Currency } from "@/lib/money";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+function fmtCur(n: number, cur: string) {
+  const c = parseCurrency(cur);
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: CURRENCIES[c].decimals,
+  }).format(n || 0);
+}
+
+// ─── فاز ۲۵: خط نرخ لحظه‌ای روی همهٔ اسناد چاپی ──────────────────
+// «نرخ لحظه‌ای دلار→دینار باید بالای همهٔ فاکتور و پیش‌فاکتورها درج شود»
+export type P24FxLine = {
+  usdIqd: number;
+  usdIrt: number;
+  /** تاریخ/ساعت دریافت نرخ (ISO) */
+  at?: string | null;
+  /** auto | manual */
+  source?: string;
+};
+
+function FxStrip({ fx }: { fx: P24FxLine }) {
+  const at = fx.at ? new Date(fx.at) : null;
+  const atStr =
+    at && !isNaN(at.getTime())
+      ? `${String(at.getDate()).padStart(2, "0")}/${String(at.getMonth() + 1).padStart(2, "0")}/${at.getFullYear()} ${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`
+      : null;
+  const label = fx.source === "manual" ? "MANUAL RATE" : "LIVE EXCHANGE RATE";
+  return (
+    <div
+      className="shrink-0 flex items-center justify-between gap-4 px-10 py-2"
+      style={{ background: "#F5F0E6", borderBottom: `1px solid ${GOLD}55` }}
+      dir="ltr"
+    >
+      <span className="text-[9px] font-extrabold tracking-[0.22em]" style={{ color: "#8A6D2F" }}>
+        {label}
+      </span>
+      <div className="flex items-center gap-4 text-[10px] font-semibold text-stone-700 tabular-nums">
+        <span>
+          1 USD = {fmtCur(fx.usdIqd, "IQD")} IQD
+        </span>
+        <span className="text-stone-300">|</span>
+        <span>
+          1 USD = {fmtCur(fx.usdIrt, "IRT")} IRT
+        </span>
+        {atStr && (
+          <>
+            <span className="text-stone-300">|</span>
+            <span className="text-stone-500 font-medium">as of {atStr}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── Phase 22 (خواستهٔ 2): واحدهای فارسی → انگلیسی روی سند چاپی ─────
@@ -118,6 +173,13 @@ export type P24DocProps = {
   terms?: string | null;
   /** خط پایانی سند (بالای نوار فوتر) */
   closingNote?: string;
+  // ─── فاز ۲۵: چندارزی سند چاپی ───
+  /** ارز مبالغ این سند (پیش‌فرض IQD) */
+  currency?: string;
+  /** نرخ لحظه‌ای — درج نوار نرخ بالای سند */
+  fx?: P24FxLine | null;
+  /** یادداشت تبدیل (وقتی سند با ارز دیگری چاپ می‌شود) */
+  conversionNote?: string | null;
 };
 
 /** ردیف سفارش در صورت‌حساب جمعی */
@@ -143,6 +205,10 @@ export type P24StatementProps = {
   paid: number;
   notes?: string | null;
   closingNote?: string;
+  // ─── فاز ۲۵ ───
+  currency?: string;
+  fx?: P24FxLine | null;
+  conversionNote?: string | null;
 };
 
 // ─── ثابت‌های طرح ──────────────────────────────────────────────────
@@ -354,6 +420,7 @@ function SummaryBlock({
   total,
   paid,
   paidLabel,
+  currency,
 }: {
   subtotal: number;
   discount: number;
@@ -362,24 +429,26 @@ function SummaryBlock({
   total: number;
   paid: number;
   paidLabel: string;
+  currency?: string; // فاز ۲۵
 }) {
+  const cur = currency ?? CURRENCY;
   const balance = Math.max(0, total - paid);
   return (
     <div className="w-[300px] shrink-0">
       <div className="flex justify-between items-center py-[7px] text-[12px]">
         <span className="text-stone-400 font-semibold tracking-[0.1em] uppercase text-[10px]">Subtotal</span>
-        <span className="text-stone-700 font-semibold tabular-nums">{fmt(subtotal)}</span>
+        <span className="text-stone-700 font-semibold tabular-nums">{fmtCur(subtotal, cur)}</span>
       </div>
       {discount > 0 && (
         <div className="flex justify-between items-center py-[7px] text-[12px]">
           <span className="text-stone-400 font-semibold tracking-[0.1em] uppercase text-[10px]">Discount</span>
-          <span className="text-amber-600 font-semibold tabular-nums">− {fmt(discount)}</span>
+          <span className="text-amber-600 font-semibold tabular-nums">− {fmtCur(discount, cur)}</span>
         </div>
       )}
       {taxRate > 0 && (
         <div className="flex justify-between items-center py-[7px] text-[12px]">
           <span className="text-stone-400 font-semibold tracking-[0.1em] uppercase text-[10px]">Tax ({taxRate}%)</span>
-          <span className="text-stone-700 font-semibold tabular-nums">{fmt(taxAmount)}</span>
+          <span className="text-stone-700 font-semibold tabular-nums">{fmtCur(taxAmount, cur)}</span>
         </div>
       )}
       {/* TOTAL — کاشی تیره */}
@@ -389,13 +458,13 @@ function SummaryBlock({
       >
         <span className="font-bold tracking-[0.18em] uppercase text-[11px]">Total</span>
         <span className="font-bold text-[16px] tabular-nums leading-none">
-          {fmt(total)}
-          <span className="text-[9px] font-medium text-white/50 ml-1.5 tracking-wide">{CURRENCY}</span>
+          {fmtCur(total, cur)}
+          <span className="text-[9px] font-medium text-white/50 ml-1.5 tracking-wide">{cur}</span>
         </span>
       </div>
       <div className="flex justify-between items-center py-[7px] text-[12px]">
         <span className="text-stone-500 font-semibold text-[10.5px] tracking-[0.1em] uppercase">{paidLabel}</span>
-        <span className="text-emerald-600 font-semibold tabular-nums">{fmt(paid)}</span>
+        <span className="text-emerald-600 font-semibold tabular-nums">{fmtCur(paid, cur)}</span>
       </div>
       {/* BALANCE DUE */}
       <div
@@ -414,8 +483,8 @@ function SummaryBlock({
           className="font-bold text-[15px] tabular-nums leading-none"
           style={{ color: balance > 0 ? "#E11D48" : "#059669" }}
         >
-          {fmt(balance)}
-          <span className="text-[9px] font-medium opacity-60 ml-1.5 tracking-wide">{CURRENCY}</span>
+          {fmtCur(balance, cur)}
+          <span className="text-[9px] font-medium opacity-60 ml-1.5 tracking-wide">{cur}</span>
         </span>
       </div>
     </div>
@@ -498,7 +567,14 @@ export function P24Doc(props: P24DocProps) {
     notes,
     terms,
     closingNote,
+    currency,
+    fx,
+    conversionNote,
   } = props;
+
+  const cur = parseCurrency(currency);
+  const curName =
+    cur === "USD" ? "US Dollar (USD)" : cur === "IRT" ? "Iranian Toman (IRT)" : "Iraqi Dinar (IQD)";
 
   const label =
     numberLabel ?? (title === "Quotation" ? "Quotation No." : "Invoice No.");
@@ -520,6 +596,8 @@ export function P24Doc(props: P24DocProps) {
         number={number}
         issueDate={issueDate}
       />
+      {/* فاز ۲۵: نرخ لحظه‌ای — بالای همهٔ فاکتور/پیش‌فاکتور */}
+      {fx && <FxStrip fx={fx} />}
 
       <BillToBlock
         customerName={customerName}
@@ -568,16 +646,16 @@ export function P24Doc(props: P24DocProps) {
                   ) : null}
                 </td>
                 <td className="py-4 text-right text-stone-700 font-semibold tabular-nums text-[12.5px]">
-                  {fmt(it.unitPrice)}
+                  {fmtCur(it.unitPrice, cur)}
                   {!!it.discount && (
                     <span className="text-amber-600 text-[9.5px] font-normal block mt-0.5">
-                      − {fmt(it.discount)} disc.
+                      − {fmtCur(it.discount, cur)} disc.
                     </span>
                   )}
                 </td>
                 <td className="py-4 text-right font-bold text-stone-800 tabular-nums text-[13px]">
-                  {fmt(it.total)}
-                  <span className="text-stone-400 text-[9px] font-medium ml-1">{CURRENCY}</span>
+                  {fmtCur(it.total, cur)}
+                  <span className="text-stone-400 text-[9px] font-medium ml-1">{cur}</span>
                 </td>
               </tr>
             ))}
@@ -629,8 +707,9 @@ export function P24Doc(props: P24DocProps) {
             <div className="rounded-lg bg-stone-50 border border-stone-200/80 px-4 py-3 max-w-sm">
               <p className="text-[10.5px] text-stone-600 leading-relaxed">
                 <span className="font-bold text-stone-800 tracking-wide uppercase text-[9.5px]">Notes: </span>
-                {notes?.trim() ||
-                  `All prices are in Iraqi Dinar (${CURRENCY}). Production begins upon approval of this document.`}
+                {conversionNote?.trim() ||
+                  notes?.trim() ||
+                  `All prices are in ${curName}. Production begins upon approval of this document.`}
               </p>
               {terms?.trim() ? (
                 <p className="text-[10.5px] text-stone-600 leading-relaxed mt-1.5">
@@ -657,6 +736,7 @@ export function P24Doc(props: P24DocProps) {
             total={total}
             paid={paid}
             paidLabel={paidLabel}
+            currency={cur}
           />
         </div>
       </div>
@@ -682,8 +762,14 @@ export function P24StatementDoc(props: P24StatementProps) {
     paid,
     notes,
     closingNote,
+    currency,
+    fx,
+    conversionNote,
   } = props;
 
+  const cur = parseCurrency(currency);
+  const curName =
+    cur === "USD" ? "US Dollar (USD)" : cur === "IRT" ? "Iranian Toman (IRT)" : "Iraqi Dinar (IQD)";
   const balance = Math.max(0, subtotal - paid);
 
   return (
@@ -695,6 +781,8 @@ export function P24StatementDoc(props: P24StatementProps) {
         number={rows.length}
         issueDate={issueDate}
       />
+      {/* فاز ۲۵: نرخ لحظه‌ای بالای سند */}
+      {fx && <FxStrip fx={fx} />}
 
       <BillToBlock
         customerName={customerName}
@@ -704,8 +792,8 @@ export function P24StatementDoc(props: P24StatementProps) {
           <>
             <MetaRow label="Issue Date" strong>{fmtDate(issueDate)}</MetaRow>
             <MetaRow label="Active Orders">{fmt(rows.length)}</MetaRow>
-            <MetaRow label="Total Billed">{fmt(subtotal)} {CURRENCY}</MetaRow>
-            <MetaRow label="Total Paid">{fmt(paid)} {CURRENCY}</MetaRow>
+            <MetaRow label="Total Billed">{fmtCur(subtotal, cur)} {cur}</MetaRow>
+            <MetaRow label="Total Paid">{fmtCur(paid, cur)} {cur}</MetaRow>
           </>
         }
       />
@@ -736,8 +824,8 @@ export function P24StatementDoc(props: P24StatementProps) {
                   {fmtDate(r.date)}
                 </td>
                 <td className="py-3.5 text-right font-bold text-stone-800 tabular-nums text-[13px]">
-                  {fmt(r.amount)}
-                  <span className="text-stone-400 text-[9px] font-medium ml-1">{CURRENCY}</span>
+                  {fmtCur(r.amount, cur)}
+                  <span className="text-stone-400 text-[9px] font-medium ml-1">{cur}</span>
                 </td>
               </tr>
             ))}
@@ -759,8 +847,9 @@ export function P24StatementDoc(props: P24StatementProps) {
             <div className="rounded-lg bg-stone-50 border border-stone-200/80 px-4 py-3 max-w-sm">
               <p className="text-[10.5px] text-stone-600 leading-relaxed">
                 <span className="font-bold text-stone-800 tracking-wide uppercase text-[9.5px]">Notes: </span>
-                {notes?.trim() ||
-                  `This invoice aggregates all active orders of the customer. Prices are in Iraqi Dinar (${CURRENCY}).`}
+                {conversionNote?.trim() ||
+                  notes?.trim() ||
+                  `This invoice aggregates all active orders of the customer. Prices are in ${curName}.`}
               </p>
             </div>
             <div className="w-44 h-[74px] border-2 border-dashed border-stone-300 rounded-lg grid place-items-center">
@@ -775,7 +864,7 @@ export function P24StatementDoc(props: P24StatementProps) {
           <div className="w-[300px] shrink-0">
             <div className="flex justify-between items-center py-[7px] text-[12px]">
               <span className="text-stone-400 font-semibold tracking-[0.1em] uppercase text-[10px]">Subtotal</span>
-              <span className="text-stone-700 font-semibold tabular-nums">{fmt(subtotal)}</span>
+              <span className="text-stone-700 font-semibold tabular-nums">{fmtCur(subtotal, cur)}</span>
             </div>
             <div
               className="mt-1.5 rounded-lg px-4 py-3 flex justify-between items-center text-white"
@@ -783,13 +872,13 @@ export function P24StatementDoc(props: P24StatementProps) {
             >
               <span className="font-bold tracking-[0.18em] uppercase text-[11px]">Total</span>
               <span className="font-bold text-[16px] tabular-nums leading-none">
-                {fmt(subtotal)}
-                <span className="text-[9px] font-medium text-white/50 ml-1.5 tracking-wide">{CURRENCY}</span>
+                {fmtCur(subtotal, cur)}
+                <span className="text-[9px] font-medium text-white/50 ml-1.5 tracking-wide">{cur}</span>
               </span>
             </div>
             <div className="flex justify-between items-center py-[7px] text-[12px]">
               <span className="text-stone-500 font-semibold text-[10.5px] tracking-[0.1em] uppercase">Total Paid</span>
-              <span className="text-emerald-600 font-semibold tabular-nums">{fmt(paid)}</span>
+              <span className="text-emerald-600 font-semibold tabular-nums">{fmtCur(paid, cur)}</span>
             </div>
             <div
               className="mt-1 rounded-lg px-4 py-2.5 flex justify-between items-center border-2"
@@ -805,8 +894,8 @@ export function P24StatementDoc(props: P24StatementProps) {
                 className="font-bold text-[15px] tabular-nums leading-none"
                 style={{ color: balance > 0 ? "#E11D48" : "#059669" }}
               >
-                {fmt(balance)}
-                <span className="text-[9px] font-medium opacity-60 ml-1.5 tracking-wide">{CURRENCY}</span>
+                {fmtCur(balance, cur)}
+                <span className="text-[9px] font-medium opacity-60 ml-1.5 tracking-wide">{cur}</span>
               </span>
             </div>
           </div>

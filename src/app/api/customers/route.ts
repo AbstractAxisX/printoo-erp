@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { jsonError } from "@/lib/api-error";
-import { unsettledByCustomer } from "@/lib/customer-debt";
+import { unsettledByCustomer, unsettledPerCurrencyByCustomer } from "@/lib/customer-debt";
 
 // ─── GET /api/customers?search= — لیست + ماندهٔ زنده ────────────────────
 // Phase 17-D: هر ردیف علاوه بر فیلدهای قبلی (سازگار با CRM/ویزارد) فیلدهای
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
       ? { OR: [{ name: { contains: search } }, { phone: { contains: search } }] }
       : {};
 
-    const [customers, unsettled] = await Promise.all([
+    const [customers, unsettled, unsettledPer] = await Promise.all([
       db.customer.findMany({
         where,
         orderBy: { createdAt: "desc" },
@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
         },
       }),
       unsettledByCustomer(),
+      unsettledPerCurrencyByCustomer(), // فاز ۲۵: تفکیک ارزی
     ]);
 
     return NextResponse.json({
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest) {
         ...c,
         ordersCount: c._count.orders,
         unsettled: unsettled.get(c.id) ?? 0,
+        // فاز ۲۵: مانده تفکیکی ارزی + mixed-flag (additive)
+        unsettledPer: unsettledPer.get(c.id)?.per ?? null,
+        unsettledMixed: unsettledPer.get(c.id)?.mixed ?? false,
       })),
     });
   } catch (e) {

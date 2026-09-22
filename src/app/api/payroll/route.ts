@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
+import { sumByCurrency, toIqdEquivalent, parsePayType, type Currency } from "@/lib/money";
+import { getLiveRates } from "@/lib/fx";
 
 // ─── Phase 16: GET/POST /api/payroll ───────────────────────────
 // GET  ?periodId= → دورهٔ خواسته‌شده (پیش‌فرض: دورهٔ جاری + ensure خودکار)
@@ -76,15 +78,18 @@ async function loadPeriodDetail(periodId: string) {
   });
   if (!period) return null;
 
-  // مساعده‌های کسرنشدهٔ هر کارمند (برای hint فرم)
+  // مساعده‌های کسرنشدهٔ هر کارمند (برای hint فرم) — فاز ۲۵: به تفکیک ارز
   const userIds = period.entries.map((e) => e.userId);
   const pendingAdvances = await db.payrollAdvance.findMany({
     where: { userId: { in: userIds }, deductedPeriodId: null },
-    select: { userId: true, amount: true },
+    select: { userId: true, amount: true, currency: true },
   });
-  const pendingByUser = new Map<string, number>();
+  const pendingByUser = new Map<string, Record<Currency, number>>();
   for (const a of pendingAdvances) {
-    pendingByUser.set(a.userId, (pendingByUser.get(a.userId) ?? 0) + a.amount);
+    const cur = (a.currency === "USD" || a.currency === "IRT" ? a.currency : "IQD") as Currency;
+    const m = pendingByUser.get(a.userId) ?? { IQD: 0, USD: 0, IRT: 0 };
+    m[cur] += a.amount;
+    pendingByUser.set(a.userId, m);
   }
 
   const entries = period.entries.map((e) => ({
@@ -97,7 +102,10 @@ async function loadPeriodDetail(periodId: string) {
     modules: e.user.modules.map((m) => m.module),
     userBaseSalary: e.user.baseSalary ?? 0,
     status: e.status,
+    payType: e.payType, // فاز ۲۵: نوع پرداخت
+    currency: e.currency, // فاز ۲۵: ارز
     baseSalary: e.baseSalary,
+    daysWorked: e.daysWorked, // فاز ۲۵: روز کارشده
     overtimeHours: e.overtimeHours,
     overtimeRate: e.overtimeRate,
     bonus: e.bonus,
@@ -109,14 +117,26 @@ async function loadPeriodDetail(periodId: string) {
     note: e.note,
     paidAt: e.paidAt,
     costId: e.costId,
-    pendingAdvanceSum: pendingByUser.get(e.userId) ?? 0,
+    pendingAdvanceSum: pendingByUser.get(e.userId)?.IQD ?? 0, // سازگار (دینار)
+    pendingAdvanceSums: pendingByUser.get(e.userId) ?? { IQD: 0, USD: 0, IRT: 0 }, // فاز ۲۵
   }));
+
+  // ── فاز ۲۵: جمع تفکیکی به ارز + معادل دیناری (نرخ لحظه‌ای) ──
+  let rates = { USD_IQD: 1310, USD_IRT: 150000 };
+  try {
+    const live = await getLiveRates();
+    rates = { USD_IQD: live.USD_IQD, USD_IRT: live.USD_IRT };
+  } catch {}
+  const netPer = sumByCurrency(entries.map((e) => ({ amount: e.netPay, currency: e.currency })));
+  const paidPer = sumByCurrency(entries.filter((e) => e.status === "paid").map((e) => ({ amount: e.netPay, currency: e.currency })));
 
   const totals = entries.reduce(
     (acc, e) => {
-      const ot = e.overtimeHours * e.overtimeRate;
+      const pt = parsePayType(e.payType);
+      const ot = pt === "hourly" ? 0 : e.overtimeHours * e.overtimeRate;
+      const gross = pt === "daily" ? e.baseSalary * e.daysWorked : pt === "hourly" ? e.overtimeHours * e.overtimeRate : e.baseSalary;
       acc.count += 1;
-      acc.base += e.baseSalary;
+      acc.base += pt === "hourly" ? 0 : gross;
       acc.overtime += ot;
       acc.bonus += e.bonus;
       acc.deduction += e.deduction;
@@ -132,6 +152,9 @@ async function loadPeriodDetail(periodId: string) {
     },
     { count: 0, base: 0, overtime: 0, bonus: 0, deduction: 0, insurance: 0, tax: 0, advance: 0, net: 0, paidCount: 0, paidSum: 0 }
   );
+  // فاز ۲۵: جمع «هم‌ارز» (فقط وقتی همه یک ارز باشند معنادار است)
+  const netIqdEq = toIqdEquivalent(netPer, rates);
+  const paidIqdEq = toIqdEquivalent(paidPer, rates);
 
   return {
     id: period.id,
@@ -146,6 +169,12 @@ async function loadPeriodDetail(periodId: string) {
     entriesCount: period.entriesCount,
     entries,
     totals,
+    // ─── فاز ۲۵: جمع تفکیکی ارزی + معادل دیناری + نرخ لحظه‌ای ───
+    currencyTotals: {
+      net: { per: netPer, iqdEq: netIqdEq },
+      paid: { per: paidPer, iqdEq: paidIqdEq },
+      rates,
+    },
   };
 }
 
@@ -199,6 +228,7 @@ export async function GET(req: NextRequest) {
         name: a.user.name,
         modules: a.user.modules.map((m) => m.module),
         amount: a.amount,
+        currency: a.currency, // فاز ۲۵
         note: a.note,
         costId: a.costId,
         createdAt: a.createdAt,

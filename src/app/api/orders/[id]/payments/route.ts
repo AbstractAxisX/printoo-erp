@@ -5,6 +5,7 @@ import { canUserViewOrder } from "@/lib/access";
 import { applyPaidAmountChange, inferRevenueModule } from "@/lib/paid-sync";
 import { logOrderEvent, actorNameOf } from "@/lib/order-events";
 import { jsonError } from "@/lib/api-error";
+import { formatMoney } from "@/lib/money";
 
 // ─── Phase 15: درآمد سفارش — ثبت پرداخت با تفاضل هوشمند ─────────
 //
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         number: true,
         paidAmount: true,
         totalAmount: true,
+        currency: true,
         status: true,
         customerId: true,
         items: { select: { stage: true } },
@@ -133,7 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       actorId: user.id,
       actorName,
       title: "پرداخت مشتری ثبت شد",
-      description: `${result.diff >= 0 ? "دریافتی جدید" : "اصلاح کاهشی"}: ${Math.abs(result.diff).toLocaleString("en-US")} دینار — کل پرداخت‌شده: ${result.totalAfter.toLocaleString("en-US")} دینار`,
+      description: `${result.diff >= 0 ? "دریافتی جدید" : "اصلاح کاهشی"}: ${formatMoney(Math.abs(result.diff), order.currency)} — کل پرداخت‌شده: ${formatMoney(result.totalAfter, order.currency)}`,
       sensitive: true,
     });
 

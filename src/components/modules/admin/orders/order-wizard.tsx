@@ -24,6 +24,8 @@ import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/format";
+import { CurrencySelect, CurrencyChip } from "@/components/shared/fx-widgets";
+import { formatMoney, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 type ItemDraft = {
@@ -136,6 +138,8 @@ export function OrderWizardPage() {
 
   const [splitMode, setSplitMode] = React.useState<"grouped" | "separated">("grouped");
   const [priority, setPriority] = React.useState<"normal" | "urgent">("normal");
+  // ─── Phase 25: ارز کل سفارش — همهٔ مبالغ آیتم/فاکتور/پرداخت به این ارز ───
+  const [currency, setCurrency] = React.useState<"IQD" | "USD" | "IRT">("IQD");
   const [endDate, setEndDate] = React.useState("");
   const [noEndDate, setNoEndDate] = React.useState(false);
   const [note, setNote] = React.useState("");
@@ -297,6 +301,8 @@ export function OrderWizardPage() {
     // Step 3: timing
     setSplitMode((order.splitMode as "grouped" | "separated") ?? "grouped");
     setPriority((order.priority as "normal" | "urgent") ?? "normal");
+    const oc = (order as { currency?: string }).currency;
+    setCurrency(oc === "USD" || oc === "IRT" ? oc : "IQD"); // فاز ۲۵ (فقط نمایش — ویرایش ارز سفارش موجود مجاز نیست)
     setEndDate(order.endDate ? order.endDate.slice(0, 10) : "");
     setNoEndDate(!!order.noEndDate);
     setNote(order.note ?? "");
@@ -316,6 +322,7 @@ export function OrderWizardPage() {
     setItemsByCustomer({});
     setSplitMode("grouped");
     setPriority("normal");
+    setCurrency("IQD"); // فاز ۲۵
     setEndDate("");
     setNoEndDate(false);
     setNote("");
@@ -520,6 +527,7 @@ export function OrderWizardPage() {
         ),
         splitMode,
         priority,
+        currency, // فاز ۲۵: ارز کل سفارش
         endDate: noEndDate ? null : endDate || null,
         noEndDate,
         note: note || null,
@@ -816,6 +824,9 @@ export function OrderWizardPage() {
           deleteItem={deleteItem}
           productOptions={allProducts}
           allCustomers={allCustomers}
+          currency={currency}
+          setCurrency={setCurrency}
+          currencyLocked={isEditing}
         />
       )}
 
@@ -854,6 +865,7 @@ export function OrderWizardPage() {
           endDate={endDate}
           noEndDate={noEndDate}
           note={note}
+          currency={currency}
           needsDesign={needsDesign}
           needsPrint={needsPrint}
           isEditing={isEditing}
@@ -1154,6 +1166,7 @@ function CreateCustomerDialog({
 // ─── STEP 2: Order items ──────────────────────────────────────
 function Step2({
   customers, activeCustomer, setActiveCustomer, itemsByCustomer, addItem, updateItem, copyItem, deleteItem, productOptions, allCustomers,
+  currency, setCurrency, currencyLocked,
 }: {
   customers: string[];
   activeCustomer: string;
@@ -1165,6 +1178,9 @@ function Step2({
   deleteItem: (cid: string, itemId: string) => void;
   productOptions: { id: string; name: string; basePrice: number | null }[];
   allCustomers: Customer[];
+  currency: Currency; // فاز ۲۵
+  setCurrency: (c: Currency) => void;
+  currencyLocked?: boolean; // ویرایش سفارش موجود — ارز قفل
 }) {
   const cid = activeCustomer || customers[0] || "";
   const customer = allCustomers.find((c) => c.id === cid);
@@ -1208,9 +1224,18 @@ function Step2({
           <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="orders" size={20} /></div>
           <div><h2 className="font-semibold">آیتم‌های سفارش</h2><p className="text-xs text-muted-foreground">محصولات و جزئیات هر آیتم</p></div>
         </div>
-        <button onClick={() => setProductModal(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
-          <Icon name="plus" size={14} /> محصول جدید
-        </button>
+        <div className="flex items-center gap-2">
+          {/* فاز ۲۵: ارز کل سفارش — همهٔ قیمت‌ها به این ارز */}
+          <div className="flex flex-col items-end gap-1">
+            <CurrencySelect value={currency} onChange={(c) => setCurrency(c)} disabled={currencyLocked} />
+            <span className="text-[10px] text-muted-foreground">
+              {currencyLocked ? "ارز سفارش ثبت‌شده — قابل تغییر نیست" : "ارز همهٔ مبالغ این سفارش"}
+            </span>
+          </div>
+          <button onClick={() => setProductModal(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
+            <Icon name="plus" size={14} /> محصول جدید
+          </button>
+        </div>
       </div>
 
       {customers.length > 1 && (
@@ -1249,6 +1274,7 @@ function Step2({
               index={idx}
               item={it}
               productOptions={productOptions}
+              currency={currency}
               onUpdate={(patch) => updateItem(cid, it.id, patch)}
               onCopy={() => copyItem(cid, it.id)}
               onDelete={() => deleteItem(cid, it.id)}
@@ -1261,7 +1287,7 @@ function Step2({
       {items.length > 0 && (
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addItem(cid)}><Icon name="plus" size={14} /> افزودن آیتم جدید</Button>
-          <div className="text-sm"><span className="text-muted-foreground">مجموع: </span><span className="font-bold" dir="ltr">{formatCurrency(total)}</span></div>
+          <div className="text-sm"><span className="text-muted-foreground">مجموع: </span><span className="font-bold" dir="ltr">{formatMoney(total, currency)}</span></div>
         </div>
       )}
 
@@ -1296,16 +1322,18 @@ function Step2({
 }
 
 function ItemRow({
-  index, item, productOptions, onUpdate, onCopy, onDelete, onNote,
+  index, item, productOptions, onUpdate, onCopy, onDelete, onNote, currency,
 }: {
   index: number;
   item: ItemDraft;
   productOptions: { id: string; name: string; basePrice: number | null }[];
+  currency?: Currency; // فاز ۲۵: ارز سفارش
   onUpdate: (patch: Partial<ItemDraft>) => void;
   onCopy: () => void;
   onDelete: () => void;
   onNote: () => void;
 }) {
+  const cur = currency ?? "IQD";
   const total = item.quantity * item.pricePerUnit;
   return (
     <div className="rounded-xl border bg-card p-3 space-y-3 hover:shadow-sm transition">
@@ -1327,7 +1355,7 @@ function ItemRow({
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-sm font-bold tabular-nums" dir="ltr">{formatCurrency(total)}</span>
+          <span className="text-sm font-bold tabular-nums" dir="ltr">{formatMoney(total, cur)}</span>
           <Button variant="ghost" size="icon" className="size-8" onClick={onNote} title="یادداشت آیتم"><Icon name="info" size={15} /></Button>
           <Button variant="ghost" size="icon" className="size-8" onClick={onCopy} title="کپی آیتم"><Icon name="copy" size={15} /></Button>
           <Button variant="ghost" size="icon" className="size-8 text-rose-600 hover:text-rose-700" onClick={onDelete} title="حذف آیتم"><Icon name="trash" size={15} /></Button>
@@ -1355,7 +1383,7 @@ function ItemRow({
           <Input type="number" min={1} value={item.quantity} onChange={(e) => onUpdate({ quantity: Math.max(1, Number(e.target.value)) })} className="text-center" dir="ltr" />
         </Field>
 
-        <Field label="قیمت واحد (IQD)" required className="col-span-1 md:col-span-3">
+        <Field label={`قیمت واحد (${cur === "IRT" ? "تومان" : cur})`} required className="col-span-1 md:col-span-3">
           <Input type="number" min={0} value={item.pricePerUnit || ""} placeholder="—" onChange={(e) => onUpdate({ pricePerUnit: Number(e.target.value) || 0 })} className="text-center" dir="ltr" />
         </Field>
 
@@ -1373,7 +1401,7 @@ function ItemRow({
         </Field>
 
         <Field label="جمع کل" className="col-span-2 md:col-span-3">
-          <Input readOnly tabIndex={-1} value={formatCurrency(total)} dir="ltr"
+          <Input readOnly tabIndex={-1} value={formatMoney(total, cur)} dir="ltr"
             className="text-center font-bold bg-transparent cursor-default focus-visible:ring-0" />
         </Field>
 
@@ -1882,6 +1910,7 @@ function Step4(props: {
   endDate: string;
   noEndDate: boolean;
   note: string;
+  currency?: Currency; // فاز ۲۵
   needsDesign: boolean;
   needsPrint: boolean;
   isEditing: boolean;
@@ -1893,7 +1922,7 @@ function Step4(props: {
 }) {
   const {
     customers, itemsByCustomer, allCustomers, splitMode, priority, endDate, noEndDate,
-    note, needsDesign, needsPrint, isEditing, designerName, printerName, designerUsers, printerUsers,
+    note, currency, needsDesign, needsPrint, isEditing, designerName, printerName, designerUsers, printerUsers,
   } = props;
   const [tab, setTab] = React.useState(customers[0] ?? "");
   const activeCid = tab || customers[0] || "";
@@ -2060,7 +2089,7 @@ function Step4(props: {
               })}
             </div>
           )}
-          <CustomerReviewTable cid={activeCid} items={activeItems} />
+          <CustomerReviewTable cid={activeCid} items={activeItems} currency={currency} />
         </div>
       </section>
 
@@ -2169,7 +2198,8 @@ function fmtShort(iso: string) {
 }
 function fmtNum(n: number) { return n.toLocaleString("en-US"); }
 
-function CustomerReviewTable({ cid, items }: { cid: string; items: ItemDraft[] }) {
+function CustomerReviewTable({ cid, items, currency }: { cid: string; items: ItemDraft[]; currency?: Currency }) {
+  const cur = currency ?? "IQD";
   const total = items.reduce((s, i) => s + i.quantity * i.pricePerUnit, 0);
   return (
     <div className="rounded-lg border overflow-hidden">
@@ -2190,8 +2220,8 @@ function CustomerReviewTable({ cid, items }: { cid: string; items: ItemDraft[] }
                 {it.needsMaterial && <span className="mr-1.5 text-[10px] text-amber-600">(نیازمند متریال)</span>}
               </td>
               <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{it.quantity}</td>
-              <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatCurrency(it.pricePerUnit)}</td>
-              <td className="px-2 py-2 text-center font-semibold tabular-nums" dir="ltr">{formatCurrency(it.quantity * it.pricePerUnit)}</td>
+              <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatMoney(it.pricePerUnit, cur)}</td>
+              <td className="px-2 py-2 text-center font-semibold tabular-nums" dir="ltr">{formatMoney(it.quantity * it.pricePerUnit, cur)}</td>
               <td className="px-2 py-2 text-center"><span className="text-xs rounded bg-muted px-1.5 py-0.5">{STAGES.find((s) => s.value === it.stage)?.label}</span></td>
             </tr>
           ))}
@@ -2199,7 +2229,7 @@ function CustomerReviewTable({ cid, items }: { cid: string; items: ItemDraft[] }
         <tfoot>
           <tr className="bg-muted/30 font-semibold">
             <td colSpan={3} className="px-3 py-2 text-left">مجموع کل {items.length > 1 ? `(${fmtNum(items.length)} قلم)` : ""}:</td>
-            <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatCurrency(total)}</td>
+            <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatMoney(total, cur)}</td>
             <td />
           </tr>
         </tfoot>

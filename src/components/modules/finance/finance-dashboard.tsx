@@ -22,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeRangePicker } from "@/components/ui/time-range-picker";
 import { CostEntryForm } from "@/components/shared/cost-entry-form";
+import { FxRatesPanel } from "@/components/shared/fx-widgets";
 import { getPreset, type TimeRange } from "@/lib/time-ranges";
 import { formatCurrency } from "@/lib/format";
+import { formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -37,8 +39,17 @@ type Summary = {
   netProfit: number;
   unsettledSum: number;
   unsettledCount: number;
-  freeByCategory: { id: string | null; name: string; sum: number; count: number }[];
-  costsByModule: { module: string; sum: number; count: number }[];
+  freeByCategory: { id: string | null; name: string; sum: number; count: number; sums?: { per: Record<string, number>; iqdEq: number } }[];
+  costsByModule: { module: string; sum: number; count: number; sums?: { per: Record<string, number>; iqdEq: number } }[];
+  // ─── فاز ۲۵: جمع تفکیکی ارزی + معادل دیناری ───
+  sums?: {
+    pending: { per: Record<string, number>; iqdEq: number };
+    costs: { per: Record<string, number>; iqdEq: number };
+    revenue: { per: Record<string, number>; iqdEq: number };
+    unsettled: { per: Record<string, number>; iqdEq: number };
+    netProfitIqd: number;
+    rates: { USD_IQD: number; USD_IRT: number };
+  };
 };
 
 type ExpenseType = { id: string; name: string; isDefault: boolean };
@@ -67,7 +78,7 @@ const KPI_COLORS: Record<
   teal: { bg: "bg-teal-500/10", text: "text-teal-600 dark:text-teal-400", ring: "ring-teal-500/20" },
 };
 
-function KpiCard({ def, rangeLabel }: { def: KpiDef; rangeLabel: string }) {
+function KpiCard({ def, rangeLabel, valueText }: { def: KpiDef; rangeLabel: string; valueText?: string }) {
   const c = KPI_COLORS[def.color];
   return (
     <Card
@@ -99,7 +110,7 @@ function KpiCard({ def, rangeLabel }: { def: KpiDef; rangeLabel: string }) {
         )}
       </div>
       <div className="text-2xl font-bold tabular-nums mt-2.5" dir="ltr">
-        {def.isAmount ? formatCurrency(def.value) : def.value.toLocaleString("en-US")}
+        {valueText ?? (def.isAmount ? formatCurrency(def.value) : def.value.toLocaleString("en-US"))}
       </div>
       <div className="text-xs font-medium text-muted-foreground mt-1">{def.label}</div>
       <div className="text-[10px] text-muted-foreground/70 mt-1.5 pt-1.5 border-t">
@@ -142,6 +153,15 @@ export function FinanceDashboard() {
 
   const s: Partial<Summary> = summary ?? {};
 
+  // ── فاز ۲۵: نمایش تفکیکی وقتی داده‌های چند-ارزی هستند ──
+  const sum = s.sums;
+  const isMixed = (per?: Record<string, number>) =>
+    !!per && (["IQD", "USD", "IRT"] as Currency[]).filter((c) => (per[c] ?? 0) > 0.0001).length > 1;
+  const sumByCur = (per?: Record<string, number>) =>
+    ({ IQD: per?.IQD ?? 0, USD: per?.USD ?? 0, IRT: per?.IRT ?? 0 }) as Record<Currency, number>;
+  const kpiValue = (per: Record<string, number> | undefined, fallback: number) =>
+    isMixed(per) ? formatSumPerCurrency(sumByCur(per)) : formatCurrency(fallback);
+
   const kpis: KpiDef[] = [
     {
       key: "pending",
@@ -149,7 +169,9 @@ export function FinanceDashboard() {
       icon: "clock",
       color: "amber",
       value: s.pendingCount ?? 0,
-      hint: `Σ ${formatCurrency(s.pendingSum ?? 0)}`,
+      hint: isMixed(sum?.pending.per)
+        ? `Σ ${formatSumPerCurrency(sumByCur(sum!.pending.per))}`
+        : `Σ ${formatCurrency(s.pendingSum ?? 0)}`,
       onClick: () => {
         setBoardFilter("finance", "pending");
         navigate("finance", "costs");
@@ -162,7 +184,7 @@ export function FinanceDashboard() {
       color: "rose",
       value: s.costSum ?? 0,
       isAmount: true,
-      hint: "هزینه‌های تأییدشده",
+      hint: isMixed(sum?.costs.per) ? "چند-ارزی — تفکیک زیر عدد" : "هزینه‌های تأییدشده",
       onClick: () => {
         setBoardFilter("finance", "all-costs");
         navigate("finance", "costs");
@@ -175,7 +197,7 @@ export function FinanceDashboard() {
       color: "emerald",
       value: s.revenueSum ?? 0,
       isAmount: true,
-      hint: "پولی که هزینه‌ها رویش حساب نشده",
+      hint: isMixed(sum?.revenue.per) ? "چند-ارزی — تفکیک زیر عدد" : "پولی که هزینه‌ها رویش حساب نشده",
       onClick: () => navigate("finance", "revenues"),
     },
     {
@@ -185,7 +207,7 @@ export function FinanceDashboard() {
       color: "teal",
       value: s.netProfit ?? 0,
       isAmount: true,
-      hint: "دریافتی − هزینه",
+      hint: `دریافتی − هزینه${sum ? " (معادل دیناری)" : ""}`,
     },
     {
       key: "unsettled",
@@ -194,10 +216,18 @@ export function FinanceDashboard() {
       color: "violet",
       value: s.unsettledSum ?? 0,
       isAmount: true,
-      hint: `${(s.unsettledCount ?? 0).toLocaleString("en-US")} سفارش با مانده`,
+      hint: `${(s.unsettledCount ?? 0).toLocaleString("en-US")} سفارش با مانده${isMixed(sum?.unsettled.per) ? " — تفکیک زیر عدد" : ""}`,
       onClick: () => navigate("finance", "unsettled"),
     },
   ];
+
+  // فاز ۲۵: متن ارزش کارت — چند-ارزی → تفکیکی؛ تک‌ارز → عدد دیناری
+  const kpiTexts: Record<string, string> = {
+    costs: kpiValue(sum?.costs.per, s.costSum ?? 0),
+    revenue: kpiValue(sum?.revenue.per, s.revenueSum ?? 0),
+    profit: formatCurrency(s.netProfit ?? 0),
+    unsettled: kpiValue(sum?.unsettled.per, s.unsettledSum ?? 0),
+  };
 
   // دسته‌ها: merge لیست کامل + آمار بازه (دسته‌های بدون هزینه هم دیده شوند)
   const categories = React.useMemo(() => {
@@ -207,6 +237,7 @@ export function FinanceDashboard() {
       ...t,
       sum: stats.get(t.id)?.sum ?? 0,
       count: stats.get(t.id)?.count ?? 0,
+      sums: stats.get(t.id)?.sums, // فاز ۲۵: تفکیک ارزی
     }));
   }, [typesData, s.freeByCategory]);
 
@@ -252,12 +283,15 @@ export function FinanceDashboard() {
         </div>
       } />
 
-      {/* اوورویو — 5 کارت فیلتردار */}
+      {/* اوورویو — 5 کارت فیلتردار (فاز ۲۵: ارزش چند-ارزی تفکیکی) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k) => (
-          <KpiCard key={k.key} def={k} rangeLabel={rangeLabel} />
+          <KpiCard key={k.key} def={k} rangeLabel={rangeLabel} valueText={kpiTexts[k.key]} />
         ))}
       </div>
+
+      {/* فاز ۲۵: پنل نرخ لحظه‌ای سه‌ارزه — مبنای همهٔ تبدیل‌های مالی */}
+      <FxRatesPanel />
 
       {/* ثبت هزینه جدید — دو حالت */}
       <Card className="p-0 overflow-hidden">
@@ -411,6 +445,11 @@ export function FinanceDashboard() {
                 </div>
                 <div className="text-lg font-bold tabular-nums mt-2" dir="ltr">
                   {formatCurrency(cat.sum)}
+                  {cat.sums && isMixed(cat.sums.per) && (
+                    <div className="text-[10px] font-semibold text-muted-foreground mt-1 whitespace-nowrap" dir="ltr">
+                      {formatSumPerCurrency(sumByCur(cat.sums.per))}
+                    </div>
+                  )}
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
                   {cat.count.toLocaleString("en-US")} ثبت در {rangeLabel}

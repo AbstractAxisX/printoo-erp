@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
       select: {
         id: true,
         customerId: true,
+        currency: true, // Phase 25: ارز سند = ارز سفارش
         items: {
           where: itemId ? { id: itemId } : undefined,
           include: { product: true },
@@ -204,6 +205,7 @@ export async function POST(req: NextRequest) {
           number: num,
           orderId,
           customerId: customerId || order.customerId,
+          currency: order.currency, // Phase 25: ارز سند = ارز سفارش
           itemId: itemId || null,
           status: status || "draft",
           validUntil,

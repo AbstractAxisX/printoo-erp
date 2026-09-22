@@ -17,6 +17,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { TimeRangePicker } from "@/components/ui/time-range-picker";
 import { getPreset, type TimeRange } from "@/lib/time-ranges";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { CurrencyChip } from "@/components/shared/fx-widgets";
+import { formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -26,6 +28,7 @@ type RevenueLog = {
   id: string;
   orderId: string;
   amount: number;
+  currency?: string; // فاز ۲۵
   totalAfter: number;
   module: string;
   method: string | null;
@@ -63,16 +66,22 @@ export function FinanceRevenues() {
   const [range, setRange] = React.useState<TimeRange>(() => getPreset("this-month"));
   const [module, setModule] = React.useState<string>("");
   const [q, setQ] = React.useState("");
+  // ── فاز ۲۵: فیلتر ارزی دفتر درآمد ──
+  const [currencyFilter, setCurrencyFilter] = React.useState<"" | Currency>("");
 
   const params = new URLSearchParams({
     from: range.from.toISOString(),
     to: range.to.toISOString(),
   });
   if (module) params.set("module", module);
+  if (currencyFilter) params.set("currency", currencyFilter); // فاز ۲۵
 
   const { data, isLoading } = useQuery({
     queryKey: ["revenues", params.toString()],
-    queryFn: () => api<{ logs: RevenueLog[] }>(`/api/revenues?${params.toString()}`),
+    queryFn: () =>
+      api<{ logs: RevenueLog[]; sums?: { per: Record<string, number>; iqdEquivalent: number } }>(
+        `/api/revenues?${params.toString()}`
+      ),
     refetchInterval: 60_000,
   });
 
@@ -89,8 +98,12 @@ export function FinanceRevenues() {
     );
   }, [data, q]);
 
+  // ── فاز ۲۵: جمع تفکیکی ارزی (دیتای سرور بعد از فیلتر ارزی) ──
+  const revenuePer = sumByCurrency(logs.map((l) => ({ amount: Math.abs(l.amount), currency: l.currency })));
+  const revenueMixed = (["IQD", "USD", "IRT"] as Currency[]).filter((c) => revenuePer[c] > 0.0001).length > 1;
   const totalRevenue = logs.reduce((s, l) => s + l.amount, 0);
   const positiveCount = logs.filter((l) => l.amount > 0).length;
+  const iqdEq = (data as { sums?: { iqdEquivalent: number } } | undefined)?.sums?.iqdEquivalent ?? 0;
 
   const columns = React.useMemo<ColumnDef<RevenueLog>[]>(
     () => [
@@ -134,7 +147,8 @@ export function FinanceRevenues() {
             >
               {a > 0 ? <Icon name="arrowUp" size={11} /> : <Icon name="arrowDown" size={11} />}
               {a > 0 ? "+" : "−"}
-              {formatCurrency(Math.abs(a))}
+              {formatMoney(Math.abs(a), row.original.currency)}
+              <CurrencyChip currency={row.original.currency} />
             </span>
           );
         },
@@ -144,8 +158,8 @@ export function FinanceRevenues() {
         header: "کل پرداخت‌شده",
         meta: { align: "end" },
         cell: ({ row }) => (
-          <span className="font-medium tabular-nums text-muted-foreground" dir="ltr">
-            {formatCurrency(row.original.totalAfter)}
+          <span className="font-medium tabular-nums text-muted-foreground inline-flex items-center gap-1.5" dir="ltr">
+            {formatMoney(row.original.totalAfter, row.original.currency)}
           </span>
         ),
       },
@@ -216,8 +230,15 @@ export function FinanceRevenues() {
             مجموع دریافتی ({range.label})
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
-            {formatCurrency(totalRevenue)}
+            {revenueMixed
+              ? formatSumPerCurrency(revenuePer)
+              : formatCurrency(totalRevenue)}
           </div>
+          {revenueMixed && iqdEq > 0 && (
+            <div className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">
+              ≈ {formatCurrency(iqdEq)} IQD (نرخ لحظه‌ای)
+            </div>
+          )}
         </Card>
         <Card className="p-3.5 ring-1 ring-emerald-500/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
@@ -272,6 +293,25 @@ export function FinanceRevenues() {
               )}
             >
               {m.label}
+            </button>
+          ))}
+        </div>
+        {/* فاز ۲۵: فیلتر ارزی — فقط دینار / فقط دلار / فقط تومان */}
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="ارز">
+          {(["", "IQD", "USD", "IRT"] as const).map((c) => (
+            <button
+              key={c || "all"}
+              role="radio"
+              aria-checked={currencyFilter === c}
+              onClick={() => setCurrencyFilter(c)}
+              className={cn(
+                "inline-flex items-center rounded-md px-2.5 py-1.5 text-xs font-medium transition",
+                currencyFilter === c
+                  ? "bg-background text-foreground shadow-sm border"
+                  : "text-muted-foreground hover:bg-background/60"
+              )}
+            >
+              {c === "" ? "همه ارزها" : c === "IQD" ? "دینار" : c === "USD" ? "دلار" : "تومان"}
             </button>
           ))}
         </div>

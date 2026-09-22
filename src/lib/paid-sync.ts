@@ -98,7 +98,7 @@ export async function applyPaidAmountChange(
   const clamped = Math.max(0, Math.round(args.newPaid * 100) / 100);
   const order = await tx.order.findUnique({
     where: { id: args.orderId },
-    select: { paidAmount: true },
+    select: { paidAmount: true, currency: true },
   });
   const current = order?.paidAmount ?? 0;
   const diff = Math.round((clamped - current) * 100) / 100;
@@ -114,6 +114,7 @@ export async function applyPaidAmountChange(
         data: {
           orderId: args.orderId,
           amount: diff,
+          currency: order?.currency ?? "IQD", // فاز ۲۵: ارز دریافتی = ارز سفارش
           totalAfter: clamped,
           module: args.actor.module,
           method: args.actor.method ?? null,

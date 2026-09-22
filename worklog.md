@@ -4394,3 +4394,26 @@ Work Log:
 
 Stage Summary:
 - فاز ۲۴ + تغییرات ظاهری کارفرما روی production فعال است (http://187.124.27.96:3000) — هر ۷ خواسته live. دیتای واقعی دست‌نخورده (بکاپ phase24 + snapshot + diff صفر). Docker دست‌نخورده. بکاپ ۳ساعته timer همچنان فعال (آخرین اجرا امروز 17:30 UTC).
+
+---
+Task ID: PHASE-25-SANDBOX
+Agent: main orchestrator (session 6 — ادامه)
+Task: فاز ۲۵ — سیستم چندارزی کل سایت (دینار/دلار/تومان + نرخ لحظه‌ای) + بازطراحی حقوق‌ودستمزد به فرم ساده و شناور — در سندباکس، آمادهٔ دیپلوی
+
+Work Log:
+- الزام کارفرما اجرا شد: پروژه با دیتای واقعی در محیط کدنویسی لود + پریویو فعال (سرور dev روی :3000).
+- زیرساخت (جلسهٔ قبل نیمه‌کاره، اینجا تکمیل و به کل سیستم وصل شد):
+  ۱) lib/money.ts — هستهٔ چندارزی IQD/USD/IRT: parseCurrency/roundMoney/formatMoney/convertMoney (محور دلار)/sumByCurrency/toIqdEquivalent/formatSumPerCurrency + PAY_TYPES (ماهانه/روزانه/ساعتی/موردی-عشقی) + iqdPerIrt (مبنای ۱۰۰۰ تومان).
+  ۲) lib/fx.ts — نرخ لحظه‌ای: open.er-api.com (روزانه، IQD+IRR)، کش تاریخچه‌ای در FxRate (هر fetch یک ردیف)، lazy refresh ۱ساعته، سیید اضطراری fallback، setManualRates (مالی/مستر).
+  ۳) /api/fx GET/POST — نرخ + منبع + سن + canEdit؛ POST نرخ دستی فقط مالی/مستر (403 دیگران).
+  ۴) fx-widgets.tsx — useFxRates (react-query ۱۵دق) + CurrencySelect (سگمنت سه‌گزینه‌ای) + CurrencyChip + FxBar + FxRatesPanel (پنل کامل + ویرایش دستی).
+- سرور: ارز روی همهٔ مالی‌ها — MaterialCost (فیلتر ?currency= + sums تفکیکی + iqdEquivalent در GET؛ currency در POST؛ هزینهٔ فاکتوری با تبدیل لحظه‌ای به ارز سفارش + ثبت نرخ در رویداد)؛ Order (POST currency + GET فیلتر ارزی)؛ paid-sync (RevenueLog.currency=ارز سفارش)؛ payments (پیام رویداد ارزی)؛ finance/summary بازنویسی کامل (sums: costs/revenue/pending/unsettled تفکیکی + netProfitIqd + نرخ؛ فیلدهای مسطح = معادل دیناری)؛ revenues (فیلتر ارزی + sums)؛ payroll (payType/currency/daysWorked سریالایز + currencyTotals + مساعده‌های pending به تفکیک ارز)؛ payroll/entries PUT (payType+currency+daysWorked؛ سقف مساعدهٔ هم‌ارز؛ updateContract فقط monthly)؛ payroll-pay (سند هزینه با ارز + بریک‌داون نوع‌پرداخت؛ کسر FIFO هم‌ارز؛ snapshot دوره = معادل دیناری)؛ payroll/advances (ارز مساعده + سند + نوتیف)؛ customers (unsettledPer + unsettledMixed؛ unsettled = معادل دیناری لحظه‌ای — customer-debt.ts بازنویسی).
+- فرم‌ها: CostEntryForm (CurrencySelect per-row + جمع formatSumPerCurrency + هشدار تبدیل هزینهٔ فاکتوری)؛ ویزارد (CurrencySelect در Step2 — ارز کل سفارش، قفل در ویرایش؛ ItemRow/CustomerReviewTable formatMoney)؛ payroll-page (بازطراحی شناور: PayTypeSelect چهارتایی + CurrencySelect در هر ردیف؛ فیلد «مبلغ اصلی» contextual — روزانه=نرخ×روز/ساعتی=ساعت×نرخ/موردی=مبلغ آزاد؛ computeNet آینهٔ سرور؛ جمع‌ها و دیالوگ‌ها ارزی؛ مساعده هم‌ارز + فرم ثبت ارزی)؛ payroll-simple-page (چیپ نوع+ارز + liveNet شناور + جمع تفکیکی).
+- چاپ: p24-doc (currency + fx + conversionNote روی P24Doc/P24StatementDoc؛ FxStrip «LIVE/MANUAL EXCHANGE RATE» زیر سربرگ همهٔ اسناد؛ SummaryBlock/آیتم‌ها fmtCur)؛ PrintCurrencyGate جدید — دیالوگ «با کدام ارز چاپ؟» با نرخ زنده + پیش‌نمایش تبدیل سه‌ارزه؛ DocPrintButtons onRequest؛ pre-invoice-modal + invoice-views (گیت + تبدیل لحظه‌ای اقلام/جمع‌ها + conversionNote «Converted from X to Y… Original total…»)؛ customer-360 statement (ردیف‌ها و جمع معادل دیناری + نرخ + conversionNote چند-ارزی).
+- مانیتورینگ: داشبورد مالی (FxRatesPanel + KPIهای تفکیکی + کارت دسته‌های تفکیکی)؛ هزینه‌ها (فیلتر ارزی ۴گزینه‌ای + بج ارز ردیف‌ها + جمع تفکیکی/معادل)؛ درآمدها (فیلتر ارزی + بج + جمع تفکیکی)؛ بستانکار (بج ارز + جمع تفکیکی/معادل)؛ جدول سفارش ادمین (بج ارز غیر-IQD)؛ چیپ ماندهٔ مشتری (تفکیکی + IQD-eq).
+- تست: scripts/test-phase25.mjs — ۴۷/۴۷ سبز (نرخ auto از er-api واقعی 1312 IQD؛ نرخ دستی حاکم؛ هزینه USD + فیلتر + sums؛ سفارش IRT + پیش‌فاکتور هم‌ارز + RevenueLog.IRT؛ خلاصهٔ تفکیکی؛ روزانه 50000×12=600000 ✓ ساعتی 8×2000=16000 ✓ موردی 300000 ✓ ماهانه 670000 ✓؛ مساعده USD + سند هم‌ارز + سقف هم‌ارز 400؛ قرارداد فقط monthly؛ unsettledPer + معادل دیناری واقعی)؛ regression: phase24 33/33 (یک رقم فارسی بقایای تست فاز۲۲ بود — پاک شد)، phase22 ✓.
+- QC مرورگر زنده: لاگین؛ داشبورد مالی — پنل «نرخ لحظه‌ای ارز» با ۳ نرخ + ثبت دستی؛ صفحه حقوق — ستون «نوع پرداخت + ارز» با ماهانه/روزانه/ساعتی/موردی(عشقی) + دینار/دلار/تومان + خالص ارزی؛ ویزارد Step2 — CurrencySelect «ارز همهٔ مبالغ این سفارش»؛ مودال پیش‌فاکتور — نوار LIVE EXCHANGE RATE روی سند + گیت «چاپ پیش‌فاکتور با کدام ارز؟» با پیش‌نمایش (15000 IQD = 11.43 USD = 1,712,184 تومان) → انتخاب دلار → سند کامل USD (11.43 TOTAL/BALANCE + یادداشت Converted…Original total: 15,000 IQD). صفر خطای کنسول.
+- پاک‌سازی دیتای تستی کامل (بقایای ۳ اجرای شکسته هم پاک شد؛ دیتابیس به حالت اولیه: user=12, customer=13, order=18, materialCost=24).
+
+Stage Summary:
+- کل خواستهٔ فاز ۲۵ در سندباکس کامل و live: مبنای دینار + سه‌ارز همه‌جا، API نرخ لحظه‌ای (خودکار + دستی)، نرخ بالای همهٔ فاکتور/پیش‌فاکتور/صورت‌حساب، گیت انتخاب ارز قبل چاپ با تبدیل و رند لحظه‌ای، فیلترهای ارزی + جمع تفکیکی + معادل دیناری + پنل نرخ در مالی، فرم هزینه/ویزارد/مساعده ارزی، حقوق شناور ۴نوع×۳ارز. آمادهٔ دیپلوی روی سرور (پروتکل ایمن فاز ۲۴: بکاپ → تاربال سورس → prisma generate + db push افزایشی (currency/payType/daysWorked/FxRate) → build → restart → راستی‌آزمایی).

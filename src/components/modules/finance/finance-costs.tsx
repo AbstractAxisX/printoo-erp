@@ -24,6 +24,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { CostEntryForm } from "@/components/shared/cost-entry-form";
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatCurrency, formatDateTime } from "@/lib/format";
+import { CurrencyChip } from "@/components/shared/fx-widgets";
+import { formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -34,6 +36,7 @@ type MaterialCost = {
   orderId: string | null;
   title: string | null;
   amount: number;
+  currency?: string; // فاز ۲۵
   description: string | null;
   status: string;
   module: string;
@@ -135,6 +138,8 @@ export function FinanceCosts() {
   const [dateTo, setDateTo] = React.useState<Date | null>(null);
   const [groupByOrder, setGroupByOrder] = React.useState(false);
   const [showFilters, setShowFilters] = React.useState(false);
+  // ── فاز ۲۵: فیلتر ارزی (فقط دینار / فقط دلار / فقط تومان / همه) ──
+  const [currencyFilter, setCurrencyFilter] = React.useState<"" | Currency>("");
 
   // مصرف boardFilter از داشبورد (یک‌بار مصرف)
   React.useEffect(() => {
@@ -161,6 +166,7 @@ export function FinanceCosts() {
   if (scope !== "all") params.set("scope", scope);
   if (dateFrom) params.set("from", dateFrom.toISOString());
   if (dateTo) params.set("to", dateTo.toISOString());
+  if (currencyFilter) params.set("currency", currencyFilter); // فاز ۲۵
 
   const { data: costsData, isLoading } = useQuery({
     queryKey: ["material-costs", "history", params.toString()],
@@ -212,9 +218,12 @@ export function FinanceCosts() {
     });
   }, [filtered]);
 
-  // جمع‌ها
+  // جمع‌ها — فاز ۲۵: تفکیک ارزی + معادل دیناری از پاسخ سرور
+  const sums = (costsData as { sums?: { per: Record<string, number>; iqdEquivalent: number } } | undefined)?.sums;
   const sumOf = (st: string) =>
     allCosts.filter((c) => c.status === st).reduce((s, c) => s + c.amount, 0);
+  const filteredPer = sumByCurrency(filtered.map((c) => ({ amount: c.amount, currency: c.currency })));
+  const filteredMixed = (["IQD", "USD", "IRT"] as Currency[]).filter((c) => filteredPer[c] > 0.0001).length > 1;
 
   const { openCost, modal } = useCostDetail();
 
@@ -315,8 +324,9 @@ export function FinanceCosts() {
         header: "مبلغ",
         meta: { align: "end" },
         cell: ({ row }) => (
-          <span className="font-semibold tabular-nums" dir="ltr">
-            {formatCurrency(row.original.amount)}
+          <span className="font-semibold tabular-nums inline-flex items-center gap-1.5" dir="ltr">
+            {formatMoney(row.original.amount, row.original.currency)}
+            <CurrencyChip currency={row.original.currency} />
           </span>
         ),
       },
@@ -342,7 +352,8 @@ export function FinanceCosts() {
     (scope !== "all" ? 1 : 0) +
     (categoryId ? 1 : 0) +
     (dateFrom ? 1 : 0) +
-    (dateTo ? 1 : 0);
+    (dateTo ? 1 : 0) +
+    (currencyFilter ? 1 : 0); // فاز ۲۵
 
   const toggleIn = (set: Set<string>, val: string) => {
     const next = new Set(set);
@@ -467,8 +478,15 @@ export function FinanceCosts() {
             مجموع (فیلتر جاری)
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
-            {formatCurrency(filtered.reduce((s, c) => s + c.amount, 0))}
+            {filteredMixed
+              ? formatSumPerCurrency(filteredPer)
+              : formatCurrency(filtered.reduce((s, c) => s + c.amount, 0))}
           </div>
+          {filteredMixed && sums?.iqdEquivalent ? (
+            <div className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">
+              ≈ {formatCurrency(sums.iqdEquivalent)} IQD
+            </div>
+          ) : null}
           <div className="text-[10px] text-muted-foreground mt-0.5">
             {filtered.length.toLocaleString("en-US")} مورد
           </div>
@@ -505,6 +523,25 @@ export function FinanceCosts() {
                 )}
               >
                 {s.label}
+              </button>
+            ))}
+          </div>
+          {/* فاز ۲۵: فیلتر ارزی — همه / دینار / دلار / تومان */}
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="ارز">
+            {(["", "IQD", "USD", "IRT"] as const).map((c) => (
+              <button
+                key={c || "all"}
+                role="radio"
+                aria-checked={currencyFilter === c}
+                onClick={() => setCurrencyFilter(c)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition",
+                  currencyFilter === c
+                    ? "bg-background text-foreground shadow-sm border"
+                    : "text-muted-foreground hover:bg-background/60"
+                )}
+              >
+                {c === "" ? "همه ارزها" : c === "IQD" ? "دینار" : c === "USD" ? "دلار" : "تومان"}
               </button>
             ))}
           </div>

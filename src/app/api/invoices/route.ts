@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     const order = await db.order.findUnique({
       where: { id: orderId },
-      select: { id: true, customerId: true, status: true, number: true, giftAmount: true },
+      select: { id: true, customerId: true, status: true, number: true, giftAmount: true, currency: true },
     });
     if (!order) {
       return NextResponse.json(
@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
           number: num,
           orderId,
           customerId: customerId || order.customerId,
+          currency: order.currency, // Phase 25: ارز سند = ارز سفارش
           status: initialStatus,
           items: JSON.stringify(computed.items),
           subtotal: computed.subtotal,

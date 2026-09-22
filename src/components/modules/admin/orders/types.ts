@@ -34,6 +34,7 @@ export type Order = {
   noEndDate: boolean;
   totalAmount: number;
   paidAmount?: number;
+  currency?: string; // فاز ۲۵: ارز سفارش
   priority: string;
   splitMode: string;
   note: string | null;

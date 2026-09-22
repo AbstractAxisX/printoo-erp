@@ -10,11 +10,24 @@ import { printElementClean, downloadElementAsPdf } from "@/lib/print-doc";
  * دکمه‌های چاپ + دانلود PDF سند — یکدست برای فاکتور/پیش‌فاکتور/صورت‌حساب.
  * fileName «بدون» پسوند است؛ هم عنوان پنجرهٔ چاپ (نام پیش‌فرض Save as PDF
  * مرورگر) و هم نام فایل دانلودی از همین ساخته می‌شود.
+ * فاز ۲۵: onRequest → دکمه‌ها به‌جای چاپ مستقیم، گیت انتخاب ارز را باز
+ * می‌کنند؛ چاپ واقعی بعد از انتخاب ارز توسط caller انجام می‌شود.
  */
-export function DocPrintButtons({ fileName }: { fileName: string }) {
+export function DocPrintButtons({
+  fileName,
+  onRequest,
+}: {
+  fileName: string;
+  /** فاز ۲۵: اگر داده شود، کلیک چاپ/PDF این را صدا می‌زند (باز کردن گیت ارز) */
+  onRequest?: (action: "print" | "pdf") => void;
+}) {
   const [downloading, setDownloading] = React.useState(false);
 
   const handlePrint = () => {
+    if (onRequest) {
+      onRequest("print");
+      return;
+    }
     const res = printElementClean("#printable-invoice", fileName);
     if (!res.ok && res.error === "popup-blocked") {
       toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
@@ -23,6 +36,10 @@ export function DocPrintButtons({ fileName }: { fileName: string }) {
 
   const handleDownload = async () => {
     if (downloading) return;
+    if (onRequest) {
+      onRequest("pdf");
+      return;
+    }
     setDownloading(true);
     try {
       const res = await downloadElementAsPdf(

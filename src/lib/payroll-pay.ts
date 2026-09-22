@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { computeNetPay, allocateAdvanceDeduction, ensureSalaryExpenseType } from "@/lib/payroll";
+import { computeNetPay, allocateAdvanceDeduction, ensureSalaryExpenseType, payTypeLabel } from "@/lib/payroll";
+import { parseCurrency, parsePayType, formatMoney } from "@/lib/money";
 
 // ─── Phase 16: پرداختِ یک ورودی حقوق — منطق مشترک (رگانی/جاری) ──
 // داخل transaction:
@@ -29,7 +30,9 @@ export async function payPayrollEntry(
   if (entry.status === "paid") return { ok: false, reason: "قبلاً پرداخت شده" };
 
   const nums = {
+    payType: entry.payType,
     baseSalary: entry.baseSalary,
+    daysWorked: entry.daysWorked,
     overtimeHours: entry.overtimeHours,
     overtimeRate: entry.overtimeRate,
     bonus: entry.bonus,
@@ -38,15 +41,18 @@ export async function payPayrollEntry(
     tax: entry.tax,
     advanceDeducted: entry.advanceDeducted,
   };
+  const cur = parseCurrency(entry.currency);
+  const pt = parsePayType(entry.payType);
   const net = computeNetPay(nums);
   if (net <= 0) return { ok: false, reason: "خالص حقوق باید مثبت باشد" };
 
-  // 1) کسر مساعده (FIFO تا سقف بودجهٔ کسرِ همین ورودی)
+  // 1) کسر مساعدهٔ «هم‌ارز» (FIFO تا سقف بودجهٔ کسرِ همین ورودی — فاز ۲۵)
   const { advances: deducted } = await allocateAdvanceDeduction(
     entry.userId,
     entry.advanceDeducted,
     entry.periodId,
-    tx
+    tx,
+    cur
   );
   for (const adv of deducted) {
     await tx.payrollAdvance.update({
@@ -56,26 +62,35 @@ export async function payPayrollEntry(
   }
 
   // 2) سند هزینه — «حقوق و دستمزد در سیستم به‌عنوان هزینه ثبت شود»
+  // فاز ۲۵: ارز + نوع پرداخت در سند و بریک‌داون می‌نشیند
   const salaryType = await ensureSalaryExpenseType(tx);
   const breakdown =
-    `پایه ${nums.baseSalary.toLocaleString("en-US")}` +
-    (nums.overtimeHours > 0
+    `${payTypeLabel(pt)} — ` +
+    (pt === "daily"
+      ? `نرخ روزانه ${formatMoney(nums.baseSalary, cur)} × ${nums.daysWorked} روز`
+      : pt === "hourly"
+        ? `${nums.overtimeHours} ساعت × ${formatMoney(nums.overtimeRate, cur)}`
+        : pt === "casual"
+          ? `پرداخت موردی ${formatMoney(nums.baseSalary, cur)}`
+          : `پایه ${formatMoney(nums.baseSalary, cur)}`) +
+    (pt !== "hourly" && nums.overtimeHours > 0
       ? ` + اضافه‌کاری ${nums.overtimeHours}ساعت × ${nums.overtimeRate.toLocaleString("en-US")}`
       : "") +
-    (nums.bonus > 0 ? ` + پاداش ${nums.bonus.toLocaleString("en-US")}` : "") +
-    (nums.deduction > 0 ? ` − کمکرد ${nums.deduction.toLocaleString("en-US")}` : "") +
-    (nums.insurance > 0 ? ` − بیمه ${nums.insurance.toLocaleString("en-US")}` : "") +
-    (nums.tax > 0 ? ` − مالیات ${nums.tax.toLocaleString("en-US")}` : "") +
+    (nums.bonus > 0 ? ` + پاداش ${formatMoney(nums.bonus, cur)}` : "") +
+    (nums.deduction > 0 ? ` − کمکرد ${formatMoney(nums.deduction, cur)}` : "") +
+    (nums.insurance > 0 ? ` − بیمه ${formatMoney(nums.insurance, cur)}` : "") +
+    (nums.tax > 0 ? ` − مالیات ${formatMoney(nums.tax, cur)}` : "") +
     (nums.advanceDeducted > 0
-      ? ` − کسر مساعده ${nums.advanceDeducted.toLocaleString("en-US")}`
+      ? ` − کسر مساعده ${formatMoney(nums.advanceDeducted, cur)}`
       : "");
 
   const cost = await tx.materialCost.create({
     data: {
       expenseTypeId: salaryType.id,
-      title: `حقوق ${entry.user.name} — دورهٔ ${entry.period.key}`,
+      title: `حقوق ${entry.user.name} — دورهٔ ${entry.period.key} (${payTypeLabel(pt)})`,
       description: breakdown + (entry.note ? ` — یادداشت: ${entry.note}` : ""),
       amount: net,
+      currency: cur, // فاز ۲۵: ارز خالص پرداختی
       status: "approved",
       module: "finance",
       createdById: actor.id,
@@ -95,35 +110,42 @@ export async function payPayrollEntry(
     },
   });
 
-  // 4) نوتیف به کارمند
+  // 4) نوتیف به کارمند — فاز ۲۵: ارز خالص پرداختی
   await tx.notification.create({
     data: {
       userId: entry.userId,
       title: "پرداخت حقوق",
-      message: `حقوق دورهٔ ${entry.period.key} پرداخت شد — خالص ${net.toLocaleString("en-US")} دینار`,
+      message: `حقوق ${payTypeLabel(pt)} دورهٔ ${entry.period.key} پرداخت شد — خالص ${formatMoney(net, cur)}`,
       type: "success",
       link: "profile:view",
     },
   });
 
-  // 5) دوره: اگر همه پرداخت شدند
+  // 5) دوره: اگر همه پرداخت شدند — فاز ۲۵: اسنپ‌شات totalNet = معادل دیناری
   const remaining = await tx.payrollEntry.count({
     where: { periodId: entry.periodId, status: "draft" },
   });
   if (remaining === 0) {
-    const agg = await tx.payrollEntry.aggregate({
+    const paidEntries = await tx.payrollEntry.findMany({
       where: { periodId: entry.periodId, status: "paid" },
-      _sum: { netPay: true },
-      _count: true,
+      select: { netPay: true, currency: true },
     });
+    const totalNetIqd = paidEntries.reduce((s, e) => {
+      const c = parseCurrency(e.currency);
+      // هم‌ارزی سریع داخل tx (بدون فچ مجدد نرخ): دینار مستقیم،
+      // دلار/تومان با نرخ سیید امن — snapshot فقط نمایشی است
+      if (c === "IQD") return s + e.netPay;
+      if (c === "USD") return s + e.netPay * 1310;
+      return s + (e.netPay / 150000) * 1310;
+    }, 0);
     await tx.payrollPeriod.update({
       where: { id: entry.periodId },
       data: {
         status: "paid",
         paidAt: new Date(),
         paidById: actor.id,
-        totalNet: agg._sum.netPay ?? 0,
-        entriesCount: agg._count,
+        totalNet: Math.round(totalNetIqd),
+        entriesCount: paidEntries.length,
       },
     });
   }

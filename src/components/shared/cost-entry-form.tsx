@@ -19,7 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/shared/search-select";
+import { CurrencySelect, CurrencyChip } from "@/components/shared/fx-widgets";
 import { formatCurrency } from "@/lib/format";
+import { formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -31,6 +33,7 @@ type CostDraft = {
   key: string;
   title: string;
   amount: string;
+  currency: Currency; // فاز ۲۵: ارز هزینه
   supplierId: string;
   expenseTypeId: string;
   description: string;
@@ -44,6 +47,7 @@ type OrderOption = {
   number: number;
   customerName: string;
   totalAmount: number;
+  currency?: string; // فاز ۲۵
   status: string;
   preInvoiceCount: number;
 };
@@ -56,6 +60,7 @@ type OrderApiRow = {
   id: string;
   number: number;
   totalAmount: number;
+  currency?: string;
   status: string;
   customerName?: string;
   preInvoiceCount?: number;
@@ -70,6 +75,7 @@ function toOrderOption(o: OrderApiRow): OrderOption {
     number: o.number,
     customerName: o.customerName ?? o.customer?.name ?? "—",
     totalAmount: o.totalAmount,
+    currency: o.currency,
     status: o.status,
     preInvoiceCount: o.preInvoiceCount ?? o._count?.preInvoices ?? 0,
   };
@@ -140,6 +146,7 @@ function newDraft(module: string): CostDraft {
     key: safeUuid(),
     title: "",
     amount: "",
+    currency: "IQD", // فاز ۲۵: دیفالت دینار
     supplierId: "",
     expenseTypeId: "",
     description: "",
@@ -212,7 +219,8 @@ export function CostEntryForm({
     return r.amount !== "" && Number.isFinite(n) && n > 0 ? n : 0;
   };
   const rowValid = (r: CostDraft) => amountNum(r) > 0 && r.title.trim().length > 0;
-  const totalSum = drafts.reduce((s, r) => s + amountNum(r), 0);
+  // فاز ۲۵: جمع تفکیکی ارزی — مجموع چند-ارزی جدا جدا نمایش داده می‌شود
+  const perSum = sumByCurrency(drafts.map((r) => ({ amount: amountNum(r), currency: r.currency })));
   const validCount = drafts.filter(rowValid).length;
 
   // سفارش‌های قابل انتخاب (سرچ محلی: نام مشتری / شماره)
@@ -258,6 +266,7 @@ export function CostEntryForm({
             title: r.title.trim(),
             description: r.description.trim() || null,
             amount: amountNum(r),
+            currency: r.currency, // فاز ۲۵
             supplierId: r.supplierId || null,
             expenseTypeId: r.expenseTypeId || null,
             module: moduleOptions.length === 1 ? moduleOptions[0] : r.module,
@@ -336,26 +345,25 @@ export function CostEntryForm({
               options={orderOptions.map((o) => ({
                 value: o.id,
                 label: `#${o.number} — ${o.customerName}`,
-                sub: `${formatCurrency(o.totalAmount)} • ${o.preInvoiceCount} پیش‌فاکتور`,
+                sub: `${formatMoney(o.totalAmount, o.currency)} • ${o.preInvoiceCount} پیش‌فاکتور`,
               }))}
               allowClear={false}
               className="w-full"
             />
           </Field>
           {selectedOrder && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground px-1 flex-wrap">
               <Icon name="checkCircle" size={14} className="text-emerald-500" />
               <span>
-                سفارش <b className="text-foreground">#{selectedOrder.number}</b> —{" "}
+                سفارش <b className="text-foreground">#{selectedOrder.number}</b> —
                 {selectedOrder.customerName} • جمع:{" "}
                 <b dir="ltr" className="text-foreground tabular-nums">
-                  {formatCurrency(selectedOrder.totalAmount)}
-                </b>
+                  {formatMoney(selectedOrder.totalAmount, selectedOrder.currency)}
+                </b>{" "}
+                <CurrencyChip currency={selectedOrder.currency} />
                 {selectedOrder.preInvoiceCount > 1 && (
                   <span className="text-amber-600 dark:text-amber-400">
-                    {" "}
-                    • {selectedOrder.preInvoiceCount.toLocaleString("en-US")} پیش‌فاکتور (هزینهٔ
-                    فاکتوری روی سند اول می‌نشیند)
+                    {" "}• {selectedOrder.preInvoiceCount.toLocaleString("en-US")} پیش‌فاکتور (هزینهٔ فاکتوری روی سند اول می‌نشیند)
                   </span>
                 )}
               </span>
@@ -399,7 +407,7 @@ export function CostEntryForm({
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-sm font-bold tabular-nums" dir="ltr">
-                    {amountNum(row) > 0 ? formatCurrency(amountNum(row)) : "—"}
+                    {amountNum(row) > 0 ? formatMoney(amountNum(row), row.currency) : "—"}
                   </span>
                   <label className="cursor-pointer" title="پیوست فایل (فاکتور/سند)">
                     <input
@@ -440,16 +448,24 @@ export function CostEntryForm({
                     placeholder={isFree ? "مثلاً کرایهٔ مغازه" : "مثلاً خرید کاغذ گلاسه"}
                   />
                 </Field>
-                <Field label="مبلغ (IQD)" required className="col-span-1 md:col-span-3">
-                  <Input
-                    type="number"
-                    min={0}
-                    dir="ltr"
-                    className="text-center"
-                    value={row.amount}
-                    onChange={(e) => updateRow(row.key, { amount: e.target.value })}
-                    placeholder="0"
-                  />
+                <Field label="مبلغ" required className="col-span-1 md:col-span-3">
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="number"
+                      min={0}
+                      dir="ltr"
+                      className="text-center"
+                      value={row.amount}
+                      onChange={(e) => updateRow(row.key, { amount: e.target.value })}
+                      placeholder="0"
+                    />
+                    <CurrencySelect
+                      size="sm"
+                      value={row.currency}
+                      onChange={(c) => updateRow(row.key, { currency: c })}
+                      className="shrink-0"
+                    />
+                  </div>
                 </Field>
                 <Field
                   label={isFree ? "دستهٔ هزینه" : "نوع هزینه"}
@@ -522,6 +538,13 @@ export function CostEntryForm({
                     </label>
                   </div>
                 )}
+                {/* فاز ۲۵: هزینهٔ فاکتوری با ارز متفاوت → تبدیل لحظه‌ای به ارز سفارش */}
+                {showInvoiceOption && !isFree && row.includeInInvoice && selectedOrder &&
+                  selectedOrder.currency && selectedOrder.currency !== row.currency && (
+                  <p className="col-span-2 md:col-span-12 text-[11px] text-amber-600 dark:text-amber-400 -mt-1">
+                    ارز هزینه ({row.currency}) با ارز سفارش ({selectedOrder.currency}) فرق دارد — موقع ثبت با نرخ لحظه‌ای به ارز سفارش تبدیل و روی فاکتور می‌نشیند.
+                  </p>
+                )}
               </div>
 
               {/* پیوست‌های ردیف */}
@@ -575,10 +598,10 @@ export function CostEntryForm({
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-sm">
+          <div className="text-sm" dir="rtl">
             <span className="text-muted-foreground">مجموع: </span>
             <span className="font-bold" dir="ltr">
-              {formatCurrency(totalSum)}
+              {formatSumPerCurrency(perSum)}
             </span>
           </div>
           <Button

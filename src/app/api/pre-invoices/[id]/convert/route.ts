@@ -66,7 +66,7 @@ export async function POST(
       // سفارش هم‌عدد سند بماند (همان قرارداد صدور مستقیم فاکتور).
       const giftRow = await tx.order.findUnique({
         where: { id: existing.orderId },
-        select: { giftAmount: true },
+        select: { giftAmount: true, currency: true },
       });
       const gift = Math.max(0, Math.round(giftRow?.giftAmount || 0));
 
@@ -131,6 +131,7 @@ export async function POST(
           number: num,
           orderId: existing.orderId,
           customerId: existing.customerId,
+          currency: giftRow?.currency ?? existing.currency ?? "IQD", // Phase 25: ارز سند = ارز سفارش
           status: "issued",
           items: itemsJson,
           subtotal,

@@ -52,6 +52,7 @@ type CreateBody = {
   itemsByCustomer: Record<string, ItemDraft[]>;
   splitMode: "grouped" | "separated";
   priority: "normal" | "urgent";
+  currency?: "IQD" | "USD" | "IRT"; // فاز ۲۵: ارز سفارش
   endDate?: string | null;
   noEndDate?: boolean;
   note?: string | null;
@@ -102,12 +103,17 @@ export async function GET(req: NextRequest) {
   // فقط با ?withAggregates=1 محاسبه/الحاق می‌شوند تا پاسخ برد‌های دیگر
   // (طراح/چاپ/تقویم/…) که پارامتر را نمی‌فرستند عین قبل بماند.
   const withAggregates = searchParams.get("withAggregates") === "1";
+  // ─── Phase 25: فیلتر ارزی سفارش ──
+  const currencyParam = searchParams.get("currency");
 
   const where: Prisma.OrderWhereInput = {};
   if (status) where.status = status;
   if (customerId) where.customerId = customerId;
   if (excludeArchived) where.status = { not: "archived" };
   if (priority) where.priority = priority;
+  if (currencyParam === "IQD" || currencyParam === "USD" || currencyParam === "IRT") {
+    where.currency = currencyParam;
+  }
   if (productId) where.items = { some: { productId } };
   if (search) {
     where.OR = [
@@ -232,6 +238,7 @@ export async function POST(req: NextRequest) {
       itemsByCustomer,
       splitMode,
       priority,
+      currency, // Phase 25: ارز سفارش (IQD | USD | IRT — دیفالت IQD)
       endDate,
       noEndDate,
       note,
@@ -241,6 +248,9 @@ export async function POST(req: NextRequest) {
       assignedDesignerId,
       assignedPrinterId,
     } = body;
+    // Phase 25: نرمال‌سازی ارز — مقدار نامعتبر به دینار برمی‌گردد
+    const orderCurrency =
+      currency === "USD" || currency === "IRT" ? currency : "IQD";
 
     if (!customers?.length) {
       return NextResponse.json(
@@ -435,6 +445,7 @@ export async function POST(req: NextRequest) {
                 : aggregateStatus(items),
               splitMode,
               priority,
+              currency: orderCurrency, // Phase 25: ارز مبالغ این سفارش
               endDate: noEndDate ? null : toISO(endDate),
               noEndDate: !!noEndDate,
               totalAmount: total,
@@ -684,7 +695,7 @@ function stageToStatus(stage?: string) {
 // سند اعمال می‌شود (جلوگیری از چندبرابر شدن پیش‌پرداخت در حالت per-item).
 async function createPreInvoice(
   tx: Prisma.TransactionClient,
-  order: { id: string; items: unknown[] },
+  order: { id: string; items: unknown[]; currency?: string },
   customerId: string,
   piItems: PreInvoiceItem[],
   pi: CreateBody["preInvoice"],
@@ -712,6 +723,7 @@ async function createPreInvoice(
       number: num,
       orderId: order.id,
       customerId,
+      currency: order.currency ?? "IQD", // Phase 25: ارز سند = ارز سفارش
       itemId: opts.itemId,
       status: "draft",
       validUntil,

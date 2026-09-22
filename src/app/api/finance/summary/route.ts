@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
+import { sumByCurrency, toIqdEquivalent, type Currency, type FxRates } from "@/lib/money";
+import { getLiveRates } from "@/lib/fx";
 
 // ─── Phase 15: خلاصهٔ مالی — GET /api/finance/summary?from=&to= ────
 // اعداد اوورویو داشبورد مالی:
@@ -15,6 +17,13 @@ import { jsonError } from "@/lib/api-error";
 //   costsByModule            → هزینه به تفکیک ماژول ثبت‌کننده
 // همهٔ اعدادِ بازه‌ای فقط در همان بازه محاسبه می‌شوند (فیلتر سراسری
 // داشبورد)؛ تسویه‌نشده همیشه «الان» است (وضعیت لحظه‌ای).
+//
+// ─── Phase 25: چند-ارزی ────────────────────────────────────────────
+// همهٔ مجموع‌ها «تفکیکی به ارز» + «معادل دیناری» برگردانده می‌شوند:
+//   sums: { costs|revenue|pending|unsettled: { per: {IQD,USD,IRT}, iqdEq },
+//           netProfitIqd }
+// فیلدهای مسطح قبلی (costSum و…) = معادل دیناری (سازگار با UI قدیمی).
+// freeByCategory/costsByModule هر گروه sums خودش را دارد.
 
 export async function GET(req: NextRequest) {
   const user = await requireUser();
@@ -40,37 +49,33 @@ export async function GET(req: NextRequest) {
     const costRange = hasRange ? { createdAt: range } : {};
     const revenueRange = hasRange ? { createdAt: range } : {};
 
-    const [pendingAgg, costAgg, revenueAgg, unsettledAgg, unsettledOrders, freeByCategory, costsByModule, pendingCount] =
+    const [pendingRows, costRows, revenueRows, unsettledOrders, freeByCategory, costsByModule, pendingCount] =
       await Promise.all([
-        db.materialCost.aggregate({
+        db.materialCost.findMany({
           where: { status: "pending", ...costRange },
-          _sum: { amount: true },
+          select: { amount: true, currency: true },
         }),
-        db.materialCost.aggregate({
+        db.materialCost.findMany({
           where: { status: "approved", ...costRange },
-          _sum: { amount: true },
+          select: { amount: true, currency: true },
         }),
-        db.revenueLog.aggregate({
+        db.revenueLog.findMany({
           where: revenueRange,
-          _sum: { amount: true },
-        }),
-        db.order.aggregate({
-          where: { status: { not: "cancelled" } },
-          _sum: { totalAmount: true, paidAmount: true },
+          select: { amount: true, currency: true },
         }),
         // SQLite فیلد-به-فیلد مقایسه نمی‌کند → فیلتر بستانکار در JS
         db.order.findMany({
           where: { status: { not: "cancelled" } },
-          select: { totalAmount: true, paidAmount: true },
+          select: { totalAmount: true, paidAmount: true, currency: true },
         }),
         db.materialCost.groupBy({
-          by: ["expenseTypeId"],
+          by: ["expenseTypeId", "currency"],
           where: { status: "approved", orderId: null, ...costRange },
           _sum: { amount: true },
           _count: true,
         }),
         db.materialCost.groupBy({
-          by: ["module"],
+          by: ["module", "currency"],
           where: { status: "approved", ...costRange },
           _sum: { amount: true },
           _count: true,
@@ -87,28 +92,88 @@ export async function GET(req: NextRequest) {
       : [];
     const catName = new Map(categories.map((c) => [c.id, c]));
 
-    const totalAll = unsettledAgg._sum.totalAmount ?? 0;
-    const paidAll = unsettledAgg._sum.paidAmount ?? 0;
-    const unsettledCount = unsettledOrders.filter((o) => o.totalAmount - o.paidAmount > 0.001).length;
+    // ── فاز ۲۵: نرخ لحظه‌ای + جمع‌های تفکیکی ──
+    let rates: FxRates;
+    try {
+      rates = await getLiveRates();
+    } catch {
+      rates = { USD_IQD: 1310, USD_IRT: 150000 };
+    }
+    const perOf = (rows: { amount: number; currency: string }[]) =>
+      sumByCurrency(rows.map((r) => ({ amount: Math.abs(r.amount), currency: r.currency })));
+
+    const pendingPer = perOf(pendingRows);
+    const costPer = perOf(costRows);
+    const revenuePer = perOf(revenueRows);
+    const pendingIqd = toIqdEquivalent(pendingPer, rates);
+    const costIqd = toIqdEquivalent(costPer, rates);
+    const revenueIqd = toIqdEquivalent(revenuePer, rates);
+
+    // بستانکار: سفارش‌های فعال با total − paid > 0 — به تفکیک ارز
+    const unsettledPer: Record<Currency, number> = { IQD: 0, USD: 0, IRT: 0 };
+    let unsettledCount = 0;
+    for (const o of unsettledOrders) {
+      const d = o.totalAmount - o.paidAmount;
+      if (d > 0.001) {
+        unsettledCount++;
+        unsettledPer[(o.currency === "USD" || o.currency === "IRT" ? o.currency : "IQD") as Currency] += d;
+      }
+    }
+    const unsettledIqd = toIqdEquivalent(unsettledPer, rates);
+
+    // گروه‌بندی دسته/ماژول با ادغام ارزی + معادل دیناری هر گروه
+    const mergeGroups = <T extends { per: Record<Currency, number>; count: number }>(m: Map<string, T>, key: string, per: Record<Currency, number>, count: number) => {
+      const g = m.get(key) ?? ({ per: { IQD: 0, USD: 0, IRT: 0 }, count: 0 } as T);
+      (Object.keys(per) as Currency[]).forEach((c) => (g.per[c] += per[c]));
+      g.count += count;
+      m.set(key, g);
+      return g;
+    };
+    const catMap = new Map<string, { per: Record<Currency, number>; count: number }>();
+    for (const g of freeByCategory) {
+      const key = g.expenseTypeId ?? "__none__";
+      const cur = (g.currency === "USD" || g.currency === "IRT" ? g.currency : "IQD") as Currency;
+      mergeGroups(catMap, key, { IQD: 0, USD: 0, IRT: 0, [cur]: g._sum.amount ?? 0 } as unknown as Record<Currency, number>, g._count);
+    }
+    const modMap = new Map<string, { per: Record<Currency, number>; count: number }>();
+    for (const g of costsByModule) {
+      const cur = (g.currency === "USD" || g.currency === "IRT" ? g.currency : "IQD") as Currency;
+      mergeGroups(modMap, g.module, { IQD: 0, USD: 0, IRT: 0, [cur]: g._sum.amount ?? 0 } as unknown as Record<Currency, number>, g._count);
+    }
 
     return NextResponse.json({
       pendingCount,
-      pendingSum: pendingAgg._sum.amount ?? 0,
-      costSum: costAgg._sum.amount ?? 0,
-      revenueSum: revenueAgg._sum.amount ?? 0,
-      netProfit: (revenueAgg._sum.amount ?? 0) - (costAgg._sum.amount ?? 0),
-      unsettledSum: Math.max(0, totalAll - paidAll),
+      pendingSum: pendingIqd,
+      costSum: costIqd,
+      revenueSum: revenueIqd,
+      netProfit: revenueIqd - costIqd,
+      unsettledSum: unsettledIqd,
       unsettledCount,
-      freeByCategory: freeByCategory
-        .map((g) => ({
-          id: g.expenseTypeId,
-          name: g.expenseTypeId ? catName.get(g.expenseTypeId)?.name ?? "سایر" : "بدون دسته",
-          sum: g._sum.amount ?? 0,
-          count: g._count,
+      // ── فاز ۲۵: جمع تفکیکی + معادل دیناری + نرخ لحظه‌ای ──
+      sums: {
+        pending: { per: pendingPer, iqdEq: pendingIqd },
+        costs: { per: costPer, iqdEq: costIqd },
+        revenue: { per: revenuePer, iqdEq: revenueIqd },
+        unsettled: { per: unsettledPer, iqdEq: unsettledIqd },
+        netProfitIqd: revenueIqd - costIqd,
+        rates: { USD_IQD: rates.USD_IQD, USD_IRT: rates.USD_IRT },
+      },
+      freeByCategory: [...catMap.entries()]
+        .map(([id, g]) => ({
+          id: id === "__none__" ? null : id,
+          name: id !== "__none__" && catName.get(id)?.name ? catName.get(id)!.name : id === "__none__" ? "بدون دسته" : "سایر",
+          sum: toIqdEquivalent(g.per, rates), // معادل دیناری (سازگار)
+          sums: { per: g.per, iqdEq: toIqdEquivalent(g.per, rates) },
+          count: g.count,
         }))
         .sort((a, b) => b.sum - a.sum),
-      costsByModule: costsByModule
-        .map((g) => ({ module: g.module, sum: g._sum.amount ?? 0, count: g._count }))
+      costsByModule: [...modMap.entries()]
+        .map(([module, g]) => ({
+          module,
+          sum: toIqdEquivalent(g.per, rates), // معادل دیناری (سازگار)
+          sums: { per: g.per, iqdEq: toIqdEquivalent(g.per, rates) },
+          count: g.count,
+        }))
         .sort((a, b) => b.sum - a.sum),
     });
   } catch (e) {

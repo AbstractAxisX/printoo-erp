@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import { formatCurrency, formatDate } from "@/lib/format";
+import { formatMoney } from "@/lib/money";
 import { useAppStore } from "@/stores/app-store";
 import { toast } from "sonner";
 import {
@@ -57,6 +58,9 @@ type CustomerRow = {
   // Phase 17-D — فیلدهای additive سرور
   ordersCount: number;
   unsettled: number;
+  // فاز ۲۵ — تفکیک ارزی مانده
+  unsettledPer?: Record<string, number> | null;
+  unsettledMixed?: boolean;
 };
 
 type CustomerForm = {
@@ -285,7 +289,7 @@ export function CustomersPage() {
           <div className="flex items-center gap-2 min-w-0">
             {c.isFavorite && <Icon name="star" size={14} className="text-amber-500 shrink-0" />}
             <span className="font-semibold truncate">{c.name}</span>
-            <BalanceChip value={c.unsettled} />
+            <BalanceChip value={c.unsettled} per={c.unsettledPer} mixed={c.unsettledMixed} />
           </div>
         );
       },
@@ -652,16 +656,34 @@ function CustomerRowMobileCard({ customer: c }: { customer: CustomerRow }) {
   );
 }
 
-/** چیپ مانده حساب — کنار نام مشتری (خواستهٔ صریح کارفرما) */
-function BalanceChip({ value }: { value: number }) {
+/** چیپ مانده حساب — کنار نام مشتری (خواستهٔ صریح کارفرما) — فاز ۲۵: تفکیک ارزی */
+function BalanceChip({
+  value,
+  per,
+  mixed,
+}: {
+  value: number;
+  per?: Record<string, number> | null;
+  mixed?: boolean;
+}) {
   if (value > 0) {
+    const parts = mixed
+      ? ["IQD", "USD", "IRT"]
+          .filter((c) => (per?.[c] ?? 0) > 0.0001)
+          .map((c) => formatMoney(per![c], c))
+      : null;
     return (
       <span
         dir="ltr"
         className="shrink-0 inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-        title="مانده حساب (طلب جاری)"
+        title={
+          mixed
+            ? `مانده تفکیکی: ${parts?.join(" + ")} — معادل دیناری: ${formatCurrency(value)} IQD (نرخ لحظه‌ای)`
+            : "مانده حساب (طلب جاری)"
+        }
       >
-        {formatCurrency(value)}
+        {mixed ? `${parts?.join(" + ")}` : formatCurrency(value)}
+        <span className="text-[8px] font-medium opacity-70 ms-0.5">IQD-eq</span>
       </span>
     );
   }

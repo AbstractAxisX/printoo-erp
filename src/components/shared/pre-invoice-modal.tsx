@@ -32,7 +32,11 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { P24Doc, type P24DocItem } from "@/components/shared/p24-doc";
+import { P24Doc, type P24DocItem, type P24FxLine } from "@/components/shared/p24-doc";
+import { PrintCurrencyGate, type PrintCurrencyResult } from "@/components/shared/print-currency-gate";
+import { useFxRates } from "@/components/shared/fx-widgets";
+import { printElementClean, downloadElementAsPdf } from "@/lib/print-doc";
+import { parseCurrency, convertMoney, formatMoney } from "@/lib/money";
 import { COMPANY } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import {
@@ -57,6 +61,7 @@ export type PreInvoiceRow = {
   taxAmount: number;
   totalAmount: number;
   paidAmount: number;
+  currency?: string; // فاز ۲۵: ارز سند = ارز سفارش
   notes: string | null;
   terms: string | null;
   customer?: { name: string; phone?: string | null } | null;
@@ -876,6 +881,51 @@ function DocView({
     }
   }, [pi.items]);
 
+  // ── فاز ۲۵: گیت ارز قبل از چاپ + تبدیل لحظه‌ای مبالغ ──
+  const docCur = parseCurrency(pi.currency);
+  const { data: fxData, rates } = useFxRates();
+  const [gateOpen, setGateOpen] = React.useState(false);
+  const [pendingAction, setPendingAction] = React.useState<"print" | "pdf" | null>(null);
+  const [printCur, setPrintCur] = React.useState<PrintCurrencyResult | null>(null);
+
+  const fileName = `Quotation No_ ${pi.number} - ${pi.customer?.name ?? "Customer"}`;
+
+  const fxLine: P24FxLine | null = printCur
+    ? printCur.fxLine
+    : fxData
+      ? {
+          usdIqd: rates.USD_IQD,
+          usdIrt: rates.USD_IRT,
+          at: fxData.fetchedAt?.USD_IQD ?? null,
+          source: fxData.sources?.USD_IQD ?? "auto",
+        }
+      : null;
+
+  // تبدیل لحظه‌ای وقتی ارز چاپ با ارز سند فرق دارد
+  const outCur = printCur?.currency ?? docCur;
+  const conv = (n: number) =>
+    printCur && printCur.converted ? convertMoney(n, docCur, outCur, printCur.rates) : n;
+
+  // اجرای چاپ/PDF بعد از اعمال ارز (یک تیک رندر)
+  React.useEffect(() => {
+    if (!printCur || !pendingAction) return;
+    const action = pendingAction;
+    const t = setTimeout(async () => {
+      setPendingAction(null);
+      if (action === "print") {
+        const res = printElementClean("#printable-invoice", fileName);
+        if (!res.ok && res.error === "popup-blocked") {
+          toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+        }
+      } else {
+        const res = await downloadElementAsPdf("#printable-invoice", `${fileName}.pdf`);
+        if (!res.ok) toast.error("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید");
+        else toast.success("فایل PDF دانلود شد");
+      }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [printCur, pendingAction, fileName]);
+
   // زمان‌بندی روی سند: per-item → تاریخ همان آیتم؛ گروهی → min/max کل گروه
   const schedule = React.useMemo(
     () => piSchedule(pi.item ?? null, pi.order?.items ?? null),
@@ -902,6 +952,18 @@ function DocView({
       };
     });
   }, [items, pi.item, pi.order]);
+
+  // ── فاز ۲۵: اقلام سند در «ارز چاپ» ──
+  const outItems: P24DocItem[] = React.useMemo(
+    () =>
+      docItems.map((it) => ({
+        ...it,
+        unitPrice: conv(it.unitPrice),
+        discount: it.discount ? conv(it.discount) : 0,
+        total: conv(it.total),
+      })),
+    [docItems, printCur] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const status = pi.status as PreInvoiceStatus;
   const meta = STATUS_META[status] ?? STATUS_META.draft;
@@ -953,11 +1015,25 @@ function DocView({
             <Icon name="trash" size={13} /> حذف
           </Button>
         )}
-        {/* فاز 21: چاپ + دانلود PDF یک‌کلیکی — نام فایل = Quotation No_ N - Customer */}
+        {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی — فاز ۲۵: اول ارز چاپ پرسیده می‌شود */}
         <DocPrintButtons
-          fileName={`Quotation No_ ${pi.number} - ${pi.customer?.name ?? "Customer"}`}
+          fileName={fileName}
+          onRequest={(action) => {
+            setPendingAction(action);
+            setGateOpen(true);
+          }}
         />
       </div>
+
+      {/* فاز ۲۵: گیت انتخاب ارز چاپ */}
+      <PrintCurrencyGate
+        open={gateOpen}
+        onOpenChange={setGateOpen}
+        docCurrency={docCur}
+        docTitle="پیش‌فاکتور"
+        previewTotal={pi.totalAmount}
+        onConfirm={(r) => setPrintCur(r)}
+      />
 
       {/* ─── سند چاپی A4 — تم P24 (انگلیسی، فاز 20) ─── */}
       <div className="doc-frame bg-muted/30 p-4" dir="ltr">
@@ -969,14 +1045,21 @@ function DocView({
           customerPhone={pi.customer?.phone ?? null}
           orderNumber={pi.order?.number ?? null}
           validUntil={pi.validUntil ?? null}
-          items={docItems}
-          subtotal={pi.subtotal}
-          discount={pi.discountAmount}
+          items={outItems}
+          subtotal={conv(pi.subtotal)}
+          discount={conv(pi.discountAmount)}
           taxRate={pi.taxRate}
-          taxAmount={pi.taxAmount}
-          total={pi.totalAmount}
-          paid={pi.paidAmount}
+          taxAmount={conv(pi.taxAmount)}
+          total={conv(pi.totalAmount)}
+          paid={conv(pi.paidAmount)}
           paidLabel="Deposit Received"
+          currency={outCur}
+          fx={fxLine}
+          conversionNote={
+            printCur && printCur.converted
+              ? `Converted from ${docCur} to ${outCur} at the live exchange rate shown above. Original total: ${formatMoney(pi.totalAmount, docCur)}.`
+              : null
+          }
           schedule={
             schedule.designFrom || schedule.designTo || schedule.printFrom || schedule.printTo
               ? schedule

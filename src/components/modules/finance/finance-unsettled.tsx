@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/shared";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { CurrencyChip, useFxRates } from "@/components/shared/fx-widgets";
+import { formatMoney, sumByCurrency, formatSumPerCurrency, toIqdEquivalent, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -38,6 +40,7 @@ type Order = {
   endDate: string | null;
   totalAmount: number;
   paidAmount: number;
+  currency?: string; // فاز ۲۵
   createdAt: string;
   customer: { id: string; name: string; phone: string };
   items: { id: string; product: { name: string } }[];
@@ -79,9 +82,15 @@ export function FinanceUnsettled() {
     return includeDone ? [...filtered, ...settled] : filtered;
   }, [data, q, includeDone]);
 
-  const totalRemaining = rows
-    .filter((o) => o.totalAmount - o.paidAmount > 0.001)
-    .reduce((s, o) => s + (o.totalAmount - o.paidAmount), 0);
+  // ── فاز ۲۵: بستانکار به تفکیک ارز + معادل دیناری ──
+  const { rates } = useFxRates();
+  const unsettledRows = rows.filter((o) => o.totalAmount - o.paidAmount > 0.001);
+  const remainingPer = sumByCurrency(
+    unsettledRows.map((o) => ({ amount: o.totalAmount - o.paidAmount, currency: o.currency }))
+  );
+  const remainingMixed = (["IQD", "USD", "IRT"] as Currency[]).filter((c) => remainingPer[c] > 0.0001).length > 1;
+  const remainingIqdEq = toIqdEquivalent(remainingPer, rates);
+  const totalRemaining = unsettledRows.reduce((s, o) => s + (o.totalAmount - o.paidAmount), 0);
 
   // ── ثبت پرداخت: عدد «کل پرداخت‌شده» → سیستم diff را حساب می‌کند ──
   const recordPaymentMut = useMutation({
@@ -148,8 +157,11 @@ export function FinanceUnsettled() {
         header: "جمع سفارش",
         meta: { align: "end" },
         cell: ({ row }) => (
-          <span className="font-semibold tabular-nums" dir="ltr">
-            {formatCurrency(row.original.totalAmount)}
+          <span className="font-semibold tabular-nums inline-flex items-center gap-1.5" dir="ltr">
+            {formatMoney(row.original.totalAmount, row.original.currency)}
+            {row.original.currency && row.original.currency !== "IQD" && (
+              <CurrencyChip currency={row.original.currency} />
+            )}
           </span>
         ),
       },
@@ -159,7 +171,7 @@ export function FinanceUnsettled() {
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400" dir="ltr">
-            {formatCurrency(row.original.paidAmount)}
+            {formatMoney(row.original.paidAmount, row.original.currency)}
           </span>
         ),
       },
@@ -185,7 +197,7 @@ export function FinanceUnsettled() {
                 )}
                 dir="ltr"
               >
-                {settled ? "تسویه ✓" : formatCurrency(rem)}
+                {settled ? "تسویه ✓" : formatMoney(rem, row.original.currency)}
               </span>
               {!settled && (
                 <div className="h-1 rounded-full bg-muted mt-1 overflow-hidden">
@@ -256,11 +268,15 @@ export function FinanceUnsettled() {
             مجموع بستانکار (همین الان)
           </div>
           <div className="text-xl font-bold tabular-nums mt-1.5" dir="ltr">
-            {formatCurrency(totalRemaining)}
+            {remainingMixed ? formatSumPerCurrency(remainingPer) : formatCurrency(totalRemaining)}
           </div>
+          {remainingMixed && (
+            <div className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">
+              ≈ {formatCurrency(remainingIqdEq)} IQD (نرخ لحظه‌ای)
+            </div>
+          )}
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {rows.filter((o) => o.totalAmount - o.paidAmount > 0.001).length.toLocaleString("en-US")}{" "}
-            سفارش با مانده
+            {unsettledRows.length.toLocaleString("en-US")} سفارش با مانده
           </div>
         </Card>
       </div>

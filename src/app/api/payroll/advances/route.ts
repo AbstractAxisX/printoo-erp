@@ -4,11 +4,13 @@ import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
 import { ensureSalaryExpenseType } from "@/lib/payroll";
 import { jsonError } from "@/lib/api-error";
+import { parseCurrency, formatMoney } from "@/lib/money";
 
 // ─── Phase 16: POST /api/payroll/advances ───────────────────────
 // ثبت مساعده/پیش‌پرداخت حقوق: پول الان خارج می‌شود → همین لحظه
 // MaterialCost با دستهٔ «حقوق» ثبت می‌شود (شمارش دوباره در دورهٔ بعد
 // ندارد — آنجا فقط «کسر» می‌شود).
+// فاز ۲۵: { userId, amount, currency? (IQD|USD|IRT), note? }
 
 export async function POST(req: NextRequest) {
   const user = await requireUser();
@@ -21,6 +23,7 @@ export async function POST(req: NextRequest) {
     const userId = typeof body.userId === "string" ? body.userId : "";
     const amount = Number(body.amount);
     const note = typeof body.note === "string" ? body.note.trim() : "";
+    const cur = parseCurrency(body.currency); // فاز ۲۵: ارز مساعده
 
     if (!userId) return jsonError(new Error("v"), "کارمند را انتخاب کنید", 400);
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000) {
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest) {
           title: `مساعده ${emp.name}`,
           description: "پیش‌پرداخت حقوق — در دورهٔ بعد کسر می‌شود" + (note ? ` — ${note}` : ""),
           amount,
+          currency: cur, // فاز ۲۵
           status: "approved",
           module: "finance",
           createdById: user.id,
@@ -54,6 +58,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: emp.id,
           amount,
+          currency: cur, // فاز ۲۵
           note: note || null,
           costId: cost.id,
           createdById: user.id,
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: emp.id,
           title: "پرداخت مساعده",
-          message: `مساعده ${amount.toLocaleString("en-US")} دینار به شما پرداخت شد — در حقوق دورهٔ بعد کسر می‌شود`,
+          message: `مساعده ${formatMoney(amount, cur)} به شما پرداخت شد — در حقوق دورهٔ بعد (هم‌ارز) کسر می‌شود`,
           type: "info",
           link: "profile:view",
         },

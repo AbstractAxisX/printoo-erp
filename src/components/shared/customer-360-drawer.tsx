@@ -19,8 +19,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useInvalidate } from "@/lib/use-invalidate";
 import { EmptyState, StatusBadge } from "@/components/shared";
-import { P24StatementDoc } from "@/components/shared/p24-doc";
+import { P24StatementDoc, type P24FxLine } from "@/components/shared/p24-doc";
 import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
+import { useFxRates } from "@/components/shared/fx-widgets";
+import { sumByCurrency, toIqdEquivalent } from "@/lib/money";
 import { COMPANY, CURRENCY } from "@/lib/constants";
 import { DetailDrawer } from "@/components/ui/detail-drawer";
 import { Button } from "@/components/ui/button";
@@ -191,11 +193,29 @@ export function Customer360Drawer({
     () => (detail?.orders ?? []).filter((o) => !isUnpaidOrder(o)),
     [detail]
   );
+  // ── فاز ۲۵: جمع سفارش‌های پرداخت‌نشده — معادل دیناری با نرخ لحظه‌ای ──
+  const { data: fxData, rates } = useFxRates();
   const activeTotals = React.useMemo(() => {
-    const subtotal = unpaidOrders.reduce((s, o) => s + (o.totalAmount || 0), 0);
-    const paid = unpaidOrders.reduce((s, o) => s + (o.paidAmount || 0), 0);
-    return { subtotal, paid, balance: Math.max(0, subtotal - paid) };
-  }, [unpaidOrders]);
+    const subtotalPer = sumByCurrency(unpaidOrders.map((o) => ({ amount: o.totalAmount || 0, currency: (o as { currency?: string }).currency })));
+    const paidPer = sumByCurrency(unpaidOrders.map((o) => ({ amount: o.paidAmount || 0, currency: (o as { currency?: string }).currency })));
+    const subtotal = toIqdEquivalent(subtotalPer, rates);
+    const paid = toIqdEquivalent(paidPer, rates);
+    return { subtotal, paid, balance: Math.max(0, subtotal - paid), per: subtotalPer, paidPer };
+  }, [unpaidOrders, rates]);
+
+  const statementFx: P24FxLine | null = fxData
+    ? {
+        usdIqd: rates.USD_IQD,
+        usdIrt: rates.USD_IRT,
+        at: fxData.fetchedAt?.USD_IQD ?? null,
+        source: fxData.sources?.USD_IQD ?? "auto",
+      }
+    : null;
+
+  // آیا سفارش‌های پرداخت‌نشده چند-ارزی هستند؟
+  const mixedUnpaid = (Object.keys(activeTotals.per) as ("IQD" | "USD" | "IRT")[]).filter(
+    (c) => activeTotals.per[c] > 0.0001
+  ).length > 1;
 
   const deleteMut = useMutation({
     mutationFn: () => {
@@ -598,6 +618,8 @@ export function Customer360Drawer({
                 issueDate={new Date().toISOString()}
                 customerName={detail.customer.name}
                 customerPhone={detail.customer.phone ?? null}
+                currency="IQD"
+                fx={statementFx}
                 rows={unpaidOrders.map((o) => ({
                   number: o.number,
                   date: o.createdAt,
@@ -606,11 +628,19 @@ export function Customer360Drawer({
                       .map((i) => i.product?.name)
                       .filter(Boolean)
                       .join(", ") || "—",
-                  amount: o.totalAmount,
+                  amount: toIqdEquivalent(
+                    sumByCurrency([{ amount: o.totalAmount || 0, currency: (o as { currency?: string }).currency }]),
+                    rates
+                  ),
                 }))}
                 subtotal={activeTotals.subtotal}
                 paid={activeTotals.paid}
-                notes={`This invoice consolidates all orders of the customer that are NOT fully paid yet. Prices are in Iraqi Dinar (${CURRENCY}).`}
+                conversionNote={
+                  mixedUnpaid
+                    ? `This customer has unpaid orders in multiple currencies. All amounts are converted to Iraqi Dinar (IQD) at the live exchange rate shown above.`
+                    : null
+                }
+                notes={`This invoice consolidates all orders of the customer that are NOT fully paid yet. Amounts are in Iraqi Dinar (IQD)${mixedUnpaid ? " — converted at the live rate shown above" : ""}.`}
                 closingNote={`Consolidated invoice for unpaid orders · ${COMPANY.name}`}
               />
             </div>

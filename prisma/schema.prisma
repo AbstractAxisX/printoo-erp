@@ -27,6 +27,8 @@ model User {
   phone          String?
   avatar         String?
   status         String   @default("active") // active | inactive
+  // ─── Phase 25: ارز قرارداد حقوق (دینار/دلار/تومان) ──
+  salaryCurrency String   @default("IQD") // IQD | USD | IRT
   // ─── Phase 23: کاربر دمو (فقط مشاهده) ──────────────────────────
   // isDemo=true → role=master (همه‌چیز را می‌بیند) اما تمام متدهای
   // غیر-GET در proxy.ts بلاک می‌شوند. demoExpiresAt = لحظهٔ انقضا؛
@@ -230,6 +232,7 @@ model PriceList {
   serviceId     String
   service       SupplierService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   price         Float
+  currency      String   @default("IQD") // Phase 25: IQD | USD | IRT
   minQuantity   Int      @default(1)
   note          String?
   validFrom     DateTime @default(now())
@@ -258,6 +261,8 @@ model Order {
   status      String       @default("pending_design") // pending_design | in_printing | warehouse_logistics | completed | archived | cancelled
   splitMode   String       @default("grouped") // grouped | separated
   priority    String       @default("normal") // normal | urgent
+  // ─── Phase 25: ارز سفارش — همه مبالغ آیتم/فاکتور/پرداخت این سفارش به این ارز است
+  currency    String       @default("IQD") // IQD | USD | IRT
   endDate     DateTime? // overall order end date (optional)
   noEndDate   Boolean      @default(false)
   totalAmount Float        @default(0)
@@ -318,6 +323,7 @@ model RevenueLog {
   orderId       String
   order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   amount        Float    // signed diff: +revenue / -reversal
+  currency      String   @default("IQD") // Phase 25: ارز دریافتی = ارز سفارش
   totalAfter    Float    @default(0) // order.paidAmount پس از این تغییر
   module        String   @default("finance") // finance | admin | logistics
   method        String?  // cash | transfer | cheque
@@ -406,6 +412,8 @@ model MaterialCost {
   title        String?      // نام هزینه (مثل نام آیتم)
   description  String?
   amount       Float
+  // ─── Phase 25: ارز هزینه — همهٔ ثبت‌کننده‌ها (چاپ/متریال/انبار/مالی/لجستیک) مشخص می‌کنند
+  currency     String       @default("IQD") // IQD | USD | IRT
   fileUrl1     String?
   fileUrl2     String?
   status       String       @default("pending") // pending | approved | rejected
@@ -503,6 +511,8 @@ model PreInvoice {
   order          Order     @relation(fields: [orderId], references: [id])
   customerId     String
   customer       Customer  @relation(fields: [customerId], references: [id])
+  // ─── Phase 25: ارز سند = ارز سفارش موقع صدور (چاپ با هر ارز دیگری تبدیل لحظه‌ای می‌شود)
+  currency       String    @default("IQD") // IQD | USD | IRT
   // Phase 10: قلمِ مرتبط برای پیش‌فاکتور «به‌ازای آیتم» (سفارش مجزا/چند-مشتری).
   // null = پیش‌فاکتور کل گروه (سفارش گروهی تک-مشتری). SetNull: حذف آیتم،
   // سند را زنده نگه می‌دارد و فقط لینک را رها می‌کند.
@@ -540,6 +550,8 @@ model Invoice {
   order          Order    @relation(fields: [orderId], references: [id])
   customerId     String
   customer       Customer @relation(fields: [customerId], references: [id])
+  // ─── Phase 25: ارز سند = ارز سفارش موقع صدور؛ چاپ با ارز دیگر = تبدیل لحظه‌ای + نرخ روی سند
+  currency       String   @default("IQD") // IQD | USD | IRT
   // draft | issued | paid | cancelled
   status         String   @default("issued")
   issueDate      DateTime @default(now())
@@ -687,6 +699,20 @@ model Activity {
 // transaction wrapper). Seeds: order→current max order number, preInvoice→
 // current max preInvoice number, invoice→current max invoice number.
 // Gaps (deleted records) don't reuse numbers — counter only moves forward.
+// ─── Phase 25: نرخ ارز لحظه‌ای ──────────────────────────────────
+// جفت‌های ذخیره‌شده: USD_IQD و USD_IRT (IRT = تومان ایرانی = IRR/10).
+// هر fetch/ویرایش دستی یک ردیف جدید (تاریخچه)؛ آخرین ردیف هر جفت معتبر است.
+// source: auto (open.er-api.com — روزانه) | manual (مالی/مستر) | fallback (سیید اضطراری آفلاین).
+model FxRate {
+  id        String   @id @default(cuid())
+  pair      String   // "USD_IQD" | "USD_IRT"
+  rate      Float
+  source    String   @default("auto") // auto | manual | fallback
+  fetchedAt DateTime @default(now())
+
+  @@index([pair, fetchedAt])
+}
+
 model Counter {
   id    String  @id           // "order" | "preInvoice" | "invoice"
   next  Int    @default(1)    // next number to assign
@@ -741,7 +767,12 @@ model PayrollEntry {
   period         PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   userId         String
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // ─── Phase 25: فرم ساده و شناور — نوع پرداخت + ارز ──
+  // payType: monthly ماهانه | daily روزانه | hourly ساعتی | casual موردی (عشقی)
+  payType        String   @default("monthly")
+  currency       String   @default("IQD") // IQD | USD | IRT — ارز خالص پرداختی
   baseSalary     Float    @default(0) // حقوق پایه (اسنپ‌شات از قرارداد)
+  daysWorked     Float    @default(0) // روزانه: تعداد روز (نمایش/بازمحاسبه)
   overtimeHours  Float    @default(0) // ساعت اضافه‌کاری
   overtimeRate   Float    @default(0) // نرخ هر ساعت
   bonus          Float    @default(0) // پاداش / کارکرد
@@ -768,6 +799,7 @@ model PayrollAdvance {
   userId    String
   user      User     @relation("AdvanceReceiver", fields: [userId], references: [id], onDelete: Cascade)
   amount    Float
+  currency  String   @default("IQD") // Phase 25: ارز مساعده
   note      String?
   // هزینهٔ فوریِ مساعده (وقتی پول از شرکت خارج شد)
   costId    String?  @unique
@@ -805,6 +837,7 @@ model Package {
   trackingNo    String?  // شمارهٔ پیگیری
   status        String   @default("packing") // packing | ready | sent | delivered | cancelled
   codAmount     Float    @default(0)  // پول در محل
+  codCurrency   String   @default("IQD") // Phase 25: ارز COD (IQD | USD | IRT)
   codCollected  Boolean  @default(false)
   note          String?
   packedAt      DateTime @default(now())

@@ -14,6 +14,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatDate, daysRemaining, isOrderClosed } from "@/lib/format";
+import { CurrencyChip } from "@/components/shared/fx-widgets";
+import { formatMoney } from "@/lib/money";
 import {
   ITEM_STAGE,
   type OrderStatus,
@@ -208,8 +210,11 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
       accessorKey: "totalAmount",
       header: "مبلغ کل",
       cell: ({ row }) => (
-        <span className="font-semibold tabular-nums" dir="ltr">
-          {formatCurrency(row.original.totalAmount)}
+        <span className="font-semibold tabular-nums inline-flex items-center gap-1.5" dir="ltr">
+          {formatMoney(row.original.totalAmount, row.original.currency)}
+          {row.original.currency && row.original.currency !== "IQD" && (
+            <CurrencyChip currency={row.original.currency} />
+          )}
         </span>
       ),
       enableSorting: true,

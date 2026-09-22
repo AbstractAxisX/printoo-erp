@@ -6,16 +6,19 @@ import { logOrderEvent, actorNameOf } from "@/lib/order-events";
 import { computeTotals, normalizeItems } from "@/lib/pre-invoice";
 import { jsonError } from "@/lib/api-error";
 import type { PreInvoiceItem } from "@/lib/pre-invoice";
+import { parseCurrency, formatMoney, sumByCurrency, toIqdEquivalent, convertMoney } from "@/lib/money";
+import { getLiveRates } from "@/lib/fx";
 
 // ─── Phase 15: هزینهٔ جامع — روی سفارش + آزاد + فاکتوری ──────────
 //
 // GET  /api/material-costs
 //   ?orderId= &module=csv &status= &from= &to= &scope=all|order|free
 //   &q= (نام/توضیح/شماره سفارش/مشتری) &categoryId= (دستهٔ آزاد)
+//   &currency= (فاز ۲۵: IQD | USD | IRT — فیلتر ارزی)
 //
 // POST /api/material-costs
 //   { orderId?, title?, supplierId?, expenseTypeId?, description?,
-//     amount, module, includeInInvoice?, preInvoiceId?, attachments? }
+//     amount, currency?, module, includeInInvoice?, preInvoiceId?, attachments? }
 //
 //   • هزینه روی سفارش (orderId): چاپ/متریال/انبار/لجستیک/مالی —
 //     pending تا تأیید مالی (هزینهٔ خودِ مالی → مستقیم approved).
@@ -38,11 +41,13 @@ export async function GET(req: NextRequest) {
   const scope = searchParams.get("scope"); // all | order | free
   const q = (searchParams.get("q") || "").trim();
   const categoryId = searchParams.get("categoryId");
+  const currency = searchParams.get("currency"); // فاز ۲۵: فیلتر ارزی
 
   const where: Record<string, unknown> = {};
   if (orderId) where.orderId = orderId;
   if (scope === "order") where.orderId = { not: null };
   if (scope === "free") where.orderId = null;
+  if (currency === "IQD" || currency === "USD" || currency === "IRT") where.currency = currency;
   if (mod) {
     const mods = mod.split(",").map((m) => m.trim()).filter(Boolean);
     where.module = mods.length === 1 ? mods[0] : { in: mods };
@@ -82,7 +87,20 @@ export async function GET(req: NextRequest) {
       order: { include: { customer: true } },
     },
   });
-  return NextResponse.json({ costs });
+
+  // ── فاز ۲۵: جمع تفکیکی به تفکیک ارز + معادل دیناری با نرخ لحظه‌ای ──
+  let sums: { per: Record<string, number>; iqdEquivalent: number } | null = null;
+  try {
+    const per = sumByCurrency(costs.map((c) => ({ amount: c.amount, currency: c.currency })));
+    const rates = await getLiveRates();
+    sums = { per: per as unknown as Record<string, number>, iqdEquivalent: toIqdEquivalent(per, rates) };
+  } catch {
+    // نرخ در دسترس نبود — فقط جمع تفکیکی
+    const per = sumByCurrency(costs.map((c) => ({ amount: c.amount, currency: c.currency })));
+    sums = { per: per as unknown as Record<string, number>, iqdEquivalent: 0 };
+  }
+
+  return NextResponse.json({ costs, sums });
 }
 
 type AttachmentDraft = { url: string; fileName: string; mimeType?: string; size?: number };
@@ -101,6 +119,7 @@ export async function POST(req: NextRequest) {
       expenseTypeId,
       description,
       amount,
+      currency,
       fileUrl1,
       fileUrl2,
       module,
@@ -118,6 +137,9 @@ export async function POST(req: NextRequest) {
     if (!Number.isFinite(numAmount) || numAmount > 1_000_000_000) {
       return NextResponse.json({ error: "مبلغ واردشده بیش از حد مجاز است" }, { status: 400 });
     }
+
+    // ── فاز ۲۵: ارز هزینه — هر ثبت‌کننده‌ای (چاپ/متریال/انبار/مالی/لجستیک) ──
+    const cur = parseCurrency(currency);
 
     const isFree = !orderId;
     const costTitle = typeof title === "string" ? title.trim() : "";
@@ -143,11 +165,11 @@ export async function POST(req: NextRequest) {
     if (isFree) mod = "finance";
 
     // ── اعتبارسنجی FKها ──
-    let order: { id: string; number: number; totalAmount: number } | null = null;
+    let order: { id: string; number: number; totalAmount: number; currency: string } | null = null;
     if (!isFree) {
       order = await db.order.findUnique({
         where: { id: orderId },
-        select: { id: true, number: true, totalAmount: true },
+        select: { id: true, number: true, totalAmount: true, currency: true },
       });
       if (!order) {
         return NextResponse.json({ error: "سفارش یافت نشد" }, { status: 404 });
@@ -209,6 +231,16 @@ export async function POST(req: NextRequest) {
     const status = finance ? "approved" : "pending";
     const actorName = await actorNameOf(user.id);
 
+    // ── فاز ۲۵: هزینهٔ فاکتوری همیشه به «ارز سفارش» تبدیل لحظه‌ای می‌شود ──
+    // (مبلغ اصلی هزینه در ارز خودش ذخیره می‌ماند؛ فقط تزریق به سند تبدیل می‌شود)
+    let injectedAmount = numAmount;
+    let injectRates: { USD_IQD: number; USD_IRT: number } | null = null;
+    if (includeInInvoice && order && parseCurrency(order.currency) !== cur) {
+      const rates = await getLiveRates();
+      injectRates = { USD_IQD: rates.USD_IQD, USD_IRT: rates.USD_IRT };
+      injectedAmount = convertMoney(numAmount, cur, parseCurrency(order.currency), rates);
+    }
+
     const matStock =
       linkedMaterial && Number(materialQty) > 0
         ? { id: linkedMaterial.id, qty: Number(materialQty) }
@@ -222,11 +254,11 @@ export async function POST(req: NextRequest) {
           orderId: order.id,
           preInvoiceId: typeof preInvoiceId === "string" ? preInvoiceId : null,
           costTitle: costTitle || "هزینهٔ اضافی",
-          amount: numAmount,
+          amount: injectedAmount,
         });
         await tx.order.update({
           where: { id: order.id },
-          data: { totalAmount: { increment: numAmount } },
+          data: { totalAmount: { increment: injectedAmount } },
         });
       }
 
@@ -238,6 +270,7 @@ export async function POST(req: NextRequest) {
           title: costTitle || null,
           description: description || null,
           amount: numAmount,
+          currency: cur,
           fileUrl1: fileUrl1 || null,
           fileUrl2: fileUrl2 || null,
           status,
@@ -303,7 +336,9 @@ export async function POST(req: NextRequest) {
           actorId: user.id,
           actorName,
           title: `هزینهٔ فاکتوری «${costTitle || "هزینهٔ اضافی"}» به سفارش اضافه شد`,
-          description: `مبلغ: ${numAmount.toLocaleString("en-US")} دینار — به فاکتور/پیش‌فاکتور سفارش #${order.number} افزوده شد`,
+          description: `مبلغ: ${formatMoney(numAmount, cur)}${
+            injectRates ? ` (معادل ${formatMoney(injectedAmount, order.currency)} با نرخ لحظه‌ای)` : ""
+          } — به فاکتور/پیش‌فاکتور سفارش #${order.number} افزوده شد`,
           sensitive: false,
         });
       } else {
@@ -315,7 +350,7 @@ export async function POST(req: NextRequest) {
           actorId: user.id,
           actorName,
           title: `هزینه ${moduleLabel(mod)} ثبت شد`,
-          description: `مبلغ: ${numAmount.toLocaleString("en-US")} دینار${costTitle ? ` — ${costTitle}` : ""}${drafts.length ? ` — ${drafts.length} پیوست` : ""}`,
+          description: `مبلغ: ${formatMoney(numAmount, cur)}${costTitle ? ` — ${costTitle}` : ""}${drafts.length ? ` — ${drafts.length} پیوست` : ""}`,
           sensitive: true,
         });
       }

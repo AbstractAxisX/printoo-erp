@@ -4,12 +4,15 @@ import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
 import { sanitizePayrollNumbers, computeNetPay } from "@/lib/payroll";
 import { jsonError } from "@/lib/api-error";
+import { parseCurrency, parsePayType, formatMoney } from "@/lib/money";
 
 // ─── Phase 16: PUT /api/payroll/entries/[id] ────────────────────
 // ویرایش ارقام یک ورودی حقوق (فقط draft؛ پرداخت‌شده قفل است).
-// { baseSalary?, overtimeHours?, overtimeRate?, bonus?, deduction?,
-//   insurance?, tax?, advanceDeducted?, note?, updateContract? }
-// updateContract=true → baseSalary جدید در قرارداد کاربر (User) هم ذخیره می‌شود.
+// { payType?, currency?, baseSalary?, daysWorked?, overtimeHours?,
+//   overtimeRate?, bonus?, deduction?, insurance?, tax?, advanceDeducted?,
+//   note?, updateContract? }
+// updateContract=true → baseSalary جدید در قرارداد کاربر (User) هم ذخیره می‌شود
+// (فقط برای payType=monthly — نرخ روزانه/ساعتی/موردی قرارداد ماهانه را خراب نمی‌کند).
 
 export async function PUT(
   req: NextRequest,
@@ -32,8 +35,13 @@ export async function PUT(
     }
 
     const body = await req.json();
+    // ── فاز ۲۵: نوع پرداخت + ارز + روز کارشده ──
+    const payType = body.payType !== undefined ? parsePayType(body.payType) : parsePayType(entry.payType);
+    const currency = body.currency !== undefined ? parseCurrency(body.currency) : parseCurrency(entry.currency);
     const nums = sanitizePayrollNumbers({
+      payType,
       baseSalary: body.baseSalary ?? entry.baseSalary,
+      daysWorked: body.daysWorked ?? entry.daysWorked,
       overtimeHours: body.overtimeHours ?? entry.overtimeHours,
       overtimeRate: body.overtimeRate ?? entry.overtimeRate,
       bonus: body.bonus ?? entry.bonus,
@@ -43,16 +51,16 @@ export async function PUT(
       advanceDeducted: body.advanceDeducted ?? entry.advanceDeducted,
     });
 
-    // سقف کسر مساعده = مجموع مساعده‌های کسرنشده (نمی‌شود بیشتر از واقعیت کسر کرد)
-    const pendingSum = await db.payrollAdvance.aggregate({
-      where: { userId: entry.userId, deductedPeriodId: null },
-      _sum: { amount: true },
+    // سقف کسر مساعده = مجموع مساعده‌های کسرنشدهٔ «هم‌ارز» (فاز ۲۵)
+    const pendingRows = await db.payrollAdvance.findMany({
+      where: { userId: entry.userId, deductedPeriodId: null, currency },
+      select: { amount: true },
     });
-    const pendingTotal = pendingSum._sum.amount ?? 0;
+    const pendingTotal = pendingRows.reduce((s, a) => s + a.amount, 0);
     if (nums.advanceDeducted > pendingTotal + 0.001) {
       return jsonError(
         new Error("adv-exceed"),
-        `کسر مساعده بیشتر از مانده (${pendingTotal.toLocaleString("en-US")}) نیست`
+        `کسر مساعدهٔ ${currency} بیشتر از مانده (${formatMoney(pendingTotal, currency)}) نیست`
       , 400);
     }
 
@@ -66,9 +74,16 @@ export async function PUT(
     const updated = await db.$transaction(async (tx) => {
       const row = await tx.payrollEntry.update({
         where: { id },
-        data: { ...nums, netPay: net, note },
+        data: {
+          ...nums,
+          payType,
+          currency,
+          netPay: net,
+          note,
+        },
       });
-      if (body.updateContract && Number(body.baseSalary) !== entry.baseSalary) {
+      // قرارداد فقط از حقوق «ماهانه» به‌روز می‌شود (فاز ۲۵)
+      if (body.updateContract && payType === "monthly" && Number(body.baseSalary) !== entry.baseSalary) {
         await tx.user.update({
           where: { id: entry.userId },
           data: { baseSalary: nums.baseSalary },

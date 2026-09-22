@@ -35,6 +35,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
+import { CurrencyChip } from "@/components/shared/fx-widgets";
+import { PAY_TYPES, parsePayType, parseCurrency, formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { MODULES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,7 +51,10 @@ type PayrollEntry = {
   userStatus: string;
   modules: string[];
   status: "draft" | "paid";
+  payType?: string; // فاز ۲۵
+  currency?: string; // فاز ۲۵
   baseSalary: number;
+  daysWorked?: number; // فاز ۲۵
   overtimeHours: number;
   overtimeRate: number;
   bonus: number;
@@ -137,11 +142,35 @@ function ModuleChip({ module }: { module: string }) {
   );
 }
 
-/** خالصِ زنده برای ردیف‌های پرداخت‌نشده (netPay ذخیره‌شده فقط بعد از پرداخت معتبر است) */
+/** خالصِ زنده برای ردیف‌های پرداخت‌نشده — فاز ۲۵: آینهٔ فرمول سرور (شناور بر اساس نوع پرداخت) */
 function liveNet(e: PayrollEntry): number {
-  return Math.round(
-    e.baseSalary + e.overtimeHours * e.overtimeRate + e.bonus -
-      e.deduction - e.insurance - e.tax - e.advanceDeducted
+  const pt = parsePayType(e.payType);
+  let gross = e.baseSalary;
+  let ot = e.overtimeHours * e.overtimeRate;
+  if (pt === "daily") gross = e.baseSalary * (e.daysWorked ?? 0);
+  else if (pt === "hourly") {
+    gross = e.overtimeHours * e.overtimeRate;
+    ot = 0;
+  } else if (pt === "casual") {
+    gross = e.baseSalary;
+    ot = 0;
+  }
+  return Math.round(gross + ot + e.bonus - e.deduction - e.insurance - e.tax - e.advanceDeducted);
+}
+
+/** چیپ نوع پرداخت — نمایش فقط-خواندنی. */
+function PayTypeChip({ payType }: { payType?: string }) {
+  const p = parsePayType(payType);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap",
+        PAY_TYPES[p].chip
+      )}
+      title={PAY_TYPES[p].hint}
+    >
+      {PAY_TYPES[p].label}
+    </span>
   );
 }
 
@@ -230,6 +259,14 @@ export function PayrollSimplePage() {
     );
   }, [current]);
 
+  // فاز ۲۵: جمع تفکیکی ارزی — ارزهای مختلف جمع نمی‌شوند
+  const netPer = sumByCurrency(
+    entries.map((e) => ({ amount: e.status === "paid" ? e.netPay : liveNet(e), currency: e.currency }))
+  );
+  const paidPer = sumByCurrency(
+    entries.filter((e) => e.status === "paid").map((e) => ({ amount: e.netPay, currency: e.currency }))
+  );
+  const mixedCurrencies = (["IQD", "USD", "IRT"] as Currency[]).filter((c) => netPer[c] > 0.0001).length > 1;
   const totalNet = entries.reduce((s, e) => s + (e.status === "paid" ? e.netPay : liveNet(e)), 0);
   const paidSum = entries.reduce((s, e) => s + (e.status === "paid" ? e.netPay : 0), 0);
   const paidCount = entries.filter((e) => e.status === "paid").length;
@@ -293,17 +330,17 @@ export function PayrollSimplePage() {
             </span>
           </div>
 
-          {/* نوار جمع‌وجور */}
+          {/* نوار جمع‌وجور — فاز ۲۵: جمع تفکیکی ارزی */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox
               label="جمع خالص دوره"
-              value={formatCurrency(totalNet)}
+              value={mixedCurrencies ? formatSumPerCurrency(netPer) : formatCurrency(totalNet)}
               icon="wallet"
               cls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
             />
             <StatBox
               label="پرداخت‌شده"
-              value={formatCurrency(paidSum)}
+              value={mixedCurrencies ? formatSumPerCurrency(paidPer) : formatCurrency(paidSum)}
               icon="checkCircle"
               cls="bg-teal-500/10 text-teal-600 dark:text-teal-400"
             />
@@ -368,6 +405,11 @@ export function PayrollSimplePage() {
                                 <ModuleChip key={m} module={m} />
                               ))}
                             </div>
+                            {/* فاز ۲۵: نوع پرداخت + ارز */}
+                            <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                              <PayTypeChip payType={e.payType} />
+                              <CurrencyChip currency={e.currency} />
+                            </div>
                           </TableCell>
                           <TableCell className="text-end">
                             <span
@@ -378,7 +420,7 @@ export function PayrollSimplePage() {
                               dir="ltr"
                               title={net <= 0 ? "خالص صفر/منفی — ارقام را در ماژول مالی تنظیم کنید" : undefined}
                             >
-                              {formatNumber(net)}
+                              {formatMoney(net, e.currency)}
                             </span>
                           </TableCell>
                           <TableCell>
