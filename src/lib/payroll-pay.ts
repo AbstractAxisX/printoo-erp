@@ -1,7 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { computeNetPay, allocateAdvanceDeduction, ensureSalaryExpenseType, payTypeLabel } from "@/lib/payroll";
-import { parseCurrency, parsePayType, formatMoney } from "@/lib/money";
+import { parseCurrency, parsePayType, formatMoney, FX_SEED, type FxRates } from "@/lib/money";
+import { getLiveRates } from "@/lib/fx";
 
 // ─── Phase 16: پرداختِ یک ورودی حقوق — منطق مشترک (رگانی/جاری) ──
 // داخل transaction:
@@ -130,13 +131,20 @@ export async function payPayrollEntry(
       where: { periodId: entry.periodId, status: "paid" },
       select: { netPay: true, currency: true },
     });
+    // فاز ۲۵.۱: هم‌ارزی دیناری با نرخ زنده (بازار) — قبلاً هاردکد ۱۳۱۰/۱۵۰۰۰۰ بود
+    let rates: FxRates = FX_SEED;
+    try {
+      const live = await getLiveRates();
+      rates = { USD_IQD: live.USD_IQD, USD_IRT: live.USD_IRT };
+    } catch {}
+    const usdToIqd = rates.USD_IQD > 0 ? rates.USD_IQD : FX_SEED.USD_IQD;
+    const irtToIqd =
+      rates.USD_IRT > 0 && rates.USD_IQD > 0 ? rates.USD_IQD / rates.USD_IRT : FX_SEED.USD_IQD / FX_SEED.USD_IRT;
     const totalNetIqd = paidEntries.reduce((s, e) => {
       const c = parseCurrency(e.currency);
-      // هم‌ارزی سریع داخل tx (بدون فچ مجدد نرخ): دینار مستقیم،
-      // دلار/تومان با نرخ سیید امن — snapshot فقط نمایشی است
       if (c === "IQD") return s + e.netPay;
-      if (c === "USD") return s + e.netPay * 1310;
-      return s + (e.netPay / 150000) * 1310;
+      if (c === "USD") return s + e.netPay * usdToIqd;
+      return s + e.netPay * irtToIqd; // تومان → دینار (IRT→IQD مستقیم)
     }, 0);
     await tx.payrollPeriod.update({
       where: { id: entry.periodId },

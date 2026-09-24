@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
-import { sumByCurrency, toIqdEquivalent, type Currency, type FxRates } from "@/lib/money";
+import { sumByCurrency, toIqdEquivalent, FX_SEED, type Currency, type FxRates } from "@/lib/money";
 import { getLiveRates } from "@/lib/fx";
 
 // ─── Phase 15: خلاصهٔ مالی — GET /api/finance/summary?from=&to= ────
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     try {
       rates = await getLiveRates();
     } catch {
-      rates = { USD_IQD: 1310, USD_IRT: 150000 };
+      rates = { ...FX_SEED };
     }
     const perOf = (rows: { amount: number; currency: string }[]) =>
       sumByCurrency(rows.map((r) => ({ amount: Math.abs(r.amount), currency: r.currency })));

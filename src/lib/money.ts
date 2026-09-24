@@ -81,7 +81,11 @@ export type FxRates = {
   USD_IRT: number; // 1 USD = چند تومان
 };
 
-export const FX_SEED: FxRates = { USD_IQD: 1310, USD_IRT: 150000 };
+/**
+ * سیید اضطراری (آفلاین مطلق) — فاز ۲۵.۱: نرخ بازار آزاد (TGJU) ۲۰۲۶/۰۹.
+ * فقط وقتی هیچ منبعی جواب ندهد؛ نمایشش با برچسب «پیش‌فرض اضطراری».
+ */
+export const FX_SEED: FxRates = { USD_IQD: 1560, USD_IRT: 234600 };
 
 /** تبدیل ارز با محور دلار — بدون خطا، round بر اساس ارز مقصد. */
 export function convertMoney(
@@ -104,10 +108,10 @@ export function convertMoney(
   return roundMoney(out, t);
 }
 
-/** نرخ متقابل تومان↔دینار — دینار به‌ازای ۱۰۰۰ تومان (نمایش «1000 تومان = X IQD»). */
-export function iqdPerIrt(rates: FxRates): number {
-  if (!rates.USD_IRT) return 0;
-  return roundMoney((rates.USD_IQD / rates.USD_IRT) * 1000, "IQD");
+/** نرخ متقابل دینار→تومان — «۱ دینار = X تومان» (۱ رقم اعشار). */
+export function irtPerIqd(rates: FxRates): number {
+  if (!rates.USD_IQD || !rates.USD_IRT) return 0;
+  return Math.round((rates.USD_IRT / rates.USD_IQD) * 10) / 10;
 }
 
 // ─── جمع‌های چند-ارزی ──────────────────────────────────────────────────
@@ -136,9 +140,9 @@ export function sumIqdEquivalent(items: MoneyItem[], rates: FxRates): number {
   return toIqdEquivalent(sumByCurrency(items), rates);
 }
 
-/** متن جمع چند-ارزی: فقط IQD → «1,200 IQD»؛ ترکیبی → «1,200 IQD + 30 USD + …» */
+/** متن جمع چند-ارزی: فقط IQD → «1,200 IQD»؛ ترکیبی → «1,200 IQD + 30 USD + …» (منفی‌ها هم دیده می‌شوند) */
 export function formatSumPerCurrency(per: Record<Currency, number>): string {
-  const parts = CURRENCY_LIST.filter((c) => per[c] > 0.0001).map(
+  const parts = CURRENCY_LIST.filter((c) => Math.abs(per[c]) > 0.0001).map(
     (c) => `${new Intl.NumberFormat("en-US", { maximumFractionDigits: CURRENCIES[c].decimals }).format(per[c])} ${CURRENCIES[c].suffix}`
   );
   return parts.length ? parts.join(" + ") : "0 IQD";

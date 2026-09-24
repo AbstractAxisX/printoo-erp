@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
-import { getLiveRates, setManualRates } from "@/lib/fx";
+import { getLiveRates, setManualRates, clearManualRates } from "@/lib/fx";
 import { jsonError } from "@/lib/api-error";
-import { roundMoney, iqdPerIrt } from "@/lib/money";
+import { roundMoney, irtPerIqd } from "@/lib/money";
 
-// ─── Phase 25: GET/POST /api/fx — نرخ ارز لحظه‌ای ───────────────
+// ─── Phase 25.1: GET/POST /api/fx — نرخ ارز لحظه‌ای (بازار TGJU) ──
 // GET  → نرخ‌ها + منبع + سن (هر کاربر لاگین‌شده — نمایش در کل سیستم)
-// POST → تنظیم دستی نرخ (فقط مالی/مستر) { USD_IQD?, USD_IRT? }
+// POST → { USD_IQD?, USD_IRT? } تنظیم دستی چسبنده | { clear } بازگشت به خودکار
 
 export async function GET() {
   const user = await requireUser();
@@ -18,7 +18,7 @@ export async function GET() {
       rates: {
         USD_IQD: roundMoney(rates.USD_IQD, "IQD"),
         USD_IRT: roundMoney(rates.USD_IRT, "IRT"),
-        IQD_IRT: iqdPerIrt(rates), // 1 تومان = X دینار
+        IQD_IRT: irtPerIqd(rates), // ۱ دینار = X تومان
       },
       sources: rates.sources,
       fetchedAt: rates.fetchedAt,
@@ -39,6 +39,20 @@ export async function POST(req: NextRequest) {
   }
   try {
     const body = await req.json();
+    // بازگشت به نرخ خودکار — حذف نرخ‌های دستی همان جفت‌ها
+    if (body?.clear === "USD_IQD" || body?.clear === "USD_IRT" || body?.clear === "all") {
+      const rates = await clearManualRates(body.clear);
+      return NextResponse.json({
+        ok: true,
+        rates: {
+          USD_IQD: roundMoney(rates.USD_IQD, "IQD"),
+          USD_IRT: roundMoney(rates.USD_IRT, "IRT"),
+          IQD_IRT: irtPerIqd(rates),
+        },
+        sources: rates.sources,
+        ageHours: Math.round(rates.ageHours * 10) / 10,
+      });
+    }
     const USD_IQD = body.USD_IQD != null ? Number(body.USD_IQD) : undefined;
     const USD_IRT = body.USD_IRT != null ? Number(body.USD_IRT) : undefined;
     if (
@@ -53,7 +67,7 @@ export async function POST(req: NextRequest) {
       rates: {
         USD_IQD: roundMoney(rates.USD_IQD, "IQD"),
         USD_IRT: roundMoney(rates.USD_IRT, "IRT"),
-        IQD_IRT: iqdPerIrt(rates),
+        IQD_IRT: irtPerIqd(rates),
       },
       sources: rates.sources,
       ageHours: 0,

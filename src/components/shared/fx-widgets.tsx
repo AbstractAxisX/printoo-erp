@@ -10,7 +10,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { CURRENCIES, CURRENCY_LIST, parseCurrency, type Currency, type FxRates } from "@/lib/money";
+import { CURRENCIES, CURRENCY_LIST, FX_SEED, parseCurrency, type Currency, type FxRates } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -34,12 +34,28 @@ export function useFxRates() {
   });
   const rates: FxRates = React.useMemo(
     () => ({
-      USD_IQD: q.data?.rates.USD_IQD ?? 1310,
-      USD_IRT: q.data?.rates.USD_IRT ?? 150000,
+      USD_IQD: q.data?.rates.USD_IQD ?? FX_SEED.USD_IQD,
+      USD_IRT: q.data?.rates.USD_IRT ?? FX_SEED.USD_IRT,
     }),
     [q.data]
   );
   return { ...q, rates };
+}
+
+/** برچسب فارسی منبع نرخ. */
+export function fxSourceLabel(s: string | undefined | null): string {
+  switch (s) {
+    case "market":
+      return "بازار (TGJU)";
+    case "official":
+      return "رسمی";
+    case "manual":
+      return "دستی";
+    case "fallback":
+      return "پیش‌فرض اضطراری";
+    default:
+      return "خودکار";
+  }
 }
 
 // ─── CurrencySelect — سگمنت سه‌گزینه‌ای ─────────────────────────────
@@ -125,7 +141,7 @@ export function FxBar({ className }: { className?: string }) {
   }
   const r = data?.rates;
   if (!r) return null;
-  const src = data.sources.USD_IQD === "manual" ? "دستی" : data.sources.USD_IQD === "fallback" ? "پیش‌فرض" : "خودکار";
+  const src = fxSourceLabel(data.sources.USD_IQD);
   return (
     <div
       className={cn(
@@ -145,7 +161,7 @@ export function FxBar({ className }: { className?: string }) {
       </span>
       <span className="text-muted-foreground/40">·</span>
       <span className="tabular-nums text-muted-foreground">
-        1000 تومان = {r.IQD_IRT.toLocaleString("en-US")} IQD
+        1 IQD = {r.IQD_IRT.toLocaleString("en-US")} تومان
       </span>
       <span className={cn("ms-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium", data.stale ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" : "bg-muted text-muted-foreground")}>
         {src}
@@ -181,8 +197,19 @@ export function FxRatesPanel({ className }: { className?: string }) {
         }),
       }),
     onSuccess: () => {
-      toast.success("نرخ ارز دستی ثبت شد — تا فچ بعدی معتبر است");
+      toast.success("نرخ دستی ثبت شد — ثابت می‌ماند تا خودتان پاکش کنید");
       setEditing(false);
+      qc.invalidateQueries({ queryKey: ["fx-rates"] });
+      qc.invalidateQueries({ queryKey: ["finance"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const clearMut = useMutation({
+    mutationFn: () =>
+      api("/api/fx", { method: "POST", body: JSON.stringify({ clear: "all" }) }),
+    onSuccess: () => {
+      toast.success("نرخ دستی حذف شد — بازگشت به نرخ خودکار بازار");
       qc.invalidateQueries({ queryKey: ["fx-rates"] });
       qc.invalidateQueries({ queryKey: ["finance"] });
     },
@@ -198,7 +225,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
   }
   const r = data?.rates;
   if (!r) return null;
-  const srcLabel = (s: string) => (s === "manual" ? "دستی" : s === "fallback" ? "پیش‌فرض اضطراری" : "خودکار (er-api)");
+  const anyManual = data.sources.USD_IQD === "manual" || data.sources.USD_IRT === "manual";
   const age = data.ageHours > 0.05 ? ` · ${Math.round(data.ageHours)} ساعت قبل` : " · تازه";
 
   return (
@@ -211,7 +238,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
           <div className="min-w-0">
             <h3 className="font-semibold text-sm">نرخ لحظه‌ای ارز</h3>
             <p className="text-[11px] text-muted-foreground">
-              مبنای تبدیل‌ها و اسناد چاپی — {srcLabel(data.sources.USD_IQD)}{age}
+              مبنای تبدیل‌ها و اسناد چاپی — {fxSourceLabel(data.sources.USD_IQD)}{age}
             </p>
           </div>
         </div>
@@ -223,15 +250,30 @@ export function FxRatesPanel({ className }: { className?: string }) {
           >
             <span className={cn("text-xs", isFetching && "animate-spin inline-block")}>↻</span>
           </button>
-          {data.canEdit && (
+          {data.canEdit && !editing && (
             <button
               onClick={() => setEditing((v) => !v)}
-              className={cn(
-                "h-8 rounded-lg border px-3 text-xs font-medium transition",
-                editing ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-              )}
+              className="h-8 rounded-lg border px-3 text-xs font-medium transition hover:bg-accent"
             >
-              {editing ? "انصراف" : "ثبت دستی نرخ"}
+              ثبّت دستی نرخ
+            </button>
+          )}
+          {data.canEdit && editing && (
+            <button
+              onClick={() => setEditing((v) => !v)}
+              className="h-8 rounded-lg border px-3 text-xs font-medium transition bg-primary text-primary-foreground"
+            >
+              انصراف
+            </button>
+          )}
+          {data.canEdit && anyManual && !editing && (
+            <button
+              onClick={() => clearMut.mutate()}
+              disabled={clearMut.isPending}
+              className="h-8 rounded-lg border border-amber-300 px-3 text-xs font-medium text-amber-700 dark:text-amber-400 transition hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-60"
+              title="نرخ‌های دستی حذف و نرخ خودکار بازار برمی‌گردد"
+            >
+              {clearMut.isPending ? "…" : "بازگشت به خودکار"}
             </button>
           )}
         </div>
@@ -243,19 +285,19 @@ export function FxRatesPanel({ className }: { className?: string }) {
           <div className="text-lg font-bold tabular-nums mt-0.5">
             {r.USD_IQD.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">IQD</span>
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">{srcLabel(data.sources.USD_IQD)}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{fxSourceLabel(data.sources.USD_IQD)}</div>
         </div>
         <div className="rounded-lg bg-muted/30 px-3 py-2.5" dir="ltr">
           <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">1 USD =</div>
           <div className="text-lg font-bold tabular-nums mt-0.5">
             {r.USD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">تومان</span>
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">{srcLabel(data.sources.USD_IRT)}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{fxSourceLabel(data.sources.USD_IRT)}</div>
         </div>
         <div className="rounded-lg bg-muted/30 px-3 py-2.5" dir="ltr">
-          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">1000 تومان =</div>
+          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">1 IQD =</div>
           <div className="text-lg font-bold tabular-nums mt-0.5">
-            {r.IQD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">IQD</span>
+            {r.IQD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">تومان</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">مشتق از دو نرخ بالا</div>
         </div>
@@ -264,7 +306,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
       {editing && (
         <div className="mt-3.5 rounded-lg border bg-muted/20 p-3 space-y-2.5">
           <p className="text-[11px] text-muted-foreground">
-            نرخ بازار واقعی خودتان را وارد کنید — روی همهٔ تبدیل‌ها و اسناد چاپی همین اعمال می‌شود.
+            نرخ بازار واقعی خودتان را وارد کنید — روی همهٔ تبدیل‌ها و اسناد چاپی همین اعمال می‌شود و ثابت می‌ماند تا با «بازگشت به خودکار» پاکش کنید.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <label className="block">
@@ -275,7 +317,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
                 value={usdIqd}
                 onChange={(e) => setUsdIqd(e.target.value)}
                 className="mt-1 w-full h-9 rounded-lg border bg-background px-3 text-sm tabular-nums text-center"
-                placeholder="1310"
+                placeholder="1560"
               />
             </label>
             <label className="block">
@@ -286,7 +328,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
                 value={usdIrt}
                 onChange={(e) => setUsdIrt(e.target.value)}
                 className="mt-1 w-full h-9 rounded-lg border bg-background px-3 text-sm tabular-nums text-center"
-                placeholder="150000"
+                placeholder="235000"
               />
             </label>
           </div>
@@ -302,9 +344,12 @@ export function FxRatesPanel({ className }: { className?: string }) {
 
       {data.stale && (
         <p className="mt-2.5 text-[11px] text-amber-600 dark:text-amber-400">
-          نرخ‌ها ممکن است قدیمی باشند — دستی به‌روز کنید یا رفرش بزنید.
+          نرخ‌ها ممکن است قدیمی باشند (بازار بسته/قطعی) — دستی به‌روز کنید یا رفرش بزنید.
         </p>
       )}
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        منبع خودکار: بازار آزاد (TGJU) — نرخ متقاطع دلار/دینار؛ نرخ رسمی بانک مرکزی حدود ۱۵٪ پایین‌تر از بازار است و مبنای کارگاه نیست.
+      </p>
     </div>
   );
 }

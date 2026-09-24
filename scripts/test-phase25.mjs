@@ -66,23 +66,48 @@ async function main() {
   const cookie = cookieOf(login.setCookie);
   ok(login.status === 200 && !!cookie, "لاگین مستر");
 
-  // ═══ 1) GET /api/fx — نرخ زنده ═══
-  console.log("\n■ 1) نرخ لحظه‌ای ارز");
+  // ═══ 1) GET /api/fx — نرخ زنده (بازار TGJU / رسمی / دستی / فالبک) ═══
+  console.log("\n■ 1) نرخ لحظه‌ای ارز (بازار TGJU)");
   const fx = await api("/api/fx", { cookie });
   ok(fx.status === 200, "GET /api/fx → 200");
   ok(
-    fx.data?.rates && Number(fx.data.rates.USD_IQD) > 100 && Number(fx.data.rates.USD_IRT) > 1000,
-    `نرخ‌ها معتبر (1USD=${fx.data?.rates?.USD_IQD} IQD / ${fx.data?.rates?.USD_IRT} IRT)`
+    fx.data?.rates && Number(fx.data.rates.USD_IQD) > 900 && Number(fx.data.rates.USD_IRT) > 60000,
+    `نرخ‌ها معتبر بازار (1USD=${fx.data?.rates?.USD_IQD} IQD / ${fx.data?.rates?.USD_IRT} IRT)`
   );
   ok(
-    ["auto", "manual", "fallback"].includes(fx.data?.sources?.USD_IQD),
+    ["market", "official", "auto", "manual", "fallback"].includes(fx.data?.sources?.USD_IQD),
     `منبع نرخ: ${fx.data?.sources?.USD_IQD}`
   );
   ok(fx.data?.canEdit === true, "مستر canEdit=true");
+  ok(
+    Number(fx.data.rates.IQD_IRT) > 100 && Number(fx.data.rates.IQD_IRT) < 250,
+    `۱ دینار = ${fx.data.rates.IQD_IRT} تومان (مشتق معتبر)`
+  );
   const autoIqd = Number(fx.data.rates.USD_IQD);
+  const autoIrt = Number(fx.data.rates.USD_IRT);
 
-  // ═══ 2) POST /api/fx — نرخ دستی ═══
-  console.log("\n■ 2) ثبت نرخ دستی (مالی/مستر)");
+  // ═══ 1-ب) راستی‌آزمایی مستقیم با TGJU (بازار واقعی) ═══
+  try {
+    const tgjuRes = await fetch("https://call1.tgju.org/ajax.json", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(10000),
+    });
+    const tgju = await tgjuRes.json();
+    const dollarRl = Number(String(tgju.current?.price_dollar_rl?.p || "").replace(/,/g, ""));
+    const iqdRl = Number(String(tgju.current?.price_iqd?.p || "").replace(/,/g, ""));
+    const tgjuIqd = dollarRl / iqdRl;
+    const tgjuIrt = dollarRl / 10;
+    const relDiff = (a, b) => Math.abs(a - b) / Math.max(a, b);
+    ok(
+      relDiff(autoIqd, tgjuIqd) < 0.02 && relDiff(autoIrt, tgjuIrt) < 0.02,
+      `تطابق با بازار TGJU: API=${autoIqd}/${autoIrt} vs بازار=${Math.round(tgjuIqd)}/${Math.round(tgjuIrt)} (±۲٪)`
+    );
+  } catch (e) {
+    ok(false, `فچ مستقیم TGJU برای راستی‌آزمایی: ${e.message}`);
+  }
+
+  // ═══ 2) POST /api/fx — نرخ دستی (چسبنده) + بازگشت به خودکار ═══
+  console.log("\n■ 2) ثبت نرخ دستی (مالی/مستر) — چسبنده");
   const manual = await api("/api/fx", {
     method: "POST",
     cookie,
@@ -93,9 +118,25 @@ async function main() {
     Number(manual.data?.rates?.USD_IQD) === autoIqd + 7,
     `نرخ دستی حاکم شد (${autoIqd + 7} IQD)`
   );
-  // برگشت به نرخ خودکار با فچ مجدد؟ — نرخ manual تا فچ بعدی معتبر است؛ کافی است.
+  // فاز ۲۵.۱: دستی «چسبنده» است — فچ خودکار آن را سایه نمی‌زند
   const fx2 = await api("/api/fx", { cookie });
-  ok(Number(fx2.data.rates.USD_IQD) === autoIqd + 7, "نرخ manual در GET بعدی هم معتبر");
+  ok(Number(fx2.data.rates.USD_IQD) === autoIqd + 7, "نرخ manual در GET بعدی هم معتبر (چسبنده)");
+  ok(fx2.data?.sources?.USD_IQD === "manual", "منبع = manual");
+  // بازگشت به خودکار
+  const back = await api("/api/fx", {
+    method: "POST",
+    cookie,
+    body: { clear: "all" },
+  });
+  ok(back.status === 200 && Number(back.data?.rates?.USD_IQD) !== autoIqd + 7, "clear → نرخ دستی حذف شد");
+  ok(
+    ["market", "official", "auto", "fallback"].includes(back.data?.sources?.USD_IQD),
+    `بازگشت به خودکار: ${back.data?.sources?.USD_IQD}`
+  );
+  ok(
+    Math.abs(Number(back.data?.rates?.USD_IQD) - autoIqd) <= 5,
+    `نرخ بازار برگشت (${back.data?.rates?.USD_IQD} ≈ ${autoIqd})`
+  );
 
   // ── دیتای تستی ──
   const customer = await db.customer.create({
@@ -155,8 +196,8 @@ async function main() {
     `جمع تفکیکی USD: ${onlyUsd.data?.sums?.per?.USD}`
   );
   ok(
-    Number(onlyUsd.data?.sums?.iqdEquivalent) >= 25 * (autoIqd + 7),
-    `معادل دیناری: ${onlyUsd.data?.sums?.iqdEquivalent} IQD`
+    Math.abs(Number(onlyUsd.data?.sums?.iqdEquivalent) - 25 * autoIqd) <= 25 * 15,
+    `معادل دیناری: ${onlyUsd.data?.sums?.iqdEquivalent} IQD ≈ 25×${autoIqd} (نرخ بازار زنده)`
   );
 
   // ارز نامعتبر → IQD
@@ -423,8 +464,9 @@ async function main() {
       await db.orderItem.deleteMany({ where: { orderId: lid } });
       await db.order.delete({ where: { id: lid } }).catch(() => {});
     }
-    // نرخ دستی پاک — تاریخچه بماند بی‌ضرر؛ ردیف‌های manual سیید نیستند
-    ok(true, "پاک‌سازی کامل (سفارش/هزینه/حقوق/مساعده/کارمند/مشتری/محصول)");
+    // نرخ دستی پاک (فاز ۲۵.۱ چسبنده است — حتماً باید پاک شود)
+    await db.fxRate.deleteMany({ where: { source: "manual" } }).catch(() => {});
+    ok(true, "پاک‌سازی کامل (سفارش/هزینه/حقوق/مساعده/کارمند/مشتری/محصول/نرخ دستی)");
   } catch (e) {
     ok(false, `پاک‌سازی: ${e.message}`);
   }

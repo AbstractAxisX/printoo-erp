@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useFxRates } from "@/components/shared/fx-widgets";
+import { useFxRates, fxSourceLabel } from "@/components/shared/fx-widgets";
 import { CURRENCIES, CURRENCY_LIST, convertMoney, formatMoney, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/lib/icons";
@@ -90,7 +90,7 @@ export function PrintCurrencyGate({
           <span className="tabular-nums">1 $ = {rates.USD_IRT.toLocaleString("en-US")} تومان</span>
           {data && (
             <span className="ms-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
-              {data.sources.USD_IQD === "manual" ? "دستی" : data.sources.USD_IQD === "fallback" ? "پیش‌فرض" : "خودکار"}
+              {fxSourceLabel(data.sources.USD_IQD)}
               {data.ageHours > 0.05 ? ` · ${Math.round(data.ageHours)}ساعت قبل` : ""}
             </span>
           )}

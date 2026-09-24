@@ -46,7 +46,14 @@ function FxStrip({ fx }: { fx: P24FxLine }) {
     at && !isNaN(at.getTime())
       ? `${String(at.getDate()).padStart(2, "0")}/${String(at.getMonth() + 1).padStart(2, "0")}/${at.getFullYear()} ${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`
       : null;
-  const label = fx.source === "manual" ? "MANUAL RATE" : "LIVE EXCHANGE RATE";
+  const label =
+    fx.source === "manual"
+      ? "MANUAL RATE"
+      : fx.source === "market"
+        ? "MARKET EXCHANGE RATE — TGJU"
+        : fx.source === "official"
+          ? "OFFICIAL EXCHANGE RATE"
+          : "LIVE EXCHANGE RATE";
   return (
     <div
       className="shrink-0 flex items-center justify-between gap-4 px-10 py-2"

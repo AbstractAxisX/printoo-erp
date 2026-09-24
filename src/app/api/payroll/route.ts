@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { isFinanceStaff } from "@/lib/access";
 import { jsonError } from "@/lib/api-error";
-import { sumByCurrency, toIqdEquivalent, parsePayType, type Currency } from "@/lib/money";
+import { sumByCurrency, toIqdEquivalent, parsePayType, FX_SEED, type Currency } from "@/lib/money";
 import { getLiveRates } from "@/lib/fx";
 
 // ─── Phase 16: GET/POST /api/payroll ───────────────────────────
@@ -122,7 +122,7 @@ async function loadPeriodDetail(periodId: string) {
   }));
 
   // ── فاز ۲۵: جمع تفکیکی به ارز + معادل دیناری (نرخ لحظه‌ای) ──
-  let rates = { USD_IQD: 1310, USD_IRT: 150000 };
+  let rates = { ...FX_SEED };
   try {
     const live = await getLiveRates();
     rates = { USD_IQD: live.USD_IQD, USD_IRT: live.USD_IRT };
