@@ -25,6 +25,7 @@ import {
 import { StatusBadge } from "@/components/shared";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CurrencyChip, useFxRates } from "@/components/shared/fx-widgets";
+import { BulkSettleDialog } from "@/components/shared/bulk-settle-dialog";
 import { formatMoney, sumByCurrency, formatSumPerCurrency, toIqdEquivalent, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -56,6 +57,9 @@ export function FinanceUnsettled() {
   // مودال ثبت پرداخت
   const [payOrder, setPayOrder] = React.useState<Order | null>(null);
   const [payTotal, setPayTotal] = React.useState("");
+
+  // ── فاز ۲۶: مودال تسویه گروهی ──
+  const [bulkOpen, setBulkOpen] = React.useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["orders", "unsettled"],
@@ -231,7 +235,7 @@ export function FinanceUnsettled() {
         ),
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     []
   );
 
@@ -248,15 +252,25 @@ export function FinanceUnsettled() {
         title="تسویه‌نشده"
         icon="wallet"
         actions={
-          <Button
-            variant={includeDone ? "default" : "outline"}
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setIncludeDone((v) => !v)}
-          >
-            <Icon name="checkCircle" size={14} />
-            {includeDone ? "نمایش همه" : "تسویه‌شده‌ها را هم نشان بده"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setBulkOpen(true)}
+            >
+              <Icon name="creditCard" size={14} />
+              تسویه گروهی
+            </Button>
+            <Button
+              variant={includeDone ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setIncludeDone((v) => !v)}
+            >
+              <Icon name="checkCircle" size={14} />
+              {includeDone ? "نمایش همه" : "تسویه‌شده‌ها را هم نشان بده"}
+            </Button>
+          </div>
         }
       />
 
@@ -317,6 +331,9 @@ export function FinanceUnsettled() {
           }
         />
       </Card>
+
+      {/* فاز ۲۶: دیالوگ تسویه گروهی — یک موج پرداخت روی همهٔ سفارش‌های باز مشتری */}
+      <BulkSettleDialog open={bulkOpen} onOpenChange={setBulkOpen} />
 
       {/* مودال ثبت پرداخت — عدد کل + محاسبهٔ زندهٔ دریافتی جدید */}
       <Dialog open={!!payOrder} onOpenChange={(v) => !v && setPayOrder(null)}>

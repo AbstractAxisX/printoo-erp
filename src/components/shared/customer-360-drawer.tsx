@@ -21,6 +21,7 @@ import { useInvalidate } from "@/lib/use-invalidate";
 import { EmptyState, StatusBadge } from "@/components/shared";
 import { P24StatementDoc, type P24FxLine } from "@/components/shared/p24-doc";
 import { DocPrintButtons } from "@/components/shared/doc-print-buttons";
+import { BulkSettleDialog } from "@/components/shared/bulk-settle-dialog";
 import { useFxRates } from "@/components/shared/fx-widgets";
 import { sumByCurrency, toIqdEquivalent } from "@/lib/money";
 import { COMPANY, CURRENCY } from "@/lib/constants";
@@ -148,6 +149,8 @@ export function Customer360Drawer({
   const [statementOpen, setStatementOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [confirmName, setConfirmName] = React.useState("");
+  // ── فاز ۲۶: تسویه گروهی بدهی ──
+  const [bulkSettleOpen, setBulkSettleOpen] = React.useState(false);
   const open = !!customerId;
 
   const { data, isLoading, isError, error } = useQuery({
@@ -179,6 +182,7 @@ export function Customer360Drawer({
       setStatementOpen(false);
       setDeleteOpen(false);
       setConfirmName("");
+      setBulkSettleOpen(false);
     }
   }, [open]);
 
@@ -388,14 +392,25 @@ export function Customer360Drawer({
                     سفارش‌های پرداخت‌نشده ({formatNumber(unpaidOrders.length)})
                   </span>
                   {unpaidOrders.length > 0 && (
-                    <Button
-                      size="sm"
-                      onClick={() => setStatementOpen(true)}
-                      className="gap-1.5 h-8"
-                      data-guide="c360:statement-btn"
-                    >
-                      <Icon name="print" size={13} /> چاپ فاکتور سفارشات پرداخت‌نشده
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setBulkSettleOpen(true)}
+                        className="gap-1.5 h-8"
+                        data-guide="c360:bulk-settle-btn"
+                      >
+                        <Icon name="wallet" size={13} /> تسویه گروهی بدهی
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setStatementOpen(true)}
+                        className="gap-1.5 h-8"
+                        data-guide="c360:statement-btn"
+                      >
+                        <Icon name="print" size={13} /> چاپ فاکتور سفارشات پرداخت‌نشده
+                      </Button>
+                    </div>
                   )}
                 </div>
 
@@ -647,6 +662,13 @@ export function Customer360Drawer({
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── فاز ۲۶: دیالوگ تسویه گروهی — یک موج پرداخت روی همهٔ بدهی‌های همین مشتری ── */}
+      <BulkSettleDialog
+        open={bulkSettleOpen}
+        onOpenChange={setBulkSettleOpen}
+        presetCustomerId={customerId}
+      />
 
       {/* تایید حذف با تایپ نام مشتری */}
       {detail && (
