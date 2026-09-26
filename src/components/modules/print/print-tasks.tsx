@@ -24,6 +24,7 @@ import {
 import { formatDate, daysRemaining, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t as tr } from "@/lib/i18n";
 
 type Task = {
   id: string;
@@ -82,11 +83,11 @@ export function PrintTasks() {
       invalidate(["tasks", "dashboard"]);
       const label =
         vars.status === "in_progress"
-          ? "در حال انجام"
+          ? tr("در حال انجام")
           : vars.status === "done"
-          ? "انجام شد"
-          : "در صف";
-      toast.success(`تسک "${label}" شد`);
+          ? tr("انجام شد")
+          : tr("در صف");
+      toast.success(tr("تسک \"{p0}\" شد", { p0: label }));
       setDetailTask((prev) =>
         prev && prev.id === vars.taskId ? { ...prev, status: vars.status } : prev
       );
@@ -107,46 +108,46 @@ export function PrintTasks() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تسک‌های چاپ"
-        description="تسک‌های اختصاص‌یافته به ماژول چاپ"
+        title={tr("تسک‌های چاپ")}
+        description={tr("تسک‌های اختصاص‌یافته به ماژول چاپ")}
         icon="task"
       />
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard count={todoCount} label="در صف" icon="inbox" color="slate" />
-        <StatCard count={inProgressCount} label="در حال انجام" icon="loading" color="amber" />
-        <StatCard count={doneCount} label="انجام شده" icon="checkCircle" color="emerald" />
-        <StatCard count={overdueCount} label="گذشته" icon="alertTriangle" color="rose" />
+        <StatCard count={todoCount} label={tr("در صف")} icon="inbox" color="slate" />
+        <StatCard count={inProgressCount} label={tr("در حال انجام")} icon="loading" color="amber" />
+        <StatCard count={doneCount} label={tr("انجام شده")} icon="checkCircle" color="emerald" />
+        <StatCard count={overdueCount} label={tr("گذشته")} icon="alertTriangle" color="rose" />
       </div>
 
       {/* Filter toggles */}
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground">وضعیت:</span>
+          <span className="text-xs text-muted-foreground">{tr("وضعیت:")}</span>
           <ToggleButton
             checked={statusFilters.todo}
             onChange={(v) => setStatusFilters((s) => ({ ...s, todo: v }))}
-            label="در صف"
+            label={tr("در صف")}
             size="sm"
             activeColor="primary"
           />
           <ToggleButton
             checked={statusFilters.in_progress}
             onChange={(v) => setStatusFilters((s) => ({ ...s, in_progress: v }))}
-            label="در حال انجام"
+            label={tr("در حال انجام")}
             size="sm"
             activeColor="amber"
           />
           <ToggleButton
             checked={statusFilters.done}
             onChange={(v) => setStatusFilters((s) => ({ ...s, done: v }))}
-            label="انجام شده"
+            label={tr("انجام شده")}
             size="sm"
             activeColor="emerald"
           />
           <div className="mr-auto text-xs text-muted-foreground">
-            {sortedTasks.length} تسک
+            {tr("{p0} تسک", { p0: sortedTasks.length })}
           </div>
         </div>
       </Card>
@@ -154,12 +155,12 @@ export function PrintTasks() {
       {/* Task list */}
       <Card className="p-0 overflow-hidden">
         {isLoading ? (
-          <LoadingState label="در حال بارگذاری تسک‌ها..." />
+          <LoadingState label={tr("در حال بارگذاری تسک‌ها...")} />
         ) : sortedTasks.length === 0 ? (
           <EmptyState
             icon="checkCircle"
-            title="تسکی برای نمایش نیست"
-            description="با تغییر فیلترها می‌توانید سایر تسک‌ها را ببینید"
+            title={tr("تسکی برای نمایش نیست")}
+            description={tr("با تغییر فیلترها می‌توانید سایر تسک‌ها را ببینید")}
           />
         ) : (
           <div className="divide-y max-h-[600px] overflow-y-auto scrollbar-thin">
@@ -241,7 +242,7 @@ export function PrintTasks() {
                         }
                         disabled={updateStatusMut.isPending}
                       >
-                        <Icon name="play" size={14} /> شروع
+                        <Icon name="play" size={14} /> {tr("شروع")}
                       </Button>
                     )}
                     {t.status === "in_progress" && (
@@ -254,7 +255,7 @@ export function PrintTasks() {
                         }
                         disabled={updateStatusMut.isPending}
                       >
-                        <Icon name="check" size={14} /> پایان
+                        <Icon name="check" size={14} /> {tr("پایان")}
                       </Button>
                     )}
                     {t.status === "done" && (
@@ -267,7 +268,7 @@ export function PrintTasks() {
                         }
                         disabled={updateStatusMut.isPending}
                       >
-                        <Icon name="refresh" size={14} /> بازگردان
+                        <Icon name="refresh" size={14} /> {tr("بازگردان")}
                       </Button>
                     )}
                   </div>
@@ -361,7 +362,7 @@ function TaskDetailModal({
           {/* Description */}
           {task.description && (
             <div className="rounded-lg border p-3 bg-muted/20">
-              <div className="text-[11px] text-muted-foreground mb-1">توضیحات</div>
+              <div className="text-[11px] text-muted-foreground mb-1">{tr("توضیحات")}</div>
               <div className="text-sm whitespace-pre-wrap">{task.description}</div>
             </div>
           )}
@@ -369,7 +370,7 @@ function TaskDetailModal({
           {/* Info */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg border p-2.5">
-              <div className="text-muted-foreground">سررسید</div>
+              <div className="text-muted-foreground">{tr("سررسید")}</div>
               <div className="font-medium mt-0.5 tabular-nums">
                 {task.dueDate ? formatDate(task.dueDate) : "—"}
               </div>
@@ -387,7 +388,7 @@ function TaskDetailModal({
               )}
             </div>
             <div className="rounded-lg border p-2.5">
-              <div className="text-muted-foreground">ساخت</div>
+              <div className="text-muted-foreground">{tr("ساخت")}</div>
               <div className="font-medium mt-0.5">{relativeTime(task.createdAt)}</div>
             </div>
           </div>
@@ -401,12 +402,12 @@ function TaskDetailModal({
               className="gap-1.5"
               onClick={() => onUpdateStatus("in_progress")}
             >
-              <Icon name="play" size={14} /> شروع کار
+              <Icon name="play" size={14} /> {tr("شروع کار")}
             </Button>
           )}
           {task.status === "in_progress" && (
             <Button size="sm" className="gap-1.5" onClick={() => onUpdateStatus("done")}>
-              <Icon name="check" size={14} /> پایان کار
+              <Icon name="check" size={14} /> {tr("پایان کار")}
             </Button>
           )}
           {task.status === "done" && (
@@ -416,11 +417,11 @@ function TaskDetailModal({
               className="gap-1.5"
               onClick={() => onUpdateStatus("todo")}
             >
-              <Icon name="refresh" size={14} /> بازگردان به صف
+              <Icon name="refresh" size={14} /> {tr("بازگردان به صف")}
             </Button>
           )}
           <Button size="sm" variant="ghost" className="mr-auto" onClick={onClose}>
-            بستن
+            {tr("بستن")}
           </Button>
         </div>
       </DialogContent>

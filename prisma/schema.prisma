@@ -37,6 +37,9 @@ model User {
   demoExpiresAt  DateTime?
   // ─── Phase 23: تولتیپ‌های راهنما — ترجیح هر کاربر (دیفالت روشن) ──
   guideTooltips  Boolean  @default(true)
+  // ─── Phase 27: زبان رابط کاربر (دیفالت انگلیسی) ──
+  // en | fa — از کارت «زبان» در پروفایل تنظیم می‌شود (PUT /api/auth/preferences)
+  language       String   @default("en")
   lastSeenAt     DateTime?
   lastLoginAt    DateTime?
   loginCount     Int      @default(0)

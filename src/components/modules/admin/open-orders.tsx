@@ -35,6 +35,7 @@ import {
 } from "./orders/order-table-tabs";
 import { getOrderTabColumns } from "./orders/columns-by-tab";
 import { OpenOrdersKanban } from "./open-orders-kanban";
+import { t } from "@/lib/i18n";
 
 // Local alias keeps the rest of this file unchanged (minimal diff).
 type Order = OpenOrder;
@@ -191,7 +192,7 @@ export function OpenOrdersPage() {
     () => [
       {
         accessorKey: "number",
-        header: "شماره",
+        header: t("شماره"),
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold">#{row.original.number}</span>
         ),
@@ -200,7 +201,7 @@ export function OpenOrdersPage() {
       {
         id: "customer",
         accessorFn: (r) => r.customer.name,
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <div className="min-w-[140px]">
             <div className="font-medium text-sm">{row.original.customer.name}</div>
@@ -213,7 +214,7 @@ export function OpenOrdersPage() {
       },
       {
         id: "items",
-        header: "آیتم‌ها",
+        header: t("آیتم‌ها"),
         cell: ({ row }) => {
           const items = row.original.items ?? [];
           return (
@@ -238,7 +239,7 @@ export function OpenOrdersPage() {
       },
       {
         accessorKey: "status",
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         enableSorting: true,
       },
@@ -250,7 +251,7 @@ export function OpenOrdersPage() {
         },
         header: () => (
           <div className="flex items-center gap-1">
-            <span>موعد مرحله</span>
+            <span>{t("موعد مرحله")}</span>
             <span className="text-[10px] font-normal text-muted-foreground">
               ({STAGES.find((s) => s.key === selectedStage)?.label})
             </span>
@@ -260,7 +261,7 @@ export function OpenOrdersPage() {
           const o = row.original;
           const deadline = getStageDeadline(o, selectedStage);
           if (!deadline) {
-            return <span className="text-xs text-muted-foreground">بدون موعد</span>;
+            return <span className="text-xs text-muted-foreground">{t("بدون موعد")}</span>;
           }
           const dr = daysRemaining(deadline);
           return (
@@ -287,10 +288,10 @@ export function OpenOrdersPage() {
       {
         id: "endDate",
         accessorFn: (r) => (r.endDate ? new Date(r.endDate).getTime() : 0),
-        header: "موعد کلی",
+        header: t("موعد کلی"),
         cell: ({ row }) => {
           const o = row.original;
-          if (o.noEndDate) return <span className="text-xs text-muted-foreground">بدون زمان</span>;
+          if (o.noEndDate) return <span className="text-xs text-muted-foreground">{t("بدون زمان")}</span>;
           if (!o.endDate) return <span className="text-xs text-muted-foreground">—</span>;
           const dr = daysRemaining(o.endDate);
           return (
@@ -317,13 +318,13 @@ export function OpenOrdersPage() {
       {
         id: "priority",
         accessorFn: (r) => r.priority,
-        header: "اولویت",
+        header: t("اولویت"),
         cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
         enableSorting: true,
       },
       {
         accessorKey: "totalAmount",
-        header: "مبلغ",
+        header: t("مبلغ"),
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums text-sm" dir="ltr">
             {formatCurrency(row.original.totalAmount)}
@@ -334,7 +335,7 @@ export function OpenOrdersPage() {
       {
         id: "createdAt",
         accessorFn: (r) => new Date(r.createdAt).getTime(),
-        header: "تاریخ ساخت",
+        header: t("تاریخ ساخت"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground tabular-nums">
             {formatDate(row.original.createdAt)}
@@ -357,16 +358,16 @@ export function OpenOrdersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="سفارشات باز"
-        description="سفارش‌های در حال پردازش — مدیریت بر اساس مرحلهٔ جریان کار"
+        title={t("سفارشات باز")}
+        description={t("سفارش‌های در حال پردازش — مدیریت بر اساس مرحلهٔ جریان کار")}
         icon="clock"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handleRefresh} aria-label="بازخوانی">
+            <Button variant="outline" size="icon" onClick={handleRefresh} aria-label={t("بازخوانی")}>
               <Icon name="refresh" size={16} />
             </Button>
             <Button onClick={() => navigate("admin", "orders-new")} className="gap-2">
-              <Icon name="plus" size={16} /> سفارش جدید
+              <Icon name="plus" size={16} /> {t("سفارش جدید")}
             </Button>
           </div>
         }
@@ -376,7 +377,7 @@ export function OpenOrdersPage() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div
           role="tablist"
-          aria-label="نمای سفارشات"
+          aria-label={t("نمای سفارشات")}
           className="inline-flex items-center gap-1 rounded-lg border bg-card p-1"
         >
           <button
@@ -391,7 +392,7 @@ export function OpenOrdersPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             )}
           >
-            <Icon name="grid" size={15} /> نمای جدول
+            <Icon name="grid" size={15} /> {t("نمای جدول")}
           </button>
           <button
             type="button"
@@ -405,7 +406,7 @@ export function OpenOrdersPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-accent"
             )}
           >
-            <Icon name="dashboard" size={15} /> نمای کانبان
+            <Icon name="dashboard" size={15} /> {t("نمای کانبان")}
           </button>
         </div>
         {view === "kanban" && (
@@ -461,7 +462,7 @@ export function OpenOrdersPage() {
                     isActive ? "text-white/80" : "text-muted-foreground"
                   )}
                 >
-                  {count} سفارش
+                  {t("{p0} سفارش", { p0: count })}
                 </div>
               </div>
             </button>
@@ -472,7 +473,7 @@ export function OpenOrdersPage() {
       {/* ─── Summary cards — موبایل: 4 کارت مینیمال در یک ردیف (20-اِ) ── */}
       <div className="grid grid-cols-4 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <SummaryCard
-          label="کل سفارشات"
+          label={t("کل سفارشات")}
           value={stats.total}
           icon="orders"
           tone="slate"
@@ -480,31 +481,31 @@ export function OpenOrdersPage() {
           onClick={() => handleCardClick("total")}
         />
         <SummaryCard
-          label="تأخیر شده"
+          label={t("تأخیر شده")}
           value={stats.overdue}
           icon="alertTriangle"
           tone="rose"
           active={cardFilter === "overdue"}
           onClick={() => handleCardClick("overdue")}
-          hint="موعد مرحله گذشته است"
+          hint={t("موعد مرحله گذشته است")}
         />
         <SummaryCard
-          label="نزدیک موعد"
+          label={t("نزدیک موعد")}
           value={stats.near}
           icon="clock"
           tone="amber"
           active={cardFilter === "near"}
           onClick={() => handleCardClick("near")}
-          hint={`حداکثر ${NEAR_THRESHOLD[selectedStage]} روز باقی مانده`}
+          hint={t("حداکثر {p0} روز باقی مانده", { p0: NEAR_THRESHOLD[selectedStage] })}
         />
         <SummaryCard
-          label="فوری"
+          label={t("فوری")}
           value={stats.urgent}
           icon="alert"
           tone="rose"
           active={cardFilter === "urgent"}
           onClick={() => handleCardClick("urgent")}
-          hint="اولویت فوری"
+          hint={t("اولویت فوری")}
         />
       </div>
 
@@ -516,8 +517,8 @@ export function OpenOrdersPage() {
             onChange={setCustomerFilter}
             search={customerSearch}
             onSearchChange={setCustomerSearch}
-            placeholder="جستجوی مشتری (نام یا شماره)..."
-            emptyText="مشتری‌ای یافت نشد"
+            placeholder={t("جستجوی مشتری (نام یا شماره)...")}
+            emptyText={t("مشتری‌ای یافت نشد")}
             options={customers.map((c) => ({ value: c.id, label: c.name, sub: c.phone }))}
             icon="customers"
             className="w-60"
@@ -527,8 +528,8 @@ export function OpenOrdersPage() {
             onChange={setProductFilter}
             search={productSearch}
             onSearchChange={setProductSearch}
-            placeholder="جستجوی محصول..."
-            emptyText="محصولی یافت نشد"
+            placeholder={t("جستجوی محصول...")}
+            emptyText={t("محصولی یافت نشد")}
             options={products.map((p) => ({ value: p.id, label: p.name }))}
             icon="package"
             className="w-52"
@@ -548,15 +549,15 @@ export function OpenOrdersPage() {
                 size={12}
               />
               {cardFilter === "overdue"
-                ? "تأخیر شده"
+                ? t("تأخیر شده")
                 : cardFilter === "near"
-                ? "نزدیک موعد"
-                : "فوری"}
+                ? t("نزدیک موعد")
+                : t("فوری")}
               <button
                 type="button"
                 onClick={() => setCardFilter(null)}
                 className="size-4 grid place-items-center rounded-full hover:bg-primary/20 transition"
-                aria-label="پاک کردن فیلتر"
+                aria-label={t("پاک کردن فیلتر")}
               >
                 <Icon name="cancel" size={11} />
               </button>
@@ -570,12 +571,12 @@ export function OpenOrdersPage() {
               className="gap-1.5 text-muted-foreground"
               onClick={resetAllFilters}
             >
-              <Icon name="cancel" size={14} /> پاک کردن همه ({activeFilterCount})
+              <Icon name="cancel" size={14} /> {t("پاک کردن همه ({p0})", { p0: activeFilterCount })}
             </Button>
           )}
 
           <div className="mr-auto text-xs text-muted-foreground tabular-nums">
-            {filteredOrders.length} سفارش
+            {t("{p0} سفارش", { p0: filteredOrders.length })}
           </div>
         </div>
       </Card>
@@ -586,13 +587,13 @@ export function OpenOrdersPage() {
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
               <Icon name="loading" size={18} className="animate-spin text-primary" />
-              در حال بارگذاری سفارشات...
+              {t("در حال بارگذاری سفارشات...")}
             </div>
           ) : filteredOrders.length === 0 ? (
             <EmptyState
               icon="orders"
-              title="سفارشی یافت نشد"
-              description="با فیلترهای فعلی سفارش بازی وجود ندارد."
+              title={t("سفارشی یافت نشد")}
+              description={t("با فیلترهای فعلی سفارش بازی وجود ندارد.")}
             />
           ) : (
             <OpenOrdersKanban
@@ -617,11 +618,11 @@ export function OpenOrdersPage() {
             emptyState={
               <EmptyState
                 icon="orders"
-                title="سفارشی یافت نشد"
-                description="با فیلترهای فعلی سفارش بازی وجود ندارد."
+                title={t("سفارشی یافت نشد")}
+                description={t("با فیلترهای فعلی سفارش بازی وجود ندارد.")}
                 action={
                   <Button onClick={() => navigate("admin", "orders-new")} className="gap-2">
-                    <Icon name="plus" size={16} /> ایجاد سفارش
+                    <Icon name="plus" size={16} /> {t("ایجاد سفارش")}
                   </Button>
                 }
               />
@@ -644,7 +645,7 @@ export function OpenOrdersPage() {
         <div className="fixed inset-0 z-50 pointer-events-none grid place-items-center">
           <div className="pointer-events-auto bg-background/95 backdrop-blur border rounded-xl shadow-lg px-4 py-3 flex items-center gap-2">
             <Icon name="loading" size={16} className="animate-spin text-primary" />
-            <span className="text-sm">بارگذاری جزئیات سفارش...</span>
+            <span className="text-sm">{t("بارگذاری جزئیات سفارش...")}</span>
           </div>
         </div>
       )}
@@ -666,7 +667,7 @@ function OpenOrderMobileCard({ order: o, stage }: { order: Order; stage: Stage }
         <StatusBadge status={o.status} />
         {o.priority === "urgent" && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 inline-flex items-center gap-1">
-            <Icon name="alertTriangle" size={10} /> فوری
+            <Icon name="alertTriangle" size={10} /> {t("فوری")}
           </span>
         )}
         <span className="text-[11px] text-muted-foreground ms-auto">{relativeTime(o.createdAt)}</span>
@@ -703,10 +704,10 @@ function OpenOrderMobileCard({ order: o, stage }: { order: Order; stage: Stage }
             )}
           >
             {overdue && <Icon name="alertTriangle" size={11} />}
-            موعد {formatDate(deadline)}
+            {t("موعد {p0}", { p0: formatDate(deadline) })}
           </span>
         ) : (
-          <span className="text-[11px] text-muted-foreground">بدون موعد</span>
+          <span className="text-[11px] text-muted-foreground">{t("بدون موعد")}</span>
         )}
       </div>
     </div>
@@ -912,7 +913,7 @@ function SearchCombobox({
               }}
               className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 flex items-center justify-center gap-1"
             >
-              <Icon name="cancel" size={12} /> پاک کردن انتخاب
+              <Icon name="cancel" size={12} /> {t("پاک کردن انتخاب")}
             </button>
           </div>
         )}

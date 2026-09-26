@@ -30,6 +30,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { rangeToParams, type TimeRange } from "@/lib/time-ranges";
+import { t } from "@/lib/i18n";
 
 // ─── Shared types (single source of truth for the dashboard payload) ─────────
 
@@ -136,7 +137,7 @@ function allTimeRange(): TimeRange {
     from: new Date(2000, 0, 1),
     to: now,
     preset: "all-time",
-    label: "همه زمان‌ها",
+    label: t("همه زمان‌ها"),
   };
 }
 

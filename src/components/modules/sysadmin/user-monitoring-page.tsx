@@ -71,6 +71,7 @@ import {
 // قرارداد API — فقط import type (در کامپایل پاک می‌شود، بدون وابستگی
 // ران‌تایم به lib/db). Date ها بعد از JSON.stringify رشته‌ای‌اند:
 import type { TimelineEvent, UserDetailReport } from "@/lib/monitoring";
+import { t } from "@/lib/i18n";
 
 type Json<T> = T extends Date
   ? string
@@ -107,7 +108,7 @@ function timeOf(iso: string): string {
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "؟";
+  if (parts.length === 0) return t("؟");
   if (parts.length === 1) return parts[0].slice(0, 2);
   return `${parts[0][0]}${parts[1][0]}`;
 }
@@ -143,28 +144,28 @@ const KIND_GROUPS: {
   label: string;
   kinds: readonly UserEvent["kind"][] | null;
 }[] = [
-  { id: "all", label: "همه", kinds: null },
-  { id: "presence", label: "ورود/خروج", kinds: ["login", "logout"] },
-  { id: "work", label: "کارها", kinds: ["design_done", "print_done", "order_created"] },
-  { id: "tasks", label: "تسک‌ها", kinds: ["task_done", "task_created"] },
-  { id: "qc", label: "کنترل کیفیت", kinds: ["qc_reported", "qc_reviewed"] },
-  { id: "leave", label: "مرخصی", kinds: ["leave"] },
+  { id: "all", label: t("همه"), kinds: null },
+  { id: "presence", label: t("ورود/خروج"), kinds: ["login", "logout"] },
+  { id: "work", label: t("کارها"), kinds: ["design_done", "print_done", "order_created"] },
+  { id: "tasks", label: t("تسک‌ها"), kinds: ["task_done", "task_created"] },
+  { id: "qc", label: t("کنترل کیفیت"), kinds: ["qc_reported", "qc_reviewed"] },
+  { id: "leave", label: t("مرخصی"), kinds: ["leave"] },
 ];
 
 // رنگ‌ها هماهنگ با اپ: emerald/violet/amber/sky (بدون blue/indigo)
 const SERIES = [
-  { key: "logins", label: "ورودها", color: "#10b981" },
-  { key: "itemsDone", label: "آیتم‌های تکمیل‌شده", color: "#8b5cf6" },
-  { key: "tasksDone", label: "تسک‌های انجام‌شده", color: "#f59e0b" },
-  { key: "qc", label: "کنترل کیفیت", color: "#0ea5e9" },
+  { key: "logins", label: t("ورودها"), color: "#10b981" },
+  { key: "itemsDone", label: t("آیتم‌های تکمیل‌شده"), color: "#8b5cf6" },
+  { key: "tasksDone", label: t("تسک‌های انجام‌شده"), color: "#f59e0b" },
+  { key: "qc", label: t("کنترل کیفیت"), color: "#0ea5e9" },
 ] as const;
 
 const RANGE_CHIPS: { id: RangePresetId; label: string }[] = [
-  { id: "today", label: "امروز" },
-  { id: "week", label: "این هفته" },
-  { id: "month", label: "این ماه" },
-  { id: "quarter", label: "3 ماه" },
-  { id: "custom", label: "بازهٔ دلخواه" },
+  { id: "today", label: t("امروز") },
+  { id: "week", label: t("این هفته") },
+  { id: "month", label: t("این ماه") },
+  { id: "quarter", label: t("3 ماه") },
+  { id: "custom", label: t("بازهٔ دلخواه") },
 ];
 
 const STAGE_CHIP = {
@@ -241,13 +242,13 @@ export function UserMonitoringPage() {
 
   function applyCustom() {
     if (!draftFrom || !draftTo) {
-      toast.error("تاریخ شروع و پایان را انتخاب کنید");
+      toast.error(t("تاریخ شروع و پایان را انتخاب کنید"));
       return;
     }
     const from = dayKeyOf(draftFrom);
     const to = dayKeyOf(draftTo);
     if (to < from) {
-      toast.error("تاریخ پایان نمی‌تواند قبل از شروع باشد");
+      toast.error(t("تاریخ پایان نمی‌تواند قبل از شروع باشد"));
       return;
     }
     setRange({ from, to });
@@ -286,22 +287,22 @@ export function UserMonitoringPage() {
     return (
       <div className="space-y-5">
         <PageHeader
-          title="مانیتورینگ کاربر"
-          description="صفحهٔ اختصاصی هر کاربر — سفارش‌ها، تسک‌ها، تاخیرها، حضور و مرخصی"
+          title={t("مانیتورینگ کاربر")}
+          description={t("صفحهٔ اختصاصی هر کاربر — سفارش‌ها، تسک‌ها، تاخیرها، حضور و مرخصی")}
           icon="userCircle"
           actions={
             <Button variant="outline" size="sm" onClick={goBack} className="gap-1.5">
-              <Icon name="arrowRight" size={14} /> بازگشت به کاربران
+              <Icon name="arrowRight" size={14} /> {t("بازگشت به کاربران")}
             </Button>
           }
         />
         <EmptyState
           icon="userCircle"
-          title="کاربری انتخاب نشده"
-          description="از فهرست «مانیتورینگ کاربران» روی یک کاربر دابل‌کلیک کنید تا صفحهٔ اختصاصی او باز شود."
+          title={t("کاربری انتخاب نشده")}
+          description={t("از فهرست «مانیتورینگ کاربران» روی یک کاربر دابل‌کلیک کنید تا صفحهٔ اختصاصی او باز شود.")}
           action={
             <Button onClick={goBack} className="gap-1.5">
-              <Icon name="users" size={15} /> بازگشت به کاربران
+              <Icon name="users" size={15} /> {t("بازگشت به کاربران")}
             </Button>
           }
         />
@@ -310,30 +311,30 @@ export function UserMonitoringPage() {
   }
 
   const presenceText = data
-    ? `${data.online ? "آنلاین" : "آفلاین"} · ${fa(data.kpis.loginsInRange)} ورود · ${fa(data.kpis.activeDays)} روز فعال`
+    ? t("{p0} · {p1} ورود · {p2} روز فعال", { p0: data.online ? t("آنلاین") : t("آفلاین"), p1: fa(data.kpis.loginsInRange), p2: fa(data.kpis.activeDays) })
     : undefined;
 
   return (
     <div className="space-y-5">
       {/* 1) هدر */}
       <PageHeader
-        title={data ? `مانیتورینگ کاربر — ${data.user.name}` : "مانیتورینگ کاربر"}
+        title={data ? t("مانیتورینگ کاربر — {p0}", { p0: data.user.name }) : t("مانیتورینگ کاربر")}
         description={
           presenceText
-            ? `${presenceText} — از ${fmtDayKey(range.from)} تا ${fmtDayKey(range.to)}`
-            : "صفحهٔ اختصاصی هر کاربر — سفارش‌ها، تسک‌ها، تاخیرها، حضور و مرخصی"
+            ? t("{p0} — از {p1} تا {p2}", { p0: presenceText, p1: fmtDayKey(range.from), p2: fmtDayKey(range.to) })
+            : t("صفحهٔ اختصاصی هر کاربر — سفارش‌ها، تسک‌ها، تاخیرها، حضور و مرخصی")
         }
         icon="userCircle"
         actions={
           <>
             <Button variant="outline" size="sm" onClick={goBack} className="gap-1.5">
-              <Icon name="arrowRight" size={14} /> بازگشت به کاربران
+              <Icon name="arrowRight" size={14} /> {t("بازگشت به کاربران")}
             </Button>
             <Button
               variant="outline"
               size="icon"
               onClick={() => void refetch()}
-              title="به‌روزرسانی"
+              title={t("به‌روزرسانی")}
             >
               <Icon
                 name="refresh"
@@ -349,7 +350,7 @@ export function UserMonitoringPage() {
       <Card className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-            <Icon name="filterHorizontal" size={14} /> بازهٔ مانیتورینگ:
+            <Icon name="filterHorizontal" size={14} /> {t("بازهٔ مانیتورینگ:")}
           </span>
           {RANGE_CHIPS.map((c) => (
             <button
@@ -371,37 +372,37 @@ export function UserMonitoringPage() {
               <DatePicker
                 value={draftFrom}
                 onChange={setDraftFrom}
-                placeholder="از تاریخ"
+                placeholder={t("از تاریخ")}
                 className="h-8 text-xs"
               />
               <DatePicker
                 value={draftTo}
                 onChange={setDraftTo}
-                placeholder="تا تاریخ"
+                placeholder={t("تا تاریخ")}
                 className="h-8 text-xs"
               />
               <Button size="sm" className="h-8" onClick={applyCustom}>
-                اعمال بازه
+                {t("اعمال بازه")}
               </Button>
             </div>
           )}
           <span className="mr-auto text-[11px] text-muted-foreground tabular-nums shrink-0">
-            از {fmtDayKey(range.from)} تا {fmtDayKey(range.to)}
+            {t("از {p0} تا {p1}", { p0: fmtDayKey(range.from), p1: fmtDayKey(range.to) })}
           </span>
         </div>
       </Card>
 
       {/* بدنهٔ داده */}
       {isLoading ? (
-        <LoadingState label="در حال دریافت دادهٔ مانیتورینگ…" />
+        <LoadingState label={t("در حال دریافت دادهٔ مانیتورینگ…")} />
       ) : isError ? (
         <EmptyState
           icon="alert"
-          title="خطا در دریافت دادهٔ مانیتورینگ"
-          description={error instanceof Error ? error.message : "خطای نامشخص"}
+          title={t("خطا در دریافت دادهٔ مانیتورینگ")}
+          description={error instanceof Error ? error.message : t("خطای نامشخص")}
           action={
             <Button variant="outline" onClick={() => void refetch()}>
-              تلاش مجدد
+              {t("تلاش مجدد")}
             </Button>
           }
         />
@@ -480,16 +481,16 @@ function ProfileCard({ report, todayKey }: { report: UserDetail; todayKey: strin
                   report.online ? "bg-emerald-500 animate-pulse" : "bg-slate-400"
                 )}
               />
-              {report.online ? "آنلاین" : "آفلاین"}
+              {report.online ? t("آنلاین") : t("آفلاین")}
             </span>
             {report.onLeaveToday && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                {activeLeave ? `مرخصی تا ${fmtDayKey(activeLeave.endDate)}` : "در مرخصی"}
+                {activeLeave ? t("مرخصی تا {p0}", { p0: fmtDayKey(activeLeave.endDate) }) : t("در مرخصی")}
               </span>
             )}
             {u.status !== "active" && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                غیرفعال
+                {t("غیرفعال")}
               </span>
             )}
           </div>
@@ -497,7 +498,7 @@ function ProfileCard({ report, todayKey }: { report: UserDetail; todayKey: strin
           <div className="flex items-center gap-1.5 flex-wrap">
             {isMaster ? (
               <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                مدیر سیستم
+                {t("مدیر سیستم")}
               </span>
             ) : (
               u.modules.map((m) => {
@@ -531,10 +532,10 @@ function ProfileCard({ report, todayKey }: { report: UserDetail; todayKey: strin
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-5 gap-y-2 sm:border-r sm:pr-4 shrink-0">
-          <MetaItem label="عضویت" value={formatDate(u.createdAt)} />
-          <MetaItem label="آخرین ورود" value={u.lastLoginAt ? formatDate(u.lastLoginAt, true) : "—"} />
-          <MetaItem label="آخرین بازدید" value={u.lastSeenAt ? relativeTime(u.lastSeenAt) : "—"} />
-          <MetaItem label="مجموع ورودها" value={fa(u.loginCount)} />
+          <MetaItem label={t("عضویت")} value={formatDate(u.createdAt)} />
+          <MetaItem label={t("آخرین ورود")} value={u.lastLoginAt ? formatDate(u.lastLoginAt, true) : "—"} />
+          <MetaItem label={t("آخرین بازدید")} value={u.lastSeenAt ? relativeTime(u.lastSeenAt) : "—"} />
+          <MetaItem label={t("مجموع ورودها")} value={fa(u.loginCount)} />
         </div>
       </div>
     </Card>
@@ -558,10 +559,10 @@ function KpiGrid({ kpis }: { kpis: UserDetail["kpis"] }) {
   const delaySub = (delayed: number, days: number, unit: string) =>
     delayed > 0 ? (
       <span className="text-rose-600 dark:text-rose-400 font-medium">
-        {fa(delayed)} {unit} تاخیری · مجموع {fa(days)} روز
+        {t("{p0} {p1} تاخیری · مجموع {p2} روز", { p0: fa(delayed), p1: unit, p2: fa(days) })}
       </span>
     ) : (
-      <span className="text-emerald-600 dark:text-emerald-400">بدون تاخیر</span>
+      <span className="text-emerald-600 dark:text-emerald-400">{t("بدون تاخیر")}</span>
     );
 
   return (
@@ -569,50 +570,50 @@ function KpiGrid({ kpis }: { kpis: UserDetail["kpis"] }) {
       <KpiCard
         icon="design"
         tone="violet"
-        label="طراحیِ باز"
+        label={t("طراحیِ باز")}
         value={fa(kpis.design.open)}
-        sub={delaySub(kpis.design.delayed, kpis.design.delayedDays, "آیتم")}
+        sub={delaySub(kpis.design.delayed, kpis.design.delayedDays, t("آیتم"))}
       />
       <KpiCard
         icon="print"
         tone="amber"
-        label="چاپِ باز"
+        label={t("چاپِ باز")}
         value={fa(kpis.print.open)}
-        sub={delaySub(kpis.print.delayed, kpis.print.delayedDays, "آیتم")}
+        sub={delaySub(kpis.print.delayed, kpis.print.delayedDays, t("آیتم"))}
       />
       <KpiCard
         icon="task"
         tone="sky"
-        label="تسکِ باز"
+        label={t("تسکِ باز")}
         value={fa(kpis.tasks.open)}
-        sub={delaySub(kpis.tasks.overdue, kpis.tasks.overdueDays, "تسک")}
+        sub={delaySub(kpis.tasks.overdue, kpis.tasks.overdueDays, t("تسک"))}
       />
       <KpiCard
         icon="checkBadge"
         tone="emerald"
-        label="تکمیل‌شده در بازه"
+        label={t("تکمیل‌شده در بازه")}
         value={fa(completedTotal)}
         sub={
           <span className="text-muted-foreground">
-            طرح {fa(kpis.design.completed)} · چاپ {fa(kpis.print.completed)} · تسک {fa(kpis.tasks.done)}
+            {t("طرح {p0} · چاپ {p1} · تسک {p2}", { p0: fa(kpis.design.completed), p1: fa(kpis.print.completed), p2: fa(kpis.tasks.done) })}
           </span>
         }
       />
       <KpiCard
         icon="clock"
         tone="violet"
-        label="ساعت آنلاین (برآورد)"
+        label={t("ساعت آنلاین (برآورد)")}
         value={`~${fa(kpis.onlineHoursEstimate)}`}
-        sub={<span className="text-muted-foreground">برآورد از فاصلهٔ ورودها</span>}
+        sub={<span className="text-muted-foreground">{t("برآورد از فاصلهٔ ورودها")}</span>}
       />
       <KpiCard
         icon="calendarCheck"
         tone="sky"
-        label="روزهای فعال"
+        label={t("روزهای فعال")}
         value={fa(kpis.activeDays)}
         sub={
           <span className="text-muted-foreground">
-            {fa(kpis.loginsInRange)} ورود در این بازه
+            {t("{p0} ورود در این بازه", { p0: fa(kpis.loginsInRange) })}
           </span>
         }
       />
@@ -673,20 +674,20 @@ function TodayReport({ events }: { events: UserEvent[] }) {
   }, [events]);
 
   const chips = [
-    { label: "ورود", value: counts.logins },
-    { label: "آیتم تکمیل", value: counts.items },
-    { label: "تسک", value: counts.tasks },
-    { label: "گزارش QC", value: counts.qc },
-    { label: "سفارش", value: counts.orders },
+    { label: t("ورود"), value: counts.logins },
+    { label: t("آیتم تکمیل"), value: counts.items },
+    { label: t("تسک"), value: counts.tasks },
+    { label: t("گزارش QC"), value: counts.qc },
+    { label: t("سفارش"), value: counts.orders },
   ].filter((c) => c.value > 0);
 
   return (
     <Card className="p-0 overflow-hidden border-primary/30 bg-primary/5">
       <div className="px-4 py-3 border-b border-primary/20 bg-primary/5 flex flex-wrap items-center gap-2">
         <Icon name="calendarCheck" size={17} className="text-primary shrink-0" />
-        <h3 className="font-bold text-sm">گزارش امروز — {formatDate(new Date())}</h3>
+        <h3 className="font-bold text-sm">{t("گزارش امروز — {p0}", { p0: formatDate(new Date()) })}</h3>
         <span className="text-[10px] text-muted-foreground hidden sm:inline">
-          کارهایی که امروز انجام داده
+          {t("کارهایی که امروز انجام داده")}
         </span>
         <div className="flex items-center gap-1.5 flex-wrap mr-auto">
           {chips.length > 0 ? (
@@ -699,14 +700,14 @@ function TodayReport({ events }: { events: UserEvent[] }) {
               </span>
             ))
           ) : (
-            <span className="text-[10px] text-muted-foreground">بدون فعالیت</span>
+            <span className="text-[10px] text-muted-foreground">{t("بدون فعالیت")}</span>
           )}
         </div>
       </div>
       {sorted.length === 0 ? (
         <div className="py-10 text-center">
           <Icon name="sun" size={26} className="mx-auto text-muted-foreground/60 mb-2" />
-          <p className="text-sm text-muted-foreground">امروز هنوز فعالیتی ثبت نشده</p>
+          <p className="text-sm text-muted-foreground">{t("امروز هنوز فعالیتی ثبت نشده")}</p>
         </div>
       ) : (
         <div className="py-1.5">
@@ -732,7 +733,7 @@ function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
       <Card className="p-0 overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
           <Icon name="alertTriangle" size={16} className="text-rose-500" />
-          <h3 className="font-semibold text-sm">اوورویو تاخیر — سفارشات</h3>
+          <h3 className="font-semibold text-sm">{t("اوورویو تاخیر — سفارشات")}</h3>
         </div>
         <div className="px-4 py-3 border-b">
           <div
@@ -743,25 +744,25 @@ function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
                 : "text-muted-foreground"
             )}
           >
-            {fa(delay.orders.count)} سفارش تاخیری
+            {t("{p0} سفارش تاخیری", { p0: fa(delay.orders.count) })}
             <span className="text-muted-foreground font-normal mx-1">·</span>
-            مجموع {fa(delay.orders.totalDays)} روز تاخیر
+            {t("مجموع {p0} روز تاخیر", { p0: fa(delay.orders.totalDays) })}
           </div>
         </div>
         {delay.orders.count === 0 ? (
           <div className="py-6 text-center text-xs text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
-            <Icon name="checkCircle" size={14} /> سفارش تاخیری در این بازه نیست
+            <Icon name="checkCircle" size={14} /> {t("سفارش تاخیری در این بازه نیست")}
           </div>
         ) : (
           <div className="max-h-80 overflow-auto scrollbar-thin">
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 text-right">سفارش</TableHead>
-                  <TableHead className="h-8 text-right">مشتری</TableHead>
-                  <TableHead className="h-8 text-right">مرحله</TableHead>
-                  <TableHead className="h-8 text-right">موعد</TableHead>
-                  <TableHead className="h-8 text-right">تاخیر</TableHead>
+                  <TableHead className="h-8 text-right">{t("سفارش")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("مشتری")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("مرحله")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("موعد")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("تاخیر")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -778,12 +779,12 @@ function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
                           STAGE_CHIP[it.stage]
                         )}
                       >
-                        {it.stage === "design" ? "طراحی" : "چاپ"}
+                        {it.stage === "design" ? t("طراحی") : t("چاپ")}
                       </span>
                     </TableCell>
                     <TableCell className="py-1.5 tabular-nums">{fmtDayKey(it.endDate)}</TableCell>
                     <TableCell className="py-1.5 text-rose-600 dark:text-rose-400 font-medium tabular-nums">
-                      {fa(it.daysDelayed)} روز
+                      {t("{p0} روز", { p0: fa(it.daysDelayed) })}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -797,7 +798,7 @@ function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
       <Card className="p-0 overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
           <Icon name="taskAdd" size={16} className="text-rose-500" />
-          <h3 className="font-semibold text-sm">اوورویو تاخیر — تسک‌ها</h3>
+          <h3 className="font-semibold text-sm">{t("اوورویو تاخیر — تسک‌ها")}</h3>
         </div>
         <div className="px-4 py-3 border-b">
           <div
@@ -808,38 +809,38 @@ function DelayOverview({ delay }: { delay: UserDetail["delayOverview"] }) {
                 : "text-muted-foreground"
             )}
           >
-            {fa(delay.tasks.count)} تسک تاخیری
+            {t("{p0} تسک تاخیری", { p0: fa(delay.tasks.count) })}
             <span className="text-muted-foreground font-normal mx-1">·</span>
-            مجموع {fa(delay.tasks.totalDays)} روز تاخیر
+            {t("مجموع {p0} روز تاخیر", { p0: fa(delay.tasks.totalDays) })}
           </div>
         </div>
         {delay.tasks.count === 0 ? (
           <div className="py-6 text-center text-xs text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
-            <Icon name="checkCircle" size={14} /> تسک تاخیری در این بازه نیست
+            <Icon name="checkCircle" size={14} /> {t("تسک تاخیری در این بازه نیست")}
           </div>
         ) : (
           <div className="max-h-80 overflow-auto scrollbar-thin">
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="h-8 text-right">عنوان</TableHead>
-                  <TableHead className="h-8 text-right">موعد</TableHead>
-                  <TableHead className="h-8 text-right">وضعیت</TableHead>
-                  <TableHead className="h-8 text-right">تاخیر</TableHead>
+                  <TableHead className="h-8 text-right">{t("عنوان")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("موعد")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("وضعیت")}</TableHead>
+                  <TableHead className="h-8 text-right">{t("تاخیر")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {delay.tasks.items.map((it) => (
                   <TableRow key={it.id}>
                     <TableCell className="py-1.5 max-w-[220px] truncate font-medium">
-                      {it.title}
+                      {t(it.title)}
                     </TableCell>
                     <TableCell className="py-1.5 tabular-nums">{fmtDayKey(it.dueDate)}</TableCell>
                     <TableCell className="py-1.5">
                       <StatusBadge status={it.status} />
                     </TableCell>
                     <TableCell className="py-1.5 text-rose-600 dark:text-rose-400 font-medium tabular-nums">
-                      {fa(it.daysDelayed)} روز
+                      {t("{p0} روز", { p0: fa(it.daysDelayed) })}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -882,9 +883,9 @@ function ActivityChartCard({
     <Card className="p-0 overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30 flex flex-wrap items-center gap-2">
         <Icon name="chartColumn" size={16} className="text-primary" />
-        <h3 className="font-semibold text-sm">روند فعالیت (BI)</h3>
+        <h3 className="font-semibold text-sm">{t("روند فعالیت (BI)")}</h3>
         <span className="text-[10px] text-muted-foreground mr-auto">
-          ثبت سفارش {fa(kpis.createdOrders)} · QC {fa(kpis.qc.reported)} گزارش / {fa(kpis.qc.reviewed)} بررسی
+          {t("ثبت سفارش {p0} · QC {p1} گزارش / {p2} بررسی", { p0: fa(kpis.createdOrders), p1: fa(kpis.qc.reported), p2: fa(kpis.qc.reviewed) })}
         </span>
       </div>
 
@@ -913,7 +914,7 @@ function ActivityChartCard({
       <div className="p-4 pt-2">
         {grand === 0 ? (
           <div className="h-48 grid place-items-center text-sm text-muted-foreground">
-            در این بازه فعالیتی ثبت نشده
+            {t("در این بازه فعالیتی ثبت نشده")}
           </div>
         ) : (
           <div className="h-56">
@@ -979,24 +980,24 @@ function OpenOrdersCard({
     <Card className="p-0 overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30 flex flex-wrap items-center gap-2">
         <Icon name="orders" size={16} className="text-primary" />
-        <h3 className="font-semibold text-sm">سفارش‌های باز ({fa(orders.length)})</h3>
+        <h3 className="font-semibold text-sm">{t("سفارش‌های باز ({p0})", { p0: fa(orders.length) })}</h3>
         <span className="text-[10px] text-muted-foreground mr-auto">
-          آیتم‌هایی که الان دست این کاربر است
+          {t("آیتم‌هایی که الان دست این کاربر است")}
         </span>
       </div>
       {orders.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
-          سفارش بازی در جریان نیست
+          {t("سفارش بازی در جریان نیست")}
         </div>
       ) : (
         <div className="max-h-96 overflow-auto scrollbar-thin">
           <Table className="text-xs">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="h-8 text-right w-16">شماره</TableHead>
-                <TableHead className="h-8 text-right">مشتری</TableHead>
-                <TableHead className="h-8 text-right">آیتم‌های فعال</TableHead>
-                <TableHead className="h-8 text-right">موعد نهایی</TableHead>
+                <TableHead className="h-8 text-right w-16">{t("شماره")}</TableHead>
+                <TableHead className="h-8 text-right">{t("مشتری")}</TableHead>
+                <TableHead className="h-8 text-right">{t("آیتم‌های فعال")}</TableHead>
+                <TableHead className="h-8 text-right">{t("موعد نهایی")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1005,7 +1006,7 @@ function OpenOrdersCard({
                   key={`${o.number}-${i}`}
                   onClick={isManager ? () => navigate("admin", "orders") : undefined}
                   className={cn(isManager && "cursor-pointer")}
-                  title={isManager ? "مشاهدهٔ سفارش‌ها" : undefined}
+                  title={isManager ? t("مشاهدهٔ سفارش‌ها") : undefined}
                 >
                   <TableCell className="py-2 font-mono font-bold text-primary" dir="ltr">
                     #{o.number}
@@ -1015,17 +1016,17 @@ function OpenOrdersCard({
                     <div className="flex items-center gap-1 flex-wrap">
                       {o.stageCounts.design > 0 && (
                         <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", STAGE_CHIP.design)}>
-                          طراحی {fa(o.stageCounts.design)}
+                          {t("طراحی {p0}", { p0: fa(o.stageCounts.design) })}
                         </span>
                       )}
                       {o.stageCounts.print > 0 && (
                         <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", STAGE_CHIP.print)}>
-                          چاپ {fa(o.stageCounts.print)}
+                          {t("چاپ {p0}", { p0: fa(o.stageCounts.print) })}
                         </span>
                       )}
                       {o.stageCounts.warehouse > 0 && (
                         <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", STAGE_CHIP.warehouse)}>
-                          انبار {fa(o.stageCounts.warehouse)}
+                          {t("انبار {p0}", { p0: fa(o.stageCounts.warehouse) })}
                         </span>
                       )}
                     </div>
@@ -1073,9 +1074,9 @@ function TimelineCard({ events }: { events: UserEvent[] }) {
     <Card className="p-0 overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30 flex flex-wrap items-center gap-2">
         <Icon name="route" size={16} className="text-primary" />
-        <h3 className="font-semibold text-sm">خط زمانی بازه ({fa(filtered.length)} رویداد)</h3>
+        <h3 className="font-semibold text-sm">{t("خط زمانی بازه ({p0} رویداد)", { p0: fa(filtered.length) })}</h3>
         <span className="text-[10px] text-muted-foreground mr-auto hidden sm:inline">
-          جدیدترین اول
+          {t("جدیدترین اول")}
         </span>
       </div>
 
@@ -1101,14 +1102,14 @@ function TimelineCard({ events }: { events: UserEvent[] }) {
       <div className="max-h-96 overflow-y-auto scrollbar-thin">
         {groups.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            در این بازه رویدادی ثبت نشده
+            {t("در این بازه رویدادی ثبت نشده")}
           </div>
         ) : (
           groups.map((g) => (
             <div key={g.day}>
               <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-4 py-1.5 border-b text-[11px] font-medium text-muted-foreground tabular-nums flex items-center justify-between">
                 <span>{fmtDayKey(g.day)}</span>
-                <span className="text-[10px]">{fa(g.events.length)} رویداد</span>
+                <span className="text-[10px]">{t("{p0} رویداد", { p0: fa(g.events.length) })}</span>
               </div>
               <div className="py-1">
                 {g.events.map((ev, i) => (
@@ -1152,7 +1153,7 @@ function TimelineRow({
           <span className="text-[11px] font-mono tabular-nums text-muted-foreground" dir="ltr">
             {timeOf(ev.at)}
           </span>
-          <span className="text-sm font-medium leading-snug">{ev.title}</span>
+          <span className="text-sm font-medium leading-snug">{t(ev.title)}</span>
         </div>
         {ev.subtitle && (
           <div className="text-xs text-muted-foreground mt-0.5 truncate">{ev.subtitle}</div>
@@ -1197,7 +1198,7 @@ function LeavesCard({
         body: JSON.stringify({ userId, ...payload }),
       }),
     onSuccess: () => {
-      toast.success("مرخصی ثبت شد");
+      toast.success(t("مرخصی ثبت شد"));
       setAddOpen(false);
       setStart(null);
       setEnd(null);
@@ -1210,7 +1211,7 @@ function LeavesCard({
   const deleteMut = useMutation({
     mutationFn: (id: string) => api<{ ok: boolean }>(`/api/leaves/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("مرخصی حذف شد");
+      toast.success(t("مرخصی حذف شد"));
       setDeleteTarget(null);
       onChanged();
     },
@@ -1223,13 +1224,13 @@ function LeavesCard({
 
   function submit() {
     if (!start || !end) {
-      toast.error("تاریخ شروع و پایان را انتخاب کنید");
+      toast.error(t("تاریخ شروع و پایان را انتخاب کنید"));
       return;
     }
     const s = dayKeyOf(start);
     const e = dayKeyOf(end);
     if (e < s) {
-      toast.error("تاریخ پایان نمی‌تواند قبل از شروع باشد");
+      toast.error(t("تاریخ پایان نمی‌تواند قبل از شروع باشد"));
       return;
     }
     addMut.mutate({ startDate: s, endDate: e, note: note.trim() || undefined });
@@ -1239,20 +1240,20 @@ function LeavesCard({
     <Card className="p-0 overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30 flex flex-wrap items-center gap-2">
         <Icon name="calendar" size={16} className="text-amber-500" />
-        <h3 className="font-semibold text-sm">مرخصی‌ها ({fa(sorted.length)})</h3>
+        <h3 className="font-semibold text-sm">{t("مرخصی‌ها ({p0})", { p0: fa(sorted.length) })}</h3>
         <span className="text-[10px] text-muted-foreground hidden sm:inline">
-          انتخاب بازه در تقویم — برای زمان مرخصی و محاسبات آینده
+          {t("انتخاب بازه در تقویم — برای زمان مرخصی و محاسبات آینده")}
         </span>
         {isManager && (
           <Button size="sm" className="mr-auto h-7 text-[11px] gap-1.5" onClick={() => setAddOpen(true)}>
-            <Icon name="calendarAdd" size={13} /> ثبت مرخصی جدید
+            <Icon name="calendarAdd" size={13} /> {t("ثبت مرخصی جدید")}
           </Button>
         )}
       </div>
 
       {sorted.length === 0 ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
-          {isManager ? "هنوز مرخصی برای این کاربر ثبت نشده" : "مرخصی ثبت نشده"}
+          {isManager ? t("هنوز مرخصی برای این کاربر ثبت نشده") : t("مرخصی ثبت نشده")}
         </div>
       ) : (
         <div className="divide-y">
@@ -1277,16 +1278,16 @@ function LeavesCard({
                       {fmtDayKey(l.startDate)} — {fmtDayKey(l.endDate)}
                     </span>
                     <span className="text-[10px] text-muted-foreground tabular-nums">
-                      {fa(l.days)} روز
+                      {t("{p0} روز", { p0: fa(l.days) })}
                     </span>
                     {activeToday && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        جاری
+                        {t("جاری")}
                       </span>
                     )}
                     {isFuture && (
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        آینده
+                        {t("آینده")}
                       </span>
                     )}
                   </div>
@@ -1299,7 +1300,7 @@ function LeavesCard({
                     type="button"
                     onClick={() => setDeleteTarget(l)}
                     className="size-7 rounded-lg grid place-items-center text-rose-500 hover:bg-rose-500/10 transition shrink-0"
-                    title="حذف مرخصی"
+                    title={t("حذف مرخصی")}
                   >
                     <Icon name="trash" size={14} />
                   </button>
@@ -1314,32 +1315,32 @@ function LeavesCard({
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>ثبت مرخصی — {userName}</DialogTitle>
+            <DialogTitle>{t("ثبت مرخصی — {p0}", { p0: userName })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">از تاریخ</label>
-                <DatePicker value={start} onChange={setStart} placeholder="شروع مرخصی" clearable={false} />
+                <label className="text-xs text-muted-foreground">{t("از تاریخ")}</label>
+                <DatePicker value={start} onChange={setStart} placeholder={t("شروع مرخصی")} clearable={false} />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">تا تاریخ</label>
-                <DatePicker value={end} onChange={setEnd} placeholder="پایان مرخصی" clearable={false} />
+                <label className="text-xs text-muted-foreground">{t("تا تاریخ")}</label>
+                <DatePicker value={end} onChange={setEnd} placeholder={t("پایان مرخصی")} clearable={false} />
               </div>
             </div>
             {start && end && (
               <div className={cn("text-xs", validRange ? "text-muted-foreground" : "text-rose-600")}>
-                {validRange ? `بازهٔ ${fa(draftDays)} روز` : "تاریخ پایان نمی‌تواند قبل از شروع باشد"}
+                {validRange ? t("بازهٔ {p0} روز", { p0: fa(draftDays) }) : t("تاریخ پایان نمی‌تواند قبل از شروع باشد")}
               </div>
             )}
             <Input
-              placeholder="یادداشت (اختیاری)"
+              placeholder={t("یادداشت (اختیاری)")}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
             <DialogFooter>
               <Button variant="outline" onClick={() => setAddOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button onClick={submit} disabled={addMut.isPending || !validRange}>
                 {addMut.isPending ? (
@@ -1347,7 +1348,7 @@ function LeavesCard({
                 ) : (
                   <Icon name="calendarAdd" size={14} />
                 )}
-                ثبت مرخصی
+                {t("ثبت مرخصی")}
               </Button>
             </DialogFooter>
           </div>
@@ -1358,20 +1359,20 @@ function LeavesCard({
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف مرخصی</AlertDialogTitle>
+            <AlertDialogTitle>{t("حذف مرخصی")}</AlertDialogTitle>
             <AlertDialogDescription>
-              مرخصی {deleteTarget ? fmtDayKey(deleteTarget.startDate) : ""} تا{" "}
-              {deleteTarget ? fmtDayKey(deleteTarget.endDate) : ""} حذف شود؟ این عمل قابل بازگشت
-              نیست.
+              {t("مرخصی {p0} تا{p1}", { p0: deleteTarget ? fmtDayKey(deleteTarget.startDate) : "", p1: " " })}
+              {t("{p0} حذف شود؟ این عمل قابل بازگشت", { p0: deleteTarget ? fmtDayKey(deleteTarget.endDate) : "" })}
+              {t("نیست.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
-              حذف
+              {t("حذف")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

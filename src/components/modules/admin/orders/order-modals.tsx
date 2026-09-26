@@ -31,6 +31,7 @@ import { ORDER_STATUS, type OrderStatus } from "@/lib/constants";
 import { toast } from "sonner";
 import { FilterToggle } from "./orders-filters";
 import type { Order } from "./types";
+import { t } from "@/lib/i18n";
 
 // ─── Note Modal ───────────────────────────────────────────────
 export function OrderNoteModal({
@@ -55,7 +56,7 @@ export function OrderNoteModal({
       }),
     onSuccess: () => {
       invalidate(["orders"]);
-      toast.success("یادداشت ذخیره شد");
+      toast.success(t("یادداشت ذخیره شد"));
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -68,11 +69,11 @@ export function OrderNoteModal({
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Icon name="info" size={18} className="text-primary" /> یادداشت سفارش #
+            <Icon name="info" size={18} className="text-primary" /> {t("یادداشت سفارش #")}
             {order.number}
           </DialogTitle>
         </DialogHeader>
-        <Field label="متن یادداشت">
+        <Field label={t("متن یادداشت")}>
           <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -81,7 +82,7 @@ export function OrderNoteModal({
         </Field>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            انصراف
+            {t("انصراف")}
           </Button>
           <Button
             onClick={() => saveMut.mutate(note)}
@@ -93,7 +94,7 @@ export function OrderNoteModal({
             ) : (
               <Icon name="check" size={16} />
             )}
-            ذخیره
+            {t("ذخیره")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -150,7 +151,7 @@ export function OrderStatusModal({
     onSuccess: () => {
       invalidate(["orders"]);
       invalidate(["order"]);
-      toast.success("وضعیت به‌روزرسانی شد");
+      toast.success(t("وضعیت به‌روزرسانی شد"));
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -163,13 +164,13 @@ export function OrderStatusModal({
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Icon name="route" size={18} className="text-primary" /> تغییر وضعیت
-            سفارش #{order.number}
+            <Icon name="route" size={18} className="text-primary" /> {t("تغییر وضعیت")}
+            {t("سفارش #{p0}", { p0: order.number })}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>وضعیت جدید</Label>
+            <Label>{t("وضعیت جدید")}</Label>
             <div className="flex flex-wrap gap-1.5">
               {Object.entries(ORDER_STATUS).map(([k, v]) => (
                 <FilterToggle
@@ -186,25 +187,25 @@ export function OrderStatusModal({
           {(showDesignDates || showPrintDates) && (
             <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
               <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <Icon name="calendar" size={14} /> زمان‌بندی ماژول‌ها (از آیتم اول سفارش)
+                <Icon name="calendar" size={14} /> {t("زمان‌بندی ماژول‌ها (از آیتم اول سفارش)")}
               </div>
               <div className="text-[11px] text-muted-foreground leading-relaxed flex items-start gap-1">
                 <Icon name="info" size={12} className="mt-0.5 shrink-0" />
-                تاریخ‌های موجود نمایش داده می‌شوند؛ خالی گذاشتن هر تاریخ، مقدار
-                قبلی را پاک نمی‌کند — تاریخ‌ها با تغییر وضعیت (حتی برگشت از چاپ
-                به طراحی) حفظ می‌شوند.
+                {t("تاریخ‌های موجود نمایش داده می‌شوند؛ خالی گذاشتن هر تاریخ، مقدار")}
+                {t("قبلی را پاک نمی‌کند — تاریخ‌ها با تغییر وضعیت (حتی برگشت از چاپ")}
+                {t("به طراحی) حفظ می‌شوند.")}
               </div>
               {showDesignDates && (
                 <div className="space-y-2">
                   <div className="text-xs font-medium flex items-center gap-1.5">
                     <Icon name="design" size={13} className="text-violet-500" />{" "}
-                    ماژول طراحی
+                    {t("ماژول طراحی")}
                   </div>
                   <div className="flex items-center gap-2">
                     <DatePicker
                       value={designStart}
                       onChange={setDesignStart}
-                      placeholder="شروع طراحی"
+                      placeholder={t("شروع طراحی")}
                     />
                     <Icon
                       name="arrowLeft"
@@ -214,7 +215,7 @@ export function OrderStatusModal({
                     <DatePicker
                       value={designEnd}
                       onChange={setDesignEnd}
-                      placeholder="پایان طراحی"
+                      placeholder={t("پایان طراحی")}
                     />
                   </div>
                 </div>
@@ -222,14 +223,14 @@ export function OrderStatusModal({
               {showPrintDates && (
                 <div className="space-y-2">
                   <div className="text-xs font-medium flex items-center gap-1.5">
-                    <Icon name="print" size={13} className="text-amber-500" /> ماژول
-                    چاپ
+                    <Icon name="print" size={13} className="text-amber-500" /> {t("ماژول")}
+                    {t("چاپ")}
                   </div>
                   <div className="flex items-center gap-2">
                     <DatePicker
                       value={printStart}
                       onChange={setPrintStart}
-                      placeholder="شروع چاپ"
+                      placeholder={t("شروع چاپ")}
                     />
                     <Icon
                       name="arrowLeft"
@@ -239,7 +240,7 @@ export function OrderStatusModal({
                     <DatePicker
                       value={printEnd}
                       onChange={setPrintEnd}
-                      placeholder="پایان چاپ"
+                      placeholder={t("پایان چاپ")}
                     />
                   </div>
                 </div>
@@ -249,7 +250,7 @@ export function OrderStatusModal({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            انصراف
+            {t("انصراف")}
           </Button>
           <Button
             onClick={() => saveMut.mutate()}
@@ -261,7 +262,7 @@ export function OrderStatusModal({
             ) : (
               <Icon name="check" size={16} />
             )}
-            ثبت تغییرات
+            {t("ثبت تغییرات")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -282,7 +283,7 @@ export function OrderDeleteDialog({
     mutationFn: (id: string) => api(`/api/orders/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["orders"]);
-      toast.success("سفارش حذف شد");
+      toast.success(t("سفارش حذف شد"));
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -292,15 +293,15 @@ export function OrderDeleteDialog({
     <Dialog open={!!order} onOpenChange={(o) => !o && onClose()}>
       <DialogContent aria-describedby={undefined} className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>حذف سفارش</DialogTitle>
+          <DialogTitle>{t("حذف سفارش")}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          آیا از حذف سفارش #{order?.number} مطمئن هستید؟ این عمل قابل بازگشت
-          نیست.
+          {t("آیا از حذف سفارش #{p0} مطمئن هستید؟ این عمل قابل بازگشت", { p0: order?.number })}
+          {t("نیست.")}
         </p>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            انصراف
+            {t("انصراف")}
           </Button>
           <Button
             variant="destructive"
@@ -313,7 +314,7 @@ export function OrderDeleteDialog({
             ) : (
               <Icon name="trash" size={16} />
             )}
-            حذف
+            {t("حذف")}
           </Button>
         </DialogFooter>
       </DialogContent>

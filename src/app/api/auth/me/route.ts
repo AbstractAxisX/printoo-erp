@@ -32,6 +32,7 @@ export async function GET() {
         isDemo: true,
         demoExpiresAt: true,
         guideTooltips: true,
+        language: true,
         modules: { select: { module: true, pages: true, level: true } },
       },
     });
@@ -75,6 +76,8 @@ export async function GET() {
         isDemo: fresh.isDemo,
         // Phase 23: ترجیح تولتیپ راهنما (دیفالت روشن)
         guideTooltips: fresh.guideTooltips,
+        // Phase 27: زبان رابط (en | fa — دیفالت انگلیسی)
+        language: fresh.language === "fa" ? "fa" : "en",
         modules:
           fresh.role === "master"
             ? [] // master = همهٔ ماژول‌ها (UI می‌داند)

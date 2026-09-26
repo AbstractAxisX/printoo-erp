@@ -30,6 +30,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── تایپ‌ها ─────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ export function LocationsPage() {
       api("/api/locations", { method: "POST", body: JSON.stringify({ kind: "province", name }) }),
     onSuccess: () => {
       invalidate(["locations"]);
-      toast.success("استان ثبت شد");
+      toast.success(t("استان ثبت شد"));
       setProvFormOpen(false);
       setProvName("");
     },
@@ -97,7 +98,7 @@ export function LocationsPage() {
       api("/api/locations", { method: "POST", body: JSON.stringify({ kind: "city", ...body }) }),
     onSuccess: () => {
       invalidate(["locations"]);
-      toast.success("شهر ثبت شد");
+      toast.success(t("شهر ثبت شد"));
       setCityFormOpen(false);
       setCityName("");
       setCityProvince(null);
@@ -113,7 +114,7 @@ export function LocationsPage() {
     onSuccess: () => {
       invalidate(["locations"]);
       invalidate(["customers"]);
-      toast.success("حذف شد");
+      toast.success(t("حذف شد"));
       setDeleting(null);
     },
     // 409 (شهر/مشتری وابسته) → توست فارسی؛ دیالوگ باز می‌ماند
@@ -123,22 +124,22 @@ export function LocationsPage() {
   const provinceOptions = provinces.map((p) => ({
     value: p.id,
     label: p.name,
-    sub: `${fa(p.cityCount)} شهر`,
+    sub: t("{p0} شهر", { p0: fa(p.cityCount) }),
   }));
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="شهرها و استان‌ها"
-        description={`${fa(provinces.length)} استان · ${fa(cities.length)} شهر — فهرست مجاز دراپ‌داون مشتریان`}
+        title={t("شهرها و استان‌ها")}
+        description={t("{p0} استان · {p1} شهر — فهرست مجاز دراپ‌داون مشتریان", { p0: fa(provinces.length), p1: fa(cities.length) })}
         icon="mapPin"
         actions={
           <>
             <Button variant="outline" className="gap-2" onClick={() => setCityFormOpen(true)}>
-              <Icon name="plus" size={16} /> شهر جدید
+              <Icon name="plus" size={16} /> {t("شهر جدید")}
             </Button>
             <Button className="gap-2" onClick={() => setProvFormOpen(true)}>
-              <Icon name="plus" size={16} /> استان جدید
+              <Icon name="plus" size={16} /> {t("استان جدید")}
             </Button>
           </>
         }
@@ -156,8 +157,8 @@ export function LocationsPage() {
                   <Icon name="mapPin" size={16} />
                 </span>
                 <div>
-                  <div className="font-semibold text-sm">استان‌ها</div>
-                  <div className="text-[11px] text-muted-foreground">{fa(provinces.length)} استان</div>
+                  <div className="font-semibold text-sm">{t("استان‌ها")}</div>
+                  <div className="text-[11px] text-muted-foreground">{t("{p0} استان", { p0: fa(provinces.length) })}</div>
                 </div>
               </div>
             </div>
@@ -166,7 +167,7 @@ export function LocationsPage() {
               <Input
                 value={provSearch}
                 onChange={(e) => setProvSearch(e.target.value)}
-                placeholder="جستجوی استان…"
+                placeholder={t("جستجوی استان…")}
                 className="pr-9 h-9 text-sm"
               />
             </div>
@@ -174,8 +175,8 @@ export function LocationsPage() {
               {filteredProvinces.length === 0 ? (
                 <EmptyState
                   icon="mapPin"
-                  title="استانی یافت نشد"
-                  description={provSearch ? "نتیجه‌ای برای جستجو نیست." : "اولین استان را ثبت کنید."}
+                  title={t("استانی یافت نشد")}
+                  description={provSearch ? t("نتیجه‌ای برای جستجو نیست.") : t("اولین استان را ثبت کنید.")}
                 />
               ) : (
                 filteredProvinces.map((p) => (
@@ -184,13 +185,13 @@ export function LocationsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{p.name}</div>
                       <div className="text-[11px] text-muted-foreground tabular-nums">
-                        {fa(p.cityCount)} شهر · {formatDate(p.createdAt)}
+                        {t("{p0} شهر · {p1}", { p0: fa(p.cityCount), p1: formatDate(p.createdAt) })}
                       </div>
                     </div>
                     <Button
                       variant="ghost" size="icon" className="size-8 hover:text-rose-600 shrink-0"
                       onClick={() => setDeleting({ kind: "province", id: p.id, name: p.name })}
-                      title="حذف استان"
+                      title={t("حذف استان")}
                     >
                       <Icon name="trash" size={15} />
                     </Button>
@@ -208,12 +209,12 @@ export function LocationsPage() {
                   <Icon name="warehouse" size={16} />
                 </span>
                 <div>
-                  <div className="font-semibold text-sm">شهرها</div>
-                  <div className="text-[11px] text-muted-foreground">{fa(filteredCities.length)} شهر نمایش‌داده‌شده</div>
+                  <div className="font-semibold text-sm">{t("شهرها")}</div>
+                  <div className="text-[11px] text-muted-foreground">{t("{p0} شهر نمایش‌داده‌شده", { p0: fa(filteredCities.length) })}</div>
                 </div>
               </div>
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setCityFormOpen(true)}>
-                <Icon name="plus" size={14} /> شهر
+                <Icon name="plus" size={14} /> {t("شهر")}
               </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -222,15 +223,15 @@ export function LocationsPage() {
                 <Input
                   value={citySearch}
                   onChange={(e) => setCitySearch(e.target.value)}
-                  placeholder="جستجوی شهر…"
+                  placeholder={t("جستجوی شهر…")}
                   className="pr-9 h-9 text-sm"
                 />
               </div>
               <SearchSelect
                 value={cityProvFilter}
                 onChange={(v) => setCityProvFilter(v)}
-                placeholder="همهٔ استان‌ها"
-                searchPlaceholder="جستجوی استان…"
+                placeholder={t("همهٔ استان‌ها")}
+                searchPlaceholder={t("جستجوی استان…")}
                 options={provinceOptions}
                 className="h-9 text-sm"
               />
@@ -239,11 +240,11 @@ export function LocationsPage() {
               {filteredCities.length === 0 ? (
                 <EmptyState
                   icon="warehouse"
-                  title="شهری یافت نشد"
+                  title={t("شهری یافت نشد")}
                   description={
                     citySearch || cityProvFilter
-                      ? "نتیجه‌ای برای این فیلتر نیست."
-                      : "اولین شهر را ثبت کنید — انتخاب استان الزامی است."
+                      ? t("نتیجه‌ای برای این فیلتر نیست.")
+                      : t("اولین شهر را ثبت کنید — انتخاب استان الزامی است.")
                   }
                 />
               ) : (
@@ -251,7 +252,7 @@ export function LocationsPage() {
                   <div key={c.id} className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent/40 transition-colors">
                     <span
                       className="shrink-0 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                      title="استان این شهر"
+                      title={t("استان این شهر")}
                     >
                       {c.provinceName}
                     </span>
@@ -262,7 +263,7 @@ export function LocationsPage() {
                     <Button
                       variant="ghost" size="icon" className="size-8 hover:text-rose-600 shrink-0"
                       onClick={() => setDeleting({ kind: "city", id: c.id, name: `${c.name} (${c.provinceName})` })}
-                      title="حذف شهر"
+                      title={t("حذف شهر")}
                     >
                       <Icon name="trash" size={15} />
                     </Button>
@@ -279,37 +280,37 @@ export function LocationsPage() {
         <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Icon name="mapPin" size={18} className="text-primary" /> ثبت استان جدید
+              <Icon name="mapPin" size={18} className="text-primary" /> {t("ثبت استان جدید")}
             </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!provName.trim()) return toast.error("نام استان الزامی است");
+              if (!provName.trim()) return toast.error(t("نام استان الزامی است"));
               createProvinceMut.mutate(provName.trim());
             }}
             className="space-y-4"
           >
-            <Field label="نام استان" required>
+            <Field label={t("نام استان")} required>
               <Input
                 value={provName}
                 onChange={(e) => setProvName(e.target.value)}
                 autoFocus
-                placeholder="مثلاً سلیمانیه"
+                placeholder={t("مثلاً سلیمانیه")}
               />
             </Field>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              استان‌ها فهرست مجاز دراپ‌داون «استان» فرم مشتری هستند — حذف استانِ دارای شهر یا مشتری ممکن نیست.
+              {t("استان‌ها فهرست مجاز دراپ‌داون «استان» فرم مشتری هستند — حذف استانِ دارای شهر یا مشتری ممکن نیست.")}
             </p>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setProvFormOpen(false)}>انصراف</Button>
+              <Button type="button" variant="outline" onClick={() => setProvFormOpen(false)}>{t("انصراف")}</Button>
               <Button type="submit" disabled={createProvinceMut.isPending} className="gap-2">
                 {createProvinceMut.isPending ? (
                   <Icon name="loading" size={16} className="animate-spin" />
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ثبت استان
+                {t("ثبت استان")}
               </Button>
             </DialogFooter>
           </form>
@@ -321,47 +322,47 @@ export function LocationsPage() {
         <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Icon name="warehouse" size={18} className="text-primary" /> ثبت شهر جدید
+              <Icon name="warehouse" size={18} className="text-primary" /> {t("ثبت شهر جدید")}
             </DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (!cityName.trim()) return toast.error("نام شهر الزامی است");
-              if (!cityProvince) return toast.error("استان شهر را انتخاب کنید");
+              if (!cityName.trim()) return toast.error(t("نام شهر الزامی است"));
+              if (!cityProvince) return toast.error(t("استان شهر را انتخاب کنید"));
               createCityMut.mutate({ name: cityName.trim(), provinceId: cityProvince });
             }}
             className="space-y-4"
           >
-            <Field label="استان" required>
+            <Field label={t("استان")} required>
               <SearchSelect
                 value={cityProvince}
                 onChange={(v) => setCityProvince(v)}
-                placeholder="انتخاب استان…"
-                searchPlaceholder="جستجوی استان…"
+                placeholder={t("انتخاب استان…")}
+                searchPlaceholder={t("جستجوی استان…")}
                 options={provinceOptions}
                 allowClear={false}
               />
             </Field>
-            <Field label="نام شهر" required>
+            <Field label={t("نام شهر")} required>
               <Input
                 value={cityName}
                 onChange={(e) => setCityName(e.target.value)}
-                placeholder="مثلاً شقلاوه"
+                placeholder={t("مثلاً شقلاوه")}
               />
             </Field>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              شهر حذفِ استان را با خود نمی‌برد — حذف شهرِ دارای مشتری هم مسدود است.
+              {t("شهر حذفِ استان را با خود نمی‌برد — حذف شهرِ دارای مشتری هم مسدود است.")}
             </p>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCityFormOpen(false)}>انصراف</Button>
+              <Button type="button" variant="outline" onClick={() => setCityFormOpen(false)}>{t("انصراف")}</Button>
               <Button type="submit" disabled={createCityMut.isPending} className="gap-2">
                 {createCityMut.isPending ? (
                   <Icon name="loading" size={16} className="animate-spin" />
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ثبت شهر
+                {t("ثبت شهر")}
               </Button>
             </DialogFooter>
           </form>
@@ -374,16 +375,16 @@ export function LocationsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Icon name="alertTriangle" size={18} className="text-rose-500" />
-              حذف {deleting?.kind === "province" ? "استان" : "شهر"} «{deleting?.name}»؟
+              حذف {deleting?.kind === "province" ? t("استان") : t("شهر")} «{deleting?.name}»؟
             </AlertDialogTitle>
             <AlertDialogDescription>
               {deleting?.kind === "province"
-                ? "استانِ دارای شهر یا مشتریِ ثبت‌شده قابل حذف نیست — سرور اجازه نمی‌دهد."
-                : "شهرِ دارای مشتریِ ثبت‌شده قابل حذف نیست — سرور اجازه نمی‌دهد."}
+                ? t("استانِ دارای شهر یا مشتریِ ثبت‌شده قابل حذف نیست — سرور اجازه نمی‌دهد.")
+                : t("شهرِ دارای مشتریِ ثبت‌شده قابل حذف نیست — سرور اجازه نمی‌دهد.")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
             <AlertDialogAction
               className={cn("bg-rose-600 hover:bg-rose-700")}
               disabled={deleteMut.isPending}
@@ -393,7 +394,7 @@ export function LocationsPage() {
               }}
             >
               {deleteMut.isPending && <Icon name="loading" size={14} className="animate-spin" />}
-              بله، حذف کن
+              {t("بله، حذف کن")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,6 +21,7 @@ import { CurrencyChip } from "@/components/shared/fx-widgets";
 import { formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -48,16 +49,16 @@ type RevenueLog = {
 // ─── Meta ──────────────────────────────────────────────────────────────
 
 const MODULE_META: Record<string, { label: string; color: string; icon: IconName }> = {
-  finance: { label: "مالی", color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", icon: "wallet" },
-  admin: { label: "ادمین داخلی", color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", icon: "dashboard" },
-  logistics: { label: "لجستیک", color: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", icon: "truck" },
-  other: { label: "سایر", color: "bg-muted text-muted-foreground", icon: "info" },
+  finance: { label: t("مالی"), color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", icon: "wallet" },
+  admin: { label: t("ادمین داخلی"), color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", icon: "dashboard" },
+  logistics: { label: t("لجستیک"), color: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", icon: "truck" },
+  other: { label: t("سایر"), color: "bg-muted text-muted-foreground", icon: "info" },
 };
 
 const METHOD_LABEL: Record<string, string> = {
-  cash: "نقدی",
-  transfer: "کارت به کارت",
-  cheque: "چک",
+  cash: t("نقدی"),
+  transfer: t("کارت به کارت"),
+  cheque: t("چک"),
 };
 
 // ─── Page ──────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ export function FinanceRevenues() {
     () => [
       {
         accessorKey: "createdAt",
-        header: "تاریخ و ساعت",
+        header: t("تاریخ و ساعت"),
         cell: ({ row }) => (
           <div className="text-xs tabular-nums text-muted-foreground" dir="ltr">
             {formatDateTime(row.original.createdAt)}
@@ -118,7 +119,7 @@ export function FinanceRevenues() {
       },
       {
         id: "order",
-        header: "سفارش",
+        header: t("سفارش"),
         cell: ({ row }) => {
           const o = row.original.order;
           return (
@@ -133,7 +134,7 @@ export function FinanceRevenues() {
       },
       {
         accessorKey: "amount",
-        header: "دریافتی جدید",
+        header: t("دریافتی جدید"),
         meta: { align: "end" },
         cell: ({ row }) => {
           const a = row.original.amount;
@@ -155,7 +156,7 @@ export function FinanceRevenues() {
       },
       {
         accessorKey: "totalAfter",
-        header: "کل پرداخت‌شده",
+        header: t("کل پرداخت‌شده"),
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-medium tabular-nums text-muted-foreground inline-flex items-center gap-1.5" dir="ltr">
@@ -165,7 +166,7 @@ export function FinanceRevenues() {
       },
       {
         accessorKey: "module",
-        header: "ثبت از",
+        header: t("ثبت از"),
         cell: ({ row }) => {
           const m = MODULE_META[row.original.module] ?? MODULE_META.other;
           return (
@@ -180,7 +181,7 @@ export function FinanceRevenues() {
       },
       {
         id: "creator",
-        header: "ثبت‌کننده",
+        header: t("ثبت‌کننده"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground truncate block max-w-[120px]">
             {row.original.createdByName ?? "—"}
@@ -189,7 +190,7 @@ export function FinanceRevenues() {
       },
       {
         id: "method",
-        header: "روش",
+        header: t("روش"),
         cell: ({ row }) => {
           const method = row.original.method;
           return method ? (
@@ -203,7 +204,7 @@ export function FinanceRevenues() {
       },
       {
         id: "note",
-        header: "یادداشت",
+        header: t("یادداشت"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground truncate block max-w-[200px]">
             {row.original.note ?? "—"}
@@ -217,7 +218,7 @@ export function FinanceRevenues() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="دریافتی‌ها"
+        title={t("دریافتی‌ها")}
         icon="trending"
         actions={<TimeRangePicker value={range} onChange={setRange} compact />}
       />
@@ -227,7 +228,7 @@ export function FinanceRevenues() {
         <Card className="p-3.5 ring-1 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="trending" size={13} className="text-emerald-600" />
-            مجموع دریافتی ({range.label})
+            {t("مجموع دریافتی ({p0})", { p0: range.label })}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
             {revenueMixed
@@ -236,14 +237,14 @@ export function FinanceRevenues() {
           </div>
           {revenueMixed && iqdEq > 0 && (
             <div className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">
-              ≈ {formatCurrency(iqdEq)} IQD (نرخ لحظه‌ای)
+              {t("≈ {p0} IQD (نرخ لحظه‌ای)", { p0: formatCurrency(iqdEq) })}
             </div>
           )}
         </Card>
         <Card className="p-3.5 ring-1 ring-emerald-500/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="arrowUp" size={13} className="text-emerald-600" />
-            دریافتی‌های جدید
+            {t("دریافتی‌های جدید")}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5">
             {positiveCount.toLocaleString("en-US")}
@@ -252,7 +253,7 @@ export function FinanceRevenues() {
         <Card className="p-3.5 ring-1 ring-rose-500/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="arrowDown" size={13} className="text-rose-600" />
-            اصلاح‌های کاهشی
+            {t("اصلاح‌های کاهشی")}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5">
             {(logs.length - positiveCount).toLocaleString("en-US")}
@@ -271,16 +272,16 @@ export function FinanceRevenues() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="جستجو: سفارش، مشتری، کارمند…"
+            placeholder={t("جستجو: سفارش، مشتری، کارمند…")}
             className="pr-9"
           />
         </div>
         <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
           {[
-            { id: "", label: "همه" },
-            { id: "finance", label: "مالی" },
-            { id: "admin", label: "ادمین" },
-            { id: "logistics", label: "لجستیک" },
+            { id: "", label: t("همه") },
+            { id: "finance", label: t("مالی") },
+            { id: "admin", label: t("ادمین") },
+            { id: "logistics", label: t("لجستیک") },
           ].map((m) => (
             <button
               key={m.id}
@@ -297,7 +298,7 @@ export function FinanceRevenues() {
           ))}
         </div>
         {/* فاز ۲۵: فیلتر ارزی — فقط دینار / فقط دلار / فقط تومان */}
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="ارز">
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label={t("ارز")}>
           {(["", "IQD", "USD", "IRT"] as const).map((c) => (
             <button
               key={c || "all"}
@@ -311,12 +312,12 @@ export function FinanceRevenues() {
                   : "text-muted-foreground hover:bg-background/60"
               )}
             >
-              {c === "" ? "همه ارزها" : c === "IQD" ? "دینار" : c === "USD" ? "دلار" : "تومان"}
+              {c === "" ? t("همه ارزها") : c === "IQD" ? t("دینار") : c === "USD" ? t("دلار") : t("تومان")}
             </button>
           ))}
         </div>
         <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {logs.length.toLocaleString("en-US")} ثبت
+          {t("{p0} ثبت", { p0: logs.length.toLocaleString("en-US") })}
         </span>
       </Card>
 
@@ -330,8 +331,8 @@ export function FinanceRevenues() {
           emptyState={
             <EmptyState
               icon="trending"
-              title="دریافتی‌ای در این بازه ثبت نشده"
-              description="هر پرداخت مشتری (از مالی، ادمین یا لجستیک) اینجا ریز-به-ریز ثبت می‌شود — هزینه‌ها روی این عدد حساب نشده‌اند"
+              title={t("دریافتی‌ای در این بازه ثبت نشده")}
+              description={t("هر پرداخت مشتری (از مالی، ادمین یا لجستیک) اینجا ریز-به-ریز ثبت می‌شود — هزینه‌ها روی این عدد حساب نشده‌اند")}
             />
           }
         />

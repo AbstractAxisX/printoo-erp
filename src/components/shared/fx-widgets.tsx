@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { CURRENCIES, CURRENCY_LIST, FX_SEED, parseCurrency, type Currency, type FxRates } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 export type FxApiResponse = {
   rates: { USD_IQD: number; USD_IRT: number; IQD_IRT: number };
@@ -46,15 +47,15 @@ export function useFxRates() {
 export function fxSourceLabel(s: string | undefined | null): string {
   switch (s) {
     case "market":
-      return "بازار (TGJU)";
+      return t("بازار (TGJU)");
     case "official":
-      return "رسمی";
+      return t("رسمی");
     case "manual":
-      return "دستی";
+      return t("دستی");
     case "fallback":
-      return "پیش‌فرض اضطراری";
+      return t("پیش‌فرض اضطراری");
     default:
-      return "خودکار";
+      return t("خودکار");
   }
 }
 
@@ -83,7 +84,7 @@ export function CurrencySelect({
         className
       )}
       role="radiogroup"
-      aria-label="ارز"
+      aria-label={t("ارز")}
     >
       {CURRENCY_LIST.map((c) => (
         <button
@@ -135,7 +136,7 @@ export function FxBar({ className }: { className?: string }) {
     return (
       <div className={cn("text-[11px] text-muted-foreground flex items-center gap-1.5", className)}>
         <span className="size-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-        در حال دریافت نرخ ارز…
+        {t("در حال دریافت نرخ ارز…")}
       </div>
     );
   }
@@ -165,7 +166,7 @@ export function FxBar({ className }: { className?: string }) {
       </span>
       <span className={cn("ms-auto rounded-full px-1.5 py-0.5 text-[9px] font-medium", data.stale ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" : "bg-muted text-muted-foreground")}>
         {src}
-        {data.ageHours > 0.05 ? ` · ${Math.round(data.ageHours)}ساعت قبل` : ""}
+        {data.ageHours > 0.05 ? t(" · {p0}ساعت قبل", { p0: Math.round(data.ageHours) }) : ""}
       </span>
     </div>
   );
@@ -197,7 +198,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
         }),
       }),
     onSuccess: () => {
-      toast.success("نرخ دستی ثبت شد — ثابت می‌ماند تا خودتان پاکش کنید");
+      toast.success(t("نرخ دستی ثبت شد — ثابت می‌ماند تا خودتان پاکش کنید"));
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["fx-rates"] });
       qc.invalidateQueries({ queryKey: ["finance"] });
@@ -209,7 +210,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
     mutationFn: () =>
       api("/api/fx", { method: "POST", body: JSON.stringify({ clear: "all" }) }),
     onSuccess: () => {
-      toast.success("نرخ دستی حذف شد — بازگشت به نرخ خودکار بازار");
+      toast.success(t("نرخ دستی حذف شد — بازگشت به نرخ خودکار بازار"));
       qc.invalidateQueries({ queryKey: ["fx-rates"] });
       qc.invalidateQueries({ queryKey: ["finance"] });
     },
@@ -219,14 +220,14 @@ export function FxRatesPanel({ className }: { className?: string }) {
   if (isLoading && !data) {
     return (
       <div className={cn("rounded-xl border bg-card p-4 text-xs text-muted-foreground", className)}>
-        در حال دریافت نرخ ارز…
+        {t("در حال دریافت نرخ ارز…")}
       </div>
     );
   }
   const r = data?.rates;
   if (!r) return null;
   const anyManual = data.sources.USD_IQD === "manual" || data.sources.USD_IRT === "manual";
-  const age = data.ageHours > 0.05 ? ` · ${Math.round(data.ageHours)} ساعت قبل` : " · تازه";
+  const age = data.ageHours > 0.05 ? t(" · {p0} ساعت قبل", { p0: Math.round(data.ageHours) }) : t(" · تازه");
 
   return (
     <div className={cn("rounded-xl border bg-card p-4", className)}>
@@ -236,9 +237,9 @@ export function FxRatesPanel({ className }: { className?: string }) {
             <span className="text-sm font-black">$</span>
           </div>
           <div className="min-w-0">
-            <h3 className="font-semibold text-sm">نرخ لحظه‌ای ارز</h3>
+            <h3 className="font-semibold text-sm">{t("نرخ لحظه‌ای ارز")}</h3>
             <p className="text-[11px] text-muted-foreground">
-              مبنای تبدیل‌ها و اسناد چاپی — {fxSourceLabel(data.sources.USD_IQD)}{age}
+              {t("مبنای تبدیل‌ها و اسناد چاپی — {p0}{p1}", { p0: fxSourceLabel(data.sources.USD_IQD), p1: age })}
             </p>
           </div>
         </div>
@@ -246,7 +247,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
           <button
             onClick={() => refetch()}
             className="size-8 rounded-lg border grid place-items-center hover:bg-accent transition text-muted-foreground"
-            title="به‌روزرسانی نرخ"
+            title={t("به‌روزرسانی نرخ")}
           >
             <span className={cn("text-xs", isFetching && "animate-spin inline-block")}>↻</span>
           </button>
@@ -255,7 +256,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
               onClick={() => setEditing((v) => !v)}
               className="h-8 rounded-lg border px-3 text-xs font-medium transition hover:bg-accent"
             >
-              ثبّت دستی نرخ
+              {t("ثبّت دستی نرخ")}
             </button>
           )}
           {data.canEdit && editing && (
@@ -263,7 +264,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
               onClick={() => setEditing((v) => !v)}
               className="h-8 rounded-lg border px-3 text-xs font-medium transition bg-primary text-primary-foreground"
             >
-              انصراف
+              {t("انصراف")}
             </button>
           )}
           {data.canEdit && anyManual && !editing && (
@@ -271,9 +272,9 @@ export function FxRatesPanel({ className }: { className?: string }) {
               onClick={() => clearMut.mutate()}
               disabled={clearMut.isPending}
               className="h-8 rounded-lg border border-amber-300 px-3 text-xs font-medium text-amber-700 dark:text-amber-400 transition hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-60"
-              title="نرخ‌های دستی حذف و نرخ خودکار بازار برمی‌گردد"
+              title={t("نرخ‌های دستی حذف و نرخ خودکار بازار برمی‌گردد")}
             >
-              {clearMut.isPending ? "…" : "بازگشت به خودکار"}
+              {clearMut.isPending ? "…" : t("بازگشت به خودکار")}
             </button>
           )}
         </div>
@@ -290,27 +291,27 @@ export function FxRatesPanel({ className }: { className?: string }) {
         <div className="rounded-lg bg-muted/30 px-3 py-2.5" dir="ltr">
           <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">1 USD =</div>
           <div className="text-lg font-bold tabular-nums mt-0.5">
-            {r.USD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">تومان</span>
+            {r.USD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">{t("تومان")}</span>
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">{fxSourceLabel(data.sources.USD_IRT)}</div>
         </div>
         <div className="rounded-lg bg-muted/30 px-3 py-2.5" dir="ltr">
           <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">1 IQD =</div>
           <div className="text-lg font-bold tabular-nums mt-0.5">
-            {r.IQD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">تومان</span>
+            {r.IQD_IRT.toLocaleString("en-US")} <span className="text-[10px] font-medium text-muted-foreground">{t("تومان")}</span>
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">مشتق از دو نرخ بالا</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{t("مشتق از دو نرخ بالا")}</div>
         </div>
       </div>
 
       {editing && (
         <div className="mt-3.5 rounded-lg border bg-muted/20 p-3 space-y-2.5">
           <p className="text-[11px] text-muted-foreground">
-            نرخ بازار واقعی خودتان را وارد کنید — روی همهٔ تبدیل‌ها و اسناد چاپی همین اعمال می‌شود و ثابت می‌ماند تا با «بازگشت به خودکار» پاکش کنید.
+            {t("نرخ بازار واقعی خودتان را وارد کنید — روی همهٔ تبدیل‌ها و اسناد چاپی همین اعمال می‌شود و ثابت می‌ماند تا با «بازگشت به خودکار» پاکش کنید.")}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <label className="block">
-              <span className="text-[11px] font-medium text-muted-foreground">1 دلار = چند دینار</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t("1 دلار = چند دینار")}</span>
               <input
                 dir="ltr"
                 inputMode="decimal"
@@ -321,7 +322,7 @@ export function FxRatesPanel({ className }: { className?: string }) {
               />
             </label>
             <label className="block">
-              <span className="text-[11px] font-medium text-muted-foreground">1 دلار = چند تومان</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{t("1 دلار = چند تومان")}</span>
               <input
                 dir="ltr"
                 inputMode="decimal"
@@ -337,18 +338,18 @@ export function FxRatesPanel({ className }: { className?: string }) {
             disabled={saveMut.isPending}
             className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition disabled:opacity-60"
           >
-            {saveMut.isPending ? "در حال ثبت…" : "ثبت نرخ دستی"}
+            {saveMut.isPending ? t("در حال ثبت…") : t("ثبت نرخ دستی")}
           </button>
         </div>
       )}
 
       {data.stale && (
         <p className="mt-2.5 text-[11px] text-amber-600 dark:text-amber-400">
-          نرخ‌ها ممکن است قدیمی باشند (بازار بسته/قطعی) — دستی به‌روز کنید یا رفرش بزنید.
+          {t("نرخ‌ها ممکن است قدیمی باشند (بازار بسته/قطعی) — دستی به‌روز کنید یا رفرش بزنید.")}
         </p>
       )}
       <p className="mt-2 text-[10px] text-muted-foreground">
-        منبع خودکار: بازار آزاد (TGJU) — نرخ متقاطع دلار/دینار؛ نرخ رسمی بانک مرکزی حدود ۱۵٪ پایین‌تر از بازار است و مبنای کارگاه نیست.
+        {t("منبع خودکار: بازار آزاد (TGJU) — نرخ متقاطع دلار/دینار؛ نرخ رسمی بانک مرکزی حدود ۱۵٪ پایین‌تر از بازار است و مبنای کارگاه نیست.")}
       </p>
     </div>
   );

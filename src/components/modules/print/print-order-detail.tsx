@@ -27,6 +27,7 @@ import { formatDate, daysRemaining, formatCurrency, formatDateTime, isOrderClose
 import { PRIORITY, ITEM_STAGE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 // Print-safe projection: NO prices, NO customer phone, NO overall endDate.
@@ -112,26 +113,26 @@ type MaterialCost = {
 // ─── Cost module meta ─────────────────────────────────────────────────
 const COST_MODULE_META: Record<string, { label: string; color: string; icon: IconName }> = {
   print: {
-    label: "چاپ",
+    label: t("چاپ"),
     color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
     icon: "print",
   },
   material: {
-    label: "متریال",
+    label: t("متریال"),
     color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
     icon: "boxes",
   },
   warehouse: {
-    label: "انبار",
+    label: t("انبار"),
     color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
     icon: "warehouse",
   },
 };
 
 const COST_STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending: { label: "در انتظار تأیید مالی", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  approved: { label: "تأیید شده", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  rejected: { label: "رد شده", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  pending: { label: t("در انتظار تأیید مالی"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  approved: { label: t("تأیید شده"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: t("رد شده"), cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
 };
 
 function fileIconFor(name: string): IconName {
@@ -193,7 +194,7 @@ export function PrintOrderDetailModal({
         body: JSON.stringify({ action: "confirm_material" }),
       }),
     onSuccess: () => {
-      toast.success("تأمین متریال تأیید شد");
+      toast.success(t("تأمین متریال تأیید شد"));
       invalidate(["orders", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
@@ -211,7 +212,7 @@ export function PrintOrderDetailModal({
         }),
       }),
     onSuccess: () => {
-      toast.success("گزارش به کنترل کیفیت ارسال شد");
+      toast.success(t("گزارش به کنترل کیفیت ارسال شد"));
       invalidate(["orders", "dashboard"]);
       setQcOpen(false);
       onOpenChange(false);
@@ -227,7 +228,7 @@ export function PrintOrderDetailModal({
         body: JSON.stringify({ action: "send_warehouse" }),
       }),
     onSuccess: () => {
-      toast.success("سفارش به انبار و لجستیک ارسال شد");
+      toast.success(t("سفارش به انبار و لجستیک ارسال شد"));
       invalidate(["orders", "dashboard"]);
       onOpenChange(false);
     },
@@ -248,11 +249,11 @@ export function PrintOrderDetailModal({
       invalidate(["orders", "dashboard", "open-orders"]);
       qc.invalidateQueries({ queryKey: ["order", orderId] });
       if (res.advanced) {
-        toast.success("چاپ سفارش کامل شد — سفارش به انبار و لجستیک ارسال شد");
+        toast.success(t("چاپ سفارش کامل شد — سفارش به انبار و لجستیک ارسال شد"));
         setTimeout(() => onOpenChange(false), 900);
       } else {
         toast.success(
-          `چاپ آیتم تکمیل شد — ${res.remainingPrint} آیتم چاپ باقی مانده`
+          t("چاپ آیتم تکمیل شد — {p0} آیتم چاپ باقی مانده", { p0: res.remainingPrint })
         );
       }
     },
@@ -264,7 +265,7 @@ export function PrintOrderDetailModal({
     mutationFn: (costId: string) =>
       api(`/api/material-costs/${costId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("هزینه حذف شد");
+      toast.success(t("هزینه حذف شد"));
       invalidate(["material-costs", "dashboard"]);
       qc.invalidateQueries({
         queryKey: ["material-costs", "order", orderId],
@@ -278,27 +279,27 @@ export function PrintOrderDetailModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
-          <DialogTitle className="sr-only">جزئیات سفارش چاپ</DialogTitle>
+          <DialogTitle className="sr-only">{t("جزئیات سفارش چاپ")}</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
                 <span className="text-sm text-muted-foreground">
-                  در حال بارگذاری سفارش...
+                  {t("در حال بارگذاری سفارش...")}
                 </span>
               </>
             ) : isError ? (
               <>
                 <Icon name="alertTriangle" size={28} className="text-rose-500" />
                 <span className="text-sm font-medium text-rose-600 text-center leading-relaxed max-w-md">
-                  {(error as Error)?.message || "خطا در بارگذاری سفارش — سرور پاسخ نداد"}
+                  {(error as Error)?.message || t("خطا در بارگذاری سفارش — سرور پاسخ نداد")}
                 </span>
                 <Button size="sm" variant="outline" onClick={() => refetch()}>
-                  تلاش دوباره
+                  {t("تلاش دوباره")}
                 </Button>
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">سفارش یافت نشد</span>
+              <span className="text-sm text-muted-foreground">{t("سفارش یافت نشد")}</span>
             )}
           </div>
         </DialogContent>
@@ -323,7 +324,7 @@ export function PrintOrderDetailModal({
   // فاز 24 (خواستهٔ 2): سفارش بسته (تمام/آرشیو/لغو) — بدون زمان و موعد
   const orderClosed = isOrderClosed(order.status);
   const closedLabel =
-    order.status === "cancelled" ? "لغو شده" : order.status === "archived" ? "آرشیو" : "تکمیل شده";
+    order.status === "cancelled" ? t("لغو شده") : order.status === "archived" ? t("آرشیو") : t("تکمیل شده");
   const priorityInfo =
     PRIORITY[order.priority as keyof typeof PRIORITY] ?? PRIORITY.normal;
 
@@ -360,15 +361,15 @@ export function PrintOrderDetailModal({
                 </div>
                 <div className="min-w-0">
                   <DialogTitle className="text-lg font-bold truncate flex items-center gap-2">
-                    سفارش #{order.number}
+                    {t("سفارش #{p0}", { p0: order.number })}
                     {order.splitMode === "separated" && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted">
-                        تفکیک‌شده
+                        {t("تفکیک‌شده")}
                       </span>
                     )}
                     {(order.items ?? []).length > 1 && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                        گروهی • {(order.items ?? []).length} آیتم
+                        {t("گروهی • {p0} آیتم", { p0: (order.items ?? []).length })}
                       </span>
                     )}
                   </DialogTitle>
@@ -381,7 +382,7 @@ export function PrintOrderDetailModal({
                     <span className="tabular-nums">{formatDate(order.createdAt)}</span>
                     <span>•</span>
                     <span className="text-[11px]">
-                      {printItemsActive.length.toLocaleString("en-US")} آیتم فعال چاپ
+                      {t("{p0} آیتم فعال چاپ", { p0: printItemsActive.length.toLocaleString("en-US") })}
                     </span>
                   </div>
                 </div>
@@ -405,7 +406,7 @@ export function PrintOrderDetailModal({
                   <span className="size-5 rounded-md bg-amber-500/10 text-amber-600 grid place-items-center">
                     <Icon name="play" size={10} />
                   </span>
-                  شروع چاپ
+                  {t("شروع چاپ")}
                 </div>
                 <div className="text-sm font-bold mt-1.5 tabular-nums">
                   {formatDate(printStart)}
@@ -416,7 +417,7 @@ export function PrintOrderDetailModal({
                   <span className="size-5 rounded-md bg-amber-500/10 text-amber-600 grid place-items-center">
                     <Icon name="calendar" size={10} />
                   </span>
-                  پایان چاپ
+                  {t("پایان چاپ")}
                 </div>
                 <div className="text-sm font-bold mt-1.5 tabular-nums">
                   {formatDate(printEnd)}
@@ -440,7 +441,7 @@ export function PrintOrderDetailModal({
                   >
                     <Icon name={orderClosed ? "checkCircle" : "clock"} size={10} />
                   </span>
-                  {orderClosed ? closedLabel : "باقی‌مانده"}
+                  {orderClosed ? closedLabel : t("باقی‌مانده")}
                 </div>
                 <div
                   className={cn(
@@ -465,7 +466,7 @@ export function PrintOrderDetailModal({
                   <span className="size-5 rounded-md bg-emerald-500/10 text-emerald-600 grid place-items-center">
                     <Icon name="layers" size={10} />
                   </span>
-                  پیشرفت چاپ
+                  {t("پیشرفت چاپ")}
                 </div>
                 <div className="text-sm font-bold mt-1.5 tabular-nums">
                   {(() => {
@@ -473,7 +474,7 @@ export function PrintOrderDetailModal({
                       (i) => i.stage === "print" || i.printCompletedAt
                     );
                     const done = printScope.filter((i) => i.printCompletedAt).length;
-                    return `${done.toLocaleString("en-US")} از ${printScope.length.toLocaleString("en-US")}`;
+                    return t("{p0} از {p1}", { p0: done.toLocaleString("en-US"), p1: printScope.length.toLocaleString("en-US") });
                   })()}
                 </div>
               </div>
@@ -489,21 +490,21 @@ export function PrintOrderDetailModal({
                   className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                 >
                   <Icon name="orders" size={15} />
-                  جزئیات سفارش
+                  {t("جزئیات سفارش")}
                 </TabsTrigger>
                 <TabsTrigger
                   value="costs"
                   className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                 >
                   <Icon name="money" size={15} />
-                  ثبت هزینه
+                  {t("ثبت هزینه")}
                   {costs.length > 0 && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
                       {costs.length.toLocaleString("en-US")}
                     </span>
                   )}
                   {pendingCosts > 0 && (
-                    <span className="size-2 rounded-full bg-amber-500" title={`${pendingCosts} در انتظار تأیید مالی`} />
+                    <span className="size-2 rounded-full bg-amber-500" title={t("{p0} در انتظار تأیید مالی", { p0: pendingCosts })} />
                   )}
                 </TabsTrigger>
               </TabsList>
@@ -526,9 +527,9 @@ export function PrintOrderDetailModal({
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-semibold flex items-center gap-2">
-                              تأمین متریال
+                              {t("تأمین متریال")}
                               <span className="text-[11px] font-normal text-muted-foreground">
-                                ({itemsNeedingMaterial.length.toLocaleString("en-US")} آیتم منتظر)
+                                {t("({p0} آیتم منتظر)", { p0: itemsNeedingMaterial.length.toLocaleString("en-US") })}
                               </span>
                             </div>
                             <ul className="mt-2 space-y-1">
@@ -550,7 +551,7 @@ export function PrintOrderDetailModal({
                               ) : (
                                 <Icon name="check" size={14} />
                               )}
-                              تأیید تأمین متریال
+                              {t("تأیید تأمین متریال")}
                             </Button>
                           </div>
                         </div>
@@ -560,7 +561,7 @@ export function PrintOrderDetailModal({
                     {/* Items list */}
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                        <Icon name="orders" size={13} /> آیتم‌های سفارش
+                        <Icon name="orders" size={13} /> {t("آیتم‌های سفارش")}
                         <span className="text-[10px] font-normal text-muted-foreground/70">
                           ({(order.items ?? []).length.toLocaleString("en-US")})
                         </span>
@@ -607,7 +608,7 @@ export function PrintOrderDetailModal({
                                     )}
                                     {it.printCompletedAt && (
                                       <span className="text-[10px] text-emerald-600 tabular-nums flex items-center gap-0.5">
-                                        <Icon name="check" size={9} /> چاپ شد:{" "}
+                                        <Icon name="check" size={9} /> {t("چاپ شد:")}{" "}
                                         {formatDate(it.printCompletedAt)}
                                       </span>
                                     )}
@@ -627,7 +628,7 @@ export function PrintOrderDetailModal({
                                       )}
                                     >
                                       <Icon name={it.materialConfirmed ? "check" : "alert"} size={10} />
-                                      {it.materialConfirmed ? "متریال تأیید شد" : "نیازمند متریال"}
+                                      {it.materialConfirmed ? t("متریال تأیید شد") : t("نیازمند متریال")}
                                     </span>
                                   )}
                                   {inPrint && (
@@ -643,7 +644,7 @@ export function PrintOrderDetailModal({
                                       ) : (
                                         <Icon name="checkCircle" size={12} />
                                       )}
-                                      تکمیل چاپ
+                                      {t("تکمیل چاپ")}
                                     </Button>
                                   )}
                                 </div>
@@ -659,7 +660,7 @@ export function PrintOrderDetailModal({
                         })}
                         {(order.items ?? []).length === 0 && (
                           <div className="text-xs text-muted-foreground py-3 text-center">
-                            آیتمی برای این سفارش ثبت نشده است.
+                            {t("آیتمی برای این سفارش ثبت نشده است.")}
                           </div>
                         )}
                       </div>
@@ -671,7 +672,7 @@ export function PrintOrderDetailModal({
                     {order.designerNote && (
                       <div className="rounded-xl border bg-violet-500/[0.04] p-3.5">
                         <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                          <Icon name="edit" size={13} className="text-violet-500" /> یادداشت طراح
+                          <Icon name="edit" size={13} className="text-violet-500" /> {t("یادداشت طراح")}
                         </div>
                         <div className="rounded-lg bg-background/60 border p-2.5 text-xs whitespace-pre-wrap leading-relaxed">
                           {order.designerNote}
@@ -690,13 +691,13 @@ export function PrintOrderDetailModal({
                             <Icon name="money" size={16} />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold">هزینه‌های سفارش</div>
+                            <div className="text-sm font-semibold">{t("هزینه‌های سفارش")}</div>
                             <div className="text-[11px] text-muted-foreground truncate">
-                              {costs.length.toLocaleString("en-US")} ثبت • مجموع{" "}
+                              {t("{p0} ثبت • مجموع{p1}", { p0: costs.length.toLocaleString("en-US"), p1: " " })}
                               <span dir="ltr" className="tabular-nums">
                                 {formatCurrency(totalCosts)}
                               </span>
-                              {pendingCosts > 0 && ` • ${pendingCosts.toLocaleString("en-US")} در انتظار مالی`}
+                              {pendingCosts > 0 && t(" • {p0} در انتظار مالی", { p0: pendingCosts.toLocaleString("en-US") })}
                             </div>
                           </div>
                         </div>
@@ -724,9 +725,9 @@ export function PrintOrderDetailModal({
                       <Icon name="money" size={18} />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-bold">ثبت هزینه جدید</div>
+                      <div className="text-sm font-bold">{t("ثبت هزینه جدید")}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        نام و مبلغ الزامی است — ثبت برای تأیید به مالی می‌رود
+                        {t("نام و مبلغ الزامی است — ثبت برای تأیید به مالی می‌رود")}
                       </div>
                     </div>
                   </div>
@@ -747,13 +748,13 @@ export function PrintOrderDetailModal({
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Icon name="checkList" size={13} /> هزینه‌های ثبت‌شده
+                      <Icon name="checkList" size={13} /> {t("هزینه‌های ثبت‌شده")}
                       <span className="text-[10px] font-normal text-muted-foreground/70">
                         ({costs.length.toLocaleString("en-US")})
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      مجموع:{" "}
+                      {t("مجموع:{p0}", { p0: " " })}
                       <b dir="ltr" className="text-foreground tabular-nums">
                         {formatCurrency(totalCosts)}
                       </b>
@@ -762,14 +763,14 @@ export function PrintOrderDetailModal({
                   {costsLoading ? (
                     <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
                       <Icon name="loading" size={14} className="animate-spin" />
-                      در حال بارگذاری هزینه‌ها...
+                      {t("در حال بارگذاری هزینه‌ها...")}
                     </div>
                   ) : costs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-muted-foreground rounded-xl border border-dashed">
                       <Icon name="inbox" size={24} className="opacity-30" />
-                      <span className="text-xs">هنوز هزینه‌ای ثبت نشده است</span>
+                      <span className="text-xs">{t("هنوز هزینه‌ای ثبت نشده است")}</span>
                       <span className="text-[10px] text-muted-foreground/70">
-                        ثبت هزینهٔ متریال و چاپ الزامی است — فرم بالا را پر کنید
+                        {t("ثبت هزینهٔ متریال و چاپ الزامی است — فرم بالا را پر کنید")}
                       </span>
                     </div>
                   ) : (
@@ -779,11 +780,11 @@ export function PrintOrderDetailModal({
                         <div className="min-w-[620px]">
                       {/* سربرگ جدول */}
                       <div className="grid grid-cols-[1fr_120px_100px_90px_150px_36px] items-center gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
-                        <span>هزینه</span>
-                        <span className="text-center">مبلغ</span>
-                        <span className="text-center">بخش</span>
-                        <span className="text-center">وضعیت</span>
-                        <span className="text-center">ثبت</span>
+                        <span>{t("هزینه")}</span>
+                        <span className="text-center">{t("مبلغ")}</span>
+                        <span className="text-center">{t("بخش")}</span>
+                        <span className="text-center">{t("وضعیت")}</span>
+                        <span className="text-center">{t("ثبت")}</span>
                         <span />
                       </div>
                       <div className="divide-y">
@@ -807,7 +808,7 @@ export function PrintOrderDetailModal({
                             >
                               <div className="min-w-0">
                                 <div className="font-medium text-sm truncate flex items-center gap-1.5">
-                                  {c.title || c.description || "هزینه"}
+                                  {c.title || c.description || t("هزینه")}
                                   {filesCount > 0 && (
                                     <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5 shrink-0">
                                       <Icon name="file" size={9} />
@@ -856,8 +857,8 @@ export function PrintOrderDetailModal({
                                   disabled={deleteCostMut.isPending || c.status === "approved"}
                                   title={
                                     c.status === "approved"
-                                      ? "هزینهٔ تأییدشده قابل حذف نیست"
-                                      : "حذف هزینه"
+                                      ? t("هزینهٔ تأییدشده قابل حذف نیست")
+                                      : t("حذف هزینه")
                                   }
                                   className="size-7 rounded-md grid place-items-center text-muted-foreground/60 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-30"
                                 >
@@ -887,7 +888,7 @@ export function PrintOrderDetailModal({
               disabled={actionPending}
             >
               <Icon name="shield" size={14} />
-              گزارش به کنترل کیفیت
+              {t("گزارش به کنترل کیفیت")}
             </Button>
             <Button
               size="sm"
@@ -904,8 +905,8 @@ export function PrintOrderDetailModal({
                 <Icon name="warehouse" size={14} />
               )}
               {(order.items ?? []).filter((i) => i.stage === "print").length > 1
-                ? "تکمیل همه و ارسال به انبار"
-                : "تکمیل و ارسال به انبار"}
+                ? t("تکمیل همه و ارسال به انبار")
+                : t("تکمیل و ارسال به انبار")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -921,23 +922,23 @@ export function PrintOrderDetailModal({
               </div>
               <div>
                 <DialogTitle className="text-base font-bold">
-                  گزارش به کنترل کیفیت
+                  {t("گزارش به کنترل کیفیت")}
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  سفارش #{order.number}
+                  {t("سفارش #{p0}", { p0: order.number })}
                 </p>
               </div>
             </div>
           </div>
           <div className="px-6 py-4">
             <Field
-              label="توضیح گزارش"
+              label={t("توضیح گزارش")}
               required
               hint={
                 <span className="flex items-start gap-1">
                   <Icon name="info" size={11} className="mt-0.5 shrink-0" />
-                  این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی
-                  (چاپ) باقی می‌ماند.
+                  {t("این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی")}
+                  {t("(چاپ) باقی می‌ماند.")}
                 </span>
               }
             >
@@ -957,7 +958,7 @@ export function PrintOrderDetailModal({
               onClick={() => setQcOpen(false)}
               disabled={reportQcMut.isPending}
             >
-              انصراف
+              {t("انصراف")}
             </Button>
             <Button
               size="sm"
@@ -971,7 +972,7 @@ export function PrintOrderDetailModal({
               ) : (
                 <Icon name="check" size={14} />
               )}
-              ارسال گزارش
+              {t("ارسال گزارش")}
             </Button>
           </DialogFooter>
         </DialogContent>

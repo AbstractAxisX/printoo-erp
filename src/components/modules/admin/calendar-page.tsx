@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
+import { t } from "@/lib/i18n";
 
 type Order = {
   id: string; number: number; status: string; endDate: string | null; noEndDate: boolean;
@@ -116,19 +117,19 @@ export function CalendarPage() {
   const [activeTab, setActiveTab] = React.useState("calendar");
 
   const filterButtons = [
-    { id: "orders", label: "سفارشات", active: filters.orders, onToggle: () => setFilters((f) => ({ ...f, orders: !f.orders })) },
-    { id: "tasks", label: "تسک‌ها", active: filters.tasks, onToggle: () => setFilters((f) => ({ ...f, tasks: !f.tasks })) },
-    { id: "urgent", label: "فقط فوری", active: filters.urgent, onToggle: () => setFilters((f) => ({ ...f, urgent: !f.urgent })) },
+    { id: "orders", label: t("سفارشات"), active: filters.orders, onToggle: () => setFilters((f) => ({ ...f, orders: !f.orders })) },
+    { id: "tasks", label: t("تسک‌ها"), active: filters.tasks, onToggle: () => setFilters((f) => ({ ...f, tasks: !f.tasks })) },
+    { id: "urgent", label: t("فقط فوری"), active: filters.urgent, onToggle: () => setFilters((f) => ({ ...f, urgent: !f.urgent })) },
   ];
 
   return (
     <div className="space-y-5">
-      <PageHeader title="تقویم و گانت چارت" description="نمای کامل سفارشات و تسک‌ها در دو نمای تقویمی و گانت" icon="calendar" />
+      <PageHeader title={t("تقویم و گانت چارت")} description={t("نمای کامل سفارشات و تسک‌ها در دو نمای تقویمی و گانت")} icon="calendar" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="calendar" className="gap-1.5"><Icon name="calendar" size={14} /> تقویم</TabsTrigger>
-          <TabsTrigger value="gantt" className="gap-1.5"><Icon name="chart" size={14} /> گانت چارت</TabsTrigger>
+          <TabsTrigger value="calendar" className="gap-1.5"><Icon name="calendar" size={14} /> {t("تقویم")}</TabsTrigger>
+          <TabsTrigger value="gantt" className="gap-1.5"><Icon name="chart" size={14} /> {t("گانت چارت")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar">
@@ -160,8 +161,8 @@ export function CalendarPage() {
                 navigate(e.meta.module, "tasks");
               }
             }}
-            title="گانت چارت سفارشات و تسک‌ها"
-            emptyMessage="رویدادی برای نمایش در گانت نیست"
+            title={t("گانت چارت سفارشات و تسک‌ها")}
+            emptyMessage={t("رویدادی برای نمایش در گانت نیست")}
             filters={filterButtons}
           />
         </TabsContent>

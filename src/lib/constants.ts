@@ -1,11 +1,12 @@
+import { t } from "@/lib/i18n";
 // Printoo24 ERP — app constants
 
 // هویت چاپی شرکت — مطابق سایت printoo24.com (طرح ارجاعی سند A4).
 // این مقادیر روی سربرگ پیش‌فاکتور/فاکتور چاپی درج می‌شوند.
 export const COMPANY = {
   name: "Printoo24",
-  faName: "پرینتو 24",
-  tagline: "سامانه یکپارچه مدیریت چاپ",
+  faName: t("پرینتو 24"),
+  tagline: t("سامانه یکپارچه مدیریت چاپ"),
   phone: "776 227 8666",
   email: "info@printoo24.com",
   website: "printoo24.com",
@@ -28,32 +29,32 @@ export const ORDER_STATUS: Record<
   { label: string; color: string; badge: string }
 > = {
   pending_design: {
-    label: "در حال طراحی",
+    label: t("در حال طراحی"),
     color: "violet",
     badge: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
   },
   in_printing: {
-    label: "در حال چاپ",
+    label: t("در حال چاپ"),
     color: "amber",
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   },
   warehouse_logistics: {
-    label: "انبار و لجستیک",
+    label: t("انبار و لجستیک"),
     color: "cyan",
     badge: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300",
   },
   completed: {
-    label: "پایان یافته",
+    label: t("پایان یافته"),
     color: "emerald",
     badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
   },
   archived: {
-    label: "آرشیو",
+    label: t("آرشیو"),
     color: "slate",
     badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
   },
   cancelled: {
-    label: "لغو شده",
+    label: t("لغو شده"),
     color: "rose",
     badge: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300",
   },
@@ -68,23 +69,23 @@ export type ItemStage =
   | "archive";
 
 export const ITEM_STAGE: Record<ItemStage, { label: string }> = {
-  design: { label: "طراح" },
-  print: { label: "چاپ" },
-  warehouse: { label: "انبار و لجستیک" },
-  completed: { label: "تکمیل شده" },
-  archive: { label: "آرشیو" },
+  design: { label: t("طراح") },
+  print: { label: t("چاپ") },
+  warehouse: { label: t("انبار و لجستیک") },
+  completed: { label: t("تکمیل شده") },
+  archive: { label: t("آرشیو") },
 };
 
 export const PRIORITY = {
-  normal: { label: "معمولی", badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  urgent: { label: "فوری", badge: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" },
+  normal: { label: t("معمولی"), badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  urgent: { label: t("فوری"), badge: "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" },
 } as const;
 
 export type Priority = keyof typeof PRIORITY;
 
 export const SPLIT_MODE = {
-  grouped: { label: "گروهی" },
-  separated: { label: "تفکیک شده" },
+  grouped: { label: t("گروهی") },
+  separated: { label: t("تفکیک شده") },
 } as const;
 
 export type SplitMode = keyof typeof SPLIT_MODE;
@@ -103,35 +104,35 @@ export type ModuleKey =
 // Phase 4 — Persian labels for User.role (task assignee pickers, user menus).
 // Values mirror ModuleKey + master/admin (User.role comment in schema.prisma).
 export const USER_ROLE: Record<string, { label: string }> = {
-  master: { label: "مدیر ارشد" },
-  admin: { label: "ادمین" },
-  designer: { label: "طراح" },
-  print: { label: "اپراتور چاپ" },
-  warehouse: { label: "انبار و لجستیک" },
-  finance: { label: "مالی" },
-  qc: { label: "کنترل کیفی" },
-  crm: { label: "ارتباط با مشتری" },
-  srm: { label: "ارتباط با تامین‌کننده" },
+  master: { label: t("مدیر ارشد") },
+  admin: { label: t("ادمین") },
+  designer: { label: t("طراح") },
+  print: { label: t("اپراتور چاپ") },
+  warehouse: { label: t("انبار و لجستیک") },
+  finance: { label: t("مالی") },
+  qc: { label: t("کنترل کیفی") },
+  crm: { label: t("ارتباط با مشتری") },
+  srm: { label: t("ارتباط با تامین‌کننده") },
 };
 
 export const MODULES: Record<
   ModuleKey,
   { label: string; faLabel: string; color: string }
 > = {
-  admin: { label: "Admin", faLabel: "ادمین داخلی", color: "emerald" },
-  designer: { label: "Designer", faLabel: "طراح", color: "violet" },
-  print: { label: "Print", faLabel: "چاپ", color: "amber" },
-  warehouse: { label: "Warehouse", faLabel: "انبار و لجستیک", color: "cyan" },
-  finance: { label: "Finance", faLabel: "مالی", color: "rose" },
-  qc: { label: "QC", faLabel: "کنترل کیفی", color: "blue" },
-  crm: { label: "CRM", faLabel: "مدیریت مشتریان", color: "teal" },
-  srm: { label: "SRM", faLabel: "مدیریت تامین‌کنندگان", color: "orange" },
+  admin: { label: "Admin", faLabel: t("ادمین داخلی"), color: "emerald" },
+  designer: { label: "Designer", faLabel: t("طراح"), color: "violet" },
+  print: { label: "Print", faLabel: t("چاپ"), color: "amber" },
+  warehouse: { label: "Warehouse", faLabel: t("انبار و لجستیک"), color: "cyan" },
+  finance: { label: "Finance", faLabel: t("مالی"), color: "rose" },
+  qc: { label: "QC", faLabel: t("کنترل کیفی"), color: "blue" },
+  crm: { label: "CRM", faLabel: t("مدیریت مشتریان"), color: "teal" },
+  srm: { label: "SRM", faLabel: t("مدیریت تامین‌کنندگان"), color: "orange" },
 };
 
 export const TASK_STATUS = {
-  todo: { label: "در صف", badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  in_progress: { label: "در حال انجام", badge: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
-  done: { label: "انجام شده", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
+  todo: { label: t("در صف"), badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  in_progress: { label: t("در حال انجام"), badge: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" },
+  done: { label: t("انجام شده"), badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" },
 } as const;
 
 export type TaskStatus = keyof typeof TASK_STATUS;

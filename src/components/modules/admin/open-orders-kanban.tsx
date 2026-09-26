@@ -40,6 +40,7 @@ import { formatCurrency, formatDate, daysRemaining } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getStageDeadline, type OpenOrder } from "./open-orders-helpers";
+import { t } from "@/lib/i18n";
 
 // ─── ستون‌های کانبان = وضعیت‌های سفارش (برچسب از ORDER_STATUS) ────
 const KANBAN_COLUMNS: {
@@ -54,21 +55,21 @@ const KANBAN_COLUMNS: {
     dot: "bg-violet-500",
     ring: "ring-violet-400/60",
     hover: "hover:border-violet-300",
-    emptyHint: "سفارشی در طراحی نیست",
+    emptyHint: t("سفارشی در طراحی نیست"),
   },
   {
     key: "in_printing",
     dot: "bg-amber-500",
     ring: "ring-amber-400/60",
     hover: "hover:border-amber-300",
-    emptyHint: "سفارشی در چاپ نیست",
+    emptyHint: t("سفارشی در چاپ نیست"),
   },
   {
     key: "warehouse_logistics",
     dot: "bg-cyan-500",
     ring: "ring-cyan-400/60",
     hover: "hover:border-cyan-300",
-    emptyHint: "سفارشی در انبار نیست",
+    emptyHint: t("سفارشی در انبار نیست"),
   },
 ];
 
@@ -161,7 +162,7 @@ export function OpenOrdersKanban({
       {
         onSuccess: () => {
           invalidate(["open-orders", "orders"]);
-          toast.success(`سفارش #${orderNumber} به «${label}» منتقل شد`);
+          toast.success(t("سفارش #{p0} به «{p1}» منتقل شد", { p0: orderNumber, p1: label }));
         },
         onError: (err: Error) => {
           // rollback + پیام فارسی سرور (مثل گاردهای 400/404/409 وضعیت)
@@ -313,7 +314,7 @@ function KanbanCard({
           onOpen(order.id);
         }
       }}
-      title="کشیدن = تغییر وضعیت · کلیک = جزئیات سفارش"
+      title={t("کشیدن = تغییر وضعیت · کلیک = جزئیات سفارش")}
       className={cn(
         "group rounded-xl border bg-card p-3 cursor-grab active:cursor-grabbing select-none",
         "hover:shadow-md hover:-translate-y-0.5 transition-all",
@@ -328,7 +329,7 @@ function KanbanCard({
           <span className="font-mono text-xs font-bold">#{order.number}</span>
           {isUrgent && (
             <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 shrink-0">
-              <Icon name="alertTriangle" size={9} /> فوری
+              <Icon name="alertTriangle" size={9} /> {t("فوری")}
             </span>
           )}
         </div>

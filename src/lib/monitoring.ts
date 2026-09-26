@@ -11,6 +11,7 @@
 import { db } from "@/lib/db";
 import { activeLeaveToday, localDayKey, type LeaveSpan } from "@/lib/access";
 import { safeParsePages } from "@/lib/auth";
+import { t as tr } from "@/lib/i18n";
 
 // ─── انواع اشتراکی (قرارداد API → فرانت) ───────────────────────────
 
@@ -376,7 +377,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
     if (o.createdById === userId) {
       kpis.createdOrders += 1;
       if (inRange(o.createdAt)) {
-        timeline.push({ at: o.createdAt, kind: "order_created", title: `ثبت سفارش #${o.number}`, subtitle: o.customer?.name ?? undefined, orderNumber: o.number });
+        timeline.push({ at: o.createdAt, kind: "order_created", title: tr("ثبت سفارش #{p0}", { p0: o.number }), subtitle: o.customer?.name ?? undefined, orderNumber: o.number });
       }
     }
     const stageCounts = { design: 0, print: 0, warehouse: 0 };
@@ -416,7 +417,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
           timeline.push({
             at: it.designCompletedAt,
             kind: "design_done",
-            title: `تکمیل طراحی آیتم «${it.product?.name ?? "—"}» — سفارش #${o.number}`,
+            title: tr("تکمیل طراحی آیتم «{p0}» — سفارش #{p1}", { p0: it.product?.name ?? "—", p1: o.number }),
             subtitle: o.customer?.name ?? undefined,
             orderNumber: o.number,
           });
@@ -448,7 +449,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
           timeline.push({
             at: it.printCompletedAt,
             kind: "print_done",
-            title: `تکمیل چاپ آیتم «${it.product?.name ?? "—"}» — سفارش #${o.number}`,
+            title: tr("تکمیل چاپ آیتم «{p0}» — سفارش #{p1}", { p0: it.product?.name ?? "—", p1: o.number }),
             subtitle: o.customer?.name ?? undefined,
             orderNumber: o.number,
           });
@@ -476,7 +477,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
     if (t.status === "done") {
       kpis.tasks.done += 1;
       if (inRange(t.completedAt)) {
-        timeline.push({ at: t.completedAt!, kind: "task_done", title: `تکمیل تسک «${t.title}»`, taskId: t.id });
+        timeline.push({ at: t.completedAt!, kind: "task_done", title: tr("تکمیل تسک «{p0}»", { p0: t.title }), taskId: t.id });
       }
     } else {
       kpis.tasks.open += 1;
@@ -497,10 +498,10 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
     if (q.reportedById === userId) kpis.qc.reported += 1;
     if (q.reviewedById === userId) kpis.qc.reviewed += 1;
     if (q.reportedById === userId && inRange(q.createdAt)) {
-      timeline.push({ at: q.createdAt, kind: "qc_reported", title: "ثبت گزارش کنترل کیفیت", subtitle: q.description.slice(0, 60) });
+      timeline.push({ at: q.createdAt, kind: "qc_reported", title: tr("ثبت گزارش کنترل کیفیت"), subtitle: q.description.slice(0, 60) });
     }
     if (q.reviewedAt && inRange(q.reviewedAt)) {
-      timeline.push({ at: q.reviewedAt, kind: "qc_reviewed", title: "بررسی گزارش کنترل کیفیت" });
+      timeline.push({ at: q.reviewedAt, kind: "qc_reviewed", title: tr("بررسی گزارش کنترل کیفیت") });
     }
   }
 
@@ -513,7 +514,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
     timeline.push({
       at: log.createdAt,
       kind: log.action === "login" ? "login" : "logout",
-      title: log.action === "login" ? "ورود به سیستم" : "خروج از سیستم",
+      title: log.action === "login" ? tr("ورود به سیستم") : tr("خروج از سیستم"),
     });
   }
   // برآورد ساعت آنلاین: هر login تا رویداد بعدی (حداکثر 6 ساعت)
@@ -537,7 +538,7 @@ export async function monitorUserDetail(userId: string, range: DateRange): Promi
   }));
   for (const l of leaves) {
     if (l.startDate >= range.from && l.startDate <= range.to) {
-      timeline.push({ at: new Date(l.startDate + "T08:00:00"), kind: "leave", title: `شروع مرخصی (${l.days} روز)`, subtitle: l.note ?? undefined });
+      timeline.push({ at: new Date(l.startDate + "T08:00:00"), kind: "leave", title: tr("شروع مرخصی ({p0} روز)", { p0: l.days }), subtitle: l.note ?? undefined });
     }
   }
 

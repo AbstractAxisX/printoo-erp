@@ -17,6 +17,7 @@ import {
   ACTIVITY_META,
   type Activity,
 } from "./crm-types";
+import { t } from "@/lib/i18n";
 
 type DashboardData = {
   kpis: {
@@ -61,8 +62,8 @@ export function CRMDashboard() {
   if (isLoading && !data) {
     return (
       <div className="space-y-5">
-        <PageHeader title="داشبورد CRM" description="نمای کلی فروش و ارتباط با مشتریان" icon="dashboard" />
-        <LoadingState label="در حال بارگذاری داشبورد..." />
+        <PageHeader title={t("داشبورد CRM")} description={t("نمای کلی فروش و ارتباط با مشتریان")} icon="dashboard" />
+        <LoadingState label={t("در حال بارگذاری داشبورد...")} />
       </div>
     );
   }
@@ -79,33 +80,33 @@ export function CRMDashboard() {
     bg: string;
   }[] = [
     {
-      label: "کل مشتریان",
+      label: t("کل مشتریان"),
       value: formatNumber(kpis?.totalCustomers ?? 0),
-      sub: `+${kpis?.newCustomersThisMonth ?? 0} این ماه`,
+      sub: t("+{p0} این ماه", { p0: kpis?.newCustomersThisMonth ?? 0 }),
       icon: "customers",
       color: "text-teal-600 dark:text-teal-400",
       bg: "bg-teal-50 dark:bg-teal-950/40",
     },
     {
-      label: "معاملات فعال",
+      label: t("معاملات فعال"),
       value: formatNumber(kpis?.activeDeals ?? 0),
-      sub: `از کل ${formatNumber(kpis?.totalDeals ?? 0)} معامله`,
+      sub: t("از کل {p0} معامله", { p0: formatNumber(kpis?.totalDeals ?? 0) }),
       icon: "layers",
       color: "text-violet-600 dark:text-violet-400",
       bg: "bg-violet-50 dark:bg-violet-950/40",
     },
     {
-      label: "ارزش قیف فروش",
+      label: t("ارزش قیف فروش"),
       value: formatCurrency(kpis?.pipelineValue ?? 0),
-      sub: "مجموع معاملات باز",
+      sub: t("مجموع معاملات باز"),
       icon: "wallet",
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-50 dark:bg-amber-950/40",
     },
     {
-      label: "معاملات برنده این ماه",
+      label: t("معاملات برنده این ماه"),
       value: formatCurrency(kpis?.wonThisMonthValue ?? 0),
-      sub: `${kpis?.wonThisMonthCount ?? 0} معامله موفق`,
+      sub: t("{p0} معامله موفق", { p0: kpis?.wonThisMonthCount ?? 0 }),
       icon: "checkCircle",
       color: "text-emerald-600 dark:text-emerald-400",
       bg: "bg-emerald-50 dark:bg-emerald-950/40",
@@ -117,16 +118,16 @@ export function CRMDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="داشبورد CRM"
-        description="نمای کلی فروش و ارتباط با مشتریان"
+        title={t("داشبورد CRM")}
+        description={t("نمای کلی فروش و ارتباط با مشتریان")}
         icon="dashboard"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate("crm", "pipeline")} className="gap-1.5">
-              <Icon name="layers" size={15} /> قیف فروش
+              <Icon name="layers" size={15} /> {t("قیف فروش")}
             </Button>
             <Button size="sm" onClick={() => navigate("crm", "deals")} className="gap-1.5">
-              <Icon name="plus" size={15} /> معامله جدید
+              <Icon name="plus" size={15} /> {t("معامله جدید")}
             </Button>
           </div>
         }
@@ -156,13 +157,13 @@ export function CRMDashboard() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Icon name="layers" size={18} className="text-primary" />
-              <h3 className="font-semibold text-sm">قیف فروش بر اساس مرحله</h3>
+              <h3 className="font-semibold text-sm">{t("قیف فروش بر اساس مرحله")}</h3>
             </div>
             <button
               onClick={() => navigate("crm", "pipeline")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              مشاهده قیف <Icon name="arrowLeft" size={12} />
+              {t("مشاهده قیف")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           <div className="space-y-3">
@@ -196,7 +197,7 @@ export function CRMDashboard() {
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <Icon name="trending" size={18} className="text-primary" />
-            <h3 className="font-semibold text-sm">نرخ تبدیل</h3>
+            <h3 className="font-semibold text-sm">{t("نرخ تبدیل")}</h3>
           </div>
           <div className="flex flex-col items-center justify-center py-4">
             <div className="relative size-32">
@@ -220,19 +221,19 @@ export function CRMDashboard() {
                   <div className="text-2xl font-bold tabular-nums" dir="ltr">
                     {kpis?.conversionRate ?? 0}%
                   </div>
-                  <div className="text-[10px] text-muted-foreground">تبدیل به سفارش</div>
+                  <div className="text-[10px] text-muted-foreground">{t("تبدیل به سفارش")}</div>
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full mt-4 text-center">
               <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 p-2">
-                <div className="text-xs text-muted-foreground">برنده</div>
+                <div className="text-xs text-muted-foreground">{t("برنده")}</div>
                 <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                   {kpis?.wonThisMonthCount ?? 0}
                 </div>
               </div>
               <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 p-2">
-                <div className="text-xs text-muted-foreground">بازنده</div>
+                <div className="text-xs text-muted-foreground">{t("بازنده")}</div>
                 <div className="text-base font-bold text-rose-600 dark:text-rose-400 tabular-nums">
                   {kpis?.lostThisMonthCount ?? 0}
                 </div>
@@ -248,13 +249,13 @@ export function CRMDashboard() {
           <div className="flex items-center justify-between px-5 py-3.5 border-b">
             <div className="flex items-center gap-2">
               <Icon name="task" size={18} className="text-primary" />
-              <h3 className="font-semibold text-sm">فعالیت‌های اخیر</h3>
+              <h3 className="font-semibold text-sm">{t("فعالیت‌های اخیر")}</h3>
             </div>
             <button
               onClick={() => navigate("crm", "activities")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              مشاهده همه <Icon name="arrowLeft" size={12} />
+              {t("مشاهده همه")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           {(d?.recentActivities ?? []).length > 0 ? (
@@ -282,7 +283,7 @@ export function CRMDashboard() {
               })}
             </div>
           ) : (
-            <EmptyState icon="task" title="فعالیتی ثبت نشده" />
+            <EmptyState icon="task" title={t("فعالیتی ثبت نشده")} />
           )}
         </Card>
 
@@ -290,13 +291,13 @@ export function CRMDashboard() {
           <div className="flex items-center justify-between px-5 py-3.5 border-b">
             <div className="flex items-center gap-2">
               <Icon name="clock" size={18} className="text-amber-500" />
-              <h3 className="font-semibold text-sm">معاملات نزدیک به بسته شدن</h3>
+              <h3 className="font-semibold text-sm">{t("معاملات نزدیک به بسته شدن")}</h3>
             </div>
             <button
               onClick={() => navigate("crm", "deals")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              همه معاملات <Icon name="arrowLeft" size={12} />
+              {t("همه معاملات")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           {(d?.closingSoonDeals ?? []).length > 0 ? (
@@ -339,7 +340,7 @@ export function CRMDashboard() {
               })}
             </div>
           ) : (
-            <EmptyState icon="checkCircle" title="معامله‌ای نزدیک به بسته شدن نیست" />
+            <EmptyState icon="checkCircle" title={t("معامله‌ای نزدیک به بسته شدن نیست")} />
           )}
         </Card>
       </div>
@@ -349,13 +350,13 @@ export function CRMDashboard() {
         <div className="flex items-center justify-between px-5 py-3.5 border-b">
           <div className="flex items-center gap-2">
             <Icon name="star" size={18} className="text-amber-500" />
-            <h3 className="font-semibold text-sm">مشتریان برتر</h3>
+            <h3 className="font-semibold text-sm">{t("مشتریان برتر")}</h3>
           </div>
           <button
             onClick={() => navigate("crm", "customers")}
             className="text-xs text-primary hover:underline flex items-center gap-1"
           >
-            همه مشتریان <Icon name="arrowLeft" size={12} />
+            {t("همه مشتریان")}<Icon name="arrowLeft" size={12} />
           </button>
         </div>
         {(d?.topCustomers ?? []).length > 0 ? (
@@ -363,10 +364,10 @@ export function CRMDashboard() {
             <table className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr>
-                  <th className="text-right text-xs font-medium text-muted-foreground px-5 py-2.5">مشتری</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5">سفارش‌ها</th>
-                  <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5">معاملات</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground px-5 py-2.5">مجموع خرید</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground px-5 py-2.5">{t("مشتری")}</th>
+                  <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5">{t("سفارش‌ها")}</th>
+                  <th className="text-center text-xs font-medium text-muted-foreground px-3 py-2.5">{t("معاملات")}</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground px-5 py-2.5">{t("مجموع خرید")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -392,13 +393,13 @@ export function CRMDashboard() {
             </table>
           </div>
         ) : (
-          <EmptyState icon="customers" title="مشتری‌ای ثبت نشده" />
+          <EmptyState icon="customers" title={t("مشتری‌ای ثبت نشده")} />
         )}
       </Card>
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر 30 ثانیه
+        {t("به‌روزرسانی خودکار هر 30 ثانیه")}
       </div>
     </div>
   );

@@ -48,6 +48,7 @@ import {
 } from "@/components/modules/crm/crm-types";
 import { ActivityFormDialog } from "@/components/modules/crm/activity-form-dialog";
 import { DealFormDialog } from "@/components/modules/crm/deal-form-dialog";
+import { t } from "@/lib/i18n";
 
 // ─── تایپ‌ها (آینهٔ پاسخ زندهٔ GET /api/customers/[id]) ───────────────────
 
@@ -116,16 +117,16 @@ const isUnpaidOrder = (o: Customer360Order) =>
   (o.totalAmount || 0) - (o.paidAmount ?? 0) > 0.001;
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
-  cash: "نقدی",
-  transfer: "کارت به کارت",
-  cheque: "چک",
+  cash: t("نقدی"),
+  transfer: t("کارت به کارت"),
+  cheque: t("چک"),
 };
 
 const INVOICE_STATUS_META: Record<string, { label: string; cls: string }> = {
-  draft: { label: "پیش‌نویس", cls: "bg-muted text-muted-foreground" },
-  issued: { label: "صادرشده", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
-  paid: { label: "پرداخت‌شده", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  cancelled: { label: "باطل‌شده", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  draft: { label: t("پیش‌نویس"), cls: "bg-muted text-muted-foreground" },
+  issued: { label: t("صادرشده"), cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
+  paid: { label: t("پرداخت‌شده"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  cancelled: { label: t("باطل‌شده"), cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
 };
 
 // ─── دراور اصلی ─────────────────────────────────────────────────────────
@@ -223,12 +224,12 @@ export function Customer360Drawer({
 
   const deleteMut = useMutation({
     mutationFn: () => {
-      if (!customerId) throw new Error("مشتری انتخاب نشده است");
+      if (!customerId) throw new Error(t("مشتری انتخاب نشده است"));
       return api(`/api/customers/${customerId}`, { method: "DELETE" });
     },
     onSuccess: () => {
       invalidate(["customers", "customers-list", "customers-wizard", "customer-detail", "crm-dashboard", "deals", "dashboard", ...invalidateKeys]);
-      toast.success("مشتری حذف شد");
+      toast.success(t("مشتری حذف شد"));
       setDeleteOpen(false);
       onClose();
     },
@@ -242,30 +243,30 @@ export function Customer360Drawer({
         onOpenChange={(o) => {
           if (!o) onClose();
         }}
-        title="نمای ۳۶۰ درجه مشتری"
-        description="اطلاعات کامل، سفارش‌ها، فاکتورها، پرداخت‌ها، معاملات و فعالیت‌ها"
+        title={t("نمای ۳۶۰ درجه مشتری")}
+        description={t("اطلاعات کامل، سفارش‌ها، فاکتورها، پرداخت‌ها، معاملات و فعالیت‌ها")}
         icon="customers"
       >
         {isLoading ? (
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="loading" size={28} className="animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+            <span className="text-sm text-muted-foreground">{t("در حال بارگذاری...")}</span>
           </div>
         ) : isError ? (
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="alertTriangle" size={28} className="text-rose-500" />
             <span className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "خطا در بارگذاری مشتری"}
+              {error instanceof Error ? error.message : t("خطا در بارگذاری مشتری")}
             </span>
-            <Button variant="outline" size="sm" onClick={onClose} className="mt-2">بستن</Button>
+            <Button variant="outline" size="sm" onClick={onClose} className="mt-2">{t("بستن")}</Button>
           </div>
         ) : notFound ? (
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="alertTriangle" size={28} className="text-amber-500" />
             <span className="text-sm text-muted-foreground">
-              مشتری یافت نشد. ممکن است حذف شده باشد.
+              {t("مشتری یافت نشد. ممکن است حذف شده باشد.")}
             </span>
-            <Button variant="outline" size="sm" onClick={onClose} className="mt-2">بستن</Button>
+            <Button variant="outline" size="sm" onClick={onClose} className="mt-2">{t("بستن")}</Button>
           </div>
         ) : detail ? (
           <div className="flex flex-col">
@@ -300,7 +301,7 @@ export function Customer360Drawer({
                       <p className="text-xs text-muted-foreground mt-1 truncate">{detail.customer.address}</p>
                     )}
                     <div className="text-[11px] text-muted-foreground mt-0.5">
-                      مشتری از {formatDate(detail.customer.createdAt)}
+                      {t("مشتری از {p0}", { p0: formatDate(detail.customer.createdAt) })}
                     </div>
                   </div>
                 </div>
@@ -311,7 +312,7 @@ export function Customer360Drawer({
                     className="gap-1.5 shrink-0"
                     onClick={() => onEdit(detail.customer)}
                   >
-                    <Icon name="edit" size={14} /> ویرایش
+                    <Icon name="edit" size={14} /> {t("ویرایش")}
                   </Button>
                 )}
               </div>
@@ -319,21 +320,21 @@ export function Customer360Drawer({
               {/* آمار سریع */}
               <div className="grid grid-cols-4 gap-2 mt-4">
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">سفارش‌ها</div>
+                  <div className="text-[10px] text-muted-foreground">{t("سفارش‌ها")}</div>
                   <div className="text-base font-bold tabular-nums">{formatNumber(detail.orders.length)}</div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">معاملات</div>
+                  <div className="text-[10px] text-muted-foreground">{t("معاملات")}</div>
                   <div className="text-base font-bold tabular-nums">{formatNumber(detail.deals.length)}</div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">مجموع خرید</div>
+                  <div className="text-[10px] text-muted-foreground">{t("مجموع خرید")}</div>
                   <div className="text-xs font-bold tabular-nums" dir="ltr">
                     {formatCurrency(detail.totals.totalBilled)}
                   </div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">مانده حساب</div>
+                  <div className="text-[10px] text-muted-foreground">{t("مانده حساب")}</div>
                   <div
                     className={cn(
                       "text-xs font-bold tabular-nums",
@@ -362,25 +363,25 @@ export function Customer360Drawer({
                 <TabsList className="w-full">
                   <TabsTrigger value="orders" className="flex-1 gap-1 text-xs">
                     <Icon name="orders" size={14} />
-                    سفارش‌ها ({formatNumber(detail.orders.length)})
+                    {t("سفارش‌ها ({p0})", { p0: formatNumber(detail.orders.length) })}
                   </TabsTrigger>
                   <TabsTrigger value="invoices" className="flex-1 gap-1 text-xs">
                     <Icon name="invoice" size={14} />
-                    فاکتورها ({formatNumber(detail.invoices.length)})
+                    {t("فاکتورها ({p0})", { p0: formatNumber(detail.invoices.length) })}
                   </TabsTrigger>
                   <TabsTrigger value="payments" className="flex-1 gap-1 text-xs">
                     <Icon name="creditCard" size={14} />
-                    پرداخت‌ها
+                    {t("پرداخت‌ها")}
                   </TabsTrigger>
                 </TabsList>
                 <TabsList className="w-full mt-1.5">
                   <TabsTrigger value="deals" className="flex-1 gap-1 text-xs">
                     <Icon name="orders" size={14} />
-                    معاملات ({formatNumber(detail.deals.length)})
+                    {t("معاملات ({p0})", { p0: formatNumber(detail.deals.length) })}
                   </TabsTrigger>
                   <TabsTrigger value="activities" className="flex-1 gap-1 text-xs">
                     <Icon name="task" size={14} />
-                    فعالیت‌ها
+                    {t("فعالیت‌ها")}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -389,7 +390,7 @@ export function Customer360Drawer({
               <TabsContent value="orders" className="px-5 py-3 m-0">
                 <div className="flex items-center justify-between gap-2 mb-2" data-guide="c360:unpaid-section">
                   <span className="text-xs font-bold text-muted-foreground">
-                    سفارش‌های پرداخت‌نشده ({formatNumber(unpaidOrders.length)})
+                    {t("سفارش‌های پرداخت‌نشده ({p0})", { p0: formatNumber(unpaidOrders.length) })}
                   </span>
                   {unpaidOrders.length > 0 && (
                     <div className="flex items-center gap-1.5">
@@ -400,7 +401,7 @@ export function Customer360Drawer({
                         className="gap-1.5 h-8"
                         data-guide="c360:bulk-settle-btn"
                       >
-                        <Icon name="wallet" size={13} /> تسویه گروهی بدهی
+                        <Icon name="wallet" size={13} /> {t("تسویه گروهی بدهی")}
                       </Button>
                       <Button
                         size="sm"
@@ -408,7 +409,7 @@ export function Customer360Drawer({
                         className="gap-1.5 h-8"
                         data-guide="c360:statement-btn"
                       >
-                        <Icon name="print" size={13} /> چاپ فاکتور سفارشات پرداخت‌نشده
+                        <Icon name="print" size={13} /> {t("چاپ فاکتور سفارشات پرداخت‌نشده")}
                       </Button>
                     </div>
                   )}
@@ -417,19 +418,19 @@ export function Customer360Drawer({
                 {unpaidOrders.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     <div className="rounded-lg bg-card border p-2 text-center">
-                      <div className="text-[10px] text-muted-foreground">جمع مبلغ بدهی سفارش‌ها</div>
+                      <div className="text-[10px] text-muted-foreground">{t("جمع مبلغ بدهی سفارش‌ها")}</div>
                       <div className="text-xs font-bold tabular-nums" dir="ltr">
                         {formatCurrency(activeTotals.subtotal)}
                       </div>
                     </div>
                     <div className="rounded-lg bg-card border p-2 text-center">
-                      <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+                      <div className="text-[10px] text-muted-foreground">{t("پرداخت‌شده")}</div>
                       <div className="text-xs font-bold text-emerald-600 tabular-nums" dir="ltr">
                         {formatCurrency(activeTotals.paid)}
                       </div>
                     </div>
                     <div className="rounded-lg bg-card border p-2 text-center">
-                      <div className="text-[10px] text-muted-foreground">مانده بدهی</div>
+                      <div className="text-[10px] text-muted-foreground">{t("مانده بدهی")}</div>
                       <div className="text-xs font-bold text-rose-600 tabular-nums" dir="ltr">
                         {formatCurrency(activeTotals.balance)}
                       </div>
@@ -438,7 +439,7 @@ export function Customer360Drawer({
                 )}
 
                 {detail.orders.length === 0 ? (
-                  <EmptyState icon="orders" title="سفارشی ندارد" />
+                  <EmptyState icon="orders" title={t("سفارشی ندارد")} />
                 ) : (
                   <>
                     <div className="space-y-2">
@@ -447,7 +448,7 @@ export function Customer360Drawer({
                       ))}
                       {unpaidOrders.length === 0 && (
                         <p className="text-xs text-muted-foreground text-center py-2">
-                          بدهی بازاری نیست — همه تسویه شده ✓
+                          {t("بدهی بازاری نیست — همه تسویه شده ✓")}
                         </p>
                       )}
                     </div>
@@ -457,7 +458,7 @@ export function Customer360Drawer({
                       <>
                         <div className="border-t my-3.5" />
                         <span className="text-xs font-bold text-muted-foreground block mb-2">
-                          تسویه‌شده / بدون بدهی ({formatNumber(settledOrders.length)})
+                          {t("تسویه‌شده / بدون بدهی ({p0})", { p0: formatNumber(settledOrders.length) })}
                         </span>
                         <div className="space-y-2 opacity-75">
                           {settledOrders.map((o) => (
@@ -489,11 +490,11 @@ export function Customer360Drawer({
                     onClick={() => setDealOpen(true)}
                     className="gap-1.5"
                   >
-                    <Icon name="plus" size={14} /> معامله جدید
+                    <Icon name="plus" size={14} /> {t("معامله جدید")}
                   </Button>
                 </div>
                 {detail.deals.length === 0 ? (
-                  <EmptyState icon="orders" title="معامله‌ای ندارد" />
+                  <EmptyState icon="orders" title={t("معامله‌ای ندارد")} />
                 ) : (
                   <div className="space-y-2">
                     {detail.deals.map((d) => {
@@ -542,11 +543,11 @@ export function Customer360Drawer({
                     onClick={() => setActivityOpen(true)}
                     className="gap-1.5"
                   >
-                    <Icon name="plus" size={14} /> ثبت فعالیت
+                    <Icon name="plus" size={14} /> {t("ثبت فعالیت")}
                   </Button>
                 </div>
                 {detail.activities.length === 0 ? (
-                  <EmptyState icon="task" title="فعالیتی ثبت نشده" />
+                  <EmptyState icon="task" title={t("فعالیتی ثبت نشده")} />
                 ) : (
                   <div className="relative">
                     <div className="absolute right-[19px] top-2 bottom-2 w-px bg-border" />
@@ -586,10 +587,10 @@ export function Customer360Drawer({
             {/* ── منطقهٔ خطر — حذف مشتری دور از دسترس ── */}
             <div className="border-t mt-2 px-5 py-4">
               <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20 p-3">
-                <div className="text-xs font-bold text-rose-700 dark:text-rose-300">منطقهٔ خطر</div>
+                <div className="text-xs font-bold text-rose-700 dark:text-rose-300">{t("منطقهٔ خطر")}</div>
                 <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                  حذف کامل مشتری فقط وقتی ممکن است که هیچ سفارش/فاکتور/سابقه‌ای نداشته باشد.
-                  برای امنیت داده‌ها این عمل از لیست جدا شده و نیازمند تایید دوباره است.
+                  {t("حذف کامل مشتری فقط وقتی ممکن است که هیچ سفارش/فاکتور/سابقه‌ای نداشته باشد.")}
+                  {t("برای امنیت داده‌ها این عمل از لیست جدا شده و نیازمند تایید دوباره است.")}
                 </p>
                 <Button
                   variant="outline"
@@ -600,7 +601,7 @@ export function Customer360Drawer({
                     setDeleteOpen(true);
                   }}
                 >
-                  <Icon name="trash" size={13} /> حذف کامل این مشتری
+                  <Icon name="trash" size={13} /> {t("حذف کامل این مشتری")}
                 </Button>
               </div>
             </div>
@@ -615,12 +616,12 @@ export function Customer360Drawer({
             aria-describedby={undefined}
             className="sm:max-w-4xl max-h-[94vh] overflow-y-auto p-0 gap-0"
           >
-            <DialogTitle className="sr-only">فاکتور سفارشات پرداخت‌نشده</DialogTitle>
+            <DialogTitle className="sr-only">{t("فاکتور سفارشات پرداخت‌نشده")}</DialogTitle>
             <div className="no-print flex items-center gap-2 px-4 py-3 border-b flex-wrap">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">فاکتور سفارشات پرداخت‌نشده</p>
+                <p className="text-sm font-bold truncate">{t("فاکتور سفارشات پرداخت‌نشده")}</p>
                 <p className="text-[11px] text-muted-foreground truncate">
-                  {detail.customer.name} — {formatNumber(unpaidOrders.length)} سفارش پرداخت‌نشده
+                  {t("{p0} — {p1} سفارش پرداخت‌نشده", { p0: detail.customer.name, p1: formatNumber(unpaidOrders.length) })}
                 </p>
               </div>
               <DocPrintButtons
@@ -675,10 +676,10 @@ export function Customer360Drawer({
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>حذف کامل «{detail.customer.name}»؟</AlertDialogTitle>
+              <AlertDialogTitle>{t("حذف کامل «{p0}»؟", { p0: detail.customer.name })}</AlertDialogTitle>
               <AlertDialogDescription>
-                این عمل قابل بازگشت نیست و کل اطلاعات مشتری پاک می‌شود. برای تایید،
-                نام دقیق مشتری را وارد کنید.
+                {t("این عمل قابل بازگشت نیست و کل اطلاعات مشتری پاک می‌شود. برای تایید،")}
+                {t("نام دقیق مشتری را وارد کنید.")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <Input
@@ -688,7 +689,7 @@ export function Customer360Drawer({
               dir="auto"
             />
             <AlertDialogFooter>
-              <AlertDialogCancel>انصراف</AlertDialogCancel>
+              <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
               <Button
                 variant="destructive"
                 disabled={confirmName.trim() !== detail.customer.name.trim() || deleteMut.isPending}
@@ -700,7 +701,7 @@ export function Customer360Drawer({
                 ) : (
                   <Icon name="trash" size={14} />
                 )}
-                حذف قطعی
+                {t("حذف قطعی")}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -747,7 +748,7 @@ function OrderRow({ o }: { o: Customer360Order }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium">سفارش #{o.number}</span>
+          <span className="text-sm font-medium">{t("سفارش #{p0}", { p0: o.number })}</span>
           <StatusBadge status={o.status} className="text-[10px] px-2 py-0.5" />
         </div>
         <div className="text-xs text-muted-foreground">{relativeTime(o.createdAt)}</div>
@@ -757,7 +758,7 @@ function OrderRow({ o }: { o: Customer360Order }) {
           {formatCurrency(o.totalAmount)}
         </div>
         <div className="text-[10px] text-muted-foreground tabular-nums" dir="ltr">
-          پرداخت {formatCurrency(paid)} · مانده {formatCurrency(due)}
+          {t("پرداخت {p0} · مانده {p1}", { p0: formatCurrency(paid), p1: formatCurrency(due) })}
         </div>
       </div>
     </div>
@@ -771,8 +772,8 @@ function InvoicesTable({ invoices }: { invoices: Customer360Invoice[] }) {
     return (
       <EmptyState
         icon="invoice"
-        title="فاکتوری صادر نشده"
-        description="برای این مشتری فاکتور نهایی ثبت نشده است."
+        title={t("فاکتوری صادر نشده")}
+        description={t("برای این مشتری فاکتور نهایی ثبت نشده است.")}
         className="py-10"
       />
     );
@@ -782,12 +783,12 @@ function InvoicesTable({ invoices }: { invoices: Customer360Invoice[] }) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">شماره</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">وضعیت</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">جمع</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">پرداخت‌شده</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">مانده</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">تاریخ</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">{t("شماره")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">{t("وضعیت")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">{t("جمع")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">{t("پرداخت‌شده")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">{t("مانده")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">{t("تاریخ")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -819,7 +820,7 @@ function InvoicesTable({ invoices }: { invoices: Customer360Invoice[] }) {
                       {formatCurrency(due)}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">تسویه‌شده</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{t("تسویه‌شده")}</span>
                   )}
                 </TableCell>
                 <TableCell className="py-2">
@@ -841,8 +842,8 @@ function PaymentsTable({ payments }: { payments: Customer360Payment[] }) {
     return (
       <EmptyState
         icon="creditCard"
-        title="پرداختی ثبت نشده"
-        description="برای این مشتری پرداختی در سیستم ثبت نشده است."
+        title={t("پرداختی ثبت نشده")}
+        description={t("برای این مشتری پرداختی در سیستم ثبت نشده است.")}
         className="py-10"
       />
     );
@@ -852,9 +853,9 @@ function PaymentsTable({ payments }: { payments: Customer360Payment[] }) {
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">مبلغ</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">روش</TableHead>
-            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">تاریخ</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground text-end">{t("مبلغ")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">{t("روش")}</TableHead>
+            <TableHead className="h-9 text-xs font-semibold text-muted-foreground">{t("تاریخ")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

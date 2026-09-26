@@ -15,6 +15,7 @@ import { useAppStore } from "@/stores/app-store";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 /**
  * پاص سایدبار — منوی کاربر (SidebarUserFooter) — نسخهٔ زیباسازی‌شدهٔ فاز 6
@@ -45,26 +46,26 @@ export function SidebarUserFooter() {
       // حتی اگر فراخوانی API ناموفق بود، state محلی را پاک می‌کنیم
     }
     logout();
-    toast.success("خروج موفقیت‌آمیز بود");
+    toast.success(t("خروج موفقیت‌آمیز بود"));
     window.location.reload();
   }
 
   const isMaster = user?.role === "master";
   // Phase 12: نقش‌نمایی بر اساس ماژول‌ها — «طراح»، «چاپ + کنترل کیفی»، ...
   const moduleLabel = React.useMemo(() => {
-    if (isMaster) return "مدیر کل";
+    if (isMaster) return t("مدیر کل");
     const labels: Record<string, string> = {
-      admin: "ادمین داخلی",
-      designer: "طراح",
-      print: "چاپ",
-      warehouse: "انبار",
-      finance: "مالی",
-      qc: "کنترل کیفی",
-      crm: "ارتباط با مشتری",
-      srm: "ارتباط با تامین‌کننده",
+      admin: t("ادمین داخلی"),
+      designer: t("طراح"),
+      print: t("چاپ"),
+      warehouse: t("انبار"),
+      finance: t("مالی"),
+      qc: t("کنترل کیفی"),
+      crm: t("ارتباط با مشتری"),
+      srm: t("ارتباط با تامین‌کننده"),
     };
     const mods = (user?.modules ?? []).map((m) => labels[m] ?? m);
-    return mods.length ? mods.slice(0, 2).join(" + ") + (mods.length > 2 ? " +…" : "") : "کاربر";
+    return mods.length ? mods.slice(0, 2).join(" + ") + (mods.length > 2 ? " +…" : "") : t("کاربر");
   }, [isMaster, user?.modules]);
 
   return (
@@ -76,7 +77,7 @@ export function SidebarUserFooter() {
             "hover:bg-sidebar-accent/60",
             "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0",
           )}
-          aria-label="منوی کاربر"
+          aria-label={t("منوی کاربر")}
           data-guide="app:sidebar-footer"
         >
           {/* آواتار با گرادیانت emerald برای نقش master + نقطهٔ حضور آنلاین */}
@@ -95,12 +96,12 @@ export function SidebarUserFooter() {
             </Avatar>
             <span
               className="absolute -bottom-0.5 -left-0.5 size-2.5 rounded-full bg-emerald-500 ring-2 ring-sidebar"
-              title="آنلاین"
-              aria-label="آنلاین"
+              title={t("آنلاین")}
+              aria-label={t("آنلاین")}
             />
           </span>
           <div className="min-w-0 flex-1 text-right group-data-[collapsible=icon]:hidden">
-            <div className="text-xs font-medium truncate">{user?.name ?? "کاربر"}</div>
+            <div className="text-xs font-medium truncate">{user?.name ?? t("کاربر")}</div>
             <div className="text-[10px] text-muted-foreground truncate">
               {moduleLabel}
             </div>
@@ -128,14 +129,14 @@ export function SidebarUserFooter() {
           onClick={() => navigate("profile", "view")}
         >
           <Icon name="userCircle" size={16} />
-          <span>پروفایل من</span>
+          <span>{t("پروفایل من")}</span>
         </DropdownMenuItem>
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
           onClick={handleLogout}
         >
           <Icon name="logout" size={16} />
-          <span>خروج</span>
+          <span>{t("خروج")}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

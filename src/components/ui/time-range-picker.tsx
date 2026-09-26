@@ -9,6 +9,7 @@ import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { RANGE_PRESETS, type TimeRange, customRange } from "@/lib/time-ranges";
 import { DateRange } from "react-day-picker";
+import { t } from "@/lib/i18n";
 
 type TimeRangePickerProps = {
   value: TimeRange;
@@ -44,13 +45,13 @@ export function TimeRangePicker({ value, onChange, className, compact }: TimeRan
             onClick={() => setTab("presets")}
             className={cn("flex-1 py-2 text-xs font-medium transition", tab === "presets" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground")}
           >
-            بازه‌های آماده
+            {t("بازه‌های آماده")}
           </button>
           <button
             onClick={() => setTab("custom")}
             className={cn("flex-1 py-2 text-xs font-medium transition", tab === "custom" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground")}
           >
-            تقویم بازه‌ای
+            {t("تقویم بازه‌ای")}
           </button>
         </div>
 
@@ -96,7 +97,7 @@ export function TimeRangePicker({ value, onChange, className, compact }: TimeRan
                 }}
                 className="gap-1.5"
               >
-                <Icon name="check" size={14} /> اعمال
+                <Icon name="check" size={14} /> {t("اعمال")}
               </Button>
             </div>
           </div>

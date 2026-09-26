@@ -15,6 +15,7 @@
 // برایش تیک خورده» — خواستهٔ صریح کاربر).
 
 import { db } from "@/lib/db";
+import { t } from "@/lib/i18n";
 
 const TASK_STATUSES = ["todo", "in_progress", "done"] as const;
 const TASK_PRIORITIES = ["normal", "urgent"] as const;
@@ -58,28 +59,28 @@ export async function resolveAssignee(
 ): Promise<string | null> {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v !== "string") {
-    throw new Error("مقدار مسئول انجام نامعتبر است");
+    throw new Error(t("مقدار مسئول انجام نامعتبر است"));
   }
   const user = await db.user.findUnique({
     where: { id: v },
     include: { modules: { select: { module: true } } },
   });
   if (!user) {
-    throw new Error("کاربر مورد نظر یافت نشد (ممکن است حذف شده باشد)");
+    throw new Error(t("کاربر مورد نظر یافت نشد (ممکن است حذف شده باشد)"));
   }
   if (user.status !== "active") {
-    throw new Error("این کاربر غیرفعال است و قابل ارجاع نیست");
+    throw new Error(t("این کاربر غیرفعال است و قابل ارجاع نیست"));
   }
   if (module && user.role !== "master" && !user.modules.some((m) => m.module === module)) {
     const labels: Record<string, string> = {
-      admin: "ادمین",
-      designer: "طراحی",
-      print: "چاپ",
-      warehouse: "انبار",
-      finance: "مالی",
-      qc: "کنترل کیفی",
-      crm: "ارتباط با مشتری",
-      srm: "ارتباط با تامین‌کننده",
+      admin: t("ادمین"),
+      designer: t("طراحی"),
+      print: t("چاپ"),
+      warehouse: t("انبار"),
+      finance: t("مالی"),
+      qc: t("کنترل کیفی"),
+      crm: t("ارتباط با مشتری"),
+      srm: t("ارتباط با تامین‌کننده"),
     };
     throw new Error(
       `کاربر «${user.name}» به ماژول ${labels[module] ?? module} دسترسی ندارد — تسک در پنل او دیده نمی‌شود`

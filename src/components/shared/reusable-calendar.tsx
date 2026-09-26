@@ -5,6 +5,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInte
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { t } from "@/lib/i18n";
 
 // ─── R23: Discriminated union for CalendarEvent.meta ──────────────
 // Previously `meta?: Record<string, unknown>` forced every consumer to
@@ -64,7 +65,7 @@ export function ReusableCalendar({ events, onDayClick, onEventClick, filters, no
   const calStart = startOfWeek(monthStart, { weekStartsOn: 6 });
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 6 });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
-  const weekDays = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+  const weekDays = [t("شنبه"), t("یکشنبه"), t("دوشنبه"), t("سه‌شنبه"), t("چهارشنبه"), t("پنجشنبه"), t("جمعه")];
 
   function getEventsForDay(day: Date): CalendarEvent[] {
     // Normalize day to midnight for comparison
@@ -91,11 +92,11 @@ export function ReusableCalendar({ events, onDayClick, onEventClick, filters, no
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
-          <button onClick={() => setCursor(subMonths(cursor, 1))} className="size-8 rounded-lg border grid place-items-center hover:bg-accent transition" title="ماه قبل">
+          <button onClick={() => setCursor(subMonths(cursor, 1))} className="size-8 rounded-lg border grid place-items-center hover:bg-accent transition" title={t("ماه قبل")}>
             <Icon name="chevronRight" size={16} />
           </button>
-          <button onClick={() => setCursor(new Date())} className="px-3 py-1.5 rounded-lg border text-xs hover:bg-accent transition">امروز</button>
-          <button onClick={() => setCursor(addMonths(cursor, 1))} className="size-8 rounded-lg border grid place-items-center hover:bg-accent transition" title="ماه بعد">
+          <button onClick={() => setCursor(new Date())} className="px-3 py-1.5 rounded-lg border text-xs hover:bg-accent transition">{t("امروز")}</button>
+          <button onClick={() => setCursor(addMonths(cursor, 1))} className="size-8 rounded-lg border grid place-items-center hover:bg-accent transition" title={t("ماه بعد")}>
             <Icon name="chevronLeft" size={16} />
           </button>
         </div>
@@ -121,10 +122,10 @@ export function ReusableCalendar({ events, onDayClick, onEventClick, filters, no
 
       {/* Color legend */}
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground px-1">
-        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-blue-500" /> سفارش عادی</span>
-        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-amber-500" /> سفارش فوری</span>
-        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-500" /> تسک عادی</span>
-        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-rose-500" /> تسک فوری</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-blue-500" /> {t("سفارش عادی")}</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-amber-500" /> {t("سفارش فوری")}</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-emerald-500" /> {t("تسک عادی")}</span>
+        <span className="flex items-center gap-1"><span className="size-2.5 rounded-sm bg-rose-500" /> {t("تسک فوری")}</span>
       </div>
 
       {/* Calendar grid */}
@@ -156,7 +157,7 @@ export function ReusableCalendar({ events, onDayClick, onEventClick, filters, no
               <div className="flex items-center justify-between mb-1">
                 <span className={cn("text-xs font-medium", isToday && "text-primary")}>{format(day, "d")}</span>
                 {hasNote && (
-                  <span title="این روز یادداشت دارد" className="text-amber-500">
+                  <span title={t("این روز یادداشت دارد")} className="text-amber-500">
                     <Icon name="pencil" size={11} />
                   </span>
                 )}

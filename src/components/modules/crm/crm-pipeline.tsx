@@ -35,6 +35,7 @@ import {
   STAGE_COLORS,
   DEFAULT_PROBABILITY,
 } from "./crm-types";
+import { t } from "@/lib/i18n";
 
 // Fallback for unknown stages (defensive — should not happen, but guards against
 // corrupted/legacy data and keeps the UI from crashing).
@@ -109,7 +110,7 @@ export function CRMPipeline() {
     },
     onSuccess: (_data, vars) => {
       invalidate(["deals", "crm-dashboard", "customers"]);
-      toast.success(`معامله به «${STAGE_LABELS[vars.stage]}» منتقل شد`);
+      toast.success(t("معامله به «{p0}» منتقل شد", { p0: STAGE_LABELS[vars.stage] }));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -143,8 +144,8 @@ export function CRMPipeline() {
   if (isLoading && !dealsData) {
     return (
       <div className="space-y-5">
-        <PageHeader title="قیف فروش" description="مدیریت معاملات با نمای کانبان" icon="layers" />
-        <LoadingState label="در حال بارگذاری قیف فروش..." />
+        <PageHeader title={t("قیف فروش")} description={t("مدیریت معاملات با نمای کانبان")} icon="layers" />
+        <LoadingState label={t("در حال بارگذاری قیف فروش...")} />
       </div>
     );
   }
@@ -154,12 +155,12 @@ export function CRMPipeline() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="قیف فروش"
-        description={`مجموع ${deals.length} معامله • ${formatCurrency(totalValue)}`}
+        title={t("قیف فروش")}
+        description={t("مجموع {p0} معامله • {p1}", { p0: deals.length, p1: formatCurrency(totalValue) })}
         icon="layers"
         actions={
           <Button onClick={() => openNew("lead")} className="gap-2">
-            <Icon name="plus" size={16} /> معامله جدید
+            <Icon name="plus" size={16} /> {t("معامله جدید")}
           </Button>
         }
       />
@@ -168,11 +169,11 @@ export function CRMPipeline() {
         <Card className="p-0">
           <EmptyState
             icon="layers"
-            title="قیف فروش خالی است"
-            description="اولین معامله خود را ایجاد کنید تا قیف فروش شکل بگیرد"
+            title={t("قیف فروش خالی است")}
+            description={t("اولین معامله خود را ایجاد کنید تا قیف فروش شکل بگیرد")}
             action={
               <Button onClick={() => openNew("lead")} className="gap-2">
-                <Icon name="plus" size={16} /> ایجاد معامله
+                <Icon name="plus" size={16} /> {t("ایجاد معامله")}
               </Button>
             }
           />
@@ -219,7 +220,7 @@ export function CRMPipeline() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر 30 ثانیه • کارت‌ها را بکشید تا بین مراحل جابجا شوند
+        {t("به‌روزرسانی خودکار هر 30 ثانیه • کارت‌ها را بکشید تا بین مراحل جابجا شوند")}
       </div>
     </div>
   );
@@ -254,7 +255,7 @@ function PipelineColumn({
             size="icon"
             className="size-6"
             onClick={onAdd}
-            title="افزودن معامله به این مرحله"
+            title={t("افزودن معامله به این مرحله")}
           >
             <Icon name="plus" size={14} />
           </Button>
@@ -274,7 +275,7 @@ function PipelineColumn({
         {items.length === 0 ? (
           <div className="text-center py-6 text-xs text-muted-foreground">
             <Icon name="inbox" size={20} className="mx-auto mb-1 opacity-40" />
-            خالی
+            {t("خالی")}
           </div>
         ) : (
           items.map((d) => (
@@ -343,7 +344,7 @@ function DealCard({
         <h4 className="text-sm font-semibold leading-tight line-clamp-2 flex-1">{deal.title}</h4>
         <div
           className={cn("size-2 rounded-full shrink-0 mt-1", colors.dot)}
-          title={`احتمال: ${deal.probability}%`}
+          title={t("احتمال: {p0}%", { p0: deal.probability })}
         />
       </div>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
@@ -373,11 +374,11 @@ function DealCard({
             >
               <Icon name="calendar" size={9} />
               {dr.status === "today"
-                ? "امروز"
+                ? t("امروز")
                 : dr.status === "overdue"
-                ? "گذشته"
+                ? t("گذشته")
                 : dr.status === "remaining"
-                ? `${dr.days} روز`
+                ? t("{p0} روز", { p0: dr.days })
                 : "—"}
             </span>
           )}
@@ -386,7 +387,7 @@ function DealCard({
       {deal._count?.activities ? (
         <div className="mt-2 pt-2 border-t flex items-center gap-1 text-[10px] text-muted-foreground">
           <Icon name="task" size={10} />
-          {deal._count.activities} فعالیت ثبت شده
+          {t("{p0} فعالیت ثبت شده", { p0: deal._count.activities })}
         </div>
       ) : null}
     </div>

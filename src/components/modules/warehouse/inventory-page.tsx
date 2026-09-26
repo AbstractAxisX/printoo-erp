@@ -40,6 +40,7 @@ import {
 import { formatDateTime, relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -76,7 +77,7 @@ export function InventoryPage() {
 
   // فرم افزودن ماده
   const [addOpen, setAddOpen] = React.useState(false);
-  const [newMat, setNewMat] = React.useState({ name: "", unit: "عدد", min: "", note: "" });
+  const [newMat, setNewMat] = React.useState({ name: "", unit: t("عدد"), min: "", note: "" });
 
   // بخش گردش‌ها
   const [movesOpen, setMovesOpen] = React.useState(false);
@@ -89,7 +90,7 @@ export function InventoryPage() {
 
   // دیالوگ ویرایش
   const [editMat, setEditMat] = React.useState<Material | null>(null);
-  const [editForm, setEditForm] = React.useState({ name: "", unit: "عدد", min: "", note: "" });
+  const [editForm, setEditForm] = React.useState({ name: "", unit: t("عدد"), min: "", note: "" });
 
   // ── Queries ──
   const { data: matsData, isLoading: matsLoading } = useQuery({
@@ -124,8 +125,8 @@ export function InventoryPage() {
         }),
       }),
     onSuccess: () => {
-      toast.success("مادهٔ اولیه ثبت شد");
-      setNewMat({ name: "", unit: "عدد", min: "", note: "" });
+      toast.success(t("مادهٔ اولیه ثبت شد"));
+      setNewMat({ name: "", unit: t("عدد"), min: "", note: "" });
       invalidate(["materials", "inventory", "warehouse"]);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -138,7 +139,7 @@ export function InventoryPage() {
         body: JSON.stringify({ delta: args.delta, reason: args.reason }),
       }),
     onSuccess: (res) => {
-      toast.success(res.message ?? "گردش ثبت شد");
+      toast.success(res.message ?? t("گردش ثبت شد"));
       setMoveDlg(null);
       setMoveQty("");
       setMoveReason("");
@@ -160,7 +161,7 @@ export function InventoryPage() {
         }),
       }),
     onSuccess: () => {
-      toast.success("ماده به‌روزرسانی شد");
+      toast.success(t("ماده به‌روزرسانی شد"));
       setEditMat(null);
       invalidate(["materials", "warehouse"]);
     },
@@ -196,7 +197,7 @@ export function InventoryPage() {
       {
         id: "name",
         accessorFn: (m) => m.name,
-        header: "نام ماده",
+        header: t("نام ماده"),
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="text-sm font-medium truncate max-w-[180px]">{row.original.name}</div>
@@ -212,7 +213,7 @@ export function InventoryPage() {
       {
         id: "quantity",
         accessorFn: (m) => m.quantity,
-        header: "موجودی",
+        header: t("موجودی"),
         cell: ({ row }) => {
           const m = row.original;
           const target = Math.max(m.minQuantity * 2, 1);
@@ -241,7 +242,7 @@ export function InventoryPage() {
       {
         id: "min",
         accessorFn: (m) => m.minQuantity,
-        header: "حداقل",
+        header: t("حداقل"),
         cell: ({ row }) => (
           <span className="text-xs tabular-nums text-muted-foreground">
             {fa(row.original.minQuantity)} {row.original.unit}
@@ -252,22 +253,22 @@ export function InventoryPage() {
       {
         id: "state",
         accessorFn: (m) => (m.low ? 1 : 0),
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) =>
           row.original.low ? (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-              <Icon name="alertTriangle" size={11} /> کم‌موجود
+              <Icon name="alertTriangle" size={11} /> {t("کم‌موجود")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Icon name="checkCircle" size={11} /> کافی
+              <Icon name="checkCircle" size={11} /> {t("کافی")}
             </span>
           ),
         enableSorting: true,
       },
       {
         id: "lastMove",
-        header: "آخرین گردش",
+        header: t("آخرین گردش"),
         cell: ({ row }) => {
           const lm = row.original.lastMove;
           if (!lm) return <span className="text-xs text-muted-foreground">—</span>;
@@ -303,7 +304,7 @@ export function InventoryPage() {
                   openMove(m, "in");
                 }}
               >
-                <Icon name="plusCircle" size={12} /> ورود
+                <Icon name="plusCircle" size={12} /> {t("ورود")}
               </Button>
               <Button
                 variant="outline"
@@ -314,7 +315,7 @@ export function InventoryPage() {
                   openMove(m, "out");
                 }}
               >
-                <Icon name="minus" size={12} /> خروج
+                <Icon name="minus" size={12} /> {t("خروج")}
               </Button>
               <Button
                 variant="ghost"
@@ -324,7 +325,7 @@ export function InventoryPage() {
                   e.stopPropagation();
                   openEdit(m);
                 }}
-                title="ویرایش"
+                title={t("ویرایش")}
               >
                 <Icon name="edit" size={13} />
               </Button>
@@ -342,7 +343,7 @@ export function InventoryPage() {
       {
         id: "material",
         accessorFn: (m) => m.material.name,
-        header: "ماده",
+        header: t("ماده"),
         cell: ({ row }) => (
           <span className="text-sm font-medium truncate max-w-[160px] block">
             {row.original.material.name}
@@ -353,15 +354,15 @@ export function InventoryPage() {
       {
         id: "type",
         accessorFn: (m) => (m.delta >= 0 ? 1 : 0),
-        header: "نوع",
+        header: t("نوع"),
         cell: ({ row }) =>
           row.original.delta >= 0 ? (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Icon name="plusCircle" size={11} /> ورود
+              <Icon name="plusCircle" size={11} /> {t("ورود")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-              <Icon name="minus" size={11} /> خروج
+              <Icon name="minus" size={11} /> {t("خروج")}
             </span>
           ),
         enableSorting: false,
@@ -369,7 +370,7 @@ export function InventoryPage() {
       {
         id: "qty",
         accessorFn: (m) => Math.abs(m.delta),
-        header: "مقدار",
+        header: t("مقدار"),
         cell: ({ row }) => (
           <span
             className={cn(
@@ -389,7 +390,7 @@ export function InventoryPage() {
       {
         id: "reason",
         accessorFn: (m) => m.reason,
-        header: "دلیل",
+        header: t("دلیل"),
         cell: ({ row }) => (
           <span className="text-xs truncate block max-w-[180px]">{row.original.reason}</span>
         ),
@@ -398,7 +399,7 @@ export function InventoryPage() {
       {
         id: "by",
         accessorFn: (m) => m.createdByName ?? "",
-        header: "ثبت‌کننده",
+        header: t("ثبت‌کننده"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground truncate block max-w-[110px]">
             {row.original.createdByName ?? "—"}
@@ -409,7 +410,7 @@ export function InventoryPage() {
       {
         id: "createdAt",
         accessorFn: (m) => new Date(m.createdAt).getTime(),
-        header: "تاریخ",
+        header: t("تاریخ"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground tabular-nums">
             {formatDateTime(row.original.createdAt)}
@@ -429,15 +430,15 @@ export function InventoryPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="موجودی و مواد"
+        title={t("موجودی و مواد")}
         icon="boxes"
-        description="موجودی مواد اولیهٔ انبار — ورود/خروج با تاریخ و دلیل"
+        description={t("موجودی مواد اولیهٔ انبار — ورود/خروج با تاریخ و دلیل")}
         actions={
           <Button
             variant="ghost"
             size="sm"
             onClick={() => invalidate(["materials", "warehouse"])}
-            title="به‌روزرسانی"
+            title={t("به‌روزرسانی")}
           >
             <Icon name="refresh" size={14} className={matsLoading ? "animate-spin" : ""} />
           </Button>
@@ -453,7 +454,7 @@ export function InventoryPage() {
             </div>
             <div>
               <div className="text-xl font-bold tabular-nums">{fa(totalMaterials)}</div>
-              <div className="text-[11px] text-muted-foreground">تعداد مواد</div>
+              <div className="text-[11px] text-muted-foreground">{t("تعداد مواد")}</div>
             </div>
           </div>
         </Card>
@@ -473,7 +474,7 @@ export function InventoryPage() {
               <div className={cn("text-xl font-bold tabular-nums", lowCount > 0 && "text-rose-600 dark:text-rose-400")}>
                 {fa(lowCount)}
               </div>
-              <div className="text-[11px] text-muted-foreground">کم‌موجودها</div>
+              <div className="text-[11px] text-muted-foreground">{t("کم‌موجودها")}</div>
             </div>
           </div>
         </Card>
@@ -484,7 +485,7 @@ export function InventoryPage() {
             </div>
             <div>
               <div className="text-xl font-bold tabular-nums">{fa(totalQuantity)}</div>
-              <div className="text-[11px] text-muted-foreground">جمع اقلام (با واحدهای مختلف)</div>
+              <div className="text-[11px] text-muted-foreground">{t("جمع اقلام (با واحدهای مختلف)")}</div>
             </div>
           </div>
         </Card>
@@ -499,34 +500,34 @@ export function InventoryPage() {
                 <Icon name="plusCircle" size={17} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">افزودن مادهٔ اولیه</h3>
+                <h3 className="font-semibold text-sm">{t("افزودن مادهٔ اولیه")}</h3>
                 <p className="text-[11px] text-muted-foreground">
-                  مثلاً کاغذ گلاسه، جوهر، فوم‌برد، نایلون…
+                  {t("مثلاً کاغذ گلاسه، جوهر، فوم‌برد، نایلون…")}
                 </p>
               </div>
             </div>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5">
                 <Icon name={addOpen ? "chevronUp" : "chevronDown"} size={14} />
-                {addOpen ? "بستن" : "افزودن"}
+                {addOpen ? t("بستن") : t("افزودن")}
               </Button>
             </CollapsibleTrigger>
           </div>
           <CollapsibleContent>
             <div className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <Field label="نام ماده" required>
+                <Field label={t("نام ماده")} required>
                   <Input
                     value={newMat.name}
                     onChange={(e) => setNewMat((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="مثلاً کاغذ گلاسه 135 گرم"
+                    placeholder={t("مثلاً کاغذ گلاسه 135 گرم")}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && newMat.name.trim() && !addMut.isPending)
                         addMut.mutate();
                     }}
                   />
                 </Field>
-                <Field label="واحد">
+                <Field label={t("واحد")}>
                   <Select
                     value={newMat.unit}
                     onValueChange={(v) => setNewMat((f) => ({ ...f, unit: v }))}
@@ -537,13 +538,13 @@ export function InventoryPage() {
                     <SelectContent>
                       {UNITS.map((u) => (
                         <SelectItem key={u} value={u}>
-                          {u}
+                          {t(u)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="حداقل موجودی">
+                <Field label={t("حداقل موجودی")}>
                   <Input
                     type="number"
                     min={0}
@@ -554,11 +555,11 @@ export function InventoryPage() {
                     placeholder="0"
                   />
                 </Field>
-                <Field label="یادداشت">
+                <Field label={t("یادداشت")}>
                   <Input
                     value={newMat.note}
                     onChange={(e) => setNewMat((f) => ({ ...f, note: e.target.value }))}
-                    placeholder="اختیاری…"
+                    placeholder={t("اختیاری…")}
                   />
                 </Field>
               </div>
@@ -573,7 +574,7 @@ export function InventoryPage() {
                     size={15}
                     className={addMut.isPending ? "animate-spin" : ""}
                   />
-                  افزودن ماده
+                  {t("افزودن ماده")}
                 </Button>
               </div>
             </div>
@@ -592,11 +593,11 @@ export function InventoryPage() {
           emptyState={
             <EmptyState
               icon="boxes"
-              title="ماده‌ای ثبت نشده"
-              description="از فرم «افزودن مادهٔ اولیه» بالا، مواد انبار را تعریف کنید"
+              title={t("ماده‌ای ثبت نشده")}
+              description={t("از فرم «افزودن مادهٔ اولیه» بالا، مواد انبار را تعریف کنید")}
               action={
                 <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
-                  <Icon name="plus" size={14} /> افزودن مادهٔ اولیه
+                  <Icon name="plus" size={14} /> {t("افزودن مادهٔ اولیه")}
                 </Button>
               }
             />
@@ -613,16 +614,16 @@ export function InventoryPage() {
                 <Icon name="route" size={16} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">گردش انبار</h3>
+                <h3 className="font-semibold text-sm">{t("گردش انبار")}</h3>
                 <p className="text-[11px] text-muted-foreground">
-                  100 گردش آخر — ورود و خروج مواد با ثبت‌کننده
+                  {t("100 گردش آخر — ورود و خروج مواد با ثبت‌کننده")}
                 </p>
               </div>
             </div>
             <CollapsibleTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1.5">
                 <Icon name={movesOpen ? "chevronUp" : "chevronDown"} size={14} />
-                {movesOpen ? "بستن" : "نمایش"}
+                {movesOpen ? t("بستن") : t("نمایش")}
               </Button>
             </CollapsibleTrigger>
           </div>
@@ -640,7 +641,7 @@ export function InventoryPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">همهٔ مواد</SelectItem>
+                      <SelectItem value="all">{t("همهٔ مواد")}</SelectItem>
                       {materials.map((m) => (
                         <SelectItem key={m.id} value={m.id}>
                           {m.name}
@@ -652,8 +653,8 @@ export function InventoryPage() {
                 emptyState={
                   <EmptyState
                     icon="route"
-                    title="گردشی ثبت نشده"
-                    description="با دکمه‌های ورود/خروج جدول بالا، گردش انبار ثبت کنید"
+                    title={t("گردشی ثبت نشده")}
+                    description={t("با دکمه‌های ورود/خروج جدول بالا، گردش انبار ثبت کنید")}
                   />
                 }
               />
@@ -680,15 +681,15 @@ export function InventoryPage() {
                 </div>
                 <div>
                   <DialogTitle className="text-base font-bold">
-                    {moveDlg.mode === "in" ? "ورود به انبار" : "خروج از انبار"} — {moveDlg.mat.name}
+                    {moveDlg.mode === "in" ? t("ورود به انبار") : t("خروج از انبار")} — {moveDlg.mat.name}
                   </DialogTitle>
                   <p className="text-[11px] text-muted-foreground mt-0.5 tabular-nums">
-                    موجودی فعلی: {fa(moveDlg.mat.quantity)} {moveDlg.mat.unit}
+                    {t("موجودی فعلی: {p0} {p1}", { p0: fa(moveDlg.mat.quantity), p1: moveDlg.mat.unit })}
                   </p>
                 </div>
               </div>
               <div className="p-5 space-y-3">
-                <Field label="مقدار" required>
+                <Field label={t("مقدار")} required>
                   <Input
                     type="number"
                     min={0}
@@ -699,11 +700,11 @@ export function InventoryPage() {
                     placeholder="0"
                   />
                 </Field>
-                <Field label="دلیل">
+                <Field label={t("دلیل")}>
                   <Input
                     value={moveReason}
                     onChange={(e) => setMoveReason(e.target.value)}
-                    placeholder={moveDlg.mode === "in" ? "مثلاً خرید جدید…" : "مثلاً مصرف سفارش #12…"}
+                    placeholder={moveDlg.mode === "in" ? t("مثلاً خرید جدید…") : t("مثلاً مصرف سفارش #12…")}
                   />
                 </Field>
                 {moveQtyValid && moveAfter !== null && (
@@ -715,17 +716,17 @@ export function InventoryPage() {
                         : "bg-muted/30"
                     )}
                   >
-                    موجودی بعد از ثبت:{" "}
+                    {t("موجودی بعد از ثبت:{p0}", { p0: " " })}
                     <b className="tabular-nums">
                       {fa(moveAfter)} {moveDlg.mat.unit}
                     </b>
-                    {moveAfter < 0 && " — موجودی کافی نیست"}
+                    {moveAfter < 0 && t(" — موجودی کافی نیست")}
                   </div>
                 )}
               </div>
               <div className="px-5 pb-4 flex items-center justify-end gap-2 border-t pt-3">
                 <Button variant="outline" size="sm" onClick={() => setMoveDlg(null)}>
-                  انصراف
+                  {t("انصراف")}
                 </Button>
                 <Button
                   size="sm"
@@ -749,7 +750,7 @@ export function InventoryPage() {
                     size={14}
                     className={moveMut.isPending ? "animate-spin" : ""}
                   />
-                  {moveDlg.mode === "in" ? "ثبت ورود" : "ثبت خروج"}
+                  {moveDlg.mode === "in" ? t("ثبت ورود") : t("ثبت خروج")}
                 </Button>
               </div>
             </>
@@ -767,19 +768,19 @@ export function InventoryPage() {
                   <Icon name="edit" size={18} />
                 </div>
                 <div>
-                  <DialogTitle className="text-base font-bold">ویرایش ماده</DialogTitle>
+                  <DialogTitle className="text-base font-bold">{t("ویرایش ماده")}</DialogTitle>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{editMat.name}</p>
                 </div>
               </div>
               <div className="p-5 space-y-3">
-                <Field label="نام ماده" required>
+                <Field label={t("نام ماده")} required>
                   <Input
                     value={editForm.name}
                     onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                   />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="واحد">
+                  <Field label={t("واحد")}>
                     <Select
                       value={editForm.unit}
                       onValueChange={(v) => setEditForm((f) => ({ ...f, unit: v }))}
@@ -796,7 +797,7 @@ export function InventoryPage() {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="حداقل موجودی">
+                  <Field label={t("حداقل موجودی")}>
                     <Input
                       type="number"
                       min={0}
@@ -807,17 +808,17 @@ export function InventoryPage() {
                     />
                   </Field>
                 </div>
-                <Field label="یادداشت">
+                <Field label={t("یادداشت")}>
                   <Input
                     value={editForm.note}
                     onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))}
-                    placeholder="اختیاری…"
+                    placeholder={t("اختیاری…")}
                   />
                 </Field>
               </div>
               <div className="px-5 pb-4 flex items-center justify-end gap-2 border-t pt-3">
                 <Button variant="outline" size="sm" onClick={() => setEditMat(null)}>
-                  انصراف
+                  {t("انصراف")}
                 </Button>
                 <Button
                   size="sm"
@@ -830,7 +831,7 @@ export function InventoryPage() {
                     size={14}
                     className={editMut.isPending ? "animate-spin" : ""}
                   />
-                  ذخیره
+                  {t("ذخیره")}
                 </Button>
               </div>
             </>

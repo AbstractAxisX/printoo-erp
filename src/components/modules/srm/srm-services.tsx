@@ -42,8 +42,9 @@ import type {
   SupplierCategory,
   PriceListEntry,
 } from "./srm-types";
+import { t } from "@/lib/i18n";
 
-const UNIT_CHOICES = ["عدد", "متر", "کیلوگرم", "بسته", "صفحه", "ساعت", "متر مربع", "لیتر"];
+const UNIT_CHOICES = [t("عدد"), t("متر"), t("کیلوگرم"), t("بسته"), t("صفحه"), t("ساعت"), t("متر مربع"), t("لیتر")];
 
 // ─── Component ────────────────────────────────────────────────────────
 export function SRMServices() {
@@ -59,7 +60,7 @@ export function SRMServices() {
     subcategoryId: "",
     name: "",
     description: "",
-    unit: "عدد",
+    unit: t("عدد"),
   });
 
   // Fetch services
@@ -112,9 +113,9 @@ export function SRMServices() {
       api("/api/supplier-services", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["supplier-services", "srm-dashboard"]);
-      toast.success("خدمه ایجاد شد");
+      toast.success(t("خدمه ایجاد شد"));
       setDialogOpen(false);
-      setForm({ supplierId: "", subcategoryId: "", name: "", description: "", unit: "عدد" });
+      setForm({ supplierId: "", subcategoryId: "", name: "", description: "", unit: t("عدد") });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -122,7 +123,7 @@ export function SRMServices() {
     mutationFn: (id: string) => api(`/api/supplier-services/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["supplier-services", "srm-dashboard"]);
-      toast.success("خدمه حذف شد");
+      toast.success(t("خدمه حذف شد"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -130,7 +131,7 @@ export function SRMServices() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.supplierId) {
-      toast.error("انتخاب تامین‌کننده الزامی است");
+      toast.error(t("انتخاب تامین‌کننده الزامی است"));
       return;
     }
     createMut.mutate(form);
@@ -140,7 +141,7 @@ export function SRMServices() {
   const columns: ColumnDef<SupplierService>[] = [
     {
       accessorKey: "name",
-      header: "نام خدمه",
+      header: t("نام خدمه"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="size-8 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 grid place-items-center shrink-0">
@@ -161,7 +162,7 @@ export function SRMServices() {
     {
       id: "supplier",
       accessorFn: (r) => r.supplier?.name ?? "",
-      header: "تامین‌کننده",
+      header: t("تامین‌کننده"),
       cell: ({ row }) => (
         <span className="text-sm font-medium">{row.original.supplier?.name ?? "—"}</span>
       ),
@@ -170,7 +171,7 @@ export function SRMServices() {
     {
       id: "subcategory",
       accessorFn: (r) => r.subcategory?.name ?? "",
-      header: "دسته / زیردسته",
+      header: t("دسته / زیردسته"),
       cell: ({ row }) => {
         const sub = row.original.subcategory;
         if (!sub) return <span className="text-muted-foreground text-xs">—</span>;
@@ -185,7 +186,7 @@ export function SRMServices() {
     },
     {
       accessorKey: "unit",
-      header: "واحد",
+      header: t("واحد"),
       cell: ({ row }) => (
         <span className="text-xs bg-muted px-2 py-0.5 rounded">{row.original.unit}</span>
       ),
@@ -194,17 +195,17 @@ export function SRMServices() {
     {
       id: "latestPrice",
       accessorFn: (r) => r.priceLists?.[0]?.price ?? 0,
-      header: "آخرین قیمت",
+      header: t("آخرین قیمت"),
       cell: ({ row }) => {
         const latest = row.original.priceLists?.[0];
-        if (!latest) return <span className="text-[11px] text-muted-foreground">بدون قیمت</span>;
+        if (!latest) return <span className="text-[11px] text-muted-foreground">{t("بدون قیمت")}</span>;
         return (
           <div className="text-left">
             <div className="text-sm font-bold tabular-nums" dir="ltr">
               {formatCurrency(latest.price)}
             </div>
             <div className="text-[10px] text-muted-foreground">
-              حداقل: {latest.minQuantity}
+              {t("حداقل: {p0}", { p0: latest.minQuantity })}
             </div>
           </div>
         );
@@ -213,7 +214,7 @@ export function SRMServices() {
     },
     {
       id: "actions",
-      header: () => <div className="text-center">عملیات</div>,
+      header: () => <div className="text-center">{t("عملیات")}</div>,
       cell: ({ row }) => (
         <div className="flex items-center justify-center gap-0.5">
           <Button
@@ -224,7 +225,7 @@ export function SRMServices() {
               e.stopPropagation();
               setSelectedServiceId(row.original.id);
             }}
-            title="جزئیات و تاریخچه قیمت"
+            title={t("جزئیات و تاریخچه قیمت")}
           >
             <Icon name="eye" size={16} />
           </Button>
@@ -234,11 +235,11 @@ export function SRMServices() {
             className="size-8 hover:text-rose-600"
             onClick={(e) => {
               e.stopPropagation();
-              if (confirm(`حذف خدمه «${row.original.name}»؟`)) {
+              if (confirm(t("حذف خدمه «{p0}»؟", { p0: row.original.name }))) {
                 deleteMut.mutate(row.original.id);
               }
             }}
-            title="حذف"
+            title={t("حذف")}
           >
             <Icon name="trash" size={16} />
           </Button>
@@ -252,12 +253,12 @@ export function SRMServices() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="خدمات تامین‌کنندگان"
-        description="مدیریت خدمات و لیست قیمت‌های هر تامین‌کننده"
+        title={t("خدمات تامین‌کنندگان")}
+        description={t("مدیریت خدمات و لیست قیمت‌های هر تامین‌کننده")}
         icon="task"
         actions={
           <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Icon name="plus" size={16} /> خدمه جدید
+            <Icon name="plus" size={16} /> {t("خدمه جدید")}
           </Button>
         }
       />
@@ -269,17 +270,17 @@ export function SRMServices() {
           isLoading={isLoading}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="جستجوی نام خدمه..."
+          searchPlaceholder={t("جستجوی نام خدمه...")}
           pageSize={10}
           onRowClick={(s) => setSelectedServiceId(s.id)}
           toolbar={
             <div className="flex items-center gap-2">
               <Select value={supplierFilter} onValueChange={setSupplierFilter}>
                 <SelectTrigger className="w-[160px] h-9">
-                  <SelectValue placeholder="همه تامین‌کنندگان" />
+                  <SelectValue placeholder={t("همه تامین‌کنندگان")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه تامین‌کنندگان</SelectItem>
+                  <SelectItem value="all">{t("همه تامین‌کنندگان")}</SelectItem>
                   {suppliers.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
@@ -289,10 +290,10 @@ export function SRMServices() {
               </Select>
               <Select value={subcategoryFilter} onValueChange={setSubcategoryFilter}>
                 <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="همه زیردسته‌ها" />
+                  <SelectValue placeholder={t("همه زیردسته‌ها")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه زیردسته‌ها</SelectItem>
+                  <SelectItem value="all">{t("همه زیردسته‌ها")}</SelectItem>
                   {allSubcategories.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.categoryName} / {s.name}
@@ -305,11 +306,11 @@ export function SRMServices() {
           emptyState={
             <EmptyState
               icon="task"
-              title="خدمه‌ای یافت نشد"
-              description="اولین خدمه را اضافه کنید یا فیلترها را تغییر دهید."
+              title={t("خدمه‌ای یافت نشد")}
+              description={t("اولین خدمه را اضافه کنید یا فیلترها را تغییر دهید.")}
               action={
                 <Button onClick={() => setDialogOpen(true)} className="gap-2">
-                  <Icon name="plus" size={16} /> افزودن خدمه
+                  <Icon name="plus" size={16} /> {t("افزودن خدمه")}
                 </Button>
               }
             />
@@ -321,21 +322,21 @@ export function SRMServices() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>خدمه جدید</DialogTitle>
+            <DialogTitle>{t("خدمه جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <Field label="تامین‌کننده" required>
+            <Field label={t("تامین‌کننده")} required>
               <Select
                 value={form.supplierId}
                 onValueChange={(v) => setForm({ ...form, supplierId: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="انتخاب تامین‌کننده..." />
+                  <SelectValue placeholder={t("انتخاب تامین‌کننده...")} />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers.length === 0 ? (
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      ابتدا تامین‌کننده بسازید
+                      {t("ابتدا تامین‌کننده بسازید")}
                     </div>
                   ) : (
                     suppliers.map((s) => (
@@ -347,13 +348,13 @@ export function SRMServices() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="زیردسته">
+            <Field label={t("زیردسته")}>
               <Select
                 value={form.subcategoryId}
                 onValueChange={(v) => setForm({ ...form, subcategoryId: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="اختیاری — انتخاب زیردسته..." />
+                  <SelectValue placeholder={t("اختیاری — انتخاب زیردسته...")} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
@@ -371,16 +372,16 @@ export function SRMServices() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="نام خدمه" required>
+            <Field label={t("نام خدمه")} required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
-                placeholder="مثال: چاپ افست 4 رنگ"
+                placeholder={t("مثال: چاپ افست 4 رنگ")}
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="واحد">
+              <Field label={t("واحد")}>
                 <Select
                   value={form.unit}
                   onValueChange={(v) => setForm({ ...form, unit: v })}
@@ -397,7 +398,7 @@ export function SRMServices() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="توضیحات">
+              <Field label={t("توضیحات")}>
                 <Input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -406,7 +407,7 @@ export function SRMServices() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createMut.isPending} className="gap-2">
                 {createMut.isPending ? (
@@ -414,7 +415,7 @@ export function SRMServices() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ذخیره
+                {t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>
@@ -479,7 +480,7 @@ function ServiceDetailDrawer({
       }),
     onSuccess: () => {
       invalidate(["price-lists", "supplier-services", "srm-dashboard"]);
-      toast.success("قیمت جدید ثبت شد");
+      toast.success(t("قیمت جدید ثبت شد"));
       setAddPriceOpen(false);
       setPriceForm({ price: "", minQuantity: "1", note: "", validTo: "" });
     },
@@ -491,7 +492,7 @@ function ServiceDetailDrawer({
     mutationFn: (id: string) => api(`/api/price-lists/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["price-lists", "supplier-services", "srm-dashboard"]);
-      toast.success("قیمت حذف شد");
+      toast.success(t("قیمت حذف شد"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -506,7 +507,7 @@ function ServiceDetailDrawer({
     e.preventDefault();
     const price = Number(priceForm.price);
     if (!price || price <= 0) {
-      toast.error("قیمت معتبر وارد کنید");
+      toast.error(t("قیمت معتبر وارد کنید"));
       return;
     }
     addPriceMut.mutate({
@@ -523,9 +524,9 @@ function ServiceDetailDrawer({
         <SheetHeader className="px-5 pt-5 pb-3 border-b">
           <SheetTitle className="flex items-center gap-2">
             <Icon name="task" size={18} className="text-violet-500" />
-            جزئیات خدمه
+            {t("جزئیات خدمه")}
           </SheetTitle>
-          <SheetDescription>اطلاعات خدمه و تاریخچه قیمت‌ها</SheetDescription>
+          <SheetDescription>{t("اطلاعات خدمه و تاریخچه قیمت‌ها")}</SheetDescription>
         </SheetHeader>
 
         {isLoading || !service ? (
@@ -533,12 +534,12 @@ function ServiceDetailDrawer({
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+                <span className="text-sm text-muted-foreground">{t("در حال بارگذاری...")}</span>
               </>
             ) : (
               <>
                 <Icon name="alertTriangle" size={28} className="text-amber-500" />
-                <span className="text-sm text-muted-foreground">خدمه یافت نشد.</span>
+                <span className="text-sm text-muted-foreground">{t("خدمه یافت نشد.")}</span>
               </>
             )}
           </div>
@@ -566,15 +567,15 @@ function ServiceDetailDrawer({
               {/* Stat tiles */}
               <div className="grid grid-cols-3 gap-2 mt-4">
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">واحد</div>
+                  <div className="text-[10px] text-muted-foreground">{t("واحد")}</div>
                   <div className="text-sm font-bold">{service.unit}</div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">تعداد قیمت</div>
+                  <div className="text-[10px] text-muted-foreground">{t("تعداد قیمت")}</div>
                   <div className="text-sm font-bold tabular-nums">{priceHistory.length}</div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">آخرین قیمت</div>
+                  <div className="text-[10px] text-muted-foreground">{t("آخرین قیمت")}</div>
                   <div className="text-xs font-bold tabular-nums" dir="ltr">
                     {service.priceLists?.[0]
                       ? formatCurrency(service.priceLists[0].price)
@@ -598,7 +599,7 @@ function ServiceDetailDrawer({
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Icon name="tag" size={16} className="text-primary" />
-                  <h4 className="font-semibold text-sm">تاریخچه قیمت‌ها</h4>
+                  <h4 className="font-semibold text-sm">{t("تاریخچه قیمت‌ها")}</h4>
                   <span className="text-[11px] text-muted-foreground">
                     ({priceHistory.length})
                   </span>
@@ -608,23 +609,23 @@ function ServiceDetailDrawer({
                   onClick={() => setAddPriceOpen(true)}
                   className="gap-1.5"
                 >
-                  <Icon name="plus" size={14} /> قیمت جدید
+                  <Icon name="plus" size={14} /> {t("قیمت جدید")}
                 </Button>
               </div>
 
               {pricesLoading ? (
                 <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
                   <Icon name="loading" size={14} className="animate-spin" />
-                  در حال بارگذاری قیمت‌ها...
+                  {t("در حال بارگذاری قیمت‌ها...")}
                 </div>
               ) : priceHistory.length === 0 ? (
                 <EmptyState
                   icon="tag"
-                  title="قیمتی ثبت نشده"
-                  description="برای این خدمه هنوز قیمتی ثبت نشده است."
+                  title={t("قیمتی ثبت نشده")}
+                  description={t("برای این خدمه هنوز قیمتی ثبت نشده است.")}
                   action={
                     <Button size="sm" onClick={() => setAddPriceOpen(true)} className="gap-2">
-                      <Icon name="plus" size={14} /> ثبت قیمت
+                      <Icon name="plus" size={14} /> {t("ثبت قیمت")}
                     </Button>
                   }
                 />
@@ -654,7 +655,7 @@ function ServiceDetailDrawer({
                                 </span>
                                 {isLatest && (
                                   <span className="text-[10px] bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full">
-                                    آخرین
+                                    {t("آخرین")}
                                   </span>
                                 )}
                               </div>
@@ -663,16 +664,16 @@ function ServiceDetailDrawer({
                                 size="icon"
                                 className="size-6 hover:text-rose-600"
                                 onClick={() => {
-                                  if (confirm("حذف این قیمت؟")) deletePriceMut.mutate(p.id);
+                                  if (confirm(t("حذف این قیمت؟"))) deletePriceMut.mutate(p.id);
                                 }}
-                                title="حذف قیمت"
+                                title={t("حذف قیمت")}
                               >
                                 <Icon name="trash" size={12} />
                               </Button>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                               <span className="text-[10px] text-muted-foreground">
-                                حداقل: {p.minQuantity} {service.unit}
+                                {t("حداقل: {p0} {p1}", { p0: p.minQuantity, p1: service.unit })}
                               </span>
                               <span className="text-[10px] text-muted-foreground">•</span>
                               <span className="text-[10px] text-muted-foreground">
@@ -682,7 +683,7 @@ function ServiceDetailDrawer({
                                 <>
                                   <span className="text-[10px] text-muted-foreground">•</span>
                                   <span className="text-[10px] text-muted-foreground">
-                                    اعتبار تا: {formatDate(p.validTo)}
+                                    {t("اعتبار تا: {p0}", { p0: formatDate(p.validTo) })}
                                   </span>
                                 </>
                               )}
@@ -708,29 +709,29 @@ function ServiceDetailDrawer({
       <Dialog open={addPriceOpen} onOpenChange={setAddPriceOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>ثبت قیمت جدید</DialogTitle>
+            <DialogTitle>{t("ثبت قیمت جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitPrice} className="space-y-4">
             {service && (
               <div className="rounded-lg bg-muted/40 p-2.5 text-xs">
-                <span className="text-muted-foreground">خدمه: </span>
+                <span className="text-muted-foreground">{t("خدمه:")} </span>
                 <span className="font-medium">{service.name}</span>
                 <span className="text-muted-foreground"> • </span>
                 <span className="text-muted-foreground">{service.supplier?.name}</span>
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <Field label="قیمت (IQD)" required>
+              <Field label={t("قیمت (IQD)")} required>
                 <Input
                   type="number"
                   value={priceForm.price}
                   onChange={(e) => setPriceForm({ ...priceForm, price: e.target.value })}
                   required
                   dir="ltr"
-                  placeholder="مثال: 5000"
+                  placeholder={t("مثال: 5000")}
                 />
               </Field>
-              <Field label="حداقل تعداد">
+              <Field label={t("حداقل تعداد")}>
                 <Input
                   type="number"
                   value={priceForm.minQuantity}
@@ -740,7 +741,7 @@ function ServiceDetailDrawer({
                 />
               </Field>
             </div>
-            <Field label="اعتبار تا (اختیاری)">
+            <Field label={t("اعتبار تا (اختیاری)")}>
               <Input
                 type="date"
                 value={priceForm.validTo}
@@ -748,17 +749,17 @@ function ServiceDetailDrawer({
                 dir="ltr"
               />
             </Field>
-            <Field label="یادداشت">
+            <Field label={t("یادداشت")}>
               <Textarea
                 value={priceForm.note}
                 onChange={(e) => setPriceForm({ ...priceForm, note: e.target.value })}
                 rows={2}
-                placeholder="توضیح قیمت، شرایط ویژه و..."
+                placeholder={t("توضیح قیمت، شرایط ویژه و...")}
               />
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddPriceOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={addPriceMut.isPending} className="gap-2">
                 {addPriceMut.isPending ? (
@@ -766,7 +767,7 @@ function ServiceDetailDrawer({
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ثبت قیمت
+                {t("ثبت قیمت")}
               </Button>
             </DialogFooter>
           </form>

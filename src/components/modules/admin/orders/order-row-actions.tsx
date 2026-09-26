@@ -18,6 +18,7 @@ import {
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { Order } from "./types";
+import { t } from "@/lib/i18n";
 
 export type OrderRowActionsProps = {
   order: Order;
@@ -49,7 +50,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7"
-            aria-label="یادداشت"
+            aria-label={t("یادداشت")}
             onClick={(e) => {
               e.stopPropagation();
               onNote();
@@ -58,7 +59,7 @@ export function OrderRowActions({
             <Icon name="info" size={14} />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>یادداشت</TooltipContent>
+        <TooltipContent>{t("یادداشت")}</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -67,7 +68,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7"
-            aria-label="ویرایش"
+            aria-label={t("ویرایش")}
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
@@ -76,7 +77,7 @@ export function OrderRowActions({
             <Icon name="edit" size={14} />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>ویرایش</TooltipContent>
+        <TooltipContent>{t("ویرایش")}</TooltipContent>
       </Tooltip>
 
       <Tooltip>
@@ -85,7 +86,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7 hover:text-emerald-600 relative"
-            aria-label="پیش‌فاکتور"
+            aria-label={t("پیش‌فاکتور")}
             onClick={(e) => {
               e.stopPropagation();
               onPreInvoice();
@@ -98,7 +99,7 @@ export function OrderRowActions({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {isGrouped ? "پیش‌فاکتور (سفارش گروهی)" : "پیش‌فاکتور"}
+          {isGrouped ? t("پیش‌فاکتور (سفارش گروهی)") : t("پیش‌فاکتور")}
         </TooltipContent>
       </Tooltip>
 
@@ -108,7 +109,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className={cn("size-7 hover:text-cyan-600", hasInvoice && "text-emerald-600")}
-            aria-label="فاکتور"
+            aria-label={t("فاکتور")}
             onClick={(e) => {
               e.stopPropagation();
               onInvoice();
@@ -118,7 +119,7 @@ export function OrderRowActions({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {hasInvoice ? "فاکتور نهایی (ویرایش/چاپ)" : "صدور فاکتور نهایی"}
+          {hasInvoice ? t("فاکتور نهایی (ویرایش/چاپ)") : t("صدور فاکتور نهایی")}
         </TooltipContent>
       </Tooltip>
 
@@ -128,7 +129,7 @@ export function OrderRowActions({
             variant="ghost"
             size="icon"
             className="size-7 hover:text-rose-600"
-            aria-label="حذف"
+            aria-label={t("حذف")}
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
@@ -137,7 +138,7 @@ export function OrderRowActions({
             <Icon name="trash" size={14} />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>حذف</TooltipContent>
+        <TooltipContent>{t("حذف")}</TooltipContent>
       </Tooltip>
     </div>
   );

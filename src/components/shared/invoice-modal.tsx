@@ -28,6 +28,7 @@ import {
   type OrderForInvoice,
 } from "./invoice-views";
 import { Icon } from "@/lib/icons";
+import { t } from "@/lib/i18n";
 
 type View = "lock" | "issue" | "doc" | "edit";
 
@@ -74,12 +75,12 @@ export function InvoiceModal({
         aria-describedby={undefined}
         className="sm:max-w-5xl w-[calc(100%-1.5rem)] max-h-[92vh] overflow-y-auto scrollbar-thin p-0 gap-0 rounded-xl"
       >
-        <DialogTitle className="sr-only">فاکتور نهایی</DialogTitle>
+        <DialogTitle className="sr-only">{t("فاکتور نهایی")}</DialogTitle>
 
         {isLoading || !order ? (
           <div className="py-14 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
             <Icon name="loading" size={26} className="animate-spin text-primary" />
-            در حال بارگذاری فاکتور…
+            {t("در حال بارگذاری فاکتور…")}
           </div>
         ) : (
           <>
@@ -105,7 +106,7 @@ export function InvoiceModal({
             {view === "edit" && !order.invoice && (
               <div className="py-14 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
                 <Icon name="loading" size={26} className="animate-spin text-primary" />
-                در حال بارگذاری فاکتور…
+                {t("در حال بارگذاری فاکتور…")}
               </div>
             )}
 
@@ -126,7 +127,7 @@ export function InvoiceModal({
             {view === "doc" && !order.invoice && (
               <div className="py-14 text-center text-sm text-muted-foreground flex flex-col items-center gap-3">
                 <Icon name="loading" size={26} className="animate-spin text-primary" />
-                در حال بارگذاری سند فاکتور…
+                {t("در حال بارگذاری سند فاکتور…")}
               </div>
             )}
 

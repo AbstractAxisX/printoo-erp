@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { addDays, differenceInCalendarDays, format, parseISO, isSameDay } from "date-fns";
 import type { CalendarEvent } from "./reusable-calendar";
+import { t } from "@/lib/i18n";
 
 type ReusableGanttProps = {
   events: CalendarEvent[];
@@ -40,7 +41,7 @@ type ValidEvent = CalendarEvent & { _start: Date; _end: Date; _duration: number 
 const ROW_HEIGHT = 48; // h-12 — both left label row and right bar row
 const HEADER_HEIGHT = 56; // h-14 sticky date header
 
-export function ReusableGantt({ events, onEventClick, className, title, emptyMessage = "رویدادی برای نمایش نیست", filters }: ReusableGanttProps) {
+export function ReusableGantt({ events, onEventClick, className, title, emptyMessage = t("رویدادی برای نمایش نیست"), filters }: ReusableGanttProps) {
   const [viewMode, setViewMode] = React.useState<"day" | "week" | "month">("day");
   const [viewStart, setViewStart] = React.useState(() => {
     const now = new Date();
@@ -133,11 +134,11 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b bg-muted/30">
           <div className="flex items-center gap-1">
-            <button onClick={() => navigate("prev")} className="size-7 rounded-lg border grid place-items-center hover:bg-accent transition" title="قبلی">
+            <button onClick={() => navigate("prev")} className="size-7 rounded-lg border grid place-items-center hover:bg-accent transition" title={t("قبلی")}>
               <Icon name="chevronRight" size={14} />
             </button>
-            <button onClick={() => setViewStart(addDays(new Date(), -7))} className="px-3 py-1 rounded-lg border text-xs hover:bg-accent transition">امروز</button>
-            <button onClick={() => navigate("next")} className="size-7 rounded-lg border grid place-items-center hover:bg-accent transition" title="بعدی">
+            <button onClick={() => setViewStart(addDays(new Date(), -7))} className="px-3 py-1 rounded-lg border text-xs hover:bg-accent transition">{t("امروز")}</button>
+            <button onClick={() => navigate("next")} className="size-7 rounded-lg border grid place-items-center hover:bg-accent transition" title={t("بعدی")}>
               <Icon name="chevronLeft" size={14} />
             </button>
           </div>
@@ -175,10 +176,10 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
 
           {/* Legend */}
           <div className="flex items-center gap-3 mr-auto text-[11px] text-muted-foreground flex-wrap">
-            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.blue.bg }} /> سفارش عادی</span>
-            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.yellow.bg }} /> سفارش فوری</span>
-            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.green.bg }} /> تسک عادی</span>
-            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.red.bg }} /> تسک فوری</span>
+            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.blue.bg }} /> {t("سفارش عادی")}</span>
+            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.yellow.bg }} /> {t("سفارش فوری")}</span>
+            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.green.bg }} /> {t("تسک عادی")}</span>
+            <span className="flex items-center gap-1"><span className="size-3 rounded-full" style={{ backgroundColor: BAR_COLORS.red.bg }} /> {t("تسک فوری")}</span>
           </div>
         </div>
 
@@ -231,7 +232,7 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
                   >
                     <span className={cn("font-medium", isToday ? "text-primary" : "text-muted-foreground")}>{format(d, "d")}</span>
                     {dayWidth >= 20 && <span className="opacity-50 text-[9px] text-muted-foreground">{format(d, "EEE")}</span>}
-                    {isToday && <span className="text-[8px] text-primary font-bold mt-0.5">امروز</span>}
+                    {isToday && <span className="text-[8px] text-primary font-bold mt-0.5">{t("امروز")}</span>}
                   </div>
                 );
               })}
@@ -295,7 +296,7 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
                           {/* Right: days remaining or duration */}
                           {width > 80 && (
                             <span className="text-[10px] font-medium opacity-90 shrink-0 flex items-center gap-1">
-                              {e._duration} روز
+                              {t("{p0} روز", { p0: e._duration })}
                               {daysLeft >= 0 && daysLeft <= 3 && <Icon name="clock" size={10} />}
                               {daysLeft < 0 && <Icon name="alertTriangle" size={10} />}
                             </span>
@@ -305,10 +306,10 @@ export function ReusableGantt({ events, onEventClick, className, title, emptyMes
                       <TooltipContent side="top" className="text-xs max-w-[280px] z-50">
                         <div className="font-semibold">{e.fullTitle}</div>
                         <div className="text-muted-foreground mt-0.5">{format(e._start, "yyyy/MM/dd")} → {format(e._end, "yyyy/MM/dd")}</div>
-                        <div className="text-muted-foreground">مدت: {e._duration} روز</div>
-                        {daysLeft > 0 && <div className="text-emerald-600 mt-0.5">{daysLeft} روز باقی‌مانده</div>}
-                        {daysLeft === 0 && <div className="text-amber-600 mt-0.5">موعد امروز</div>}
-                        {daysLeft < 0 && <div className="text-rose-600 mt-0.5">{Math.abs(daysLeft)} روز گذشته</div>}
+                        <div className="text-muted-foreground">{t("مدت: {p0} روز", { p0: e._duration })}</div>
+                        {daysLeft > 0 && <div className="text-emerald-600 mt-0.5">{t("{p0} روز باقی‌مانده", { p0: daysLeft })}</div>}
+                        {daysLeft === 0 && <div className="text-amber-600 mt-0.5">{t("موعد امروز")}</div>}
+                        {daysLeft < 0 && <div className="text-rose-600 mt-0.5">{t("{p0} روز گذشته", { p0: Math.abs(daysLeft) })}</div>}
                       </TooltipContent>
                     </Tooltip>
                   </div>

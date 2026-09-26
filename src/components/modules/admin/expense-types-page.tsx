@@ -14,6 +14,7 @@ import { Field } from "@/components/ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 type ExpenseType = {
   id: string; name: string; isDefault: boolean; createdAt: string;
@@ -34,27 +35,27 @@ export function ExpenseTypesPage() {
 
   const createMut = useMutation({
     mutationFn: (n: string) => api("/api/expense-types", { method: "POST", body: JSON.stringify({ name: n }) }),
-    onSuccess: () => { invalidate(["expense-types"]); toast.success("نوع هزینه ایجاد شد"); setOpen(false); setName(""); },
+    onSuccess: () => { invalidate(["expense-types"]); toast.success(t("نوع هزینه ایجاد شد")); setOpen(false); setName(""); },
     onError: (e: Error) => toast.error(e.message),
   });
   const deleteMut = useMutation({
     mutationFn: (id: string) => api(`/api/expense-types/${id}`, { method: "DELETE" }),
-    onSuccess: () => { invalidate(["expense-types"]); toast.success("حذف شد"); setDeleteId(null); },
+    onSuccess: () => { invalidate(["expense-types"]); toast.success(t("حذف شد")); setDeleteId(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const columns: ColumnDef<ExpenseType>[] = [
-    { accessorKey: "name", header: "نام نوع هزینه", cell: ({ row }) => (
+    { accessorKey: "name", header: t("نام نوع هزینه"), cell: ({ row }) => (
       <div className="flex items-center gap-2">
         <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center"><Icon name="tag" size={16} /></div>
         <span className="font-medium">{row.original.name}</span>
-        {row.original.isDefault && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">پیش‌فرض</span>}
+        {row.original.isDefault && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{t("پیش‌فرض")}</span>}
       </div>
     ), enableSorting: true },
-    { accessorKey: "createdAt", header: "تاریخ ثبت", cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>, enableSorting: true },
-    { id: "actions", header: () => <div className="text-center">عملیات</div>, cell: ({ row }) => (
+    { accessorKey: "createdAt", header: t("تاریخ ثبت"), cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>, enableSorting: true },
+    { id: "actions", header: () => <div className="text-center">{t("عملیات")}</div>, cell: ({ row }) => (
       <div className="flex items-center justify-center">
-        <Button variant="ghost" size="icon" className="size-8 hover:text-rose-600" onClick={(e) => { e.stopPropagation(); setDeleteId(row.original.id); }} title="حذف" disabled={row.original.isDefault}>
+        <Button variant="ghost" size="icon" className="size-8 hover:text-rose-600" onClick={(e) => { e.stopPropagation(); setDeleteId(row.original.id); }} title={t("حذف")} disabled={row.original.isDefault}>
           <Icon name="trash" size={16} />
         </Button>
       </div>
@@ -63,33 +64,33 @@ export function ExpenseTypesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="انواع هزینه" description="مدیریت انواع هزینه برای ثبت هزینه‌های چاپ و انبار" icon="tag"
-        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> نوع هزینه جدید</Button>} />
+      <PageHeader title={t("انواع هزینه")} description={t("مدیریت انواع هزینه برای ثبت هزینه‌های چاپ و انبار")} icon="tag"
+        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> {t("نوع هزینه جدید")}</Button>} />
       <Card className="p-4">
         <DataTable columns={columns} data={types} isLoading={isLoading} pageSize={10}
-          emptyState={<EmptyState icon="tag" title="نوع هزینه‌ای یافت نشد" action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن</Button>} />} />
+          emptyState={<EmptyState icon="tag" title={t("نوع هزینه‌ای یافت نشد")} action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> {t("افزودن")}</Button>} />} />
       </Card>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent aria-describedby={undefined}>
-          <DialogHeader><DialogTitle>نوع هزینه جدید</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("نوع هزینه جدید")}</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) createMut.mutate(name.trim()); }} className="space-y-4">
-            <Field label="نام" required>
+            <Field label={t("نام")} required>
               <Input value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
-              <Button type="submit" disabled={createMut.isPending} className="gap-2">{createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />} ذخیره</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>{t("انصراف")}</Button>
+              <Button type="submit" disabled={createMut.isPending} className="gap-2">{createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />} {t("} ذخیره")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       <Dialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)}>
         <DialogContent aria-describedby={undefined} className="max-w-sm">
-          <DialogHeader><DialogTitle>حذف نوع هزینه</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">آیا مطمئن هستید؟</p>
+          <DialogHeader><DialogTitle>{t("حذف نوع هزینه")}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("آیا مطمئن هستید؟")}</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>انصراف</Button>
-            <Button variant="destructive" onClick={() => deleteId && deleteMut.mutate(deleteId)} className="gap-2"><Icon name="trash" size={16} /> حذف</Button>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>{t("انصراف")}</Button>
+            <Button variant="destructive" onClick={() => deleteId && deleteMut.mutate(deleteId)} className="gap-2"><Icon name="trash" size={16} /> {t("حذف")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

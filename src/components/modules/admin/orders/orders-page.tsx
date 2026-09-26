@@ -43,6 +43,7 @@ import { orderMatchesFilters, type Order } from "./types";
 import { OrderTableTabs, type OrderTableTab } from "./order-table-tabs";
 import { getOrderTabColumns } from "./columns-by-tab";
 import { ITEM_STAGE } from "@/lib/constants";
+import { t } from "@/lib/i18n";
 
 export function OrdersPage() {
   const navigate = useAppStore((s) => s.navigate);
@@ -101,15 +102,15 @@ export function OrdersPage() {
     <TooltipProvider delayDuration={200}>
       <div className="space-y-5">
         <PageHeader
-          title="همه سفارشات"
-          description="مدیریت کامل سفارش‌های چاپ با فیلترهای پیشرفته"
+          title={t("همه سفارشات")}
+          description={t("مدیریت کامل سفارش‌های چاپ با فیلترهای پیشرفته")}
           icon="orders"
           actions={
             <Button
               onClick={() => navigate("admin", "orders-new")}
               className="gap-2"
             >
-              <Icon name="plus" size={16} /> سفارش جدید
+              <Icon name="plus" size={16} /> {t("سفارش جدید")}
             </Button>
           }
         />
@@ -123,9 +124,9 @@ export function OrdersPage() {
 
         {isError ? (
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 flex items-center justify-between">
-            <span>خطا در بارگذاری سفارشات.</span>
+            <span>{t("خطا در بارگذاری سفارشات.")}</span>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
-              تلاش دوباره
+              {t("تلاش دوباره")}
             </Button>
           </div>
         ) : (
@@ -156,14 +157,14 @@ export function OrdersPage() {
               emptyState={
                 <EmptyState
                   icon="orders"
-                  title="سفارشی یافت نشد"
-                  description="با فیلترهای فعلی سفارشی وجود ندارد."
+                  title={t("سفارشی یافت نشد")}
+                  description={t("با فیلترهای فعلی سفارشی وجود ندارد.")}
                   action={
                     <Button
                       onClick={() => navigate("admin", "orders-new")}
                       className="gap-2"
                     >
-                      <Icon name="plus" size={16} /> ایجاد سفارش
+                      <Icon name="plus" size={16} /> {t("ایجاد سفارش")}
                     </Button>
                   }
                 />
@@ -210,7 +211,7 @@ function OrderMobileCard({ order: o }: { order: Order }) {
         <StatusBadge status={o.status} />
         {o.priority === "urgent" && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 inline-flex items-center gap-1">
-            <Icon name="alertTriangle" size={10} /> فوری
+            <Icon name="alertTriangle" size={10} /> {t("فوری")}
           </span>
         )}
         <span className="text-[11px] text-muted-foreground ms-auto">{relativeTime(o.createdAt)}</span>
@@ -240,7 +241,7 @@ function OrderMobileCard({ order: o }: { order: Order }) {
           {formatCurrency(o.totalAmount)}
         </span>
         {closed ? null : o.noEndDate ? (
-          <span className="text-[11px] text-muted-foreground">بدون موعد</span>
+          <span className="text-[11px] text-muted-foreground">{t("بدون موعد")}</span>
         ) : o.endDate ? (
           <span
             className={cn(
@@ -249,7 +250,7 @@ function OrderMobileCard({ order: o }: { order: Order }) {
             )}
           >
             {overdue && <Icon name="alertTriangle" size={11} />}
-            موعد {formatDate(o.endDate)}
+            {t("موعد {p0}", { p0: formatDate(o.endDate) })}
           </span>
         ) : null}
       </div>
@@ -268,9 +269,9 @@ function GroupedItemsRow({ order }: { order: Order }) {
       <div className="rounded-lg border bg-card overflow-hidden">
         <div className="px-3 py-2 bg-muted/40 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 flex-wrap">
           <Icon name="layers" size={12} />
-          آیتم‌های سفارش گروهی #{order.number}
+          {t("آیتم‌های سفارش گروهی #{p0}", { p0: order.number })}
           <span className="text-muted-foreground/60">
-            ({items.length.toLocaleString("en-US")} آیتم — با هم پیش می‌روند)
+            {t("({p0} آیتم — با هم پیش می‌روند)", { p0: items.length.toLocaleString("en-US") })}
           </span>
         </div>
         <div className="divide-y">
@@ -307,7 +308,7 @@ function GroupedItemsRow({ order }: { order: Order }) {
                     )}
                     {it.needsMaterial && (
                       <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                        متریال
+                        {t("متریال")}
                       </span>
                     )}
                   </div>
@@ -315,7 +316,7 @@ function GroupedItemsRow({ order }: { order: Order }) {
                 <div className="flex items-center gap-2 shrink-0">
                   {designLate && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                      طراحی معوق
+                      {t("طراحی معوق")}
                     </span>
                   )}
                   <span className="text-[11px] px-2 py-0.5 rounded bg-muted">

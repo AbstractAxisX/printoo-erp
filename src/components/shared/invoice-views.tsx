@@ -38,6 +38,7 @@ import { COMPANY } from "@/lib/constants";
 import { INVOICE_STATUS_META, type InvoiceStatus, type InvoiceItem } from "@/lib/invoice";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t as tr } from "@/lib/i18n";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);
@@ -95,17 +96,17 @@ export function InvoiceLockCard({
       <div className="size-14 rounded-2xl bg-blue-500/10 text-blue-600 grid place-items-center">
         <Icon name="invoice" size={28} />
       </div>
-      <div className="font-bold">صدور فاکتور نهایی</div>
+      <div className="font-bold">{tr("صدور فاکتور نهایی")}</div>
       <div className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-        برای سفارش <span className="font-bold text-foreground tabular-nums">#{order.number}</span>{" "}
-        ({order.customer?.name}) هنوز فاکتوری صادر نشده است. فاکتور رسمی، سند مالی نهایی
-        این سفارش است — هر زمان که بخواهید می‌توانید آن را صادر، ویرایش و چاپ کنید.
+        {tr("برای سفارش")}<span className="font-bold text-foreground tabular-nums">#{order.number}</span>{" "}
+        {tr("({p0}) هنوز فاکتوری صادر نشده است. فاکتور رسمی، سند مالی نهایی", { p0: order.customer?.name })}
+        {tr("این سفارش است — هر زمان که بخواهید می‌توانید آن را صادر، ویرایش و چاپ کنید.")}
         <div className="mt-2 text-[11px] text-muted-foreground/80">
-          مبلغ پرداختی فاکتور با پیش‌فاکتور و سفارش همگام می‌شود.
+          {tr("مبلغ پرداختی فاکتور با پیش‌فاکتور و سفارش همگام می‌شود.")}
         </div>
       </div>
       <Button size="lg" onClick={onConfirm} className="gap-2">
-        <Icon name="check" size={16} /> بله، فاکتور را می‌خواهم بسازم
+        <Icon name="check" size={16} /> {tr("بله، فاکتور را می‌خواهم بسازم")}
       </Button>
     </div>
   );
@@ -136,8 +137,8 @@ export function InvoiceIssueForm({
   const [items, setItems] = React.useState<DraftItem[]>(() =>
     (order.items ?? []).map((it) => ({
       key: it.id,
-      name: it.product?.name ?? "قلم سفارش",
-      unit: it.product?.unit ?? "عدد",
+      name: it.product?.name ?? tr("قلم سفارش"),
+      unit: it.product?.unit ?? tr("عدد"),
       quantity: it.quantity,
       unitPrice: it.pricePerUnit,
       discount: 0,
@@ -191,7 +192,7 @@ export function InvoiceIssueForm({
       }),
     onSuccess: (d) => {
       invalidate(["orders", "order", "open-orders", "dashboard"]);
-      toast.success("فاکتور نهایی صادر شد");
+      toast.success(tr("فاکتور نهایی صادر شد"));
       onIssued(d.invoice);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -206,9 +207,9 @@ export function InvoiceIssueForm({
             <Icon name="invoice" size={19} />
           </div>
           <div>
-            <h3 className="font-bold text-sm">صدور فاکتور نهایی</h3>
+            <h3 className="font-bold text-sm">{tr("صدور فاکتور نهایی")}</h3>
             <p className="text-[11px] text-muted-foreground">
-              سفارش #{order.number} — {order.customer?.name}
+              {tr("سفارش #{p0} — {p1}", { p0: order.number, p1: order.customer?.name })}
             </p>
           </div>
         </div>
@@ -217,18 +218,18 @@ export function InvoiceIssueForm({
       {/* اقلام */}
       <div className="rounded-xl border divide-y">
         <div className="px-3 py-2 bg-muted/40 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-          <Icon name="orders" size={12} /> اقلام فاکتور (از سفارش)
+          <Icon name="orders" size={12} /> {tr("اقلام فاکتور (از سفارش)")}
         </div>
         {items.map((it, i) => (
           <div key={it.key} className="p-3 grid grid-cols-2 sm:grid-cols-12 gap-2 items-end">
-            <Field label="شرح" className="sm:col-span-5">
+            <Field label={tr("شرح")} className="sm:col-span-5">
               <Input
                 value={it.name}
                 onChange={(e) => patchItem(it.key, { name: e.target.value })}
                 className="h-9"
               />
             </Field>
-            <Field label="تعداد" className="sm:col-span-2">
+            <Field label={tr("تعداد")} className="sm:col-span-2">
               <Input
                 type="number"
                 min={1}
@@ -238,7 +239,7 @@ export function InvoiceIssueForm({
                 className="h-9 tabular-nums"
               />
             </Field>
-            <Field label="قیمت واحد" className="sm:col-span-2">
+            <Field label={tr("قیمت واحد")} className="sm:col-span-2">
               <Input
                 type="number"
                 min={0}
@@ -249,7 +250,7 @@ export function InvoiceIssueForm({
                 className="h-9 tabular-nums"
               />
             </Field>
-            <Field label="تخفیف" className="sm:col-span-2">
+            <Field label={tr("تخفیف")} className="sm:col-span-2">
               <Input
                 type="number"
                 min={0}
@@ -260,7 +261,7 @@ export function InvoiceIssueForm({
               />
             </Field>
             <div className="sm:col-span-1 text-center">
-              <div className="text-[10px] text-muted-foreground">ردیف {i + 1}</div>
+              <div className="text-[10px] text-muted-foreground">{tr("ردیف {p0}", { p0: i + 1 })}</div>
               <div className="text-xs font-bold tabular-nums" dir="ltr">
                 {fmt(lineTotals[i])}
               </div>
@@ -271,7 +272,7 @@ export function InvoiceIssueForm({
 
       {/* تنظیمات مالی */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Field label="تخفیف کل">
+        <Field label={tr("تخفیف کل")}>
           <Input
             type="number"
             min={0}
@@ -282,7 +283,7 @@ export function InvoiceIssueForm({
             className="h-9 tabular-nums"
           />
         </Field>
-        <Field label="مالیات (٪)">
+        <Field label={tr("مالیات (٪)")}>
           <Input
             type="number"
             min={0}
@@ -294,18 +295,18 @@ export function InvoiceIssueForm({
             className="h-9 tabular-nums"
           />
         </Field>
-        <Field label="مبلغ پرداختی (کل دریافتی)" hint="خالی = هنوز چیزی دریافت نشده">
+        <Field label={tr("مبلغ پرداختی (کل دریافتی)")} hint={tr("خالی = هنوز چیزی دریافت نشده")}>
           <Input
             type="number"
             min={0}
             dir="ltr"
             value={paidAmount}
             onChange={(e) => setPaidAmount(e.target.value)}
-            placeholder="خالی = دریافت نشده"
+            placeholder={tr("خالی = دریافت نشده")}
             className="h-9 tabular-nums"
           />
         </Field>
-        <Field label="سررسید (روز)">
+        <Field label={tr("سررسید (روز)")}>
           <Input
             type="number"
             min={0}
@@ -318,28 +319,28 @@ export function InvoiceIssueForm({
         </Field>
       </div>
 
-      <Field label="توضیحات">
+      <Field label={tr("توضیحات")}>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           className="resize-none"
-          placeholder="(اختیاری)"
+          placeholder={tr("(اختیاری)")}
         />
       </Field>
 
       {/* جمع‌بندی زنده */}
       <div className="rounded-xl border bg-muted/20 p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-        <SumCell label="جمع اقلام" value={fmt(subtotal)} />
-        <SumCell label="تخفیف" value={`− ${fmt(disc)}`} tone="text-amber-600" />
-        <SumCell label={`مالیات (${rate}٪)`} value={fmt(taxAmount)} />
-        <SumCell label="قابل پرداخت" value={fmt(totalAmount)} tone="text-foreground" bold />
-        <SumCell label="باقیمانده" value={fmt(remaining)} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
+        <SumCell label={tr("جمع اقلام")} value={fmt(subtotal)} />
+        <SumCell label={tr("تخفیف")} value={`− ${fmt(disc)}`} tone="text-amber-600" />
+        <SumCell label={tr("مالیات ({p0}٪)", { p0: rate })} value={fmt(taxAmount)} />
+        <SumCell label={tr("قابل پرداخت")} value={fmt(totalAmount)} tone="text-foreground" bold />
+        <SumCell label={tr("باقیمانده")} value={fmt(remaining)} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
       </div>
 
       <div className="flex items-center justify-end gap-2">
         <Button variant="outline" onClick={onCancel}>
-          انصراف
+          {tr("انصراف")}
         </Button>
         <Button
           onClick={() => createMut.mutate()}
@@ -351,7 +352,7 @@ export function InvoiceIssueForm({
           ) : (
             <Icon name="check" size={15} />
           )}
-          صدور فاکتور نهایی
+          {tr("صدور فاکتور نهایی")}
         </Button>
       </div>
     </div>
@@ -418,10 +419,10 @@ export function InvoiceDocPanel({
       invalidate(["orders", "order", "open-orders", "dashboard", "pre-invoices"]);
       toast.success(
         next === "paid"
-          ? "فاکتور تسویه شد (پیش‌فاکتور و سفارش هم سینک شدند)"
+          ? tr("فاکتور تسویه شد (پیش‌فاکتور و سفارش هم سینک شدند)")
           : next === "cancelled"
-          ? "فاکتور باطل شد"
-          : "وضعیت فاکتور به‌روزرسانی شد"
+          ? tr("فاکتور باطل شد")
+          : tr("وضعیت فاکتور به‌روزرسانی شد")
       );
     },
     onError: (e: Error) => toast.error(e.message),
@@ -434,7 +435,7 @@ export function InvoiceDocPanel({
       const linked = oi.length === items.length ? oi[idx] : null;
       const details: string[] = [];
       if (linked?.description?.trim()) details.push(linked.description.trim());
-      if (linked?.note?.trim()) details.push(`یادداشت: ${linked.note.trim()}`);
+      if (linked?.note?.trim()) details.push(tr("یادداشت: {p0}", { p0: linked.note.trim() }));
       return {
         name: it.name,
         details,
@@ -491,12 +492,12 @@ export function InvoiceDocPanel({
       if (action === "print") {
         const res = printElementClean("#printable-invoice", fileName);
         if (!res.ok && res.error === "popup-blocked") {
-          toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+          toast.error(tr("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید"));
         }
       } else {
         const res = await downloadElementAsPdf("#printable-invoice", `${fileName}.pdf`);
-        if (!res.ok) toast.error("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید");
-        else toast.success("فایل PDF دانلود شد");
+        if (!res.ok) toast.error(tr("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید"));
+        else toast.success(tr("فایل PDF دانلود شد"));
       }
     }, 200);
     return () => clearTimeout(t);
@@ -516,23 +517,23 @@ export function InvoiceDocPanel({
         </span>
         {invoice.source === "pre_invoice" && (
           <span className="text-[11px] px-2 py-1 rounded-full bg-muted text-muted-foreground">
-            تبدیل‌شده از پیش‌فاکتور
+            {tr("تبدیل‌شده از پیش‌فاکتور")}
           </span>
         )}
         <div className="flex-1" />
         {editable && (
           <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 h-8">
-            <Icon name="edit" size={13} /> ویرایش
+            <Icon name="edit" size={13} /> {tr("ویرایش")}
           </Button>
         )}
         {status === "draft" && (
           <Button size="sm" disabled={statusMut.isPending} onClick={() => statusMut.mutate("issued")} className="gap-1.5 h-8">
-            <Icon name="mail" size={13} /> صدور و ارسال
+            <Icon name="mail" size={13} /> {tr("صدور و ارسال")}
           </Button>
         )}
         {status === "issued" && (
           <Button size="sm" disabled={statusMut.isPending} onClick={() => statusMut.mutate("paid")} className="gap-1.5 h-8">
-            <Icon name="check" size={13} /> ثبت تسویه کامل
+            <Icon name="check" size={13} /> {tr("ثبت تسویه کامل")}
           </Button>
         )}
         {(status === "draft" || status === "issued") && (
@@ -543,7 +544,7 @@ export function InvoiceDocPanel({
             onClick={() => statusMut.mutate("cancelled")}
             className="gap-1.5 h-8 text-rose-600 hover:text-rose-700"
           >
-            <Icon name="cancel" size={13} /> ابطال
+            <Icon name="cancel" size={13} /> {tr("ابطال")}
           </Button>
         )}
         {/* فاز ۲۱: چاپ + PDF — فاز ۲۵: اول ارز چاپ پرسیده می‌شود */}
@@ -561,7 +562,7 @@ export function InvoiceDocPanel({
         open={gateOpen}
         onOpenChange={setGateOpen}
         docCurrency={docCur}
-        docTitle="فاکتور"
+        docTitle={tr("فاکتور")}
         previewTotal={invoice.totalAmount}
         onConfirm={(r) => setPrintCur(r)}
       />
@@ -600,7 +601,7 @@ export function InvoiceDocPanel({
 
       {isOverdue && status !== "paid" && (
         <div className="no-print mt-2 text-[11px] text-rose-600 flex items-center gap-1.5">
-          <Icon name="clock" size={12} /> سررسید گذشته — مانده: {fmt(Math.max(0, remaining))}
+          <Icon name="clock" size={12} /> {tr("سررسید گذشته — مانده: {p0}", { p0: fmt(Math.max(0, remaining)) })}
         </div>
       )}
     </div>
@@ -691,7 +692,7 @@ export function InvoiceEditForm({
       }),
     onSuccess: () => {
       invalidate(["orders", "order", "open-orders", "dashboard", "pre-invoices"]);
-      toast.success("فاکتور به‌روزرسانی شد — سفارش و پیش‌فاکتور هم سینک شدند");
+      toast.success(tr("فاکتور به‌روزرسانی شد — سفارش و پیش‌فاکتور هم سینک شدند"));
       onSaved();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -704,35 +705,35 @@ export function InvoiceEditForm({
           <Icon name="edit" size={18} />
         </div>
         <div>
-          <h3 className="font-bold text-sm">ویرایش فاکتور #{invoice.number}</h3>
+          <h3 className="font-bold text-sm">{tr("ویرایش فاکتور #{p0}", { p0: invoice.number })}</h3>
           <p className="text-[11px] text-muted-foreground">
-            سفارش #{order.number} — {order.customer?.name} — تغییر مبلغ پرداختی روی سفارش و
-            پیش‌فاکتور هم اعمال می‌شود
+            {tr("سفارش #{p0} — {p1} — تغییر مبلغ پرداختی روی سفارش و", { p0: order.number, p1: order.customer?.name })}
+            {tr("پیش‌فاکتور هم اعمال می‌شود")}
           </p>
         </div>
       </div>
 
       <div className="rounded-xl border divide-y">
         <div className="px-3 py-2 bg-muted/40 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-          <Icon name="orders" size={12} /> اقلام فاکتور
+          <Icon name="orders" size={12} /> {tr("اقلام فاکتور")}
         </div>
         {items.map((it, i) => (
           <div key={it.key} className="p-3 grid grid-cols-2 sm:grid-cols-12 gap-2 items-end">
-            <Field label="شرح" className="sm:col-span-5">
+            <Field label={tr("شرح")} className="sm:col-span-5">
               <Input
                 value={it.name}
                 onChange={(e) => patchItem(it.key, { name: e.target.value })}
                 className="h-9"
               />
             </Field>
-            <Field label="تعداد" className="sm:col-span-2">
+            <Field label={tr("تعداد")} className="sm:col-span-2">
               <Input
                 type="number" min={1} dir="ltr" value={it.quantity}
                 onChange={(e) => patchItem(it.key, { quantity: Number(e.target.value) })}
                 className="h-9 tabular-nums"
               />
             </Field>
-            <Field label="قیمت واحد" className="sm:col-span-2">
+            <Field label={tr("قیمت واحد")} className="sm:col-span-2">
               <Input
                 type="number" min={0} dir="ltr" value={it.unitPrice || ""}
                 onChange={(e) => patchItem(it.key, { unitPrice: Number(e.target.value) || 0 })}
@@ -740,7 +741,7 @@ export function InvoiceEditForm({
                 className="h-9 tabular-nums"
               />
             </Field>
-            <Field label="تخفیف" className="sm:col-span-2">
+            <Field label={tr("تخفیف")} className="sm:col-span-2">
               <Input
                 type="number" min={0} dir="ltr" value={it.discount || ""}
                 onChange={(e) => patchItem(it.key, { discount: Number(e.target.value) || 0 })}
@@ -748,7 +749,7 @@ export function InvoiceEditForm({
               />
             </Field>
             <div className="sm:col-span-1 text-center">
-              <div className="text-[10px] text-muted-foreground">ردیف {i + 1}</div>
+              <div className="text-[10px] text-muted-foreground">{tr("ردیف {p0}", { p0: i + 1 })}</div>
               <div className="text-xs font-bold tabular-nums" dir="ltr">{fmt(lineTotals[i])}</div>
             </div>
           </div>
@@ -756,41 +757,41 @@ export function InvoiceEditForm({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Field label="تخفیف کل">
+        <Field label={tr("تخفیف کل")}>
           <Input type="number" min={0} dir="ltr" value={discountAmount}
             onChange={(e) => setDiscountAmount(e.target.value)} placeholder="—" className="h-9 tabular-nums" />
         </Field>
-        <Field label="مالیات (٪)">
+        <Field label={tr("مالیات (٪)")}>
           <Input type="number" min={0} max={100} dir="ltr" value={taxRate}
             onChange={(e) => setTaxRate(e.target.value)} placeholder="—" className="h-9 tabular-nums" />
         </Field>
-        <Field label="مبلغ پرداختی (کل دریافتی)" hint="خالی = هنوز چیزی دریافت نشده">
+        <Field label={tr("مبلغ پرداختی (کل دریافتی)")} hint={tr("خالی = هنوز چیزی دریافت نشده")}>
           <Input type="number" min={0} dir="ltr" value={paidAmount}
-            onChange={(e) => setPaidAmount(e.target.value)} placeholder="خالی = دریافت نشده" className="h-9 tabular-nums" />
+            onChange={(e) => setPaidAmount(e.target.value)} placeholder={tr("خالی = دریافت نشده")} className="h-9 tabular-nums" />
         </Field>
-        <Field label="سررسید (روز)">
+        <Field label={tr("سررسید (روز)")}>
           <Input type="number" min={0} max={365} dir="ltr" value={dueDays}
             onChange={(e) => setDueDays(Number(e.target.value))} className="h-9 tabular-nums" />
         </Field>
       </div>
 
-      <Field label="توضیحات">
+      <Field label={tr("توضیحات")}>
         <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="resize-none" />
       </Field>
 
       <div className="rounded-xl border bg-muted/20 p-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
-        <SumCell label="جمع اقلام" value={fmt(subtotal)} />
-        <SumCell label="تخفیف" value={`− ${fmt(disc)}`} tone="text-amber-600" />
-        <SumCell label={`مالیات (${rate}٪)`} value={fmt(taxAmount)} />
-        <SumCell label="قابل پرداخت" value={fmt(totalAmount)} tone="text-foreground" bold />
-        <SumCell label="باقیمانده" value={fmt(remaining)} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
+        <SumCell label={tr("جمع اقلام")} value={fmt(subtotal)} />
+        <SumCell label={tr("تخفیف")} value={`− ${fmt(disc)}`} tone="text-amber-600" />
+        <SumCell label={tr("مالیات ({p0}٪)", { p0: rate })} value={fmt(taxAmount)} />
+        <SumCell label={tr("قابل پرداخت")} value={fmt(totalAmount)} tone="text-foreground" bold />
+        <SumCell label={tr("باقیمانده")} value={fmt(remaining)} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
       </div>
 
       <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" onClick={onCancel}>انصراف</Button>
+        <Button variant="outline" onClick={onCancel}>{tr("انصراف")}</Button>
         <Button onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="gap-1.5">
           {saveMut.isPending ? <Icon name="loading" size={15} className="animate-spin" /> : <Icon name="check" size={15} />}
-          ثبت تغییرات
+          {tr("ثبت تغییرات")}
         </Button>
       </div>
     </div>

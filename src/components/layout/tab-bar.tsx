@@ -6,6 +6,7 @@ import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { findModule } from "@/lib/nav";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { t } from "@/lib/i18n";
 
 export function TabBar() {
   const tabs = useAppStore((s) => s.tabs);
@@ -36,8 +37,8 @@ export function TabBar() {
   if (tabbarCollapsed) {
     return (
       <div className="flex items-center gap-1 px-3 h-7 border-b bg-muted/30">
-        <button onClick={toggleTabbar} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1" title="نمایش نوار تب‌ها">
-          <Icon name="chevronDown" size={12} /> {tabs.length} تب باز
+        <button onClick={toggleTabbar} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1" title={t("نمایش نوار تب‌ها")}>
+          <Icon name="chevronDown" size={12} /> {t("{p0} تب باز", { p0: tabs.length })}
         </button>
       </div>
     );
@@ -84,7 +85,7 @@ export function TabBar() {
                         "p-0.5 rounded hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/60 transition shrink-0",
                         showLabels ? "opacity-0 group-hover:opacity-100" : "opacity-60 hover:opacity-100"
                       )}
-                      title="بستن تب"
+                      title={t("بستن تب")}
                     >
                       <Icon name="cancel" size={11} />
                     </span>
@@ -106,7 +107,7 @@ export function TabBar() {
           <button
             onClick={toggleTabbar}
             className="size-6 rounded grid place-items-center text-muted-foreground hover:text-foreground hover:bg-accent transition"
-            title="جمع کردن نوار تب‌ها"
+            title={t("جمع کردن نوار تب‌ها")}
           >
             <Icon name="chevronUp" size={13} />
           </button>

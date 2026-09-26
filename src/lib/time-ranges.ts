@@ -1,3 +1,4 @@
+import { t as tr } from "@/lib/i18n";
 // Time range presets and helpers for dashboard KPIs
 
 export type TimeRange = { from: Date; to: Date; label: string; preset: string };
@@ -5,37 +6,37 @@ export type TimeRange = { from: Date; to: Date; label: string; preset: string };
 export const RANGE_PRESETS: { id: string; label: string; getRange: () => TimeRange }[] = [
   {
     id: "today",
-    label: "امروز",
+    label: tr("امروز"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      return { from, to: now, label: "امروز", preset: "today" };
+      return { from, to: now, label: tr("امروز"), preset: "today" };
     },
   },
   {
     id: "yesterday",
-    label: "دیروز",
+    label: tr("دیروز"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
       const to = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
-      return { from, to, label: "دیروز", preset: "yesterday" };
+      return { from, to, label: tr("دیروز"), preset: "yesterday" };
     },
   },
   {
     id: "this-week",
-    label: "این هفته",
+    label: tr("این هفته"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now);
       from.setDate(now.getDate() - now.getDay()); // start of week (Sunday)
       from.setHours(0, 0, 0, 0);
-      return { from, to: now, label: "این هفته", preset: "this-week" };
+      return { from, to: now, label: tr("این هفته"), preset: "this-week" };
     },
   },
   {
     id: "last-week",
-    label: "هفته قبل",
+    label: tr("هفته قبل"),
     getRange: () => {
       const now = new Date();
       const thisWeekStart = new Date(now);
@@ -45,53 +46,53 @@ export const RANGE_PRESETS: { id: string; label: string; getRange: () => TimeRan
       from.setDate(thisWeekStart.getDate() - 7);
       const to = new Date(thisWeekStart);
       to.setSeconds(-1);
-      return { from, to, label: "هفته قبل", preset: "last-week" };
+      return { from, to, label: tr("هفته قبل"), preset: "last-week" };
     },
   },
   {
     id: "this-month",
-    label: "این ماه",
+    label: tr("این ماه"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { from, to: now, label: "این ماه", preset: "this-month" };
+      return { from, to: now, label: tr("این ماه"), preset: "this-month" };
     },
   },
   {
     id: "last-month",
-    label: "ماه قبل",
+    label: tr("ماه قبل"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-      return { from, to, label: "ماه قبل", preset: "last-month" };
+      return { from, to, label: tr("ماه قبل"), preset: "last-month" };
     },
   },
   {
     id: "last-3-months",
-    label: "3 ماه اخیر",
+    label: tr("3 ماه اخیر"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now);
       from.setMonth(now.getMonth() - 3);
-      return { from, to: now, label: "3 ماه اخیر", preset: "last-3-months" };
+      return { from, to: now, label: tr("3 ماه اخیر"), preset: "last-3-months" };
     },
   },
   {
     id: "this-year",
-    label: "امسال",
+    label: tr("امسال"),
     getRange: () => {
       const now = new Date();
       const from = new Date(now.getFullYear(), 0, 1);
-      return { from, to: now, label: "امسال", preset: "this-year" };
+      return { from, to: now, label: tr("امسال"), preset: "this-year" };
     },
   },
   {
     id: "all-time",
-    label: "همه زمان‌ها",
+    label: tr("همه زمان‌ها"),
     getRange: () => {
       const from = new Date(2000, 0, 1);
-      return { from, to: new Date(), label: "همه زمان‌ها", preset: "all-time" };
+      return { from, to: new Date(), label: tr("همه زمان‌ها"), preset: "all-time" };
     },
   },
 ];
@@ -107,10 +108,10 @@ export function customRange(from: Date, to: Date): TimeRange {
   const t = new Date(to);
   t.setHours(23, 59, 59, 999);
   const diffDays = Math.round((t.getTime() - f.getTime()) / 86400000);
-  let label = "بازه دلخواه";
-  if (diffDays === 0) label = "یک روز";
-  else if (diffDays === 6) label = "7 روز";
-  else if (diffDays === 29) label = "30 روز";
+  let label = tr("بازه دلخواه");
+  if (diffDays === 0) label = tr("یک روز");
+  else if (diffDays === 6) label = tr("7 روز");
+  else if (diffDays === 29) label = tr("30 روز");
   return { from: f, to: t, label, preset: "custom" };
 }
 

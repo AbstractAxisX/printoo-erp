@@ -46,6 +46,7 @@ import {
 } from "@/lib/pre-invoice";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t as tr } from "@/lib/i18n";
 
 // ─── Types ───────────────────────────────────────────────────────────
 export type PreInvoiceRow = {
@@ -206,12 +207,12 @@ export function PreInvoiceModal({
     onSuccess: (_d, v) => {
       toast.success(
         v.status === "sent"
-          ? "پیش‌فاکتور ارسال شد"
+          ? tr("پیش‌فاکتور ارسال شد")
           : v.status === "approved"
-          ? "پیش‌فاکتور تایید شد"
+          ? tr("پیش‌فاکتور تایید شد")
           : v.status === "rejected"
-          ? "پیش‌فاکتور رد شد"
-          : "بازگشت به پیش‌نویس"
+          ? tr("پیش‌فاکتور رد شد")
+          : tr("بازگشت به پیش‌نویس")
       );
       refresh();
     },
@@ -222,7 +223,7 @@ export function PreInvoiceModal({
     mutationFn: (id: string) =>
       api(`/api/pre-invoices/${id}/convert`, { method: "POST" }),
     onSuccess: () => {
-      toast.success("فاکتور نهایی صادر شد");
+      toast.success(tr("فاکتور نهایی صادر شد"));
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -232,7 +233,7 @@ export function PreInvoiceModal({
     mutationFn: (id: string) =>
       api(`/api/pre-invoices/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("پیش‌فاکتور حذف شد");
+      toast.success(tr("پیش‌فاکتور حذف شد"));
       setView("list");
       setDocId(null);
       refresh();
@@ -249,7 +250,7 @@ export function PreInvoiceModal({
         aria-describedby={undefined}
         className="sm:max-w-5xl w-[calc(100%-1rem)] max-h-[92dvh] sm:max-h-[92vh] overflow-y-auto scrollbar-thin p-0 gap-0 rounded-xl [&>*]:min-w-0"
       >
-        <DialogTitle className="sr-only">پیش‌فاکتور</DialogTitle>
+        <DialogTitle className="sr-only">{tr("پیش‌فاکتور")}</DialogTitle>
 
         {view === "list" && (
           <ListView
@@ -336,9 +337,9 @@ function ListView({
             <Icon name="receipt" size={19} />
           </div>
           <div>
-            <h2 className="font-bold">پیش‌فاکتورهای سفارش</h2>
+            <h2 className="font-bold">{tr("پیش‌فاکتورهای سفارش")}</h2>
             <p className="text-xs text-muted-foreground">
-              ویرایش، چاپ، ارسال، تایید و تبدیل به فاکتور نهایی
+              {tr("ویرایش، چاپ، ارسال، تایید و تبدیل به فاکتور نهایی")}
             </p>
           </div>
         </div>
@@ -348,23 +349,23 @@ function ListView({
             (it) => !rows.some((pi) => (pi as { itemId?: string | null }).itemId === it.id)
           ) && (
             <Button size="sm" variant="outline" onClick={() => onIssue("__first__")} className="gap-1.5" disabled={!orderId}>
-              <Icon name="plus" size={14} /> آیتم بدون سند
+              <Icon name="plus" size={14} /> {tr("آیتم بدون سند")}
             </Button>
           )}
           <Button size="sm" onClick={() => onIssue(null)} className="gap-1.5" disabled={!orderId}>
-            <Icon name="plus" size={14} /> صدور (کل سفارش)
+            <Icon name="plus" size={14} /> {tr("صدور (کل سفارش)")}
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">در حال بارگذاری…</div>
+        <div className="py-12 text-center text-sm text-muted-foreground">{tr("در حال بارگذاری…")}</div>
       ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed py-12 flex flex-col items-center gap-2 text-muted-foreground">
           <Icon name="receipt" size={32} className="opacity-30" />
-          <span className="text-sm">هنوز پیش‌فاکتوری برای این سفارش صادر نشده است</span>
+          <span className="text-sm">{tr("هنوز پیش‌فاکتوری برای این سفارش صادر نشده است")}</span>
           <Button size="sm" variant="outline" onClick={() => onIssue(null)} className="mt-1 gap-1.5">
-            <Icon name="plus" size={13} /> صدور اولین پیش‌فاکتور
+            <Icon name="plus" size={13} /> {tr("صدور اولین پیش‌فاکتور")}
           </Button>
         </div>
       ) : (
@@ -388,13 +389,13 @@ function ListView({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm">پیش‌فاکتور #{pi.number}</span>
+                      <span className="font-semibold text-sm">{tr("پیش‌فاکتور #{p0}", { p0: pi.number })}</span>
                       {linkedItem ? (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-                          آیتم: {linkedItem.product?.name ?? "—"}
+                          {tr("آیتم: {p0}", { p0: linkedItem.product?.name ?? "—" })}
                         </span>
                       ) : (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">کل گروه</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{tr("کل گروه")}</span>
                       )}
                       <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", meta.badge)}>
                         {meta.label}
@@ -407,7 +408,7 @@ function ListView({
                       {pi.validUntil && (
                         <span className={cn("flex items-center gap-1",
                           new Date(pi.validUntil) < new Date() && "text-rose-500 font-medium")}>
-                          <Icon name="clock" size={11} /> اعتبار تا <span className="tabular-nums" dir="ltr">{formatDate(pi.validUntil)}</span>
+                          <Icon name="clock" size={11} /> {tr("اعتبار تا")} <span className="tabular-nums" dir="ltr">{formatDate(pi.validUntil)}</span>
                         </span>
                       )}
                     </div>
@@ -417,9 +418,9 @@ function ListView({
                       {fmt(pi.totalAmount)}
                     </div>
                     <div className="text-[11px] text-muted-foreground tabular-nums">
-                      پیش‌پرداخت: <span className="text-emerald-600" dir="ltr">{fmt(pi.paidAmount)}</span>
+                      {tr("پیش‌پرداخت:")}<span className="text-emerald-600" dir="ltr">{fmt(pi.paidAmount)}</span>
                       {" · "}
-                      مانده: <span className="text-rose-600" dir="ltr">{fmt(Math.max(0, remaining))}</span>
+                      {tr("مانده:")}<span className="text-rose-600" dir="ltr">{fmt(Math.max(0, remaining))}</span>
                     </div>
                   </div>
                   <Icon name="chevronLeft" size={15} className="text-muted-foreground group-hover:text-primary transition shrink-0" />
@@ -511,11 +512,11 @@ function PiForm({
           <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-muted/50 text-xs text-muted-foreground">
             <tr>
-              <th className="text-right font-medium px-3 py-2">شرح</th>
-              <th className="text-center font-medium px-2 py-2 w-20">تعداد</th>
-              <th className="text-center font-medium px-2 py-2 w-28">قیمت واحد</th>
-              <th className="text-center font-medium px-2 py-2 w-24">تخفیف ردیف</th>
-              <th className="text-center font-medium px-2 py-2 w-28">مبلغ کل</th>
+              <th className="text-right font-medium px-3 py-2">{tr("شرح")}</th>
+              <th className="text-center font-medium px-2 py-2 w-20">{tr("تعداد")}</th>
+              <th className="text-center font-medium px-2 py-2 w-28">{tr("قیمت واحد")}</th>
+              <th className="text-center font-medium px-2 py-2 w-24">{tr("تخفیف ردیف")}</th>
+              <th className="text-center font-medium px-2 py-2 w-28">{tr("مبلغ کل")}</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -562,40 +563,40 @@ function PiForm({
 
       {/* شرایط مالی */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Field label="تخفیف کل">
+        <Field label={tr("تخفیف کل")}>
           <Input type="number" min={0} dir="ltr" value={discountAmount} placeholder="0"
             onChange={(e) => setDiscountAmount(e.target.value)} />
         </Field>
-        <Field label="مالیات (٪)">
+        <Field label={tr("مالیات (٪)")}>
           <Input type="number" min={0} max={100} dir="ltr" value={taxRate} placeholder="0"
             onChange={(e) => setTaxRate(e.target.value)} />
         </Field>
-        <Field label="پیش‌پرداخت دریافتی" hint="با فاکتور و سفارش سینک می‌شود">
+        <Field label={tr("پیش‌پرداخت دریافتی")} hint={tr("با فاکتور و سفارش سینک می‌شود")}>
           <Input type="number" min={0} dir="ltr" value={paidAmount} placeholder="0"
             onChange={(e) => setPaidAmount(e.target.value)} />
         </Field>
-        <Field label="اعتبار (روز)">
+        <Field label={tr("اعتبار (روز)")}>
           <Input type="number" min={1} max={365} dir="ltr" value={validDays}
             onChange={(e) => setValidDays(e.target.value)} />
         </Field>
       </div>
 
-      <Field label="توضیحات پیش‌فاکتور" hint="روی سند چاپی نمایش داده می‌شود">
+      <Field label={tr("توضیحات پیش‌فاکتور")} hint={tr("روی سند چاپی نمایش داده می‌شود")}>
         <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-          placeholder="مثلاً: تحویل 5 روز کاری پس از تایید طرح" />
+          placeholder={tr("مثلاً: تحویل 5 روز کاری پس از تایید طرح")} />
       </Field>
 
       {/* محاسبهٔ زنده */}
       <div className="rounded-xl border bg-muted/20 p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">
-        <SumBox label="جمع اقلام" value={subtotal} />
-        <SumBox label="تخفیف" value={disc} tone="text-amber-600" />
-        <SumBox label={`مالیات ${rate ? `(${rate}٪)` : ""}`} value={tax} tone="text-muted-foreground" />
-        <SumBox label="قابل پرداخت" value={total} tone="text-primary font-black" />
-        <SumBox label="باقیمانده" value={remaining} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
+        <SumBox label={tr("جمع اقلام")} value={subtotal} />
+        <SumBox label={tr("تخفیف")} value={disc} tone="text-amber-600" />
+        <SumBox label={tr("مالیات {p0}", { p0: rate ? tr("({p0}٪)", { p0: rate }) : "" })} value={tax} tone="text-muted-foreground" />
+        <SumBox label={tr("قابل پرداخت")} value={total} tone="text-primary font-black" />
+        <SumBox label={tr("باقیمانده")} value={remaining} tone={remaining > 0 ? "text-rose-600" : "text-emerald-600"} />
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-1">
-        <Button variant="outline" onClick={onCancel}>انصراف</Button>
+        <Button variant="outline" onClick={onCancel}>{tr("انصراف")}</Button>
         <Button
           onClick={() =>
             onSubmit({
@@ -663,25 +664,25 @@ function IssueView({
         }),
       }),
     onSuccess: (d) => {
-      toast.success(targetItem ? "پیش‌فاکتور آیتم صادر شد" : "پیش‌فاکتور صادر شد");
+      toast.success(targetItem ? tr("پیش‌فاکتور آیتم صادر شد") : tr("پیش‌فاکتور صادر شد"));
       onIssued(d.preInvoice.id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   if (!order) {
-    return <div className="p-10 text-center text-sm text-muted-foreground">در حال بارگذاری سفارش…</div>;
+    return <div className="p-10 text-center text-sm text-muted-foreground">{tr("در حال بارگذاری سفارش…")}</div>;
   }
 
   return (
     <PiForm
-      title={`صدور پیش‌فاکتور${targetItem ? " آیتم" : ""}`}
-      subtitle={`سفارش #${order.number} — ${order.customer?.name ?? "—"}${targetItem ? ` — آیتم: ${targetItem.product?.name ?? "—"}` : ""}`}
+      title={tr("صدور پیش‌فاکتور{p0}", { p0: targetItem ? tr(" آیتم") : "" })}
+      subtitle={tr("سفارش #{p0} — {p1}{p2}", { p0: order.number, p1: order.customer?.name ?? "—", p2: targetItem ? tr(" — آیتم: {p0}", { p0: targetItem.product?.name ?? "—" }) : "" })}
       initial={{
         items: targetItems.map((it, i) => ({
           key: `${it.id}-${i}`,
-          name: it.product?.name ?? "آیتم",
-          unit: it.product?.unit ?? "عدد",
+          name: it.product?.name ?? tr("آیتم"),
+          unit: it.product?.unit ?? tr("عدد"),
           quantity: it.quantity,
           unitPrice: it.pricePerUnit,
           discount: 0,
@@ -693,7 +694,7 @@ function IssueView({
         notes: "",
       }}
       scheduleHint={<ScheduleChips item={targetItem ?? null} orderItems={order.items} />}
-      submitLabel="صدور پیش‌فاکتور"
+      submitLabel={tr("صدور پیش‌فاکتور")}
       pending={createMut.isPending}
       onSubmit={(v) => createMut.mutate(v)}
       onCancel={onBack}
@@ -725,7 +726,7 @@ function EditView({ pi, onBack }: { pi: PreInvoiceRow; onBack: () => void }) {
         body: JSON.stringify(v),
       }),
     onSuccess: () => {
-      toast.success("پیش‌فاکتور به‌روزرسانی شد");
+      toast.success(tr("پیش‌فاکتور به‌روزرسانی شد"));
       onBack();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -733,7 +734,7 @@ function EditView({ pi, onBack }: { pi: PreInvoiceRow; onBack: () => void }) {
 
   return (
     <PiForm
-      title={`ویرایش پیش‌فاکتور #${pi.number}`}
+      title={tr("ویرایش پیش‌فاکتور #{p0}", { p0: pi.number })}
       subtitle={`${pi.customer?.name ?? "—"} — سفارش #${pi.order?.number ?? "—"}${
         pi.item?.product?.name ? ` — آیتم: ${pi.item.product.name}` : ""
       }`}
@@ -753,7 +754,7 @@ function EditView({ pi, onBack }: { pi: PreInvoiceRow; onBack: () => void }) {
         notes: pi.notes ?? "",
       }}
       scheduleHint={<ScheduleChips item={pi.item ?? null} orderItems={pi.order?.items ?? null} />}
-      submitLabel="ثبت تغییرات"
+      submitLabel={tr("ثبت تغییرات")}
       pending={saveMut.isPending}
       onSubmit={(v) => saveMut.mutate(v)}
       onCancel={onBack}
@@ -833,22 +834,22 @@ function ScheduleChips({
     <div className="rounded-lg border bg-muted/20 px-3 py-2 flex items-center gap-3 flex-wrap text-[11px]">
       <span className="font-medium text-muted-foreground flex items-center gap-1 shrink-0">
         <Icon name="calendar" size={12} className="text-primary" />
-        {s.perItem ? "زمان‌بندی این آیتم:" : "زمان‌بندی کل گروه:"}
+        {s.perItem ? tr("زمان‌بندی این آیتم:") : tr("زمان‌بندی کل گروه:")}
       </span>
       {(s.designFrom || s.designTo) && (
         <span className="text-muted-foreground flex items-center gap-1">
           <Icon name="design" size={11} className="text-violet-500" />
           {s.designFrom ? <span className="tabular-nums" dir="ltr">{formatDate(s.designFrom)}</span> : "…"}
-          <span className="text-muted-foreground/50">تا</span>
-          {s.designTo ? <span className="tabular-nums" dir="ltr">{formatDate(s.designTo)}</span> : "بدون پایان"}
+          <span className="text-muted-foreground/50">{tr("تا")}</span>
+          {s.designTo ? <span className="tabular-nums" dir="ltr">{formatDate(s.designTo)}</span> : tr("بدون پایان")}
         </span>
       )}
       {(s.printFrom || s.printTo) && (
         <span className="text-muted-foreground flex items-center gap-1">
           <Icon name="print" size={11} className="text-amber-500" />
           {s.printFrom ? <span className="tabular-nums" dir="ltr">{formatDate(s.printFrom)}</span> : "…"}
-          <span className="text-muted-foreground/50">تا</span>
-          {s.printTo ? <span className="tabular-nums" dir="ltr">{formatDate(s.printTo)}</span> : "بدون پایان"}
+          <span className="text-muted-foreground/50">{tr("تا")}</span>
+          {s.printTo ? <span className="tabular-nums" dir="ltr">{formatDate(s.printTo)}</span> : tr("بدون پایان")}
         </span>
       )}
     </div>
@@ -915,12 +916,12 @@ function DocView({
       if (action === "print") {
         const res = printElementClean("#printable-invoice", fileName);
         if (!res.ok && res.error === "popup-blocked") {
-          toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+          toast.error(tr("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید"));
         }
       } else {
         const res = await downloadElementAsPdf("#printable-invoice", `${fileName}.pdf`);
-        if (!res.ok) toast.error("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید");
-        else toast.success("فایل PDF دانلود شد");
+        if (!res.ok) toast.error(tr("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید"));
+        else toast.success(tr("فایل PDF دانلود شد"));
       }
     }, 200);
     return () => clearTimeout(t);
@@ -940,7 +941,7 @@ function DocView({
       const linked = pi.item ?? (oi.length === items.length ? oi[idx] : null);
       const details: string[] = [];
       if (linked?.description?.trim()) details.push(linked.description.trim());
-      if (linked?.note?.trim()) details.push(`یادداشت: ${linked.note.trim()}`);
+      if (linked?.note?.trim()) details.push(tr("یادداشت: {p0}", { p0: linked.note.trim() }));
       return {
         name: it.name,
         details,
@@ -981,38 +982,38 @@ function DocView({
         {/* ویرایش (خواستهٔ 1: «دکمه ویرایش پیش فاکتور… پر کنه و ثبت کنه») */}
         {editable && (
           <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5 h-8">
-            <Icon name="edit" size={13} /> ویرایش
+            <Icon name="edit" size={13} /> {tr("ویرایش")}
           </Button>
         )}
         {/* چرخهٔ وضعیت */}
         {status === "draft" && (
           <Button size="sm" variant="outline" disabled={busy} onClick={() => onStatus("sent")} className="gap-1.5 h-8">
-            <Icon name="mail" size={13} /> ارسال به مشتری
+            <Icon name="mail" size={13} /> {tr("ارسال به مشتری")}
           </Button>
         )}
         {status === "sent" && (
           <>
             <Button size="sm" disabled={busy} onClick={() => onStatus("approved")} className="gap-1.5 h-8">
-              <Icon name="check" size={13} /> تایید مشتری
+              <Icon name="check" size={13} /> {tr("تایید مشتری")}
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => onStatus("rejected")} className="gap-1.5 h-8 text-rose-600 hover:text-rose-700">
-              <Icon name="cancel" size={13} /> رد
+              <Icon name="cancel" size={13} /> {tr("رد")}
             </Button>
           </>
         )}
         {status === "approved" && (
           <Button size="sm" disabled={busy} onClick={onConvert} className="gap-1.5 h-8">
-            <Icon name="receipt" size={13} /> تبدیل به فاکتور نهایی
+            <Icon name="receipt" size={13} /> {tr("تبدیل به فاکتور نهایی")}
           </Button>
         )}
         {(status === "sent" || status === "approved") && (
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => onStatus("draft")} className="h-8 text-xs">
-            بازگشت به پیش‌نویس
+            {tr("بازگشت به پیش‌نویس")}
           </Button>
         )}
         {(status === "draft" || status === "sent" || status === "rejected") && (
           <Button size="sm" variant="ghost" disabled={busy} onClick={onDelete} className="h-8 text-rose-600 hover:text-rose-700 gap-1">
-            <Icon name="trash" size={13} /> حذف
+            <Icon name="trash" size={13} /> {tr("حذف")}
           </Button>
         )}
         {/* فاز ۲۱: چاپ + دانلود PDF یک‌کلیکی — فاز ۲۵: اول ارز چاپ پرسیده می‌شود */}
@@ -1030,7 +1031,7 @@ function DocView({
         open={gateOpen}
         onOpenChange={setGateOpen}
         docCurrency={docCur}
-        docTitle="پیش‌فاکتور"
+        docTitle={tr("پیش‌فاکتور")}
         previewTotal={pi.totalAmount}
         onConfirm={(r) => setPrintCur(r)}
       />

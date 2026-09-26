@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { PriceComparison, SupplierService, SupplierCategory } from "./srm-types";
+import { t } from "@/lib/i18n";
 
 type SortKey = "name" | "diff" | "suppliers" | "minPrice";
 
@@ -142,7 +143,7 @@ export function SRMPriceComparison() {
             toggleRow(row.original.name);
           }}
           className="size-7 rounded-md hover:bg-accent grid place-items-center"
-          title={expandedRows[row.original.name] ? "بستن" : "گشودن"}
+          title={expandedRows[row.original.name] ? t("بستن") : t("گشودن")}
         >
           <Icon
             name={expandedRows[row.original.name] ? "chevronDown" : "chevronLeft"}
@@ -156,7 +157,7 @@ export function SRMPriceComparison() {
     },
     {
       accessorKey: "name",
-      header: "نام خدمه",
+      header: t("نام خدمه"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2 min-w-0">
           <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 grid place-items-center shrink-0">
@@ -170,7 +171,7 @@ export function SRMPriceComparison() {
     {
       id: "suppliersCount",
       accessorFn: (r) => r.suppliers.length,
-      header: "تامین‌کنندگان",
+      header: t("تامین‌کنندگان"),
       cell: ({ row }) => (
         <span
           className={cn(
@@ -189,7 +190,7 @@ export function SRMPriceComparison() {
     {
       id: "minPrice",
       accessorFn: (r) => r.minPrice ?? 0,
-      header: "حداقل قیمت",
+      header: t("حداقل قیمت"),
       cell: ({ row }) => {
         const p = row.original.minPrice;
         if (p === null || p === undefined) return <span className="text-muted-foreground text-xs">—</span>;
@@ -204,7 +205,7 @@ export function SRMPriceComparison() {
     {
       id: "maxPrice",
       accessorFn: (r) => r.maxPrice ?? 0,
-      header: "حداکثر قیمت",
+      header: t("حداکثر قیمت"),
       cell: ({ row }) => {
         const p = row.original.maxPrice;
         if (p === null || p === undefined) return <span className="text-muted-foreground text-xs">—</span>;
@@ -219,7 +220,7 @@ export function SRMPriceComparison() {
     {
       id: "range",
       accessorFn: (r) => (r.maxPrice ?? 0) - (r.minPrice ?? 0),
-      header: "اختلاف قیمت",
+      header: t("اختلاف قیمت"),
       cell: ({ row }) => {
         const diff = (row.original.maxPrice ?? 0) - (row.original.minPrice ?? 0);
         if (diff <= 0 || row.original.minPrice === null) {
@@ -231,7 +232,7 @@ export function SRMPriceComparison() {
             <span className="text-xs font-bold text-amber-600 dark:text-amber-400 tabular-nums" dir="ltr">
               {formatCurrency(diff)}
             </span>
-            <span className="text-[10px] text-muted-foreground">{pct}% پراکندگی</span>
+            <span className="text-[10px] text-muted-foreground">{t("{p0}% پراکندگی", { p0: pct })}</span>
           </div>
         );
       },
@@ -242,8 +243,8 @@ export function SRMPriceComparison() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="مقایسه قیمت‌ها"
-        description="مقایسه قیمت خدمات مشابه بین تمام تامین‌کنندگان"
+        title={t("مقایسه قیمت‌ها")}
+        description={t("مقایسه قیمت خدمات مشابه بین تمام تامین‌کنندگان")}
         icon="analytics"
         actions={
           <div className="flex items-center gap-2">
@@ -258,7 +259,7 @@ export function SRMPriceComparison() {
               }}
               className="gap-1.5"
             >
-              <Icon name="refresh" size={14} /> پاک کردن فیلترها
+              <Icon name="refresh" size={14} /> {t("پاک کردن فیلترها")}
             </Button>
           </div>
         }
@@ -269,7 +270,7 @@ export function SRMPriceComparison() {
         <Card className="p-4 ring-1 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-muted-foreground">خدمات قابل مقایسه</div>
+              <div className="text-[11px] text-muted-foreground">{t("خدمات قابل مقایسه")}</div>
               <div className="text-2xl font-bold tabular-nums mt-0.5">{totalServices}</div>
             </div>
             <div className="size-9 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 grid place-items-center">
@@ -280,9 +281,9 @@ export function SRMPriceComparison() {
         <Card className="p-4 ring-1 ring-orange-500/20 bg-orange-50/40 dark:bg-orange-950/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-muted-foreground">با چند تامین‌کننده</div>
+              <div className="text-[11px] text-muted-foreground">{t("با چند تامین‌کننده")}</div>
               <div className="text-2xl font-bold tabular-nums mt-0.5">{totalWithMultiple}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">قابل مقایسه واقعی</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{t("قابل مقایسه واقعی")}</div>
             </div>
             <div className="size-9 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 grid place-items-center">
               <Icon name="suppliers" size={18} />
@@ -292,9 +293,9 @@ export function SRMPriceComparison() {
         <Card className="p-4 ring-1 ring-amber-500/20 bg-amber-50/40 dark:bg-amber-950/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-muted-foreground">میانگین پراکندگی</div>
+              <div className="text-[11px] text-muted-foreground">{t("میانگین پراکندگی")}</div>
               <div className="text-2xl font-bold tabular-nums mt-0.5">{avgSavings}%</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">پتانسیل صرفه‌جویی</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{t("پتانسیل صرفه‌جویی")}</div>
             </div>
             <div className="size-9 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 grid place-items-center">
               <Icon name="trending" size={18} />
@@ -310,17 +311,17 @@ export function SRMPriceComparison() {
           isLoading={isLoading}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="جستجوی نام خدمه..."
+          searchPlaceholder={t("جستجوی نام خدمه...")}
           pageSize={10}
           onRowClick={(c) => toggleRow(c.name)}
           toolbar={
             <div className="flex items-center gap-2">
               <Select value={subcategoryFilter} onValueChange={setSubcategoryFilter}>
                 <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="همه زیردسته‌ها" />
+                  <SelectValue placeholder={t("همه زیردسته‌ها")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه زیردسته‌ها</SelectItem>
+                  <SelectItem value="all">{t("همه زیردسته‌ها")}</SelectItem>
                   {allSubcategories.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.categoryName} / {s.name}
@@ -333,10 +334,10 @@ export function SRMPriceComparison() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="diff">بیشترین اختلاف قیمت</SelectItem>
-                  <SelectItem value="name">نام خدمه (الفبا)</SelectItem>
-                  <SelectItem value="suppliers">تعداد تامین‌کنندگان</SelectItem>
-                  <SelectItem value="minPrice">حداقل قیمت</SelectItem>
+                  <SelectItem value="diff">{t("بیشترین اختلاف قیمت")}</SelectItem>
+                  <SelectItem value="name">{t("نام خدمه (الفبا)")}</SelectItem>
+                  <SelectItem value="suppliers">{t("تعداد تامین‌کنندگان")}</SelectItem>
+                  <SelectItem value="minPrice">{t("حداقل قیمت")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -348,8 +349,8 @@ export function SRMPriceComparison() {
           emptyState={
             <EmptyState
               icon="analytics"
-              title="موردی برای مقایسه یافت نشد"
-              description="هنوز خدمه‌ای با قیمت ثبت نشده است یا فیلترها نتیجه‌ای ندارند."
+              title={t("موردی برای مقایسه یافت نشد")}
+              description={t("هنوز خدمه‌ای با قیمت ثبت نشده است یا فیلترها نتیجه‌ای ندارند.")}
             />
           }
         />
@@ -357,7 +358,7 @@ export function SRMPriceComparison() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر 30 ثانیه
+        {t("به‌روزرسانی خودکار هر 30 ثانیه")}
       </div>
     </div>
   );
@@ -380,7 +381,7 @@ function ExpandedPriceList({ comparison }: { comparison: PriceComparison }) {
   if (sorted.length === 0) {
     return (
       <div className="p-4 text-center text-xs text-muted-foreground">
-        تامین‌کننده‌ای برای این خدمه ثبت نشده است.
+        {t("تامین‌کننده‌ای برای این خدمه ثبت نشده است.")}
       </div>
     );
   }
@@ -391,10 +392,10 @@ function ExpandedPriceList({ comparison }: { comparison: PriceComparison }) {
         <div className="px-4 py-2 border-b bg-muted/40 flex items-center justify-between">
           <span className="text-xs font-medium flex items-center gap-1.5">
             <Icon name="suppliers" size={12} className="text-orange-500" />
-            مقایسه {sorted.length} تامین‌کننده
+            {t("مقایسه {p0} تامین‌کننده", { p0: sorted.length })}
           </span>
           <span className="text-[10px] text-muted-foreground">
-            بهترین قیمت با رنگ سبز مشخص شده است
+            {t("بهترین قیمت با رنگ سبز مشخص شده است")}
           </span>
         </div>
         <div className="divide-y">
@@ -425,7 +426,7 @@ function ExpandedPriceList({ comparison }: { comparison: PriceComparison }) {
                     <span className="text-sm font-medium truncate">{sp.name}</span>
                     {isBest && (
                       <span className="text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                        <Icon name="checkCircle" size={10} /> بهترین قیمت
+                        <Icon name="checkCircle" size={10} /> {t("بهترین قیمت")}
                       </span>
                     )}
                   </div>
@@ -444,7 +445,7 @@ function ExpandedPriceList({ comparison }: { comparison: PriceComparison }) {
                       {formatCurrency(sp.price)}
                     </span>
                   ) : (
-                    <span className="text-xs text-muted-foreground">بدون قیمت</span>
+                    <span className="text-xs text-muted-foreground">{t("بدون قیمت")}</span>
                   )}
                 </div>
               </div>

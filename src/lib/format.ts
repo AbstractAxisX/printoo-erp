@@ -2,6 +2,7 @@
 // All dates Gregorian (English numerals), currency in IQD (Iraqi Dinar).
 
 import { format, formatDistanceToNow, differenceInCalendarDays, isValid } from "date-fns";
+import { t } from "@/lib/i18n";
 
 export function formatCurrency(amount: number | null | undefined): string {
   const n = Number(amount ?? 0);
@@ -45,13 +46,13 @@ export function daysRemaining(endDate: Date | string | null | undefined): {
   status: "remaining" | "overdue" | "today" | "none";
   days: number;
 } {
-  if (!endDate) return { text: "بدون زمان پایان", status: "none", days: 0 };
+  if (!endDate) return { text: t("بدون زمان پایان"), status: "none", days: 0 };
   const d = typeof endDate === "string" ? new Date(endDate) : endDate;
   if (!isValid(d)) return { text: "—", status: "none", days: 0 };
   const diff = differenceInCalendarDays(d, new Date());
-  if (diff > 0) return { text: `${diff} روز باقی مانده`, status: "remaining", days: diff };
-  if (diff === 0) return { text: "موعد امروز", status: "today", days: 0 };
-  return { text: `${Math.abs(diff)} روز گذشته`, status: "overdue", days: Math.abs(diff) };
+  if (diff > 0) return { text: t("{p0} روز باقی مانده", { p0: diff }), status: "remaining", days: diff };
+  if (diff === 0) return { text: t("موعد امروز"), status: "today", days: 0 };
+  return { text: t("{p0} روز گذشته", { p0: Math.abs(diff) }), status: "overdue", days: Math.abs(diff) };
 }
 
 export function toISO(date: Date | string | null | undefined): string | null {

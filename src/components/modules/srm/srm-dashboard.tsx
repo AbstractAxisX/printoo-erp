@@ -10,6 +10,7 @@ import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { formatCurrency, formatNumber, relativeTime, formatDate } from "@/lib/format";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 type RecentCost = {
@@ -58,14 +59,14 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  approved: "تأیید شده",
-  rejected: "رد شده",
+  pending: t("در انتظار"),
+  approved: t("تأیید شده"),
+  rejected: t("رد شده"),
 };
 
 const MODULE_META: Record<string, { label: string; icon: IconName; color: string }> = {
-  print: { label: "چاپ", icon: "print", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
-  warehouse: { label: "انبار", icon: "warehouse", color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
+  print: { label: t("چاپ"), icon: "print", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+  warehouse: { label: t("انبار"), icon: "warehouse", color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
 };
 
 // Color rotation for category bars
@@ -93,8 +94,8 @@ export function SRMDashboard() {
   if (isLoading && !data) {
     return (
       <div className="space-y-5">
-        <PageHeader title="داشبورد SRM" description="نمای کلی تامین‌کنندگان، خدمات و قیمت‌ها" icon="suppliers" />
-        <LoadingState label="در حال بارگذاری داشبورد..." />
+        <PageHeader title={t("داشبورد SRM")} description={t("نمای کلی تامین‌کنندگان، خدمات و قیمت‌ها")} icon="suppliers" />
+        <LoadingState label={t("در حال بارگذاری داشبورد...")} />
       </div>
     );
   }
@@ -115,45 +116,45 @@ export function SRMDashboard() {
     onClick?: () => void;
   }[] = [
     {
-      label: "تامین‌کنندگان",
+      label: t("تامین‌کنندگان"),
       value: formatNumber(stats?.suppliers ?? 0),
-      sub: "کل تامین‌کنندگان ثبت‌شده",
+      sub: t("کل تامین‌کنندگان ثبت‌شده"),
       icon: "suppliers",
       color: "text-orange-600 dark:text-orange-400",
       bg: "bg-orange-50 dark:bg-orange-950/40",
       onClick: () => navigate("srm", "suppliers"),
     },
     {
-      label: "دسته‌بندی‌ها",
+      label: t("دسته‌بندی‌ها"),
       value: formatNumber(stats?.categories ?? 0),
-      sub: "دسته‌بندی خدمات و متریال",
+      sub: t("دسته‌بندی خدمات و متریال"),
       icon: "grid",
       color: "text-teal-600 dark:text-teal-400",
       bg: "bg-teal-50 dark:bg-teal-950/40",
       onClick: () => navigate("srm", "categories"),
     },
     {
-      label: "خدمات",
+      label: t("خدمات"),
       value: formatNumber(stats?.services ?? 0),
-      sub: "خدمات ثبت‌شده تامین‌کنندگان",
+      sub: t("خدمات ثبت‌شده تامین‌کنندگان"),
       icon: "task",
       color: "text-violet-600 dark:text-violet-400",
       bg: "bg-violet-50 dark:bg-violet-950/40",
       onClick: () => navigate("srm", "services"),
     },
     {
-      label: "لیست قیمت‌ها",
+      label: t("لیست قیمت‌ها"),
       value: formatNumber(stats?.priceLists ?? 0),
-      sub: "قیمت‌های ثبت‌شده",
+      sub: t("قیمت‌های ثبت‌شده"),
       icon: "tag",
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-50 dark:bg-amber-950/40",
       onClick: () => navigate("srm", "compare"),
     },
     {
-      label: "مجموع هزینه‌ها",
+      label: t("مجموع هزینه‌ها"),
       value: formatCurrency(stats?.totalCosts ?? 0),
-      sub: `تأیید شده: ${formatCurrency(stats?.approvedCosts ?? 0)}`,
+      sub: t("تأیید شده: {p0}", { p0: formatCurrency(stats?.approvedCosts ?? 0) }),
       icon: "coins",
       color: "text-rose-600 dark:text-rose-400",
       bg: "bg-rose-50 dark:bg-rose-950/40",
@@ -174,16 +175,16 @@ export function SRMDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="داشبورد SRM"
-        description="نمای کلی تامین‌کنندگان، خدمات و قیمت‌ها"
+        title={t("داشبورد SRM")}
+        description={t("نمای کلی تامین‌کنندگان، خدمات و قیمت‌ها")}
         icon="suppliers"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate("srm", "compare")} className="gap-1.5">
-              <Icon name="analytics" size={15} /> مقایسه قیمت
+              <Icon name="analytics" size={15} /> {t("مقایسه قیمت")}
             </Button>
             <Button size="sm" onClick={() => navigate("srm", "suppliers")} className="gap-1.5">
-              <Icon name="plus" size={15} /> تامین‌کننده جدید
+              <Icon name="plus" size={15} /> {t("تامین‌کننده جدید")}
             </Button>
           </div>
         }
@@ -218,18 +219,18 @@ export function SRMDashboard() {
           <div className="flex items-center justify-between px-5 py-3.5 border-b">
             <div className="flex items-center gap-2">
               <Icon name="coins" size={18} className="text-rose-500" />
-              <h3 className="font-semibold text-sm">هزینه‌های اخیر</h3>
+              <h3 className="font-semibold text-sm">{t("هزینه‌های اخیر")}</h3>
               <span className="text-[11px] text-muted-foreground">({recentCosts.length})</span>
             </div>
             <button
               onClick={() => navigate("srm", "costs")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              مشاهده همه <Icon name="arrowLeft" size={12} />
+              {t("مشاهده همه")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           {recentCosts.length === 0 ? (
-            <EmptyState icon="coins" title="هزینه‌ای ثبت نشده" />
+            <EmptyState icon="coins" title={t("هزینه‌ای ثبت نشده")} />
           ) : (
             <div className="divide-y max-h-96 overflow-y-auto scrollbar-thin">
               {recentCosts.map((c) => {
@@ -248,7 +249,7 @@ export function SRMDashboard() {
                         <span className="text-sm font-medium truncate">{c.supplier?.name ?? "—"}</span>
                       </div>
                       <div className="text-xs text-muted-foreground truncate mt-0.5">
-                        {c.description || c.expenseType?.name || c.order?.customer?.name || "بدون توضیحات"}
+                        {c.description || c.expenseType?.name || c.order?.customer?.name || t("بدون توضیحات")}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -275,11 +276,11 @@ export function SRMDashboard() {
         <Card className="p-0 overflow-hidden">
           <div className="px-5 py-3.5 border-b flex items-center gap-2">
             <Icon name="grid" size={18} className="text-primary" />
-            <h3 className="font-semibold text-sm">تامین‌کنندگان بر اساس دسته</h3>
+            <h3 className="font-semibold text-sm">{t("تامین‌کنندگان بر اساس دسته")}</h3>
           </div>
           <div className="p-5 space-y-4 max-h-96 overflow-y-auto scrollbar-thin">
             {categoryTotals.length === 0 ? (
-              <EmptyState icon="grid" title="دسته‌ای ثبت نشده" />
+              <EmptyState icon="grid" title={t("دسته‌ای ثبت نشده")} />
             ) : (
               categoryTotals.map((c, idx) => {
                 const colorCls = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
@@ -290,7 +291,7 @@ export function SRMDashboard() {
                       <div className="flex items-center gap-1.5">
                         <span className={cn("size-1.5 rounded-full", colorCls)} />
                         <span className="font-medium">{c.name}</span>
-                        <span className="text-muted-foreground">({c.subCount} زیردسته)</span>
+                        <span className="text-muted-foreground">{t("({p0} زیردسته)", { p0: c.subCount })}</span>
                       </div>
                       <span className="tabular-nums font-bold">{c.totalSuppliers}</span>
                     </div>
@@ -305,7 +306,7 @@ export function SRMDashboard() {
               })
             )}
             <div className="pt-3 border-t flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">مجموع تامین‌کنندگان</span>
+              <span className="text-xs text-muted-foreground">{t("مجموع تامین‌کنندگان")}</span>
               <span className="text-sm font-bold tabular-nums">
                 {categoryTotals.reduce((s, c) => s + c.totalSuppliers, 0)}
               </span>
@@ -318,29 +319,29 @@ export function SRMDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <QuickLinkCard
           icon="suppliers"
-          label="تامین‌کنندگان"
-          description="مدیریت تامین‌کنندگان"
+          label={t("تامین‌کنندگان")}
+          description={t("مدیریت تامین‌کنندگان")}
           color="bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400"
           onClick={() => navigate("srm", "suppliers")}
         />
         <QuickLinkCard
           icon="grid"
-          label="دسته‌بندی‌ها"
-          description="دسته و زیردسته‌ها"
+          label={t("دسته‌بندی‌ها")}
+          description={t("دسته و زیردسته‌ها")}
           color="bg-teal-50 dark:bg-teal-950/30 text-teal-600 dark:text-teal-400"
           onClick={() => navigate("srm", "categories")}
         />
         <QuickLinkCard
           icon="analytics"
-          label="مقایسه قیمت"
-          description="بهترین قیمت خدمات"
+          label={t("مقایسه قیمت")}
+          description={t("بهترین قیمت خدمات")}
           color="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400"
           onClick={() => navigate("srm", "compare")}
         />
         <QuickLinkCard
           icon="coins"
-          label="هزینه‌ها"
-          description="هزینه‌های ثبت‌شده"
+          label={t("هزینه‌ها")}
+          description={t("هزینه‌های ثبت‌شده")}
           color="bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400"
           onClick={() => navigate("srm", "costs")}
         />
@@ -348,7 +349,7 @@ export function SRMDashboard() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر 30 ثانیه
+        {t("به‌روزرسانی خودکار هر 30 ثانیه")}
       </div>
     </div>
   );

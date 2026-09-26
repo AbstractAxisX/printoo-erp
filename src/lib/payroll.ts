@@ -1,3 +1,4 @@
+import { t as tr } from "@/lib/i18n";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { parsePayType } from "@/lib/money";
@@ -78,10 +79,10 @@ export function sanitizePayrollNumbers(n: Partial<PayrollEntryNumbers>): Payroll
 /** برچسب فارسی نوع پرداخت (breakdown هزینه/نوتیف). */
 export function payTypeLabel(p: string | null | undefined): string {
   const t = parsePayType(p);
-  if (t === "daily") return "روزانه";
-  if (t === "hourly") return "ساعتی";
-  if (t === "casual") return "موردی";
-  return "ماهانه";
+  if (t === "daily") return tr("روزانه");
+  if (t === "hourly") return tr("ساعتی");
+  if (t === "casual") return tr("موردی");
+  return tr("ماهانه");
 }
 
 /** کسر FIFO مساعده‌های کسرنشدهٔ «هم‌ارز» — تا سقفِ بودجهٔ کسر، از قدیمی‌ترین‌ها.

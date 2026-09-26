@@ -22,6 +22,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { useDashboardSections } from "./use-dashboard-data";
+import { t } from "@/lib/i18n";
 
 type RadarCard = {
   key: string;
@@ -43,7 +44,7 @@ const TONE_MAP: Record<RadarCard["tone"], { chip: string; ring: string }> = {
 
 function DebtList({ items, valueKey }: { items: Record<string, unknown>[]; valueKey: string }) {
   if (items.length === 0) {
-    return <span className="text-[11px] text-muted-foreground">هیچ‌کس بدهکار نیست ✓</span>;
+    return <span className="text-[11px] text-muted-foreground">{t("هیچ‌کس بدهکار نیست ✓")}</span>;
   }
   return (
     <div className="space-y-1">
@@ -76,7 +77,7 @@ export function BossRadar() {
   const cards: RadarCard[] = [
     {
       key: "customersDue",
-      label: "طلب از مشتریان",
+      label: t("طلب از مشتریان"),
       icon: "customers",
       tone: "rose",
       headline: radar.customersDue.count > 0
@@ -85,12 +86,12 @@ export function BossRadar() {
       detail: radar.customersDue.count > 0 ? (
         <div className="space-y-1">
           <span className="text-[10px] text-muted-foreground block mb-0.5">
-            {formatNumber(radar.customersDue.count)} مشتری بدهکار — بدهکارترین‌ها:
+            {t("{p0} مشتری بدهکار — بدهکارترین‌ها:", { p0: formatNumber(radar.customersDue.count) })}
           </span>
           <DebtList items={radar.customersDue.top as unknown as Record<string, unknown>[]} valueKey="due" />
         </div>
       ) : (
-        <span className="text-[11px] text-muted-foreground">همه تسویه شده‌اند ✓</span>
+        <span className="text-[11px] text-muted-foreground">{t("همه تسویه شده‌اند ✓")}</span>
       ),
       onClick: () => {
         setBoardFilter("admin", "customers:unsettled");
@@ -99,55 +100,55 @@ export function BossRadar() {
     },
     {
       key: "supplierDebt",
-      label: "بدهی ما (تامین‌کنندگان)",
+      label: t("بدهی ما (تامین‌کنندگان)"),
       icon: "suppliers",
       tone: "amber",
       headline: formatCurrency(radar.supplierDebt.sum),
       detail: radar.supplierDebt.count > 0 ? (
         <div className="space-y-1">
           <span className="text-[10px] text-muted-foreground block mb-0.5">
-            {formatNumber(radar.supplierDebt.count)} تامین‌کننده — بزرگ‌ترین بدهی‌ها:
+            {t("{p0} تامین‌کننده — بزرگ‌ترین بدهی‌ها:", { p0: formatNumber(radar.supplierDebt.count) })}
           </span>
           <DebtList items={radar.supplierDebt.top as unknown as Record<string, unknown>[]} valueKey="balanceDue" />
         </div>
       ) : (
-        <span className="text-[11px] text-muted-foreground">بدون بدهی معوق ✓</span>
+        <span className="text-[11px] text-muted-foreground">{t("بدون بدهی معوق ✓")}</span>
       ),
       onClick: () => navigate("admin", "suppliers"),
     },
     {
       key: "overdue",
-      label: "سفارش‌های تاخیری",
+      label: t("سفارش‌های تاخیری"),
       icon: "alertTriangle",
       tone: radar.overdue.count > 0 ? "rose" : "emerald",
       headline: formatNumber(radar.overdue.count),
       detail: radar.overdue.count > 0 ? (
         <span className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-          قدیمی‌ترین تاخیر: {formatNumber(radar.overdue.oldestDays)} روز
+          {t("قدیمی‌ترین تاخیر: {p0} روز", { p0: formatNumber(radar.overdue.oldestDays) })}
         </span>
       ) : (
-        <span className="text-[11px] text-muted-foreground">بدون تاخیر ✓</span>
+        <span className="text-[11px] text-muted-foreground">{t("بدون تاخیر ✓")}</span>
       ),
       onClick: () => navigate("admin", "open-orders"),
     },
     {
       key: "pendingCosts",
-      label: "هزینه‌های در انتظار تأیید",
+      label: t("هزینه‌های در انتظار تأیید"),
       icon: "money",
       tone: radar.pendingCosts.count > 0 ? "amber" : "emerald",
       headline: formatNumber(radar.pendingCosts.count),
       detail: radar.pendingCosts.count > 0 ? (
         <span className="text-[11px] text-muted-foreground">
-          جمع: <span className="tabular-nums font-semibold text-foreground" dir="ltr">{formatCurrency(radar.pendingCosts.sum)}</span> — منتظر مالی
+          {t("جمع:")}<span className="tabular-nums font-semibold text-foreground" dir="ltr">{formatCurrency(radar.pendingCosts.sum)}</span> {t("— منتظر مالی")}
         </span>
       ) : (
-        <span className="text-[11px] text-muted-foreground">صف تأیید خالی ✓</span>
+        <span className="text-[11px] text-muted-foreground">{t("صف تأیید خالی ✓")}</span>
       ),
       onClick: () => navigate("finance", "costs"),
     },
     {
       key: "profit",
-      label: "سود (الان)",
+      label: t("سود (الان)"),
       icon: netProfit >= 0 ? "trending" : "arrowDown",
       tone: netProfit >= 0 ? "emerald" : "rose",
       headline: formatCurrency(Math.abs(netProfit)),
@@ -167,7 +168,7 @@ export function BossRadar() {
     // فاز 22 (خواستهٔ 6): سفارش‌های زیان‌ده — «اون کارها بیاد جلو چشمم»
     {
       key: "lossOrders",
-      label: "سفارش‌های زیان‌ده",
+      label: t("سفارش‌های زیان‌ده"),
       icon: "arrowDown",
       tone: (radar.lossOrders?.count ?? 0) > 0 ? "rose" : "emerald",
       headline: formatNumber(radar.lossOrders?.count ?? 0),
@@ -175,12 +176,12 @@ export function BossRadar() {
         (radar.lossOrders?.count ?? 0) > 0 ? (
           <div className="space-y-1">
             <span className="text-[10px] text-muted-foreground block mb-0.5">
-              جمع زیان: <span className="tabular-nums font-semibold text-rose-600" dir="ltr">{formatCurrency(radar.lossOrders?.sum ?? 0)}</span>
+              {t("جمع زیان:")}<span className="tabular-nums font-semibold text-rose-600" dir="ltr">{formatCurrency(radar.lossOrders?.sum ?? 0)}</span>
             </span>
             <DebtList items={(radar.lossOrders?.top ?? []) as unknown as Record<string, unknown>[]} valueKey="due" />
           </div>
         ) : (
-          <span className="text-[11px] text-muted-foreground">هیچ سفارشی در زیان نیست ✓</span>
+          <span className="text-[11px] text-muted-foreground">{t("هیچ سفارشی در زیان نیست ✓")}</span>
         ),
       onClick: () => navigate("admin", "orders"),
     },
@@ -194,16 +195,16 @@ export function BossRadar() {
     (radar.lossOrders?.count ?? 0) > 0;
 
   return (
-    <section aria-label="رادار مشکلات — نگاه یک‌ثانیه‌ای">
+    <section aria-label={t("رادار مشکلات — نگاه یک‌ثانیه‌ای")}>
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-center gap-2">
           <div className={cn("size-9 rounded-xl grid place-items-center", hasAnyIssue ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400")}>
             <Icon name={hasAnyIssue ? "alertTriangle" : "checkCircle"} size={19} />
           </div>
           <div>
-            <h2 className="text-sm font-bold leading-tight">نگاه یک‌ثانیه‌ای</h2>
+            <h2 className="text-sm font-bold leading-tight">{t("نگاه یک‌ثانیه‌ای")}</h2>
             <p className="text-[11px] text-muted-foreground">
-              {hasAnyIssue ? "مشکلات باز — کلیک کنید و مستقیم وارد شوید" : "همه‌چیز روبراه است"}
+              {hasAnyIssue ? t("مشکلات باز — کلیک کنید و مستقیم وارد شوید") : t("همه‌چیز روبراه است")}
             </p>
           </div>
         </div>
@@ -214,7 +215,7 @@ export function BossRadar() {
             hasAnyIssue ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
           )}
         >
-          {hasAnyIssue ? "نیاز به توجه" : "سالم"}
+          {hasAnyIssue ? t("نیاز به توجه") : t("سالم")}
         </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -294,12 +295,12 @@ const EVENT_ICON: Record<string, IconName> = {
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "همین الان";
-  if (m < 60) return `${m.toLocaleString("en-US")} دقیقه پیش`;
+  if (m < 1) return t("همین الان");
+  if (m < 60) return t("{p0} دقیقه پیش", { p0: m.toLocaleString("en-US") });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h.toLocaleString("en-US")} ساعت پیش`;
+  if (h < 24) return t("{p0} ساعت پیش", { p0: h.toLocaleString("en-US") });
   const d = Math.floor(h / 24);
-  return `${d.toLocaleString("en-US")} روز پیش`;
+  return t("{p0} روز پیش", { p0: d.toLocaleString("en-US") });
 }
 
 export function LatestEvents() {

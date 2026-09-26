@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/lib/icons";
 import { toast } from "sonner";
 import { printElementClean, downloadElementAsPdf } from "@/lib/print-doc";
+import { t } from "@/lib/i18n";
 
 /**
  * دکمه‌های چاپ + دانلود PDF سند — یکدست برای فاکتور/پیش‌فاکتور/صورت‌حساب.
@@ -30,7 +31,7 @@ export function DocPrintButtons({
     }
     const res = printElementClean("#printable-invoice", fileName);
     if (!res.ok && res.error === "popup-blocked") {
-      toast.error("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید");
+      toast.error(t("پنجرهٔ چاپ مسدود شد — پاپ‌آپ را برای این سایت مجاز کنید"));
     }
   };
 
@@ -47,12 +48,12 @@ export function DocPrintButtons({
         `${fileName}.pdf`
       );
       if (!res.ok) {
-        toast.error("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید");
+        toast.error(t("ساخت فایل PDF ناموفق بود — دوباره تلاش کنید"));
       } else {
-        toast.success("فایل PDF دانلود شد");
+        toast.success(t("فایل PDF دانلود شد"));
       }
     } catch {
-      toast.error("خطا در ساخت PDF — دوباره تلاش کنید");
+      toast.error(t("خطا در ساخت PDF — دوباره تلاش کنید"));
     } finally {
       setDownloading(false);
     }
@@ -72,10 +73,10 @@ export function DocPrintButtons({
           size={13}
           className={downloading ? "animate-spin" : undefined}
         />
-        {downloading ? "در حال ساخت…" : "دانلود PDF"}
+        {downloading ? t("در حال ساخت…") : t("دانلود PDF")}
       </Button>
       <Button size="sm" onClick={handlePrint} className="gap-1.5 h-8 shadow-sm">
-        <Icon name="print" size={13} /> چاپ
+        <Icon name="print" size={13} /> {t("چاپ")}
       </Button>
     </>
   );

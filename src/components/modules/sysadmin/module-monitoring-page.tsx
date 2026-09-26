@@ -34,6 +34,7 @@ import { MODULES, type ModuleKey } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModuleBoardReport, ModuleEmployeeRow } from "@/lib/monitoring";
+import { t } from "@/lib/i18n";
 
 // ─── بازهٔ زمانی (yyyy-MM-dd لوکال — قرارداد API) ───────────────────
 
@@ -41,16 +42,16 @@ type RangeMode = "week" | "month" | "quarter" | "custom";
 type SortMode = "workload" | "delay" | "completion";
 
 const RANGE_CHIPS: { id: RangeMode; label: string }[] = [
-  { id: "week", label: "این هفته" },
-  { id: "month", label: "این ماه" },
-  { id: "quarter", label: "3 ماه" },
-  { id: "custom", label: "بازهٔ دلخواه" },
+  { id: "week", label: t("این هفته") },
+  { id: "month", label: t("این ماه") },
+  { id: "quarter", label: t("3 ماه") },
+  { id: "custom", label: t("بازهٔ دلخواه") },
 ];
 
 const SORT_CHIPS: { id: SortMode; label: string }[] = [
-  { id: "workload", label: "ظرف کار" },
-  { id: "delay", label: "تاخیر" },
-  { id: "completion", label: "عملکرد" },
+  { id: "workload", label: t("ظرف کار") },
+  { id: "delay", label: t("تاخیر") },
+  { id: "completion", label: t("عملکرد") },
 ];
 
 function localDayKey(d: Date = new Date()): string {
@@ -223,15 +224,15 @@ export function ModuleMonitoringPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="مانیتورینگ ماژول"
-        description="مقایسهٔ ظرف کار و عملکرد کارمندان هر ماژول — برای انتخاب مسئول"
+        title={t("مانیتورینگ ماژول")}
+        description={t("مقایسهٔ ظرف کار و عملکرد کارمندان هر ماژول — برای انتخاب مسئول")}
         icon="chartColumn"
       />
 
       {/* انتخاب ماژول + بازه */}
       <div className="space-y-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground font-medium me-1">ماژول:</span>
+          <span className="text-[11px] text-muted-foreground font-medium me-1">{t("ماژول:")}</span>
           {(Object.entries(MODULES) as [ModuleKey, { faLabel: string }][]).map(([key, info]) => {
             const active = key === module;
             const t = MODULE_TONE[key];
@@ -251,7 +252,7 @@ export function ModuleMonitoringPage() {
           })}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] text-muted-foreground font-medium me-1">بازه:</span>
+          <span className="text-[11px] text-muted-foreground font-medium me-1">{t("بازه:")}</span>
           {RANGE_CHIPS.map((r) => (
             <button
               key={r.id}
@@ -268,9 +269,9 @@ export function ModuleMonitoringPage() {
           ))}
           {rangeMode === "custom" && (
             <div className="flex items-center gap-1.5">
-              <DatePicker value={customFrom} onChange={setCustomFrom} placeholder="از تاریخ" className="h-8 w-36 text-xs" />
+              <DatePicker value={customFrom} onChange={setCustomFrom} placeholder={t("از تاریخ")} className="h-8 w-36 text-xs" />
               <Icon name="arrowLeft" size={13} className="text-muted-foreground" />
-              <DatePicker value={customTo} onChange={setCustomTo} placeholder="تا تاریخ" className="h-8 w-36 text-xs" />
+              <DatePicker value={customTo} onChange={setCustomTo} placeholder={t("تا تاریخ")} className="h-8 w-36 text-xs" />
             </div>
           )}
           <span className="text-[10px] text-muted-foreground ms-auto tabular-nums" dir="rtl">
@@ -283,14 +284,14 @@ export function ModuleMonitoringPage() {
       {isLoading ? (
         <BoardSkeleton />
       ) : error ? (
-        <EmptyState icon="shield" title="دسترسی محدود" description={error.message} />
+        <EmptyState icon="shield" title={t("دسترسی محدود")} description={error.message} />
       ) : !data ? (
-        <EmptyState icon="chartColumn" title="داده‌ای دریافت نشد" description="برد این ماژول در دسترس نیست." />
+        <EmptyState icon="chartColumn" title={t("داده‌ای دریافت نشد")} description={t("برد این ماژول در دسترس نیست.")} />
       ) : employees.length === 0 ? (
         <EmptyState
           icon="userGroup"
-          title={`کارمندی در «${faLabel}» فعال نیست`}
-          description="کاربران فعالِ دارای این ماژول اینجا ظاهر می‌شوند. از «کاربران» ماژول‌ها را تیک بزنید."
+          title={t("کارمندی در «{p0}» فعال نیست", { p0: faLabel })}
+          description={t("کاربران فعالِ دارای این ماژول اینجا ظاهر می‌شوند. از «کاربران» ماژول‌ها را تیک بزنید.")}
         />
       ) : (
         <>
@@ -301,9 +302,9 @@ export function ModuleMonitoringPage() {
                 <Icon name="alertTriangle" size={20} />
               </span>
               <div className="min-w-0">
-                <div className="font-bold text-sm">همهٔ اعضا در مرخصی‌اند</div>
+                <div className="font-bold text-sm">{t("همهٔ اعضا در مرخصی‌اند")}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  فعلاً هیچ عضوی از «{faLabel}» برای تخصیص کار جدید در دسترس نیست.
+                  {t("فعلاً هیچ عضوی از «{p0}» برای تخصیص کار جدید در دسترس نیست.", { p0: faLabel })}
                 </div>
               </div>
             </div>
@@ -314,22 +315,22 @@ export function ModuleMonitoringPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
-                  پیشنهاد تخصیص — بهترین انتخاب برای سفارش جدید
+                  {t("پیشنهاد تخصیص — بهترین انتخاب برای سفارش جدید")}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap mt-1">
                   <span className="font-bold text-base">{recommended.name}</span>
                   <OnlineDot online={recommended.online} />
                   <span className="text-xs text-foreground/80">
-                    کمترین ظرف کار ({fa(recommended.openItems)} آیتم)
+                    {t("کمترین ظرف کار ({p0} آیتم)", { p0: fa(recommended.openItems) })}
                   </span>
                   {recommended.delayedDays > 0 && (
                     <span className="text-xs text-rose-600 dark:text-rose-400">
-                      {fa(recommended.delayedDays)} روز تاخیر تجمعی
+                      {t("{p0} روز تاخیر تجمعی", { p0: fa(recommended.delayedDays) })}
                     </span>
                   )}
                   {recommended.busyUntil && (
                     <span className="text-xs text-muted-foreground">
-                      کار تا {formatDayKey(recommended.busyUntil)}
+                      {t("کار تا {p0}", { p0: formatDayKey(recommended.busyUntil) })}
                     </span>
                   )}
                 </div>
@@ -338,26 +339,26 @@ export function ModuleMonitoringPage() {
                 onClick={() => navigate("sysadmin", "user", recommended.userId)}
                 className="h-8 px-3 rounded-lg border border-emerald-300 dark:border-emerald-800 text-xs font-medium flex items-center gap-1.5 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/40 transition shrink-0"
               >
-                <Icon name="chartColumn" size={14} /> مانیتورینگ کاربر
+                <Icon name="chartColumn" size={14} /> {t("مانیتورینگ کاربر")}
               </button>
             </div>
           ) : null}
 
           {/* KPI ها */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <BoardKpi icon="userGroup" label="کارمندان" value={fa(employees.length)} tone="violet" />
-            <BoardKpi icon="layers" label="آیتم‌های باز" value={fa(data.totals.openItems)} tone="amber" />
-            <BoardKpi icon="alertTriangle" label="تاخیری" value={fa(data.totals.delayedOpen)} tone="rose" />
-            <BoardKpi icon="checkCircle" label="تکمیل در بازه" value={fa(data.totals.completedInRange)} tone="emerald" />
+            <BoardKpi icon="userGroup" label={t("کارمندان")} value={fa(employees.length)} tone="violet" />
+            <BoardKpi icon="layers" label={t("آیتم‌های باز")} value={fa(data.totals.openItems)} tone="amber" />
+            <BoardKpi icon="alertTriangle" label={t("تاخیری")} value={fa(data.totals.delayedOpen)} tone="rose" />
+            <BoardKpi icon="checkCircle" label={t("تکمیل در بازه")} value={fa(data.totals.completedInRange)} tone="emerald" />
           </div>
 
           {/* مقایسهٔ کارمندان */}
           <Card className="p-0 overflow-hidden">
             <div className="px-4 py-3 border-b bg-muted/30 flex flex-wrap items-center gap-2">
               <Icon name="userGroup" size={15} className="text-primary" />
-              <span className="text-sm font-bold">مقایسهٔ کارمندان {faLabel}</span>
+              <span className="text-sm font-bold">{t("مقایسهٔ کارمندان {p0}", { p0: faLabel })}</span>
               <div className="flex items-center gap-1 ms-auto">
-                <span className="text-[10px] text-muted-foreground me-1">مرتب‌سازی:</span>
+                <span className="text-[10px] text-muted-foreground me-1">{t("مرتب‌سازی:")}</span>
                 {SORT_CHIPS.map((s) => (
                   <button
                     key={s.id}
@@ -395,7 +396,7 @@ export function ModuleMonitoringPage() {
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Icon name="chartBar" size={15} className="text-primary" />
-                <span className="text-sm font-bold">ظرف کار کارمندان {faLabel}</span>
+                <span className="text-sm font-bold">{t("ظرف کار کارمندان {p0}", { p0: faLabel })}</span>
                 <span className="text-[10px] text-muted-foreground mr-auto">
                   میله‌های قرمز = دارای آیتم تاخیری
                 </span>
@@ -422,7 +423,7 @@ export function ModuleMonitoringPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="h-[220px] grid place-items-center text-xs text-muted-foreground">
-                  داده‌ای برای نمودار
+                  {t("داده‌ای برای نمودار")}
                 </div>
               )}
             </Card>
@@ -430,9 +431,9 @@ export function ModuleMonitoringPage() {
             <Card className="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Icon name="chartLine" size={15} className="text-primary" />
-                <span className="text-sm font-bold">روند تکمیل {faLabel}</span>
+                <span className="text-sm font-bold">{t("روند تکمیل {p0}", { p0: faLabel })}</span>
                 <span className="text-[10px] text-muted-foreground mr-auto">
-                  آیتم‌ها و تسک‌های تکمیل‌شده در بازه
+                  {t("آیتم‌ها و تسک‌های تکمیل‌شده در بازه")}
                 </span>
               </div>
               {trendData.length > 0 ? (
@@ -467,7 +468,7 @@ export function ModuleMonitoringPage() {
                 </ResponsiveContainer>
               ) : (
                 <div className="h-[220px] grid place-items-center text-xs text-muted-foreground">
-                  داده‌ای برای نمودار
+                  {t("داده‌ای برای نمودار")}
                 </div>
               )}
             </Card>
@@ -489,7 +490,7 @@ function OnlineDot({ online }: { online: boolean }) {
           online ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
         )}
       />
-      {online ? "آنلاین" : "آفلاین"}
+      {online ? t("آنلاین") : t("آفلاین")}
     </span>
   );
 }
@@ -527,12 +528,12 @@ function BoardKpi({
 }
 
 function busyTone(busyUntil: string | null, todayKey: string): { cls: string; note: string; noteCls: string } {
-  if (!busyUntil) return { cls: "text-muted-foreground", note: "بدون موعد", noteCls: "text-muted-foreground" };
+  if (!busyUntil) return { cls: "text-muted-foreground", note: t("بدون موعد"), noteCls: "text-muted-foreground" };
   const diff = daysBetweenKeys(todayKey, busyUntil);
-  if (diff < 0) return { cls: "text-rose-600 dark:text-rose-400", note: `${fa(Math.abs(diff))} روز گذشته`, noteCls: "text-rose-600 dark:text-rose-400" };
-  if (diff === 0) return { cls: "text-amber-600 dark:text-amber-400", note: "موعد امروز", noteCls: "text-amber-600 dark:text-amber-400" };
-  if (diff <= 3) return { cls: "text-amber-600 dark:text-amber-400", note: `${fa(diff)} روز مانده`, noteCls: "text-amber-600 dark:text-amber-400" };
-  return { cls: "text-foreground", note: `${fa(diff)} روز مانده`, noteCls: "text-muted-foreground" };
+  if (diff < 0) return { cls: "text-rose-600 dark:text-rose-400", note: t("{p0} روز گذشته", { p0: fa(Math.abs(diff)) }), noteCls: "text-rose-600 dark:text-rose-400" };
+  if (diff === 0) return { cls: "text-amber-600 dark:text-amber-400", note: t("موعد امروز"), noteCls: "text-amber-600 dark:text-amber-400" };
+  if (diff <= 3) return { cls: "text-amber-600 dark:text-amber-400", note: t("{p0} روز مانده", { p0: fa(diff) }), noteCls: "text-amber-600 dark:text-amber-400" };
+  return { cls: "text-foreground", note: t("{p0} روز مانده", { p0: fa(diff) }), noteCls: "text-muted-foreground" };
 }
 
 function EmployeeCard({
@@ -570,24 +571,24 @@ function EmployeeCard({
         <span className="font-bold text-sm">{emp.name}</span>
         {isBusiest && (
           <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 px-2 py-0.5 text-[10px] font-bold">
-            <Icon name="alertTriangle" size={11} /> پرمشغول‌ترین
+            <Icon name="alertTriangle" size={11} /> {t("پرمشغول‌ترین")}
           </span>
         )}
         {isIdle && (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold">
-            <Icon name="checkBadge" size={11} /> خالی‌ترین
+            <Icon name="checkBadge" size={11} /> {t("خالی‌ترین")}
           </span>
         )}
         {emp.onLeaveToday && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
-            <Icon name="calendar" size={11} /> مرخصی تا {formatDayKey(emp.leaveUntil)}
+            <Icon name="calendar" size={11} /> {t("مرخصی تا {p0}", { p0: formatDayKey(emp.leaveUntil) })}
           </span>
         )}
         <button
           onClick={onOpen}
           className="ms-auto h-7 px-2.5 rounded-lg border text-[11px] font-medium flex items-center gap-1 hover:bg-accent transition shrink-0"
         >
-          <Icon name="chartColumn" size={13} /> مانیتورینگ کاربر
+          <Icon name="chartColumn" size={13} /> {t("مانیتورینگ کاربر")}
         </button>
       </div>
 
@@ -595,12 +596,12 @@ function EmployeeCard({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
         {/* ظرف کار */}
         <div className="min-w-0">
-          <div className="text-[11px] text-muted-foreground mb-1">ظرف کار</div>
+          <div className="text-[11px] text-muted-foreground mb-1">{t("ظرف کار")}</div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-2xl font-bold tabular-nums leading-none" dir="ltr">
               {fa(emp.openItems)}
             </span>
-            <span className="text-[10px] text-muted-foreground">آیتم باز</span>
+            <span className="text-[10px] text-muted-foreground">{t("آیتم باز")}</span>
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden mt-2" title={`${pct}%`}>
             <div
@@ -612,13 +613,13 @@ function EmployeeCard({
             />
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {emp.tasksOpen > 0 ? `+ ${fa(emp.tasksOpen)} تسک باز` : "بدون تسک باز"}
+            {emp.tasksOpen > 0 ? t("+ {p0} تسک باز", { p0: fa(emp.tasksOpen) }) : t("بدون تسک باز")}
           </div>
         </div>
 
         {/* تا کی کار دارد */}
         <div className="min-w-0">
-          <div className="text-[11px] text-muted-foreground mb-1">تا کی کار دارد</div>
+          <div className="text-[11px] text-muted-foreground mb-1">{t("تا کی کار دارد")}</div>
           <div className={cn("text-lg font-bold tabular-nums leading-tight", busy.cls)} dir="ltr">
             {emp.busyUntil ? formatDayKey(emp.busyUntil) : "—"}
           </div>
@@ -627,7 +628,7 @@ function EmployeeCard({
 
         {/* تاخیر */}
         <div className="min-w-0">
-          <div className="text-[11px] text-muted-foreground mb-1">تاخیر</div>
+          <div className="text-[11px] text-muted-foreground mb-1">{t("تاخیر")}</div>
           <div
             className={cn(
               "text-lg font-bold tabular-nums leading-tight",
@@ -638,23 +639,23 @@ function EmployeeCard({
             {fa(emp.delayedOpen)}
           </div>
           <div className="text-[10px] text-muted-foreground mt-1">
-            {emp.delayedOpen > 0 ? `مجموع ${fa(emp.delayedDays)} روز` : "بدون تاخیر"}
-            {emp.tasksOverdue > 0 && ` • ${fa(emp.tasksOverdue)} تسک معوق`}
+            {emp.delayedOpen > 0 ? t("مجموع {p0} روز", { p0: fa(emp.delayedDays) }) : t("بدون تاخیر")}
+            {emp.tasksOverdue > 0 && t(" • {p0} تسک معوق", { p0: fa(emp.tasksOverdue) })}
           </div>
         </div>
 
         {/* عملکرد بازه */}
         <div className="min-w-0">
-          <div className="text-[11px] text-muted-foreground mb-1">عملکرد در بازه</div>
+          <div className="text-[11px] text-muted-foreground mb-1">{t("عملکرد در بازه")}</div>
           <div className="text-lg font-bold tabular-nums leading-tight" dir="ltr">
             {fa(emp.completedInRange)}
           </div>
           <div className="text-[10px] mt-1 flex items-center gap-1.5 flex-wrap">
             {emp.lateCompletions > 0 && (
-              <span className="text-rose-600/80 dark:text-rose-400/80">{fa(emp.lateCompletions)} دیر</span>
+              <span className="text-rose-600/80 dark:text-rose-400/80">{t("{p0} دیر", { p0: fa(emp.lateCompletions) })}</span>
             )}
             {emp.tasksDoneInRange > 0 && (
-              <span className="text-muted-foreground">{fa(emp.tasksDoneInRange)} تسک</span>
+              <span className="text-muted-foreground">{t("{p0} تسک", { p0: fa(emp.tasksDoneInRange) })}</span>
             )}
             {emp.lateCompletions === 0 && emp.tasksDoneInRange === 0 && (
               <span className="text-muted-foreground">—</span>
@@ -683,7 +684,7 @@ function BoardBarTip({
     <div dir="rtl" className="rounded-lg border bg-popover px-3 py-1.5 text-xs shadow-md">
       <div className="font-bold mb-0.5">{String(label ?? "")}</div>
       <div className="tabular-nums">
-        {fa(v)} <span className="text-muted-foreground">آیتم باز</span>
+        {fa(v)} <span className="text-muted-foreground">{t("آیتم باز")}</span>
       </div>
     </div>
   );
@@ -706,7 +707,7 @@ function BoardTrendTip({
         {label ? formatDayKey(String(label)) : ""}
       </div>
       <div className="font-bold tabular-nums">
-        {fa(v)} <span className="text-muted-foreground font-normal">تکمیل</span>
+        {fa(v)} <span className="text-muted-foreground font-normal">{t("تکمیل")}</span>
       </div>
     </div>
   );

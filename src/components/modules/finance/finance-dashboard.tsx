@@ -28,6 +28,7 @@ import { formatCurrency } from "@/lib/format";
 import { formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ export function FinanceDashboard() {
   const kpis: KpiDef[] = [
     {
       key: "pending",
-      label: "هزینه‌های در انتظار تأیید",
+      label: t("هزینه‌های در انتظار تأیید"),
       icon: "clock",
       color: "amber",
       value: s.pendingCount ?? 0,
@@ -179,12 +180,12 @@ export function FinanceDashboard() {
     },
     {
       key: "costs",
-      label: "مجموع هزینه‌ها",
+      label: t("مجموع هزینه‌ها"),
       icon: "money",
       color: "rose",
       value: s.costSum ?? 0,
       isAmount: true,
-      hint: isMixed(sum?.costs.per) ? "چند-ارزی — تفکیک زیر عدد" : "هزینه‌های تأییدشده",
+      hint: isMixed(sum?.costs.per) ? t("چند-ارزی — تفکیک زیر عدد") : t("هزینه‌های تأییدشده"),
       onClick: () => {
         setBoardFilter("finance", "all-costs");
         navigate("finance", "costs");
@@ -192,31 +193,31 @@ export function FinanceDashboard() {
     },
     {
       key: "revenue",
-      label: "مجموع دریافتی‌ها",
+      label: t("مجموع دریافتی‌ها"),
       icon: "trending",
       color: "emerald",
       value: s.revenueSum ?? 0,
       isAmount: true,
-      hint: isMixed(sum?.revenue.per) ? "چند-ارزی — تفکیک زیر عدد" : "پولی که هزینه‌ها رویش حساب نشده",
+      hint: isMixed(sum?.revenue.per) ? t("چند-ارزی — تفکیک زیر عدد") : t("پولی که هزینه‌ها رویش حساب نشده"),
       onClick: () => navigate("finance", "revenues"),
     },
     {
       key: "profit",
-      label: "سود خالص",
+      label: t("سود خالص"),
       icon: "chartColumn",
       color: "teal",
       value: s.netProfit ?? 0,
       isAmount: true,
-      hint: `دریافتی − هزینه${sum ? " (معادل دیناری)" : ""}`,
+      hint: t("دریافتی − هزینه{p0}", { p0: sum ? t(" (معادل دیناری)") : "" }),
     },
     {
       key: "unsettled",
-      label: "تسویه‌نشده (بستانکار)",
+      label: t("تسویه‌نشده (بستانکار)"),
       icon: "wallet",
       color: "violet",
       value: s.unsettledSum ?? 0,
       isAmount: true,
-      hint: `${(s.unsettledCount ?? 0).toLocaleString("en-US")} سفارش با مانده${isMixed(sum?.unsettled.per) ? " — تفکیک زیر عدد" : ""}`,
+      hint: t("{p0} سفارش با مانده{p1}", { p0: (s.unsettledCount ?? 0).toLocaleString("en-US"), p1: isMixed(sum?.unsettled.per) ? t(" — تفکیک زیر عدد") : "" }),
       onClick: () => navigate("finance", "unsettled"),
     },
   ];
@@ -246,7 +247,7 @@ export function FinanceDashboard() {
     mutationFn: (name: string) =>
       api("/api/expense-types", { method: "POST", body: JSON.stringify({ name }) }),
     onSuccess: () => {
-      toast.success("دستهٔ هزینه اضافه شد");
+      toast.success(t("دستهٔ هزینه اضافه شد"));
       setNewCategory("");
       refetchTypes();
       invalidate(["finance", "expense-types"]);
@@ -258,7 +259,7 @@ export function FinanceDashboard() {
   const deleteCategoryMut = useMutation({
     mutationFn: (id: string) => api(`/api/expense-types/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("دسته حذف شد");
+      toast.success(t("دسته حذف شد"));
       refetchTypes();
       invalidate(["finance", "expense-types"]);
     },
@@ -268,7 +269,7 @@ export function FinanceDashboard() {
   return (
     <div className="space-y-5">
       {/* Header + فیلتر سراسری */}
-      <PageHeader title="داشبورد مالی" icon="wallet" actions={
+      <PageHeader title={t("داشبورد مالی")} icon="wallet" actions={
         <div className="flex items-center gap-2">
           <TimeRangePicker value={range} onChange={setRange} compact />
           <Button
@@ -276,7 +277,7 @@ export function FinanceDashboard() {
             size="sm"
             className="gap-1.5"
             onClick={() => qc.invalidateQueries({ queryKey: ["finance"] })}
-            title="به‌روزرسانی"
+            title={t("به‌روزرسانی")}
           >
             <Icon name="refresh" size={14} className={isLoading ? "animate-spin" : ""} />
           </Button>
@@ -301,16 +302,16 @@ export function FinanceDashboard() {
               <Icon name="plusCircle" size={17} />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">ثبت هزینه جدید</h3>
+              <h3 className="font-semibold text-sm">{t("ثبت هزینه جدید")}</h3>
               <p className="text-[11px] text-muted-foreground">
                 {costMode === "order"
-                  ? "هزینه روی سفارش — با گزینهٔ نشستن در فاکتور"
-                  : "هزینهٔ آزاد — کرایه، حقوق و هزینه‌های جاری بدون سفارش"}
+                  ? t("هزینه روی سفارش — با گزینهٔ نشستن در فاکتور")
+                  : t("هزینهٔ آزاد — کرایه، حقوق و هزینه‌های جاری بدون سفارش")}
               </p>
             </div>
           </div>
           {/* سوییچ حالت */}
-          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="نوع هزینه">
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label={t("نوع هزینه")}>
             <button
               role="radio"
               aria-checked={costMode === "order"}
@@ -323,7 +324,7 @@ export function FinanceDashboard() {
               )}
             >
               <Icon name="orders" size={13} />
-              روی سفارش
+              {t("روی سفارش")}
             </button>
             <button
               role="radio"
@@ -337,7 +338,7 @@ export function FinanceDashboard() {
               )}
             >
               <Icon name="coins" size={13} />
-              هزینهٔ آزاد
+              {t("هزینهٔ آزاد")}
             </button>
           </div>
         </div>
@@ -366,9 +367,9 @@ export function FinanceDashboard() {
               <Icon name="grid" size={16} />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">دسته‌بندی هزینه‌های آزاد</h3>
+              <h3 className="font-semibold text-sm">{t("دسته‌بندی هزینه‌های آزاد")}</h3>
               <p className="text-[11px] text-muted-foreground">
-                جمع هر دسته در بازهٔ {rangeLabel} — حقوق پیش‌فرض سیستم است
+                {t("جمع هر دسته در بازهٔ {p0} — حقوق پیش‌فرض سیستم است", { p0: rangeLabel })}
               </p>
             </div>
           </div>
@@ -380,7 +381,7 @@ export function FinanceDashboard() {
               onClick={() => setShowCatManage((v) => !v)}
             >
               <Icon name={showCatManage ? "arrowUp" : "gear"} size={14} />
-              {showCatManage ? "بستن مدیریت" : "مدیریت دسته‌ها"}
+              {showCatManage ? t("بستن مدیریت") : t("مدیریت دسته‌ها")}
             </Button>
             <Button
               size="sm"
@@ -391,7 +392,7 @@ export function FinanceDashboard() {
               }}
             >
               <Icon name="checkList" size={14} />
-              تاریخچه هزینه‌ها
+              {t("تاریخچه هزینه‌ها")}
             </Button>
           </div>
         </div>
@@ -425,9 +426,9 @@ export function FinanceDashboard() {
                   {cat.isDefault ? (
                     <span
                       className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0"
-                      title="دستهٔ پیش‌فرض سیستم — قابل حذف نیست"
+                      title={t("دستهٔ پیش‌فرض سیستم — قابل حذف نیست")}
                     >
-                      پیش‌فرض
+                      {t("پیش‌فرض")}
                     </span>
                   ) : showCatManage ? (
                     <button
@@ -437,7 +438,7 @@ export function FinanceDashboard() {
                       }}
                       disabled={deleteCategoryMut.isPending}
                       className="text-muted-foreground hover:text-rose-600 transition shrink-0"
-                      title="حذف دسته"
+                      title={t("حذف دسته")}
                     >
                       <Icon name="trash" size={12} />
                     </button>
@@ -452,13 +453,13 @@ export function FinanceDashboard() {
                   )}
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {cat.count.toLocaleString("en-US")} ثبت در {rangeLabel}
+                  {t("{p0} ثبت در {p1}", { p0: cat.count.toLocaleString("en-US"), p1: rangeLabel })}
                 </div>
               </Card>
             ))}
             {categories.length === 0 && (
               <div className="col-span-full text-xs text-muted-foreground text-center py-4">
-                دسته‌ای یافت نشد
+                {t("دسته‌ای یافت نشد")}
               </div>
             )}
           </div>
@@ -469,7 +470,7 @@ export function FinanceDashboard() {
               <Input
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="نام دستهٔ جدید… مثلاً تبلیغات"
+                placeholder={t("نام دستهٔ جدید… مثلاً تبلیغات")}
                 className="w-64"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newCategory.trim()) addCategoryMut.mutate(newCategory.trim());
@@ -482,11 +483,11 @@ export function FinanceDashboard() {
                 onClick={() => addCategoryMut.mutate(newCategory.trim())}
               >
                 <Icon name={addCategoryMut.isPending ? "loading" : "plus"} size={14} className={addCategoryMut.isPending ? "animate-spin" : ""} />
-                افزودن دسته
+                {t("افزودن دسته")}
               </Button>
               <span className="text-[11px] text-muted-foreground">
-                دسته‌های پیش‌فرض (حقوق، اجاره و…) قابل حذف نیستند — «حقوق» از سیستم
-                حقوق‌ودستمزد تغذیه می‌شود
+                {t("دسته‌های پیش‌فرض (حقوق، اجاره و…) قابل حذف نیستند — «حقوق» از سیستم")}
+                {t("حقوق‌ودستمزد تغذیه می‌شود")}
               </span>
             </div>
           )}

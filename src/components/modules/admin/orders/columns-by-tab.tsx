@@ -18,6 +18,7 @@ import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import type { OrderTableTab } from "./order-table-tabs";
+import { t } from "@/lib/i18n";
 
 /** حداقل شکل سفارشی که ستون‌های تب‌ها به آن نیاز دارند */
 export type OrderTabItem = {
@@ -76,7 +77,7 @@ function commonColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
   return [
     {
       accessorKey: "number",
-      header: "شماره",
+      header: t("شماره"),
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold">#{row.original.number}</span>
       ),
@@ -86,7 +87,7 @@ function commonColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "customer",
       accessorFn: (r) => r.customer?.name ?? "",
-      header: "مشتری",
+      header: t("مشتری"),
       cell: ({ row }) => (
         <div className="min-w-0">
           <div className="font-medium truncate">
@@ -112,7 +113,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "itemCount",
       accessorFn: (r) => r.items?.length ?? 0,
-      header: "تعداد آیتم",
+      header: t("تعداد آیتم"),
       cell: ({ row }) => {
         const n = row.original.items?.length ?? 0;
         return n > 0 ? (
@@ -129,7 +130,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     },
     {
       id: "itemChips",
-      header: "آیتم‌ها",
+      header: t("آیتم‌ها"),
       cell: ({ row }) => {
         const items = row.original.items ?? [];
         return (
@@ -161,7 +162,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
       id: "designCount",
       accessorFn: (r) =>
         (r.items ?? []).filter((it) => it.stage === "design").length,
-      header: "در طراحی",
+      header: t("در طراحی"),
       cell: ({ row }) => {
         const n =
           (row.original.items ?? []).filter((it) => it.stage === "design")
@@ -169,7 +170,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
         return n > 0 ? (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 flex items-center gap-0.5 w-fit">
             <Icon name="design" size={9} />
-            {fmtNum(n)} در طراحی
+            {t("{p0} در طراحی", { p0: fmtNum(n) })}
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">—</span>
@@ -180,7 +181,7 @@ function itemColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     },
     {
       accessorKey: "totalAmount",
-      header: "مبلغ کل",
+      header: t("مبلغ کل"),
       cell: ({ row }) => <Amount value={row.original.totalAmount} />,
       enableSorting: true,
       size: 130,
@@ -195,7 +196,7 @@ function costColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "costsCount",
       accessorFn: (r) => r.costsCount ?? 0,
-      header: "تعداد هزینه",
+      header: t("تعداد هزینه"),
       cell: ({ row }) => {
         const n = row.original.costsCount ?? 0;
         return n > 0 ? (
@@ -214,7 +215,7 @@ function costColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "costsTotal",
       accessorFn: (r) => r.costsTotal ?? 0,
-      header: "جمع هزینه",
+      header: t("جمع هزینه"),
       cell: ({ row }) => {
         const v = row.original.costsTotal ?? 0;
         return v > 0 ? <Amount value={v} /> : <Amount value={v} tone="muted" />;
@@ -226,7 +227,7 @@ function costColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "costsApproved",
       accessorFn: (r) => r.costsApproved ?? 0,
-      header: "تاییدشده",
+      header: t("تاییدشده"),
       cell: ({ row }) => (
         <Amount
           value={row.original.costsApproved ?? 0}
@@ -240,7 +241,7 @@ function costColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "costsPending",
       accessorFn: (r) => r.costsPending ?? 0,
-      header: "در انتظار",
+      header: t("در انتظار"),
       cell: ({ row }) => (
         <Amount
           value={row.original.costsPending ?? 0}
@@ -255,7 +256,7 @@ function costColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
       // سود برآوردی = مبلغ کل − هزینه‌های تاییدشده
       id: "estimatedProfit",
       accessorFn: (r) => (r.totalAmount ?? 0) - (r.costsApproved ?? 0),
-      header: "سود برآوردی",
+      header: t("سود برآوردی"),
       cell: ({ row }) => {
         const v = (row.original.totalAmount ?? 0) - (row.original.costsApproved ?? 0);
         return (
@@ -275,7 +276,7 @@ function attachmentColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "attachmentsCount",
       accessorFn: (r) => r.attachmentsCount ?? 0,
-      header: "تعداد پیوست",
+      header: t("تعداد پیوست"),
       cell: ({ row }) => {
         const n = row.original.attachmentsCount ?? 0;
         return n > 0 ? (
@@ -294,7 +295,7 @@ function attachmentColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "costsTotal",
       accessorFn: (r) => r.costsTotal ?? 0,
-      header: "جمع هزینه",
+      header: t("جمع هزینه"),
       cell: ({ row }) => {
         const v = row.original.costsTotal ?? 0;
         return v > 0 ? <Amount value={v} /> : <Amount value={v} tone="muted" />;
@@ -305,7 +306,7 @@ function attachmentColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     },
     {
       accessorKey: "totalAmount",
-      header: "مبلغ کل",
+      header: t("مبلغ کل"),
       cell: ({ row }) => <Amount value={row.original.totalAmount} />,
       enableSorting: true,
       size: 130,
@@ -320,7 +321,7 @@ function noteColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
     {
       id: "orderNote",
       accessorFn: (r) => r.note ?? "",
-      header: "یادداشت سفارش",
+      header: t("یادداشت سفارش"),
       cell: ({ row }) => {
         const note = row.original.note;
         return note ? (
@@ -338,7 +339,7 @@ function noteColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
       // شمارش آیتم‌های دارای یادداشت + گزیدهٔ اولین
       id: "itemNotes",
       accessorFn: (r) => (r.items ?? []).filter((it) => it.note).length,
-      header: "یادداشت آیتم‌ها",
+      header: t("یادداشت آیتم‌ها"),
       cell: ({ row }) => {
         const withNotes = (row.original.items ?? []).filter((it) => it.note);
         if (withNotes.length === 0)
@@ -347,7 +348,7 @@ function noteColumns<T extends OrderTabRow>(): ColumnDef<T>[] {
           <div className="min-w-0 max-w-[260px]">
             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">
               <Icon name="info" size={9} />
-              {fmtNum(withNotes.length)} یادداشت
+              {t("{p0} یادداشت", { p0: fmtNum(withNotes.length) })}
             </span>
             <div className="text-xs text-muted-foreground truncate mt-0.5">
               {withNotes[0]?.note}

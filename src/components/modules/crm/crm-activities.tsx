@@ -38,6 +38,7 @@ import {
   ACTIVITY_META,
 } from "./crm-types";
 import { ActivityFormDialog } from "./activity-form-dialog";
+import { t } from "@/lib/i18n";
 
 type CustomerOption = { id: string; name: string };
 
@@ -88,7 +89,7 @@ export function CRMActivities() {
     mutationFn: (id: string) => api(`/api/activities/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["activities", "crm-dashboard", "customers"]);
-      toast.success("فعالیت حذف شد");
+      toast.success(t("فعالیت حذف شد"));
       setDeleteTarget(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -131,12 +132,12 @@ export function CRMActivities() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="فعالیت‌ها"
-        description="تماس‌ها، جلسات و تعاملات با مشتریان"
+        title={t("فعالیت‌ها")}
+        description={t("تماس‌ها، جلسات و تعاملات با مشتریان")}
         icon="task"
         actions={
           <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Icon name="plus" size={16} /> ثبت فعالیت
+            <Icon name="plus" size={16} /> {t("ثبت فعالیت")}
           </Button>
         }
       />
@@ -174,10 +175,10 @@ export function CRMActivities() {
             onValueChange={(v) => setCustomerFilter(v)}
           >
             <SelectTrigger className="w-[180px] h-9">
-              <SelectValue placeholder="همه مشتریان" />
+              <SelectValue placeholder={t("همه مشتریان")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">همه مشتریان</SelectItem>
+              <SelectItem value="all">{t("همه مشتریان")}</SelectItem>
               {customers.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
@@ -195,12 +196,12 @@ export function CRMActivities() {
 
           {hasFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
-              <Icon name="cancel" size={13} /> پاک فیلترها
+              <Icon name="cancel" size={13} /> {t("پاک فیلترها")}
             </Button>
           )}
 
           <div className="text-xs text-muted-foreground mr-auto">
-            {activities.length} فعالیت
+            {t("{p0} فعالیت", { p0: activities.length })}
           </div>
         </div>
       </Card>
@@ -210,18 +211,18 @@ export function CRMActivities() {
         <Card className="p-0">
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="loading" size={28} className="animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+            <span className="text-sm text-muted-foreground">{t("در حال بارگذاری...")}</span>
           </div>
         </Card>
       ) : activities.length === 0 ? (
         <Card className="p-0">
           <EmptyState
             icon="task"
-            title="فعالیتی یافت نشد"
-            description={hasFilters ? "فیلترها را تغییر دهید" : "اولین فعالیت خود را ثبت کنید"}
+            title={t("فعالیتی یافت نشد")}
+            description={hasFilters ? t("فیلترها را تغییر دهید") : t("اولین فعالیت خود را ثبت کنید")}
             action={
               <Button onClick={() => setDialogOpen(true)} className="gap-2">
-                <Icon name="plus" size={16} /> ثبت فعالیت
+                <Icon name="plus" size={16} /> {t("ثبت فعالیت")}
               </Button>
             }
           />
@@ -235,7 +236,7 @@ export function CRMActivities() {
                 <span className="text-xs font-semibold text-muted-foreground">
                   {formatDateTime(dateKey).split(" ")[0]}
                 </span>
-                <span className="text-[10px] text-muted-foreground">({items.length} فعالیت)</span>
+                <span className="text-[10px] text-muted-foreground">{t("({p0} فعالیت)", { p0: items.length })}</span>
               </div>
               <div className="relative">
                 <div className="absolute right-[31px] top-3 bottom-3 w-px bg-border" />
@@ -289,7 +290,7 @@ export function CRMActivities() {
                               size="icon"
                               className="size-7 opacity-0 group-hover:opacity-100 hover:text-rose-600 transition"
                               onClick={() => setDeleteTarget(a)}
-                              title="حذف"
+                              title={t("حذف")}
                             >
                               <Icon name="trash" size={14} />
                             </Button>
@@ -318,18 +319,18 @@ export function CRMActivities() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف فعالیت</AlertDialogTitle>
+            <AlertDialogTitle>{t("حذف فعالیت")}</AlertDialogTitle>
             <AlertDialogDescription>
-              آیا از حذف فعالیت «{deleteTarget?.title}» مطمئن هستید؟
+              {t("آیا از حذف فعالیت «{p0}» مطمئن هستید؟", { p0: deleteTarget?.title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
-              حذف
+              {t("حذف")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -337,7 +338,7 @@ export function CRMActivities() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر 30 ثانیه
+        {t("به‌روزرسانی خودکار هر 30 ثانیه")}
       </div>
     </div>
   );

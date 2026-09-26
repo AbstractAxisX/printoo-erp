@@ -14,6 +14,7 @@ import { useAppStore } from "@/stores/app-store";
 import { MODULES, type ModuleKey } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── تنظیمات سیستم (ماژول «مدیر سیستم») — Phase 13 ──────────────
 //
@@ -69,8 +70,8 @@ export function SysadminSettingsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تنظیمات سیستم"
-        description="نمای کلی سیستم، دسترسی‌ها، کاربران دمو و شمارنده‌ها — ماژول مدیر سیستم"
+        title={t("تنظیمات سیستم")}
+        description={t("نمای کلی سیستم، دسترسی‌ها، کاربران دمو و شمارنده‌ها — ماژول مدیر سیستم")}
         icon="settings"
         actions={
           <div className="flex gap-2">
@@ -78,13 +79,13 @@ export function SysadminSettingsPage() {
               onClick={() => navigate("sysadmin", "users")}
               className="h-9 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 hover:bg-accent transition"
             >
-              <Icon name="userGroup" size={14} /> مانیتورینگ کاربران
+              <Icon name="userGroup" size={14} /> {t("مانیتورینگ کاربران")}
             </button>
             <button
               onClick={() => navigate("sysadmin", "modules")}
               className="h-9 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 hover:bg-accent transition"
             >
-              <Icon name="chartColumn" size={14} /> مانیتورینگ ماژول
+              <Icon name="chartColumn" size={14} /> {t("مانیتورینگ ماژول")}
             </button>
           </div>
         }
@@ -93,24 +94,24 @@ export function SysadminSettingsPage() {
       {isLoading ? (
         <Card className="p-10 grid place-items-center text-muted-foreground text-sm">
           <Icon name="spinner" size={20} className="animate-spin mb-2" />
-          در حال بارگذاری…
+          {t("در حال بارگذاری…")}
         </Card>
       ) : !data ? (
         <EmptyState
           icon="shield"
-          title="دسترسی محدود"
-          description="تنظیمات سیستم مخصوص مدیر سیستم (master) است."
+          title={t("دسترسی محدود")}
+          description={t("تنظیمات سیستم مخصوص مدیر سیستم (master) است.")}
         />
       ) : (
         <>
           {/* KPI ها */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiCard icon="users" label="کاربران" value={data.summary.total} tone="primary" />
-            <KpiCard icon="checkCircle" label="فعال" value={data.summary.active} tone="emerald" />
-            <KpiCard icon="bell" label="آنلاین الان" value={data.summary.onlineNow} tone="sky" />
+            <KpiCard icon="users" label={t("کاربران")} value={data.summary.total} tone="primary" />
+            <KpiCard icon="checkCircle" label={t("فعال")} value={data.summary.active} tone="emerald" />
+            <KpiCard icon="bell" label={t("آنلاین الان")} value={data.summary.onlineNow} tone="sky" />
             <KpiCard
               icon="calendar"
-              label="در مرخصی امروز"
+              label={t("در مرخصی امروز")}
               value={data.summary.onLeaveNow}
               tone="amber"
             />
@@ -123,9 +124,9 @@ export function SysadminSettingsPage() {
           <Card className="p-0 overflow-hidden">
             <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
               <Icon name="grid" size={15} className="text-primary" />
-              <span className="text-sm font-bold">ماژول‌های سیستم و اعضا</span>
+              <span className="text-sm font-bold">{t("ماژول‌های سیستم و اعضا")}</span>
               <span className="text-[10px] text-muted-foreground mr-auto">
-                هر کاربر می‌تواند چند ماژول داشته باشد (مثلاً کنترل کیفی + چاپ)
+                {t("هر کاربر می‌تواند چند ماژول داشته باشد (مثلاً کنترل کیفی + چاپ)")}
               </span>
             </div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -150,11 +151,11 @@ export function SysadminSettingsPage() {
                             : "bg-muted text-muted-foreground"
                         )}
                       >
-                        {count.toLocaleString("en-US")} نفر
+                        {t("{p0} نفر", { p0: count.toLocaleString("en-US") })}
                       </span>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-1">
-                      {count > 0 ? "مشاهدهٔ برد ماژول ←" : "کاربری ندارد"}
+                      {count > 0 ? t("مشاهدهٔ برد ماژول ←") : t("کاربری ندارد")}
                     </div>
                   </button>
                 );
@@ -166,25 +167,25 @@ export function SysadminSettingsPage() {
           <Card className="p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-bold">
               <Icon name="shieldKey" size={16} className="text-primary" />
-              سطح‌های دسترسی
+              {t("سطح‌های دسترسی")}
             </div>
             <ul className="text-xs text-muted-foreground leading-relaxed space-y-1 list-disc pr-4">
               <li>
-                <b>مدیر سیستم (master):</b> صاحب سیستم — همهٔ ماژول‌ها + مانیتورینگ + تنظیمات.
+                <b>{t("مدیر سیستم (master):")}</b> {t("صاحب سیستم — همهٔ ماژول‌ها + مانیتورینگ + تنظیمات.")}
               </li>
               <li>
-                <b>مدیر داخلی (ماژول ادمین):</b> عملیات ثبت سفارش/تسک + دید کامل بُردها + مانیتورینگ.
+                <b>{t("مدیر داخلی (ماژول ادمین):")}</b> {t("عملیات ثبت سفارش/تسک + دید کامل بُردها + مانیتورینگ.")}
               </li>
               <li>
-                <b>کاربران ماژول‌دار:</b> فقط ماژول‌های تیک‌خورده — سفارش فقط در پنل مجریِ همان آیتم می‌آید.
+                <b>{t("کاربران ماژول‌دار:")}</b> {t("فقط ماژول‌های تیک‌خورده — سفارش فقط در پنل مجریِ همان آیتم می‌آید.")}
               </li>
               <li>
-                <b>کاربر دمو:</b> همهٔ ماژول‌ها حتی ادمین سراسری را می‌بیند — اما فقط مشاهده؛ هیچ
-                ثبت/ویرایش/حذفی ممکن نیست (هم در مرورگر بلاک می‌شود هم در سرور).
+                <b>{t("کاربر دمو:")}</b> {t("همهٔ ماژول‌ها حتی ادمین سراسری را می‌بیند — اما فقط مشاهده؛ هیچ")}
+                {t("ثبت/ویرایش/حذفی ممکن نیست (هم در مرورگر بلاک می‌شود هم در سرور).")}
               </li>
               <li>
-                <b>هر آیتم سفارش مجری خودش را دارد</b> (طراح/چاپ) — تغییر مجری، سفارش را از پنل قبلی
-                برمی‌دارد و به کاربر جدید اعلان می‌دهد.
+                <b>{t("هر آیتم سفارش مجری خودش را دارد")}</b> {t("(طراح/چاپ) — تغییر مجری، سفارش را از پنل قبلی")}
+                {t("برمی‌دارد و به کاربر جدید اعلان می‌دهد.")}
               </li>
             </ul>
           </Card>
@@ -227,7 +228,7 @@ function DemoUsersSection() {
   const expireDemo = useMutation({
     mutationFn: (id: string) => api(`/api/users/${id}/demo-expire`, { method: "POST" }),
     onSuccess: () => {
-      toast.success("حساب دمو اکسپایر شد — کاربر در اولین حرکت بعدی بیرون می‌رود");
+      toast.success(t("حساب دمو اکسپایر شد — کاربر در اولین حرکت بعدی بیرون می‌رود"));
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -239,9 +240,9 @@ function DemoUsersSection() {
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("کپی شد");
+      toast.success(t("کپی شد"));
     } catch {
-      toast.error("کپی نشد — دستی انتخاب و کپی کنید");
+      toast.error(t("کپی نشد — دستی انتخاب و کپی کنید"));
     }
   };
 
@@ -249,12 +250,12 @@ function DemoUsersSection() {
     <Card className="p-0 overflow-hidden" data-guide="demo-users-card">
       <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2 flex-wrap">
         <Icon name="eye" size={15} className="text-amber-500" />
-        <span className="text-sm font-bold">کاربران دمو (فقط مشاهده)</span>
+        <span className="text-sm font-bold">{t("کاربران دمو (فقط مشاهده)")}</span>
         <span className="text-[10px] text-muted-foreground">
-          دمو همهٔ ماژول‌ها را می‌بیند — حتی ادمین سراسری — اما هیچ تغییری نمی‌تواند بدهد
+          {t("دمو همهٔ ماژول‌ها را می‌بیند — حتی ادمین سراسری — اما هیچ تغییری نمی‌تواند بدهد")}
         </span>
         <span className="mr-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-          {activeDemos.toLocaleString("en-US")} دموی فعال
+          {t("{p0} دموی فعال", { p0: activeDemos.toLocaleString("en-US") })}
         </span>
       </div>
 
@@ -262,13 +263,13 @@ function DemoUsersSection() {
         {/* ساخت دموی جدید */}
         <div className="rounded-xl border border-dashed p-3 bg-muted/20 space-y-2" data-guide="demo-create-form">
           <div className="text-[11px] font-bold flex items-center gap-1.5">
-            <Icon name="add" size={13} /> ساخت دموی جدید
+            <Icon name="add" size={13} /> {t("ساخت دموی جدید")}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="برچسب دلخواه (اختیاری — مثلاً: نمایش به مشتری)"
+              placeholder={t("برچسب دلخواه (اختیاری — مثلاً: نمایش به مشتری)")}
               className="h-8 flex-1 min-w-48 text-xs"
             />
             <Button
@@ -282,22 +283,22 @@ function DemoUsersSection() {
               ) : (
                 <Icon name="add" size={14} />
               )}
-              ساخت دموی جدید
+              {t("ساخت دموی جدید")}
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            نام کاربری و رمز به‌صورت خودکار ساخته می‌شود و فقط یک بار نمایش داده خواهد شد — همان لحظه کپی کنید.
+            {t("نام کاربری و رمز به‌صورت خودکار ساخته می‌شود و فقط یک بار نمایش داده خواهد شد — همان لحظه کپی کنید.")}
           </p>
         </div>
 
         {/* فهرست دموها */}
         {isLoading ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
-            <Icon name="spinner" size={16} className="animate-spin inline ml-1" /> در حال بارگذاری…
+            <Icon name="spinner" size={16} className="animate-spin inline ml-1" /> {t("در حال بارگذاری…")}
           </div>
         ) : demos.length === 0 ? (
           <div className="py-6 text-center text-xs text-muted-foreground">
-            هنوز کاربر دمویی ساخته نشده است — با دکمهٔ بالا اولین دمو را بسازید
+            {t("هنوز کاربر دمویی ساخته نشده است — با دکمهٔ بالا اولین دمو را بسازید")}
           </div>
         ) : (
           <div className="space-y-2">
@@ -324,11 +325,11 @@ function DemoUsersSection() {
                     <span className="text-xs font-semibold truncate">{d.name}</span>
                     {d.expired ? (
                       <span className="rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 px-2 py-0.5 text-[10px] font-bold shrink-0">
-                        منقضی‌شده
+                        {t("منقضی‌شده")}
                       </span>
                     ) : (
                       <span className="rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold shrink-0">
-                        فعال
+                        {t("فعال")}
                       </span>
                     )}
                   </div>
@@ -336,8 +337,8 @@ function DemoUsersSection() {
                     {d.email}
                   </div>
                   <div className="text-[10px] text-muted-foreground/80">
-                    ساخته‌شده: {formatDate(d.createdAt)}
-                    {d.lastLoginAt ? ` • آخرین ورود: ${formatDate(d.lastLoginAt, true)}` : " • هنوز وارد نشده"}
+                    {t("ساخته‌شده: {p0}", { p0: formatDate(d.createdAt) })}
+                    {d.lastLoginAt ? t(" • آخرین ورود: {p0}", { p0: formatDate(d.lastLoginAt, true) }) : t(" • هنوز وارد نشده")}
                   </div>
                 </div>
                 {!d.expired && (
@@ -349,7 +350,7 @@ function DemoUsersSection() {
                     onClick={() => expireDemo.mutate(d.id)}
                   >
                     <Icon name="lock" size={12} />
-                    اکسپایر
+                    {t("اکسپایر")}
                   </Button>
                 )}
               </div>
@@ -364,11 +365,11 @@ function DemoUsersSection() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Icon name="checkCircle" size={18} className="text-emerald-500" />
-              کاربر دمو ساخته شد
+              {t("کاربر دمو ساخته شد")}
             </DialogTitle>
             <DialogDescription>
-              نام کاربری و رمز فقط همین یک بار نمایش داده می‌شود — الان کپی کنید و برای کسی که قرار است
-              سیستم را فقط ببیند بفرستید.
+              {t("نام کاربری و رمز فقط همین یک بار نمایش داده می‌شود — الان کپی کنید و برای کسی که قرار است")}
+              {t("سیستم را فقط ببیند بفرستید.")}
             </DialogDescription>
           </DialogHeader>
           {creds && (
@@ -376,30 +377,30 @@ function DemoUsersSection() {
               <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[10px] text-muted-foreground mb-0.5">نام کاربری (ایمیل)</div>
+                    <div className="text-[10px] text-muted-foreground mb-0.5">{t("نام کاربری (ایمیل)")}</div>
                     <div className="text-xs font-mono font-bold truncate" dir="ltr">{creds.email}</div>
                   </div>
                   <Button variant="outline" size="sm" className="h-7 shrink-0" onClick={() => copy(creds.email)}>
-                    <Icon name="copy" size={12} /> کپی
+                    <Icon name="copy" size={12} /> {t("کپی")}
                   </Button>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[10px] text-muted-foreground mb-0.5">رمز عبور</div>
+                    <div className="text-[10px] text-muted-foreground mb-0.5">{t("رمز عبور")}</div>
                     <div className="text-xs font-mono font-bold truncate" dir="ltr">{creds.password}</div>
                   </div>
                   <Button variant="outline" size="sm" className="h-7 shrink-0" onClick={() => copy(creds.password)}>
-                    <Icon name="copy" size={12} /> کپی
+                    <Icon name="copy" size={12} /> {t("کپی")}
                   </Button>
                 </div>
               </div>
               <div className="flex items-start gap-2 rounded-lg border border-dashed p-2.5 text-[11px] text-muted-foreground">
                 <Icon name="info" size={14} className="shrink-0 mt-0.5" />
-                این حساب همهٔ ماژول‌ها را می‌بیند ولی فقط مشاهده‌گر است؛ هر وقت خواستید از همان
-                لیست بالا دکمهٔ «اکسپایر» را بزنید.
+                {t("این حساب همهٔ ماژول‌ها را می‌بیند ولی فقط مشاهده‌گر است؛ هر وقت خواستید از همان")}
+                {t("لیست بالا دکمهٔ «اکسپایر» را بزنید.")}
               </div>
               <Button className="w-full" onClick={() => setCredsOpen(false)}>
-                متوجه شدم
+                {t("متوجه شدم")}
               </Button>
             </div>
           )}

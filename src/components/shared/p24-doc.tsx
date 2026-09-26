@@ -16,6 +16,7 @@
 import * as React from "react";
 import { COMPANY, CURRENCY } from "@/lib/constants";
 import { CURRENCIES, parseCurrency, type Currency } from "@/lib/money";
+import { t } from "@/lib/i18n";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n || 0);

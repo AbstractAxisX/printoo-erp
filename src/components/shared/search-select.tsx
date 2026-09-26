@@ -5,14 +5,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 export type SearchOption = { value: string; label: string; sub?: string };
 
 export function SearchSelect({
   value,
   onChange,
-  placeholder = "انتخاب کنید...",
-  searchPlaceholder = "جستجو...",
+  placeholder = t("انتخاب کنید..."),
+  searchPlaceholder = t("جستجو..."),
   options,
   className,
   allowClear = true,
@@ -50,7 +51,7 @@ export function SearchSelect({
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList className="max-h-60 scrollbar-thin">
-            <CommandEmpty>نتیجه‌ای یافت نشد</CommandEmpty>
+            <CommandEmpty>{t("نتیجه‌ای یافت نشد")}</CommandEmpty>
             <CommandGroup>
               {options.map((o) => (
                 <CommandItem
@@ -72,7 +73,7 @@ export function SearchSelect({
         {allowClear && value && (
           <div className="border-t p-1">
             <button onClick={() => { onChange(null); setOpen(false); }} className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 flex items-center justify-center gap-1">
-              <Icon name="cancel" size={12} /> پاک کردن
+              <Icon name="cancel" size={12} /> {t("پاک کردن")}
             </button>
           </div>
         )}

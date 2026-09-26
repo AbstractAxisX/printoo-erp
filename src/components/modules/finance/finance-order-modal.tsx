@@ -31,6 +31,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { PRIORITY, ITEM_STAGE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -105,18 +106,18 @@ type FinanceOrder = {
 };
 
 const MODULE_LABELS: Record<string, string> = {
-  print: "چاپ",
-  material: "متریال",
-  warehouse: "انبار",
-  logistics: "لجستیک",
-  finance: "مالی",
+  print: t("چاپ"),
+  material: t("متریال"),
+  warehouse: t("انبار"),
+  logistics: t("لجستیک"),
+  finance: t("مالی"),
 };
 
 const RM_MODULE: Record<string, { label: string; color: string; icon: IconName }> = {
-  finance: { label: "مالی", color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", icon: "wallet" },
-  admin: { label: "ادمین", color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", icon: "dashboard" },
-  logistics: { label: "لجستیک", color: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", icon: "truck" },
-  other: { label: "سایر", color: "bg-muted text-muted-foreground", icon: "info" },
+  finance: { label: t("مالی"), color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", icon: "wallet" },
+  admin: { label: t("ادمین"), color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", icon: "dashboard" },
+  logistics: { label: t("لجستیک"), color: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", icon: "truck" },
+  other: { label: t("سایر"), color: "bg-muted text-muted-foreground", icon: "info" },
 };
 
 const STAGE_COLOR: Record<string, string> = {
@@ -140,9 +141,9 @@ const COST_MODULE_COLOR: Record<string, string> = {
 };
 
 const COST_STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending: { label: "در انتظار", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  approved: { label: "تأیید", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  rejected: { label: "رد", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  pending: { label: t("در انتظار"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  approved: { label: t("تأیید"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: t("رد"), cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
 };
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -190,7 +191,7 @@ export function FinanceOrderModal({
         body: JSON.stringify({ paidAmount: paid }),
       }),
     onSuccess: () => {
-      toast.success("پیش‌پرداخت ویرایش شد — تغییرات در فاکتور/دفتر دریافتی ثبت شد");
+      toast.success(t("پیش‌پرداخت ویرایش شد — تغییرات در فاکتور/دفتر دریافتی ثبت شد"));
       setEditPi(null);
       invalidate(["orders", "revenues", "finance", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["order", orderId] });
@@ -206,7 +207,7 @@ export function FinanceOrderModal({
         body: JSON.stringify({ paidAmount: paid }),
       }),
     onSuccess: () => {
-      toast.success("پرداختی فاکتور ویرایش شد — پیش‌فاکتورها سینک شدند");
+      toast.success(t("پرداختی فاکتور ویرایش شد — پیش‌فاکتورها سینک شدند"));
       setEditInv(false);
       invalidate(["orders", "revenues", "finance", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["order", orderId] });
@@ -219,18 +220,18 @@ export function FinanceOrderModal({
     mutationFn: () => {
       const items = [
         ...(order?.items ?? []).map((it) => ({
-          name: it.product?.name ?? "آیتم",
+          name: it.product?.name ?? t("آیتم"),
           quantity: it.quantity,
-          unit: it.product?.unit ?? "عدد",
+          unit: it.product?.unit ?? t("عدد"),
           unitPrice: it.quantity > 0 ? it.totalAmount / it.quantity : 0,
           discount: 0,
         })),
         ...(order?.materialCosts ?? [])
           .filter((c) => c.includeInInvoice && c.status !== "rejected")
           .map((c) => ({
-            name: c.title ?? "هزینهٔ اضافی",
+            name: c.title ?? t("هزینهٔ اضافی"),
             quantity: 1,
-            unit: "عدد",
+            unit: t("عدد"),
             unitPrice: c.amount,
             discount: 0,
           })),
@@ -246,7 +247,7 @@ export function FinanceOrderModal({
       });
     },
     onSuccess: () => {
-      toast.success("فاکتور نهایی صادر شد");
+      toast.success(t("فاکتور نهایی صادر شد"));
       invalidate(["orders", "finance"]);
       qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
@@ -258,15 +259,16 @@ export function FinanceOrderModal({
     mutationFn: (total: number) =>
       api<{ diff: number; totalAfter: number }>(`/api/orders/${orderId}/payments`, {
         method: "POST",
-        body: JSON.stringify({ total, method: "cash", note: "ثبت از پنل مالی سفارش" }),
+        body: JSON.stringify({ total, method: "cash", note: t("ثبت از پنل مالی سفارش") }),
       }),
     onSuccess: (res) => {
       toast.success(
-        `ثبت شد — ${
-          res.diff >= 0
-            ? `دریافتی جدید: ${formatCurrency(res.diff)}`
-            : `اصلاح: ${formatCurrency(Math.abs(res.diff))}`
-        }`
+        t("ثبت شد — {p0}", {
+          p0:
+            res.diff >= 0
+              ? t("دریافتی جدید: {p0}", { p0: formatCurrency(res.diff) })
+              : t("اصلاح: {p0}", { p0: formatCurrency(Math.abs(res.diff)) }),
+        })
       );
       setPayOpen(false);
       invalidate(["orders", "revenues", "finance", "dashboard"]);
@@ -290,8 +292,8 @@ export function FinanceOrderModal({
     onSuccess: (_res, withPackage) => {
       toast.success(
         withPackage
-          ? "علامت «فاکتور همراه بسته» ثبت شد — خروج از انبار باز شد"
-          : "علامت ارسال فاکتور برداشته شد — خروج از انبار مجدداً قفل است"
+          ? t("علامت «فاکتور همراه بسته» ثبت شد — خروج از انبار باز شد")
+          : t("علامت ارسال فاکتور برداشته شد — خروج از انبار مجدداً قفل است")
       );
       qc.invalidateQueries({ queryKey: ["order", orderId, "finance"] });
       invalidate(["orders"]);
@@ -308,8 +310,8 @@ export function FinanceOrderModal({
       const stageLabel = ITEM_STAGE[it.stage as keyof typeof ITEM_STAGE]?.label ?? it.stage;
       const who =
         it.stage === "design"
-          ? it.designAssigneeUser?.name ?? order?.assignedDesigner?.name ?? "استخر عمومی"
-          : it.printAssigneeUser?.name ?? order?.assignedPrinter?.name ?? "استخر عمومی";
+          ? it.designAssigneeUser?.name ?? order?.assignedDesigner?.name ?? t("استخر عمومی")
+          : it.printAssigneeUser?.name ?? order?.assignedPrinter?.name ?? t("استخر عمومی");
       const key = it.stage;
       const g = byStage.get(key) ?? { label: stageLabel, who: [], count: 0 };
       g.count++;
@@ -323,19 +325,19 @@ export function FinanceOrderModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
-          <DialogTitle className="sr-only">سفارش — نمای مالی</DialogTitle>
+          <DialogTitle className="sr-only">{t("سفارش — نمای مالی")}</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">در حال بارگذاری…</span>
+                <span className="text-sm text-muted-foreground">{t("در حال بارگذاری…")}</span>
               </>
             ) : isError ? (
               <span className="text-sm text-rose-600">
-                {(error as Error)?.message || "خطا در بارگذاری سفارش"}
+                {(error as Error)?.message || t("خطا در بارگذاری سفارش")}
               </span>
             ) : (
-              <span className="text-sm text-muted-foreground">سفارش یافت نشد</span>
+              <span className="text-sm text-muted-foreground">{t("سفارش یافت نشد")}</span>
             )}
           </div>
         </DialogContent>
@@ -365,7 +367,7 @@ export function FinanceOrderModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* 20-E — min-w-6xl فقط زیرِ viewport ~1184px فعال می‌شد و همان‌جا
-          سرریز می‌ساخت؛ با sm:max-w-6xl جایگزین شد (دسکتاپ ≥1184 عین قبل).
+          {t("سرریز می‌ساخت؛ با sm:max-w-6xl جایگزین شد (دسکتاپ ≥1184 عین قبل).")}
           موبایل: عرض کامل منهای 2rem + اسکرول واحد؛ دسکتاپ: overflow-hidden. */}
       <DialogContent
         aria-describedby={undefined}
@@ -380,9 +382,9 @@ export function FinanceOrderModal({
               </div>
               <div className="min-w-0">
                 <DialogTitle className="text-lg font-bold truncate flex items-center gap-2">
-                  سفارش #{order.number}
+                  {t("سفارش #{p0}", { p0: order.number })}
                   {order.splitMode === "separated" && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted">تفکیک‌شده</span>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted">{t("تفکیک‌شده")}</span>
                   )}
                 </DialogTitle>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
@@ -413,7 +415,7 @@ export function FinanceOrderModal({
                 <span className="size-5 rounded-md bg-violet-500/10 text-violet-600 grid place-items-center">
                   <Icon name="invoice" size={10} />
                 </span>
-                جمع سفارش
+                {t("جمع سفارش")}
               </div>
               <div className="text-sm font-bold mt-1.5 tabular-nums" dir="ltr">
                 {formatCurrency(order.totalAmount)}
@@ -424,7 +426,7 @@ export function FinanceOrderModal({
                 <span className="size-5 rounded-md bg-emerald-500/10 text-emerald-600 grid place-items-center">
                   <Icon name="trending" size={10} />
                 </span>
-                پرداخت‌شده
+                {t("پرداخت‌شده")}
               </div>
               <div className="text-sm font-bold mt-1.5 tabular-nums text-emerald-600 dark:text-emerald-400" dir="ltr">
                 {formatCurrency(order.paidAmount)}
@@ -435,7 +437,7 @@ export function FinanceOrderModal({
                 <span className="size-5 rounded-md bg-rose-500/10 text-rose-600 grid place-items-center">
                   <Icon name="wallet" size={10} />
                 </span>
-                مانده (بستانکار)
+                {t("مانده (بستانکار)")}
               </div>
               <div
                 className={cn(
@@ -444,7 +446,7 @@ export function FinanceOrderModal({
                 )}
                 dir="ltr"
               >
-                {remaining > 0.001 ? formatCurrency(remaining) : "تسویه ✓"}
+                {remaining > 0.001 ? formatCurrency(remaining) : t("تسویه ✓")}
               </div>
             </div>
             <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
@@ -452,7 +454,7 @@ export function FinanceOrderModal({
                 <span className="size-5 rounded-md bg-amber-500/10 text-amber-600 grid place-items-center">
                   <Icon name="money" size={10} />
                 </span>
-                هزینه‌های سفارش
+                {t("هزینه‌های سفارش")}
               </div>
               <div className="text-sm font-bold mt-1.5 tabular-nums" dir="ltr">
                 {formatCurrency((order.materialCosts ?? []).reduce((s, c) => s + c.amount, 0))}
@@ -471,14 +473,14 @@ export function FinanceOrderModal({
                 className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
               >
                 <Icon name="orders" size={15} />
-                معرفی سفارش
+                {t("معرفی سفارش")}
               </TabsTrigger>
               <TabsTrigger
                 value="money"
                 className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
               >
                 <Icon name="coins" size={15} />
-                تاریخچهٔ مالی
+                {t("تاریخچهٔ مالی")}
                 {(order.revenueLogs ?? []).length > 0 && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
                     {(order.revenueLogs ?? []).length.toLocaleString("en-US")}
@@ -491,7 +493,7 @@ export function FinanceOrderModal({
                 className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-violet-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
               >
                 <Icon name="money" size={15} />
-                ثبت هزینه
+                {t("ثبت هزینه")}
                 {costs.length > 0 && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
                     {costs.length.toLocaleString("en-US")}
@@ -508,7 +510,7 @@ export function FinanceOrderModal({
               {activeStages.length > 0 ? (
                 <div className="rounded-xl border bg-muted/20 p-4">
                   <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                    <Icon name="play" size={13} /> سفارش الان کجاست و دست کیست؟
+                    <Icon name="play" size={13} /> {t("سفارش الان کجاست و دست کیست؟")}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {activeStages.map((s) => (
@@ -520,11 +522,11 @@ export function FinanceOrderModal({
                           {s.label}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {s.count.toLocaleString("en-US")} آیتم
+                          {t("{p0} آیتم", { p0: s.count.toLocaleString("en-US") })}
                         </span>
                         <span className="flex items-center gap-1 text-xs">
                           <Icon name="user" size={11} className="text-muted-foreground" />
-                          {s.who.join("، ")}
+                          {s.who.join(t("، "))}
                         </span>
                       </div>
                     ))}
@@ -533,14 +535,14 @@ export function FinanceOrderModal({
               ) : (
                 <div className="rounded-xl border bg-emerald-500/[0.05] p-4 flex items-center gap-2">
                   <Icon name="checkCircle" size={16} className="text-emerald-600" />
-                  <span className="text-sm">همهٔ آیتم‌های این سفارش تکمیل/آرشیو شده‌اند</span>
+                  <span className="text-sm">{t("همهٔ آیتم‌های این سفارش تکمیل/آرشیو شده‌اند")}</span>
                 </div>
               )}
 
               {/* آیتم‌ها */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                  <Icon name="orders" size={13} /> آیتم‌های سفارش
+                  <Icon name="orders" size={13} /> {t("آیتم‌های سفارش")}
                   <span className="text-[10px] font-normal text-muted-foreground/70">
                     ({(order.items ?? []).length.toLocaleString("en-US")})
                   </span>
@@ -550,18 +552,18 @@ export function FinanceOrderModal({
                   <div className="overflow-x-auto scrollbar-thin">
                     <div className="min-w-[540px]">
                   <div className="grid grid-cols-[1fr_70px_90px_110px_100px] gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
-                    <span>محصول</span>
-                    <span className="text-center">تعداد</span>
-                    <span className="text-center">مرحله</span>
-                    <span className="text-center">مجری</span>
-                    <span className="text-center">مبلغ</span>
+                    <span>{t("محصول")}</span>
+                    <span className="text-center">{t("تعداد")}</span>
+                    <span className="text-center">{t("مرحله")}</span>
+                    <span className="text-center">{t("مجری")}</span>
+                    <span className="text-center">{t("مبلغ")}</span>
                   </div>
                   <div className="divide-y">
                     {order.items.map((it, i) => {
                       const who =
                         it.stage === "design"
-                          ? it.designAssigneeUser?.name ?? order.assignedDesigner?.name ?? "استخر عمومی"
-                          : it.printAssigneeUser?.name ?? order.assignedPrinter?.name ?? "استخر عمومی";
+                          ? it.designAssigneeUser?.name ?? order.assignedDesigner?.name ?? t("استخر عمومی")
+                          : it.printAssigneeUser?.name ?? order.assignedPrinter?.name ?? t("استخر عمومی");
                       return (
                         <div
                           key={it.id}
@@ -599,7 +601,7 @@ export function FinanceOrderModal({
               {order.note && (
                 <div className="rounded-xl border p-3.5">
                   <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                    <Icon name="info" size={13} /> یادداشت سفارش
+                    <Icon name="info" size={13} /> {t("یادداشت سفارش")}
                   </div>
                   <p className="text-xs whitespace-pre-wrap leading-relaxed">{order.note}</p>
                 </div>
@@ -614,7 +616,7 @@ export function FinanceOrderModal({
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2.5">
                   <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Icon name="file" size={13} /> پیش‌فاکتورها
+                    <Icon name="file" size={13} /> {t("پیش‌فاکتورها")}
                     <span className="text-[10px] font-normal text-muted-foreground/70">
                       ({(order.preInvoices ?? []).length.toLocaleString("en-US")})
                     </span>
@@ -628,7 +630,7 @@ export function FinanceOrderModal({
                     }}
                   >
                     <Icon name="creditCard" size={12} />
-                    ثبت پرداخت
+                    {t("ثبت پرداخت")}
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -636,25 +638,25 @@ export function FinanceOrderModal({
                     <div key={pi.id} className="rounded-xl border p-3.5">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-mono text-xs font-bold">پیش‌فاکتور #{pi.number}</span>
+                          <span className="font-mono text-xs font-bold">{t("پیش‌فاکتور #{p0}", { p0: pi.number })}</span>
                           <span className="text-[10px] text-muted-foreground tabular-nums">
                             {formatDate(pi.issueDate)}
                           </span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                             {pi.status === "draft"
-                              ? "پیش‌نویس"
+                              ? t("پیش‌نویس")
                               : pi.status === "sent"
-                              ? "ارسال‌شده"
+                              ? t("ارسال‌شده")
                               : pi.status === "approved"
-                              ? "تأییدشده"
+                              ? t("تأییدشده")
                               : pi.status === "rejected"
-                              ? "ردشده"
-                              : "تبدیل‌شده"}
+                              ? t("ردشده")
+                              : t("تبدیل‌شده")}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
                           <span className="text-xs text-muted-foreground">
-                            جمع:{" "}
+                            {t("جمع:{p0}", { p0: " " })}
                             <b className="tabular-nums text-foreground" dir="ltr">
                               {formatCurrency(pi.totalAmount)}
                             </b>
@@ -687,10 +689,10 @@ export function FinanceOrderModal({
                                 ) : (
                                   <Icon name="check" size={12} />
                                 )}
-                                ذخیره
+                                {t("ذخیره")}
                               </Button>
                               <Button variant="ghost" size="sm" className="h-8" onClick={() => setEditPi(null)}>
-                                انصراف
+                                {t("انصراف")}
                               </Button>
                             </div>
                           ) : (
@@ -705,10 +707,10 @@ export function FinanceOrderModal({
                                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 hover:bg-emerald-200/60"
                                   : "bg-muted text-muted-foreground hover:bg-muted/70"
                               )}
-                              title="ویرایش پرداخت‌شده — سیستم تفاضل را حساب می‌کند"
+                              title={t("ویرایش پرداخت‌شده — سیستم تفاضل را حساب می‌کند")}
                             >
                               <Icon name="trending" size={11} />
-                              پرداخت‌شده:{" "}
+                              {t("پرداخت‌شده:{p0}", { p0: " " })}
                               <span dir="ltr" className="tabular-nums font-bold">
                                 {formatCurrency(pi.paidAmount)}
                               </span>
@@ -721,7 +723,7 @@ export function FinanceOrderModal({
                   ))}
                   {(order.preInvoices ?? []).length === 0 && (
                     <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg border-dashed">
-                      پیش‌فاکتوری برای این سفارش وجود ندارد
+                      {t("پیش‌فاکتوری برای این سفارش وجود ندارد")}
                     </div>
                   )}
                 </div>
@@ -730,31 +732,31 @@ export function FinanceOrderModal({
               {/* فاکتور نهایی */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                  <Icon name="invoice" size={13} /> فاکتور نهایی
+                  <Icon name="invoice" size={13} /> {t("فاکتور نهایی")}
                 </div>
                 {order.invoice ? (
                   <div className="rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-500/[0.03] p-3.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs font-bold">فاکتور #{order.invoice.number}</span>
+                        <span className="font-mono text-xs font-bold">{t("فاکتور #{p0}", { p0: order.invoice.number })}</span>
                         <span className="text-[10px] text-muted-foreground">
                           {order.invoice.status === "issued"
-                            ? "صادرشده"
+                            ? t("صادرشده")
                             : order.invoice.status === "paid"
-                            ? "پرداخت‌شده"
+                            ? t("پرداخت‌شده")
                             : order.invoice.status === "cancelled"
-                            ? "باطل‌شده"
-                            : "پیش‌نویس"}
+                            ? t("باطل‌شده")
+                            : t("پیش‌نویس")}
                         </span>
                         {order.invoice.dueDate && (
                           <span className="text-[10px] text-muted-foreground tabular-nums">
-                            سررسید: {formatDate(order.invoice.dueDate)}
+                            {t("سررسید: {p0}", { p0: formatDate(order.invoice.dueDate) })}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         <span className="text-xs text-muted-foreground">
-                          جمع:{" "}
+                          {t("جمع:{p0}", { p0: " " })}
                           <b className="tabular-nums text-foreground" dir="ltr">
                             {formatCurrency(order.invoice.totalAmount)}
                           </b>
@@ -785,10 +787,10 @@ export function FinanceOrderModal({
                               ) : (
                                 <Icon name="check" size={12} />
                               )}
-                              ذخیره
+                              {t("ذخیره")}
                             </Button>
                             <Button variant="ghost" size="sm" className="h-8" onClick={() => setEditInv(false)}>
-                              انصراف
+                              {t("انصراف")}
                             </Button>
                           </div>
                         ) : (
@@ -799,10 +801,10 @@ export function FinanceOrderModal({
                                 setInvPaid(String(order.invoice!.paidAmount));
                               }}
                               className="text-xs px-2.5 py-1 rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 hover:bg-violet-200/60 transition inline-flex items-center gap-1"
-                              title="ویرایش پرداخت‌شده — پیش‌فاکتورها هم سینک می‌شوند"
+                              title={t("ویرایش پرداخت‌شده — پیش‌فاکتورها هم سینک می‌شوند")}
                             >
                               <Icon name="trending" size={11} />
-                              پرداخت‌شده:{" "}
+                              {t("پرداخت‌شده:{p0}", { p0: " " })}
                               <span dir="ltr" className="tabular-nums font-bold">
                                 {formatCurrency(order.invoice.paidAmount)}
                               </span>
@@ -816,7 +818,7 @@ export function FinanceOrderModal({
                 ) : (
                   <div className="rounded-xl border border-dashed p-4 flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-xs text-muted-foreground">
-                      فاکتور نهایی صادر نشده — از اقلام سفارش + هزینه‌های فاکتوری صادر می‌شود
+                      {t("فاکتور نهایی صادر نشده — از اقلام سفارش + هزینه‌های فاکتوری صادر می‌شود")}
                     </span>
                     <Button
                       size="sm"
@@ -830,7 +832,7 @@ export function FinanceOrderModal({
                       ) : (
                         <Icon name="invoice" size={12} />
                       )}
-                      صدور فاکتور نهایی
+                      {t("صدور فاکتور نهایی")}
                     </Button>
                   </div>
                 )}
@@ -839,7 +841,7 @@ export function FinanceOrderModal({
               {/* ── Phase 17: وضعیت خروج از انبار (گیت فاکتور همراه بسته) ── */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                  <Icon name="warehouse" size={13} /> وضعیت خروج از انبار
+                  <Icon name="warehouse" size={13} /> {t("وضعیت خروج از انبار")}
                 </div>
                 {invoiceFlagged ? (
                   <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-500/[0.05] p-3.5 flex items-center justify-between gap-2 flex-wrap">
@@ -849,10 +851,10 @@ export function FinanceOrderModal({
                       </span>
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                          فاکتور همراه بسته ارسال می‌شود
+                          {t("فاکتور همراه بسته ارسال می‌شود")}
                         </div>
                         <div className="text-[11px] text-muted-foreground">
-                          مالی علامت زده — انبار اجازهٔ خروج این سفارش را دارد
+                          {t("مالی علامت زده — انبار اجازهٔ خروج این سفارش را دارد")}
                         </div>
                       </div>
                     </div>
@@ -868,7 +870,7 @@ export function FinanceOrderModal({
                       ) : (
                         <Icon name="cancel" size={12} />
                       )}
-                      برداشتن علامت
+                      {t("برداشتن علامت")}
                     </Button>
                   </div>
                 ) : orderSettled ? (
@@ -878,10 +880,10 @@ export function FinanceOrderModal({
                     </span>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                        تسویه کامل — خروج آزاد
+                        {t("تسویه کامل — خروج آزاد")}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        فاکتور تسویه شده — خروج از انبار نیازی به علامت ندارد
+                        {t("فاکتور تسویه شده — خروج از انبار نیازی به علامت ندارد")}
                       </div>
                     </div>
                   </div>
@@ -893,10 +895,10 @@ export function FinanceOrderModal({
                       </span>
                       <div className="min-w-0">
                         <div className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-                          تسویه‌نشده — خروج از انبار قفل است
+                          {t("تسویه‌نشده — خروج از انبار قفل است")}
                         </div>
                         <div className="text-[11px] text-muted-foreground">
-                          تا تسویهٔ کامل فاکتور یا علامت مالی، بستهٔ این سفارش از انبار خارج نمی‌شود
+                          {t("تا تسویهٔ کامل فاکتور یا علامت مالی، بستهٔ این سفارش از انبار خارج نمی‌شود")}
                         </div>
                       </div>
                     </div>
@@ -911,7 +913,7 @@ export function FinanceOrderModal({
                       ) : (
                         <Icon name="packageSent" size={12} />
                       )}
-                      ارسال فاکتور همراه بسته
+                      {t("ارسال فاکتور همراه بسته")}
                     </Button>
                   </div>
                 )}
@@ -920,14 +922,14 @@ export function FinanceOrderModal({
               {/* دفتر دریافتی سفارش */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                  <Icon name="trending" size={13} /> دفتر دریافتی این سفارش
+                  <Icon name="trending" size={13} /> {t("دفتر دریافتی این سفارش")}
                   <span className="text-[10px] font-normal text-muted-foreground/70">
-                    (تفاضل هوشمند — کی، کدام ماژول، چه ساعتی)
+                    {t("(تفاضل هوشمند — کی، کدام ماژول، چه ساعتی)")}
                   </span>
                 </div>
                 {(order.revenueLogs ?? []).length === 0 ? (
                   <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg border-dashed">
-                    هنوز دریافتی‌ای برای این سفارش ثبت نشده
+                    {t("هنوز دریافتی‌ای برای این سفارش ثبت نشده")}
                   </div>
                 ) : (
                   <div className="rounded-xl border overflow-hidden">
@@ -963,7 +965,7 @@ export function FinanceOrderModal({
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
                               <span className="text-[10px] text-muted-foreground tabular-nums">
-                                کل:{" "}
+                                {t("کل:{p0}", { p0: " " })}
                                 <span dir="ltr">
                                   {formatCurrency(l.totalAfter)}
                                 </span>
@@ -992,14 +994,14 @@ export function FinanceOrderModal({
               {/* هزینه‌های سفارش */}
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2.5 flex items-center gap-1.5">
-                  <Icon name="money" size={13} /> هزینه‌های این سفارش
+                  <Icon name="money" size={13} /> {t("هزینه‌های این سفارش")}
                   <span className="text-[10px] font-normal text-muted-foreground/70">
-                    (به تفکیک ماژول ثبت‌کننده و کارمند)
+                    {t("(به تفکیک ماژول ثبت‌کننده و کارمند)")}
                   </span>
                 </div>
                 {(order.materialCosts ?? []).length === 0 ? (
                   <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg border-dashed">
-                    هزینه‌ای روی این سفارش ثبت نشده
+                    {t("هزینه‌ای روی این سفارش ثبت نشده")}
                   </div>
                 ) : (
                   <div className="rounded-xl border overflow-hidden">
@@ -1011,14 +1013,14 @@ export function FinanceOrderModal({
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-wrap">
                             <span className="text-sm font-medium truncate max-w-[200px]">
-                              {c.title || c.description || "هزینه"}
+                              {c.title || c.description || t("هزینه")}
                             </span>
                             <span className="text-[10px] text-muted-foreground">
                               {MODULE_LABELS[c.module] ?? c.module} • {c.createdByName ?? "—"}
                             </span>
                             {c.includeInInvoice && (
                               <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                                در فاکتور
+                                {t("در فاکتور")}
                               </span>
                             )}
                             <span className="text-[10px] text-muted-foreground tabular-nums" dir="ltr">
@@ -1036,7 +1038,7 @@ export function FinanceOrderModal({
                                   : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                               )}
                             >
-                              {c.status === "approved" ? "تأیید" : c.status === "rejected" ? "رد" : "در انتظار"}
+                              {c.status === "approved" ? t("تأیید") : c.status === "rejected" ? t("رد") : t("در انتظار")}
                             </span>
                             <span className="text-xs font-bold tabular-nums" dir="ltr">
                               {formatCurrency(c.amount)}
@@ -1061,26 +1063,26 @@ export function FinanceOrderModal({
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-bold">
-                      افزودن هزینه به سفارش #{order.number}
+                      {t("افزودن هزینه به سفارش #{p0}", { p0: order.number })}
                     </div>
                     <div className="text-[11px] text-muted-foreground truncate">
-                      {order.customer?.name} — ماژول ثبت‌کننده آزاد است؛ ثبت برای تأیید مالی می‌رود
+                      {t("{p0} — ماژول ثبت‌کننده آزاد است؛ ثبت برای تأیید مالی می‌رود", { p0: order.customer?.name })}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-                    {costs.length.toLocaleString("en-US")} هزینه
+                    {t("{p0} هزینه", { p0: costs.length.toLocaleString("en-US") })}
                   </span>
                   <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                    مجموع{" "}
+                    {t("مجموع{p0}", { p0: " " })}
                     <span dir="ltr" className="tabular-nums font-bold">
                       {formatCurrency(totalCosts)}
                     </span>
                   </span>
                   {pendingCosts > 0 && (
                     <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                      {pendingCosts.toLocaleString("en-US")} در انتظار
+                      {t("{p0} در انتظار", { p0: pendingCosts.toLocaleString("en-US") })}
                     </span>
                   )}
                 </div>
@@ -1105,13 +1107,13 @@ export function FinanceOrderModal({
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2.5">
                   <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Icon name="checkList" size={13} /> هزینه‌های ثبت‌شده
+                    <Icon name="checkList" size={13} /> {t("هزینه‌های ثبت‌شده")}
                     <span className="text-[10px] font-normal text-muted-foreground/70">
                       ({costs.length.toLocaleString("en-US")})
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    مجموع:{" "}
+                    {t("مجموع:{p0}", { p0: " " })}
                     <b dir="ltr" className="text-foreground tabular-nums">
                       {formatCurrency(totalCosts)}
                     </b>
@@ -1120,9 +1122,9 @@ export function FinanceOrderModal({
                 {costs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-muted-foreground rounded-xl border border-dashed">
                     <Icon name="inbox" size={24} className="opacity-30" />
-                    <span className="text-xs">هنوز هزینه‌ای روی این سفارش ثبت نشده است</span>
+                    <span className="text-xs">{t("هنوز هزینه‌ای روی این سفارش ثبت نشده است")}</span>
                     <span className="text-[10px] text-muted-foreground/70">
-                      با فرم بالا هزینهٔ اولین متریال/خدمت را ثبت کنید
+                      {t("با فرم بالا هزینهٔ اولین متریال/خدمت را ثبت کنید")}
                     </span>
                   </div>
                 ) : (
@@ -1132,11 +1134,11 @@ export function FinanceOrderModal({
                       <div className="min-w-[620px]">
                     {/* سربرگ جدول */}
                     <div className="grid grid-cols-[1fr_90px_110px_90px_170px] items-center gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground">
-                      <span>هزینه</span>
-                      <span className="text-center">بخش</span>
-                      <span className="text-center">مبلغ</span>
-                      <span className="text-center">وضعیت</span>
-                      <span className="text-center">ثبت</span>
+                      <span>{t("هزینه")}</span>
+                      <span className="text-center">{t("بخش")}</span>
+                      <span className="text-center">{t("مبلغ")}</span>
+                      <span className="text-center">{t("وضعیت")}</span>
+                      <span className="text-center">{t("ثبت")}</span>
                     </div>
                     <div className="divide-y">
                       {costs.map((c) => {
@@ -1151,10 +1153,10 @@ export function FinanceOrderModal({
                           >
                             <div className="min-w-0">
                               <div className="font-medium text-sm truncate flex items-center gap-1.5">
-                                {c.title || c.description || "هزینه"}
+                                {c.title || c.description || t("هزینه")}
                                 {c.includeInInvoice && (
                                   <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
-                                    در فاکتور
+                                    {t("در فاکتور")}
                                   </span>
                                 )}
                               </div>
@@ -1205,8 +1207,8 @@ export function FinanceOrderModal({
         {/* Footer */}
         <DialogFooter className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2 sm:justify-between">
           <span className="text-xs text-muted-foreground">
-            {formatDate(order.createdAt)} ثبت شده
-            {order.createdByUser?.name ? ` توسط ${order.createdByUser.name}` : ""}
+            {t("{p0} ثبت شده", { p0: formatDate(order.createdAt) })}
+            {order.createdByUser?.name ? t(" توسط {p0}", { p0: order.createdByUser.name }) : ""}
           </span>
           <Button
             size="sm"
@@ -1217,7 +1219,7 @@ export function FinanceOrderModal({
             }}
           >
             <Icon name="creditCard" size={14} />
-            ثبت پرداخت جدید
+            {t("ثبت پرداخت جدید")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1232,10 +1234,10 @@ export function FinanceOrderModal({
               </div>
               <div className="min-w-0">
                 <DialogTitle className="text-base font-bold">
-                  ثبت پرداخت — سفارش #{order.number}
+                  {t("ثبت پرداخت — سفارش #{p0}", { p0: order.number })}
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {order.customer?.name} • مانده:{" "}
+                  {t("{p0} • مانده:{p1}", { p0: order.customer?.name, p1: " " })}
                   <span dir="ltr" className="tabular-nums font-medium text-rose-600 dark:text-rose-400">
                     {formatCurrency(Math.max(0, remaining))}
                   </span>
@@ -1244,7 +1246,7 @@ export function FinanceOrderModal({
             </div>
           </div>
           <div className="px-6 py-4">
-            <Field label="کل پرداخت‌شده تا الان (IQD)" required>
+            <Field label={t("کل پرداخت‌شده تا الان (IQD)")} required>
               <Input
                 type="number"
                 min={0}
@@ -1256,19 +1258,19 @@ export function FinanceOrderModal({
             </Field>
             {payTotal !== "" && Number.isFinite(Number(payTotal)) && (
               <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/10 p-3 text-xs">
-                <b>دریافتی جدید</b> که سیستم ثبت می‌کند:{" "}
+                <b>{t("دریافتی جدید")}</b> که سیستم ثبت می‌کند:{" "}
                 <span dir="ltr" className="tabular-nums font-bold">
                   {formatCurrency(Math.max(0, Number(payTotal) - order.paidAmount))}
                 </span>
                 <div className="text-[10px] text-muted-foreground mt-1">
-                  ادیت عدد قبلی؟ سیستم خودش فقط تفاضل را به‌عنوان دریافتی جدید لاگ می‌کند
+                  {t("ادیت عدد قبلی؟ سیستم خودش فقط تفاضل را به‌عنوان دریافتی جدید لاگ می‌کند")}
                 </div>
               </div>
             )}
           </div>
           <DialogFooter className="px-6 py-3 border-t bg-muted/30 flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setPayOpen(false)} disabled={payMut.isPending}>
-              انصراف
+              {t("انصراف")}
             </Button>
             <Button
               size="sm"
@@ -1281,7 +1283,7 @@ export function FinanceOrderModal({
               ) : (
                 <Icon name="check" size={14} />
               )}
-              ثبت پرداخت
+              {t("ثبت پرداخت")}
             </Button>
           </DialogFooter>
         </DialogContent>

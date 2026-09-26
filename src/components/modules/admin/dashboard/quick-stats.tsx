@@ -6,6 +6,7 @@ import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import { useDashboardSections, DASHBOARD_PAGES } from "./use-dashboard-data";
+import { t } from "@/lib/i18n";
 
 type QuickStat = {
   key: string;
@@ -23,10 +24,10 @@ export function QuickStatsRow() {
 
   const qs = data?.quickStats;
   const stats: QuickStat[] = [
-    { key: "nearDeadline", label: "نزدیک به سررسید", value: qs?.nearDeadline ?? 0, icon: "clock", color: "amber", page: DASHBOARD_PAGES.openOrders },
-    { key: "overdue", label: "سررسید گذشته", value: qs?.overdueOrders ?? 0, icon: "alertTriangle", color: "rose", page: DASHBOARD_PAGES.openOrders },
-    { key: "noEndDate", label: "بدون زمان پایان", value: qs?.noEndDate ?? 0, icon: "calendar", color: "slate", page: DASHBOARD_PAGES.allOrders },
-    { key: "pendingTasks", label: "تسک‌های در صف", value: qs?.pendingTasks ?? 0, icon: "task", color: "violet", page: DASHBOARD_PAGES.tasks },
+    { key: "nearDeadline", label: t("نزدیک به سررسید"), value: qs?.nearDeadline ?? 0, icon: "clock", color: "amber", page: DASHBOARD_PAGES.openOrders },
+    { key: "overdue", label: t("سررسید گذشته"), value: qs?.overdueOrders ?? 0, icon: "alertTriangle", color: "rose", page: DASHBOARD_PAGES.openOrders },
+    { key: "noEndDate", label: t("بدون زمان پایان"), value: qs?.noEndDate ?? 0, icon: "calendar", color: "slate", page: DASHBOARD_PAGES.allOrders },
+    { key: "pendingTasks", label: t("تسک‌های در صف"), value: qs?.pendingTasks ?? 0, icon: "task", color: "violet", page: DASHBOARD_PAGES.tasks },
   ];
 
   const COLOR_MAP: Record<string, string> = {

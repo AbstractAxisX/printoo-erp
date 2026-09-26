@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Icon } from "@/lib/icons";
 import { visibleModules } from "@/lib/nav";
 import { useAppStore } from "@/stores/app-store";
+import { t } from "@/lib/i18n";
 
 export function CommandPalette() {
   const open = useAppStore((s) => s.commandOpen);
@@ -29,11 +30,11 @@ export function CommandPalette() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent aria-describedby={undefined} className="overflow-hidden p-0 max-w-xl" showCloseButton={false}>
         {/* عنوان برداشتن‌پذیر برای صفحه‌خوان‌ها — رفع هشدار a11yِ DialogContent بدون DialogTitle */}
-        <DialogTitle className="sr-only">پالت فرمان — جستجوی سریع صفحه‌ها</DialogTitle>
+        <DialogTitle className="sr-only">{t("پالت فرمان — جستجوی سریع صفحه‌ها")}</DialogTitle>
         <Command className="rounded-lg">
-          <CommandInput placeholder="جستجوی صفحه یا ماژول..." />
+          <CommandInput placeholder={t("جستجوی صفحه یا ماژول...")} />
           <CommandList className="max-h-[400px] scrollbar-thin">
-            <CommandEmpty>نتیجه‌ای یافت نشد.</CommandEmpty>
+            <CommandEmpty>{t("نتیجه‌ای یافت نشد.")}</CommandEmpty>
             {visibleModules(user).map((mod) => (
               <CommandGroup key={mod.key} heading={mod.faLabel}>
                 {mod.groups.map((g) =>
@@ -58,13 +59,13 @@ export function CommandPalette() {
             <CommandSeparator />
             {/* Phase 12: «سفارش جدید» فقط برای مدیران (ویزارد در پنل ادمین است) */}
             {(user?.role === "master" || user?.modules?.includes("admin")) && (
-              <CommandGroup heading="سفارش جدید">
+              <CommandGroup heading={t("سفارش جدید")}>
                 <CommandItem
                   onSelect={() => { navigate("admin", "orders-new"); setOpen(false); }}
                   className="gap-2"
                 >
                   <Icon name="plusCircle" size={16} className="text-primary" />
-                  <span>ایجاد سفارش جدید</span>
+                  <span>{t("ایجاد سفارش جدید")}</span>
                 </CommandItem>
               </CommandGroup>
             )}

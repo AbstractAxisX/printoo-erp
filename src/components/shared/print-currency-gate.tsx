@@ -21,6 +21,7 @@ import { useFxRates, fxSourceLabel } from "@/components/shared/fx-widgets";
 import { CURRENCIES, CURRENCY_LIST, convertMoney, formatMoney, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/lib/icons";
+import { t } from "@/lib/i18n";
 
 export type PrintCurrencyResult = {
   currency: Currency;
@@ -70,12 +71,12 @@ export function PrintCurrencyGate({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon name="printer" size={18} className="text-primary" />
-            چاپ {docTitle ?? "سند"} با کدام ارز؟
+            {t("چاپ {p0} با کدام ارز؟", { p0: docTitle ?? t("سند") })}
           </DialogTitle>
           <DialogDescription className="text-right">
-            مبالغ سند {docCur === "IRT" ? "تومانی" : docCur === "USD" ? "دلاری" : "دیناری"} است
-            {docCur !== "IQD" ? "" : " (ارز اصلی سیستم)"} — با انتخاب ارز دیگر، همهٔ مبالغ با نرخ
-            لحظه‌ای تبدیل و رند می‌شوند. نرخ روی سند چاپی درج خواهد شد.
+            مبالغ سند {docCur === "IRT" ? t("تومانی") : docCur === "USD" ? t("دلاری") : t("دیناری")} است
+            {docCur !== "IQD" ? "" : t(" (ارز اصلی سیستم)")} — با انتخاب ارز دیگر، همهٔ مبالغ با نرخ
+            {t("لحظه‌ای تبدیل و رند می‌شوند. نرخ روی سند چاپی درج خواهد شد.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -87,11 +88,11 @@ export function PrintCurrencyGate({
           <span className="font-bold text-muted-foreground">USD</span>
           <span className="tabular-nums">1 $ = {rates.USD_IQD.toLocaleString("en-US")} IQD</span>
           <span className="text-muted-foreground/40">·</span>
-          <span className="tabular-nums">1 $ = {rates.USD_IRT.toLocaleString("en-US")} تومان</span>
+          <span className="tabular-nums">{t("1 $ = {p0} تومان", { p0: rates.USD_IRT.toLocaleString("en-US") })}</span>
           {data && (
             <span className="ms-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
               {fxSourceLabel(data.sources.USD_IQD)}
-              {data.ageHours > 0.05 ? ` · ${Math.round(data.ageHours)}ساعت قبل` : ""}
+              {data.ageHours > 0.05 ? t(" · {p0}ساعت قبل", { p0: Math.round(data.ageHours) }) : ""}
             </span>
           )}
         </div>
@@ -121,7 +122,7 @@ export function PrintCurrencyGate({
                   <span className="text-sm font-bold">{CURRENCIES[c].fa}</span>
                   {isDoc && (
                     <span className="text-[9px] font-medium text-primary bg-primary/10 rounded-full px-1.5 py-0.5">
-                      ارز سند
+                      {t("ارز سند")}
                     </span>
                   )}
                 </div>
@@ -131,7 +132,7 @@ export function PrintCurrencyGate({
                   </div>
                 )}
                 {preview != null && c !== docCur && (
-                  <div className="mt-0.5 text-[9.5px] text-amber-600 dark:text-amber-400">تبدیل لحظه‌ای</div>
+                  <div className="mt-0.5 text-[9.5px] text-amber-600 dark:text-amber-400">{t("تبدیل لحظه‌ای")}</div>
                 )}
               </button>
             );
@@ -140,7 +141,7 @@ export function PrintCurrencyGate({
 
         <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
           <Icon name="info" size={12} className="shrink-0" />
-          خط نرخ لحظه‌ای به‌صورت خودکار بالای سند چاپی درج می‌شود — مبنای تبدیل، همین نرخ است.
+          {t("خط نرخ لحظه‌ای به‌صورت خودکار بالای سند چاپی درج می‌شود — مبنای تبدیل، همین نرخ است.")}
         </p>
       </DialogContent>
     </Dialog>

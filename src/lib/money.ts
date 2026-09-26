@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 // Printoo24 ERP — Phase 25: هستهٔ چند-ارزی (IQD / USD / IRT)
 //
 // مبنای اصلی سیستم = دینار عراق (IQD). هر ورودی مالی ارز خودش را دارد؛
@@ -14,25 +15,25 @@ export const CURRENCIES: Record<
 > = {
   IQD: {
     code: "IQD",
-    fa: "دینار عراقی",
-    short: "دینار",
+    fa: t("دینار عراقی"),
+    short: t("دینار"),
     suffix: "IQD",
     decimals: 0,
     chip: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300",
   },
   USD: {
     code: "USD",
-    fa: "دلار آمریکا",
-    short: "دلار",
+    fa: t("دلار آمریکا"),
+    short: t("دلار"),
     suffix: "USD",
     decimals: 2,
     chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
   },
   IRT: {
     code: "IRT",
-    fa: "تومان ایرانی",
-    short: "تومان",
-    suffix: "تومان",
+    fa: t("تومان ایرانی"),
+    short: t("تومان"),
+    suffix: t("تومان"),
     decimals: 0,
     chip: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
   },
@@ -154,24 +155,24 @@ export type PayType = "monthly" | "daily" | "hourly" | "casual";
 
 export const PAY_TYPES: Record<PayType, { label: string; chip: string; hint: string }> = {
   monthly: {
-    label: "ماهانه",
+    label: t("ماهانه"),
     chip: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
-    hint: "حقوق ثابت ماهانه (از قرارداد)",
+    hint: t("حقوق ثابت ماهانه (از قرارداد)"),
   },
   daily: {
-    label: "روزانه",
+    label: t("روزانه"),
     chip: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
-    hint: "نرخ روزانه × تعداد روز کارشده",
+    hint: t("نرخ روزانه × تعداد روز کارشده"),
   },
   hourly: {
-    label: "ساعتی",
+    label: t("ساعتی"),
     chip: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
-    hint: "نرخ ساعت × تعداد ساعت",
+    hint: t("نرخ ساعت × تعداد ساعت"),
   },
   casual: {
-    label: "موردی (عشقی)",
+    label: t("موردی (عشقی)"),
     chip: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
-    hint: "پرداخت آزاد و بی‌دوره — هر مبلغ، هر زمان",
+    hint: t("پرداخت آزاد و بی‌دوره — هر مبلغ، هر زمان"),
   },
 };
 

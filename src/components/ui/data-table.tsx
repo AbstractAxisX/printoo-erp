@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { t } from "@/lib/i18n";
 
 export type DataTableMeta<TData> = {
   onRowClick?: (row: TData) => void;
@@ -81,7 +82,7 @@ export function DataTable<TData, TValue>({
   data,
   isLoading,
   searchKey,
-  searchPlaceholder = "جستجو...",
+  searchPlaceholder = t("جستجو..."),
   globalFilter,
   onGlobalFilterChange,
   toolbar,
@@ -162,12 +163,12 @@ export function DataTable<TData, TValue>({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 mr-auto">
-                  <Icon name="sliders" size={14} /> ستون‌ها
+                  <Icon name="sliders" size={14} /> {t("ستون‌ها")}
                   <Icon name="chevronDown" size={12} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuLabel>نمایش ستون‌ها</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("نمایش ستون‌ها")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {table
                   .getAllColumns()
@@ -236,7 +237,7 @@ export function DataTable<TData, TValue>({
                 <TableCell colSpan={columns.length} className="h-32">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <Icon name="loading" size={24} className="animate-spin text-primary" />
-                    <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+                    <span className="text-sm text-muted-foreground">{t("در حال بارگذاری...")}</span>
                   </div>
                 </TableCell>
               </TableRow>
@@ -282,7 +283,7 @@ export function DataTable<TData, TValue>({
                   {emptyState ?? (
                     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                       <Icon name="inbox" size={28} className="opacity-40" />
-                      <span className="text-sm">موردی یافت نشد</span>
+                      <span className="text-sm">{t("موردی یافت نشد")}</span>
                     </div>
                   )}
                 </TableCell>
@@ -327,7 +328,7 @@ function CardList<TData>({
     return (
       <div className="rounded-lg border bg-card p-10 flex flex-col items-center justify-center gap-2">
         <Icon name="loading" size={24} className="animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+        <span className="text-sm text-muted-foreground">{t("در حال بارگذاری...")}</span>
       </div>
     );
   }
@@ -337,7 +338,7 @@ function CardList<TData>({
         {emptyState ?? (
           <>
             <Icon name="inbox" size={28} className="opacity-40" />
-            <span className="text-sm">موردی یافت نشد</span>
+            <span className="text-sm">{t("موردی یافت نشد")}</span>
           </>
         )}
       </div>
@@ -376,12 +377,12 @@ function DataTablePagination<TData>({
     <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 px-1">
       <div className="text-xs text-muted-foreground">
         {totalCount > 0 ? (
-          <>نمایش <span className="font-medium text-foreground">{from}</span> تا <span className="font-medium text-foreground">{to}</span> از <span className="font-medium text-foreground">{totalCount}</span> مورد</>
-        ) : "موردی وجود ندارد"}
+          <>{t("نمایش")} <span className="font-medium text-foreground">{from}</span> {t("تا")} <span className="font-medium text-foreground">{to}</span> {t("از")} <span className="font-medium text-foreground">{totalCount}</span> {t("مورد")}</>
+        ) : t("موردی وجود ندارد")}
       </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">ردیف در صفحه:</span>
+          <span className="text-xs text-muted-foreground">{t("ردیف در صفحه:")}</span>
           <Select value={String(pageSize)} onValueChange={(v) => table.setPageSize(Number(v))}>
             <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -398,7 +399,7 @@ function DataTablePagination<TData>({
             <Icon name="arrowRight" size={14} />
           </Button>
           <span className="text-xs px-2">
-            صفحه <span className="font-medium">{pageIndex + 1}</span> از <span className="font-medium">{table.getPageCount() || 1}</span>
+            {t("صفحه")}<span className="font-medium">{pageIndex + 1}</span> {t("از")} <span className="font-medium">{table.getPageCount() || 1}</span>
           </span>
           <Button variant="outline" size="icon" className="size-9 sm:size-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
             <Icon name="arrowLeft" size={14} />

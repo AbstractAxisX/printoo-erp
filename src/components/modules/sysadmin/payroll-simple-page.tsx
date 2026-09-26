@@ -40,6 +40,7 @@ import { PAY_TYPES, parsePayType, parseCurrency, formatMoney, sumByCurrency, for
 import { MODULES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types (قرارداد /api/payroll) ───────────────────────────────────────
 
@@ -116,9 +117,9 @@ const MODULE_COLORS: Record<string, string> = {
 };
 
 const PERIOD_STATUS: Record<string, { label: string; cls: string }> = {
-  open: { label: "باز", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  paid: { label: "پرداخت‌شده", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  closed: { label: "بسته", cls: "bg-muted text-muted-foreground" },
+  open: { label: t("باز"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  paid: { label: t("پرداخت‌شده"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  closed: { label: t("بسته"), cls: "bg-muted text-muted-foreground" },
 };
 
 // ─── کمکی‌ها ────────────────────────────────────────────────────────────
@@ -278,12 +279,12 @@ export function PayrollSimplePage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="حقوق کارمندان"
+        title={t("حقوق کارمندان")}
         icon="wallet"
         description={
           current
-            ? `دورهٔ ${current.key} • بازهٔ ${current.startDate} تا ${current.endDate}`
-            : "پرداخت سریع حقوق دورهٔ جاری"
+            ? t("دورهٔ {p0} • بازهٔ {p1} تا {p2}", { p0: current.key, p1: current.startDate, p2: current.endDate })
+            : t("پرداخت سریع حقوق دورهٔ جاری")
         }
         actions={
           <div className="flex items-center gap-2">
@@ -297,23 +298,23 @@ export function PayrollSimplePage() {
                 {PERIOD_STATUS[current.status]?.label ?? current.status}
               </span>
             )}
-            <Button variant="outline" size="sm" onClick={() => refetch()} title="به‌روزرسانی">
+            <Button variant="outline" size="sm" onClick={() => refetch()} title={t("به‌روزرسانی")}>
               <Icon name="refresh" size={14} className={isFetching ? "animate-spin" : ""} />
             </Button>
           </div>
         }
       />
 
-      {isLoading && <LoadingState label="در حال بارگذاری حقوق کارمندان…" />}
+      {isLoading && <LoadingState label={t("در حال بارگذاری حقوق کارمندان…")} />}
 
       {!isLoading && (error || !current) && (
         <EmptyState
           icon="alertTriangle"
-          title="خطا در دریافت حقوق کارمندان"
-          description={error instanceof Error ? error.message : "دورهٔ حقوق یافت نشد"}
+          title={t("خطا در دریافت حقوق کارمندان")}
+          description={error instanceof Error ? error.message : t("دورهٔ حقوق یافت نشد")}
           action={
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => refetch()}>
-              <Icon name="refresh" size={14} /> تلاش دوباره
+              <Icon name="refresh" size={14} /> {t("تلاش دوباره")}
             </Button>
           }
         />
@@ -325,33 +326,33 @@ export function PayrollSimplePage() {
           <div className="rounded-xl border bg-muted/30 px-4 py-2.5 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <Icon name="info" size={14} className="text-primary shrink-0" />
             <span>
-              این صفحه فقط پرداخت است — <b className="text-foreground">ویرایش ارقام و مساعده در ماژول مالی</b> انجام
-              می‌شود (حقوق و دستمزد).
+              {t("این صفحه فقط پرداخت است —")}<b className="text-foreground">{t("ویرایش ارقام و مساعده در ماژول مالی")}</b> {t("انجام")}
+              {t("می‌شود (حقوق و دستمزد).")}
             </span>
           </div>
 
           {/* نوار جمع‌وجور — فاز ۲۵: جمع تفکیکی ارزی */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox
-              label="جمع خالص دوره"
+              label={t("جمع خالص دوره")}
               value={mixedCurrencies ? formatSumPerCurrency(netPer) : formatCurrency(totalNet)}
               icon="wallet"
               cls="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
             />
             <StatBox
-              label="پرداخت‌شده"
+              label={t("پرداخت‌شده")}
               value={mixedCurrencies ? formatSumPerCurrency(paidPer) : formatCurrency(paidSum)}
               icon="checkCircle"
               cls="bg-teal-500/10 text-teal-600 dark:text-teal-400"
             />
             <StatBox
-              label="مانده"
+              label={t("مانده")}
               value={formatCurrency(remaining)}
               icon="clock"
               cls="bg-amber-500/10 text-amber-600 dark:text-amber-400"
             />
             <StatBox
-              label="کارمندان"
+              label={t("کارمندان")}
               value={fa(entries.length)}
               icon="userGroup"
               cls="bg-violet-500/10 text-violet-600 dark:text-violet-400"
@@ -367,10 +368,10 @@ export function PayrollSimplePage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">
-                    کارمندان دورهٔ <span dir="ltr" className="tabular-nums">{current.key}</span>
+                    {t("کارمندان دورهٔ")}<span dir="ltr" className="tabular-nums">{current.key}</span>
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    {fa(paidCount)} پرداخت‌شده • {fa(draftEntries.length)} آمادهٔ پرداخت
+                    {t("{p0} پرداخت‌شده • {p1} آمادهٔ پرداخت", { p0: fa(paidCount), p1: fa(draftEntries.length) })}
                   </p>
                 </div>
               </div>
@@ -379,18 +380,18 @@ export function PayrollSimplePage() {
             {entries.length === 0 ? (
               <EmptyState
                 icon="userGroup"
-                title="کارمندی در این دوره نیست"
-                description="ورودی‌های دوره برای کارمندان فعال به‌صورت خودکار ساخته می‌شوند."
+                title={t("کارمندی در این دوره نیست")}
+                description={t("ورودی‌های دوره برای کارمندان فعال به‌صورت خودکار ساخته می‌شوند.")}
               />
             ) : (
               <div className="overflow-x-auto">
                 <Table className="min-w-[640px]">
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="h-10 text-xs font-semibold text-muted-foreground min-w-[180px]">کارمند</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground text-end">خالص</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground">وضعیت</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground text-end">پرداخت</TableHead>
+                      <TableHead className="h-10 text-xs font-semibold text-muted-foreground min-w-[180px]">{t("کارمند")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-end">{t("خالص")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">{t("وضعیت")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-end">{t("پرداخت")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -418,20 +419,20 @@ export function PayrollSimplePage() {
                                 net <= 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
                               )}
                               dir="ltr"
-                              title={net <= 0 ? "خالص صفر/منفی — ارقام را در ماژول مالی تنظیم کنید" : undefined}
+                              title={net <= 0 ? t("خالص صفر/منفی — ارقام را در ماژول مالی تنظیم کنید") : undefined}
                             >
                               {formatMoney(net, e.currency)}
                             </span>
                           </TableCell>
                           <TableCell>
                             {e.status === "paid" ? (
-                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" title={e.paidAt ? `پرداخت در ${formatDate(e.paidAt)}` : undefined}>
+                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" title={e.paidAt ? t("پرداخت در {p0}", { p0: formatDate(e.paidAt) }) : undefined}>
                                 <Icon name="checkCircle" size={12} />
-                                پرداخت‌شده
+                                {t("پرداخت‌شده")}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                                آماده
+                                {t("آماده")}
                               </span>
                             )}
                           </TableCell>
@@ -442,10 +443,10 @@ export function PayrollSimplePage() {
                                 className="h-7 gap-1 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white"
                                 disabled={net <= 0 || payEntryMut.isPending}
                                 onClick={() => setPayTarget(e)}
-                                title={net <= 0 ? "خالص باید مثبت باشد — ویرایش در ماژول مالی" : "پرداخت حقوق این کارمند"}
+                                title={net <= 0 ? t("خالص باید مثبت باشد — ویرایش در ماژول مالی") : t("پرداخت حقوق این کارمند")}
                               >
                                 <Icon name="money" size={12} />
-                                پرداخت
+                                {t("پرداخت")}
                               </Button>
                             ) : null}
                           </TableCell>
@@ -467,11 +468,11 @@ export function PayrollSimplePage() {
                     <Icon name="money" size={19} />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold">پرداخت حقوق کل دوره</div>
+                    <div className="text-sm font-semibold">{t("پرداخت حقوق کل دوره")}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {draftEntries.length === 0
-                        ? "همهٔ کارمندان پرداخت شده‌اند"
-                        : `${fa(draftEntries.length)} کارمند — جمع ${formatCurrency(draftNet)}`}
+                        ? t("همهٔ کارمندان پرداخت شده‌اند")
+                        : t("{p0} کارمند — جمع {p1}", { p0: fa(draftEntries.length), p1: formatCurrency(draftNet) })}
                     </div>
                   </div>
                 </div>
@@ -482,7 +483,7 @@ export function PayrollSimplePage() {
                   onClick={() => setPeriodPayOpen(true)}
                 >
                   <Icon name={payPeriodMut.isPending ? "loading" : "checkCircle"} size={16} className={payPeriodMut.isPending ? "animate-spin" : ""} />
-                  پرداخت حقوق کل دوره
+                  {t("پرداخت حقوق کل دوره")}
                 </Button>
               </div>
             </Card>
@@ -495,15 +496,15 @@ export function PayrollSimplePage() {
                 <Icon name="clock" size={17} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">دوره‌های قبلی</h3>
-                <p className="text-[11px] text-muted-foreground">{fa(pastPeriods.length)} دوره — فقط نمایش</p>
+                <h3 className="font-semibold text-sm">{t("دوره‌های قبلی")}</h3>
+                <p className="text-[11px] text-muted-foreground">{t("{p0} دوره — فقط نمایش", { p0: fa(pastPeriods.length) })}</p>
               </div>
             </div>
             {pastPeriods.length === 0 ? (
               <EmptyState
                 icon="calendar"
-                title="دورهٔ دیگری ثبت نشده است"
-                description="با پایان هر ماه، دورهٔ جدید به‌صورت خودکار ساخته می‌شود."
+                title={t("دورهٔ دیگری ثبت نشده است")}
+                description={t("با پایان هر ماه، دورهٔ جدید به‌صورت خودکار ساخته می‌شود.")}
                 className="py-8"
               />
             ) : (
@@ -511,11 +512,11 @@ export function PayrollSimplePage() {
                 <Table className="min-w-[600px]">
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead className="h-9 text-xs font-semibold text-muted-foreground">دوره</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground">بازه</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground text-center">تعداد</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground">جمع خالص</TableHead>
-                      <TableHead className="text-xs font-semibold text-muted-foreground">وضعیت</TableHead>
+                      <TableHead className="h-9 text-xs font-semibold text-muted-foreground">{t("دوره")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">{t("بازه")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground text-center">{t("تعداد")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">{t("جمع خالص")}</TableHead>
+                      <TableHead className="text-xs font-semibold text-muted-foreground">{t("وضعیت")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -539,7 +540,7 @@ export function PayrollSimplePage() {
                               "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
                               PERIOD_STATUS[p.status]?.cls ?? "bg-muted text-muted-foreground"
                             )}
-                            title={p.paidByName && p.paidAt ? `پرداخت توسط ${p.paidByName} — ${formatDate(p.paidAt)}` : undefined}
+                            title={p.paidByName && p.paidAt ? t("پرداخت توسط {p0} — {p1}", { p0: p.paidByName, p1: formatDate(p.paidAt) }) : undefined}
                           >
                             {PERIOD_STATUS[p.status]?.label ?? p.status}
                           </span>
@@ -558,30 +559,30 @@ export function PayrollSimplePage() {
       <AlertDialog open={!!payTarget} onOpenChange={(o) => !o && setPayTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>پرداخت حقوق {payTarget?.name}</AlertDialogTitle>
+            <AlertDialogTitle>{t("پرداخت حقوق {p0}", { p0: payTarget?.name })}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <div>
-                  خالص پرداختی:{" "}
+                  {t("خالص پرداختی:{p0}", { p0: " " })}
                   <b dir="ltr" className="tabular-nums text-foreground">
                     {formatCurrency(payTarget ? liveNet(payTarget) : 0)}
                   </b>
                 </div>
                 <div>
-                  پس از پرداخت، این ردیف قفل می‌شود و به‌عنوان سند هزینهٔ «حقوق» ثبت می‌شود؛ به
-                  کارمند هم اطلاع داده می‌شود.
+                  {t("پس از پرداخت، این ردیف قفل می‌شود و به‌عنوان سند هزینهٔ «حقوق» ثبت می‌شود؛ به")}
+                  {t("کارمند هم اطلاع داده می‌شود.")}
                 </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
               onClick={() => payTarget && payEntryMut.mutate(payTarget.id)}
             >
               <Icon name="money" size={14} />
-              پرداخت
+              {t("پرداخت")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -592,30 +593,30 @@ export function PayrollSimplePage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              پرداخت حقوق کل دورهٔ <span dir="ltr" className="tabular-nums">{current?.key ?? ""}</span>
+              {t("پرداخت حقوق کل دورهٔ")}<span dir="ltr" className="tabular-nums">{current?.key ?? ""}</span>
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <div>
-                  {fa(draftEntries.length)} کارمند پرداخت می‌شود — جمع:{" "}
+                  {t("{p0} کارمند پرداخت می‌شود — جمع:{p1}", { p0: fa(draftEntries.length), p1: " " })}
                   <b dir="ltr" className="tabular-nums text-foreground">{formatCurrency(draftNet)}</b>
                 </div>
                 <div className="text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
                   <Icon name="alertTriangle" size={14} className="shrink-0 mt-0.5" />
-                  <span>ردیف‌های پرداخت‌شده قفل می‌شوند و ردیف‌های با خالصِ ≤ 0 رد می‌شوند.</span>
+                  <span>{t("ردیف‌های پرداخت‌شده قفل می‌شوند و ردیف‌های با خالصِ ≤ 0 رد می‌شوند.")}</span>
                 </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
               disabled={payPeriodMut.isPending}
               onClick={() => current && payPeriodMut.mutate(current.id)}
             >
               <Icon name={payPeriodMut.isPending ? "loading" : "checkCircle"} size={14} className={payPeriodMut.isPending ? "animate-spin" : ""} />
-              تأیید و پرداخت
+              {t("تأیید و پرداخت")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

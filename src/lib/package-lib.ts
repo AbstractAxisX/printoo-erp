@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { applyPaidAmountChange } from "@/lib/paid-sync";
 import { logOrderEvent } from "@/lib/order-events";
+import { t } from "@/lib/i18n";
 
 // ─── Phase 16: منطق مشترک بسته‌بندی/ارسال/تحویل ──────────────────
 // همهٔ توابع tx می‌گیرند (تراکنش route) — قاعدهٔ connection-limit=1.
@@ -70,7 +71,7 @@ export async function finalizeDelivery(
       items: { include: { order: { select: { id: true, number: true } } } },
     },
   });
-  if (!pkg) throw new Error("بسته یافت نشد");
+  if (!pkg) throw new Error(t("بسته یافت نشد"));
 
   // 1) تکمیل اقلام
   const orderIds = [...new Set(pkg.items.map((i) => i.orderId))];
@@ -118,7 +119,7 @@ export async function finalizeDelivery(
           userName: args.actor.name,
           module: "logistics",
           method: "cash",
-          note: `پول در محل — تحویل بسته ${pkg.code}`,
+          note: t("پول در محل — تحویل بسته {p0}", { p0: pkg.code }),
         },
       });
       codOrders.push({ number: order.number, diff: res.diff });
@@ -132,7 +133,7 @@ export async function finalizeDelivery(
       orderId: oid,
       type: "package_delivered",
       actorId: args.actor.id,
-      title: "تحویل بسته",
+      title: t("تحویل بسته"),
       description: `بسته ${pkg.code} تحویل شد${args.receiverName ? ` — گیرنده: ${args.receiverName}` : ""}${
         args.collectCod && pkg.codAmount > 0 ? " (پول در محل دریافت شد)" : ""
       }`,

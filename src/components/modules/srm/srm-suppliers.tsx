@@ -44,6 +44,7 @@ import type {
   SupplierDetail,
   MaterialCost,
 } from "./srm-types";
+import { t } from "@/lib/i18n";
 
 // ─── Status / Module meta (for costs tab) ─────────────────────────────
 const STATUS_BADGE: Record<string, string> = {
@@ -52,9 +53,9 @@ const STATUS_BADGE: Record<string, string> = {
   rejected: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
 };
 const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  approved: "تأیید شده",
-  rejected: "رد شده",
+  pending: t("در انتظار"),
+  approved: t("تأیید شده"),
+  rejected: t("رد شده"),
 };
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -123,7 +124,7 @@ export function SRMSuppliers() {
       api("/api/suppliers", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["suppliers", "srm-dashboard"]);
-      toast.success("تامین‌کننده ایجاد شد");
+      toast.success(t("تامین‌کننده ایجاد شد"));
       setDialogOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -133,7 +134,7 @@ export function SRMSuppliers() {
       api(`/api/suppliers/${editing?.id}`, { method: "PUT", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["suppliers", "supplier-detail", "srm-dashboard"]);
-      toast.success("تامین‌کننده ویرایش شد");
+      toast.success(t("تامین‌کننده ویرایش شد"));
       setDialogOpen(false);
       setEditing(null);
     },
@@ -143,7 +144,7 @@ export function SRMSuppliers() {
     mutationFn: (id: string) => api(`/api/suppliers/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["suppliers", "srm-dashboard"]);
-      toast.success("تامین‌کننده حذف شد");
+      toast.success(t("تامین‌کننده حذف شد"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -175,7 +176,7 @@ export function SRMSuppliers() {
   const columns: ColumnDef<Supplier>[] = [
     {
       accessorKey: "name",
-      header: "نام تامین‌کننده",
+      header: t("نام تامین‌کننده"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="size-8 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 grid place-items-center text-xs font-bold shrink-0">
@@ -196,7 +197,7 @@ export function SRMSuppliers() {
     {
       id: "category",
       accessorFn: (r) => r.subcategory?.category?.name ?? "",
-      header: "دسته / زیردسته",
+      header: t("دسته / زیردسته"),
       cell: ({ row }) => {
         const sub = row.original.subcategory;
         if (!sub) return <span className="text-muted-foreground text-xs">—</span>;
@@ -211,7 +212,7 @@ export function SRMSuppliers() {
     },
     {
       accessorKey: "phone",
-      header: "تلفن",
+      header: t("تلفن"),
       cell: ({ row }) => (
         <span className="text-muted-foreground tabular-nums text-xs" dir="ltr">
           {row.original.phone ?? "—"}
@@ -221,7 +222,7 @@ export function SRMSuppliers() {
     },
     {
       accessorKey: "contactPerson",
-      header: "شخص مسئول",
+      header: t("شخص مسئول"),
       cell: ({ row }) => (
         <span className="text-sm">{row.original.contactPerson ?? "—"}</span>
       ),
@@ -230,7 +231,7 @@ export function SRMSuppliers() {
     {
       id: "services",
       accessorFn: (r) => r._count?.services ?? 0,
-      header: "خدمات",
+      header: t("خدمات"),
       cell: ({ row }) => (
         <span className={cn("tabular-nums", (row.original._count?.services ?? 0) === 0 && "text-muted-foreground")}>
           {row.original._count?.services ?? 0}
@@ -241,7 +242,7 @@ export function SRMSuppliers() {
     {
       id: "costs",
       accessorFn: (r) => r._count?.materialCosts ?? 0,
-      header: "هزینه‌ها",
+      header: t("هزینه‌ها"),
       cell: ({ row }) => (
         <span className={cn("tabular-nums", (row.original._count?.materialCosts ?? 0) === 0 && "text-muted-foreground")}>
           {row.original._count?.materialCosts ?? 0}
@@ -251,7 +252,7 @@ export function SRMSuppliers() {
     },
     {
       accessorKey: "balanceDue",
-      header: "مانده حساب",
+      header: t("مانده حساب"),
       cell: ({ row }) => (
         <span
           className={cn(
@@ -267,7 +268,7 @@ export function SRMSuppliers() {
     },
     {
       id: "actions",
-      header: () => <div className="text-center">عملیات</div>,
+      header: () => <div className="text-center">{t("عملیات")}</div>,
       cell: ({ row }) => (
         <div className="flex items-center justify-center gap-0.5">
           <Button
@@ -278,7 +279,7 @@ export function SRMSuppliers() {
               e.stopPropagation();
               setSelectedId(row.original.id);
             }}
-            title="مشاهده جزئیات"
+            title={t("مشاهده جزئیات")}
           >
             <Icon name="eye" size={16} />
           </Button>
@@ -290,7 +291,7 @@ export function SRMSuppliers() {
               e.stopPropagation();
               openEdit(row.original);
             }}
-            title="ویرایش"
+            title={t("ویرایش")}
           >
             <Icon name="edit" size={16} />
           </Button>
@@ -300,11 +301,11 @@ export function SRMSuppliers() {
             className="size-8 hover:text-rose-600"
             onClick={(e) => {
               e.stopPropagation();
-              if (confirm(`حذف "${row.original.name}"؟ این عمل قابل بازگشت نیست.`)) {
+              if (confirm(t("حذف \"{p0}\"؟ این عمل قابل بازگشت نیست.", { p0: row.original.name }))) {
                 deleteMut.mutate(row.original.id);
               }
             }}
-            title="حذف"
+            title={t("حذف")}
           >
             <Icon name="trash" size={16} />
           </Button>
@@ -318,12 +319,12 @@ export function SRMSuppliers() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تامین‌کنندگان"
-        description="نمای 360 درجه تامین‌کنندگان، خدمات و هزینه‌ها"
+        title={t("تامین‌کنندگان")}
+        description={t("نمای 360 درجه تامین‌کنندگان، خدمات و هزینه‌ها")}
         icon="suppliers"
         actions={
           <Button onClick={openNew} className="gap-2">
-            <Icon name="plus" size={16} /> تامین‌کننده جدید
+            <Icon name="plus" size={16} /> {t("تامین‌کننده جدید")}
           </Button>
         }
       />
@@ -335,17 +336,17 @@ export function SRMSuppliers() {
           isLoading={isLoading}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="جستجوی نام یا تلفن..."
+          searchPlaceholder={t("جستجوی نام یا تلفن...")}
           pageSize={10}
           onRowClick={(s) => setSelectedId(s.id)}
           toolbar={
             <div className="flex items-center gap-2">
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger className="w-[160px] h-9">
-                  <SelectValue placeholder="همه دسته‌ها" />
+                  <SelectValue placeholder={t("همه دسته‌ها")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه دسته‌ها</SelectItem>
+                  <SelectItem value="all">{t("همه دسته‌ها")}</SelectItem>
                   {categories.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
@@ -355,10 +356,10 @@ export function SRMSuppliers() {
               </Select>
               <Select value={subcategoryId} onValueChange={setSubcategoryId} disabled={categoryId === "all"}>
                 <SelectTrigger className="w-[180px] h-9">
-                  <SelectValue placeholder="همه زیردسته‌ها" />
+                  <SelectValue placeholder={t("همه زیردسته‌ها")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه زیردسته‌ها</SelectItem>
+                  <SelectItem value="all">{t("همه زیردسته‌ها")}</SelectItem>
                   {subcategoryOptions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
@@ -371,11 +372,11 @@ export function SRMSuppliers() {
           emptyState={
             <EmptyState
               icon="suppliers"
-              title="تامین‌کننده‌ای یافت نشد"
-              description="اولین تامین‌کننده را اضافه کنید یا فیلترها را تغییر دهید."
+              title={t("تامین‌کننده‌ای یافت نشد")}
+              description={t("اولین تامین‌کننده را اضافه کنید یا فیلترها را تغییر دهید.")}
               action={
                 <Button onClick={openNew} className="gap-2">
-                  <Icon name="plus" size={16} /> افزودن تامین‌کننده
+                  <Icon name="plus" size={16} /> {t("افزودن تامین‌کننده")}
                 </Button>
               }
             />
@@ -387,10 +388,10 @@ export function SRMSuppliers() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>{editing ? "ویرایش تامین‌کننده" : "تامین‌کننده جدید"}</DialogTitle>
+            <DialogTitle>{editing ? t("ویرایش تامین‌کننده") : t("تامین‌کننده جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <Field label="نام تامین‌کننده" required>
+            <Field label={t("نام تامین‌کننده")} required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -398,7 +399,7 @@ export function SRMSuppliers() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="شماره تلفن">
+              <Field label={t("شماره تلفن")}>
                 <Input
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -406,30 +407,30 @@ export function SRMSuppliers() {
                   placeholder="0912..."
                 />
               </Field>
-              <Field label="شخص مسئول">
+              <Field label={t("شخص مسئول")}>
                 <Input
                   value={form.contactPerson}
                   onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
                 />
               </Field>
             </div>
-            <Field label="نشانی">
+            <Field label={t("نشانی")}>
               <Input
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
               />
             </Field>
-            <Field label="دسته / زیردسته">
+            <Field label={t("دسته / زیردسته")}>
               <Select
                 value={form.subcategoryId}
                 onValueChange={(v) => setForm({ ...form, subcategoryId: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="انتخاب زیردسته..." />
+                  <SelectValue placeholder={t("انتخاب زیردسته...")} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.length === 0 ? (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">ابتدا دسته بسازید</div>
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">{t("ابتدا دسته بسازید")}</div>
                   ) : (
                     categories.map((c) => (
                       <div key={c.id}>
@@ -447,7 +448,7 @@ export function SRMSuppliers() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="یادداشت">
+            <Field label={t("یادداشت")}>
               <Textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
@@ -456,7 +457,7 @@ export function SRMSuppliers() {
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createMut.isPending || updateMut.isPending} className="gap-2">
                 {(createMut.isPending || updateMut.isPending) ? (
@@ -464,7 +465,7 @@ export function SRMSuppliers() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                {editing ? "ذخیره تغییرات" : "ذخیره"}
+                {editing ? t("ذخیره تغییرات") : t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>
@@ -519,34 +520,34 @@ function SupplierDetailDrawer({
         <SheetHeader className="px-5 pt-5 pb-3 border-b">
           <SheetTitle className="flex items-center gap-2">
             <Icon name="suppliers" size={18} className="text-orange-500" />
-            نمای 360 درجه تامین‌کننده
+            {t("نمای 360 درجه تامین‌کننده")}
           </SheetTitle>
-          <SheetDescription>اطلاعات کامل، خدمات و هزینه‌ها</SheetDescription>
+          <SheetDescription>{t("اطلاعات کامل، خدمات و هزینه‌ها")}</SheetDescription>
         </SheetHeader>
 
         {isLoading ? (
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="loading" size={28} className="animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">در حال بارگذاری...</span>
+            <span className="text-sm text-muted-foreground">{t("در حال بارگذاری...")}</span>
           </div>
         ) : isError ? (
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="alertTriangle" size={28} className="text-rose-500" />
             <span className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : "خطا در بارگذاری تامین‌کننده"}
+              {error instanceof Error ? error.message : t("خطا در بارگذاری تامین‌کننده")}
             </span>
             <Button variant="outline" size="sm" onClick={onClose} className="mt-2">
-              بستن
+              {t("بستن")}
             </Button>
           </div>
         ) : notFound ? (
           <div className="py-20 flex flex-col items-center gap-2">
             <Icon name="alertTriangle" size={28} className="text-amber-500" />
             <span className="text-sm text-muted-foreground">
-              تامین‌کننده یافت نشد. ممکن است حذف شده باشد.
+              {t("تامین‌کننده یافت نشد. ممکن است حذف شده باشد.")}
             </span>
             <Button variant="outline" size="sm" onClick={onClose} className="mt-2">
-              بستن
+              {t("بستن")}
             </Button>
           </div>
         ) : detail ? (
@@ -587,22 +588,22 @@ function SupplierDetailDrawer({
                     subcategory: detail.subcategory,
                   })}
                 >
-                  <Icon name="edit" size={14} /> ویرایش
+                  <Icon name="edit" size={14} /> {t("ویرایش")}
                 </Button>
               </div>
 
               {/* Stat tiles */}
               <div className="grid grid-cols-3 gap-2 mt-4">
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">خدمات</div>
+                  <div className="text-[10px] text-muted-foreground">{t("خدمات")}</div>
                   <div className="text-base font-bold tabular-nums">{detail._count.services}</div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">هزینه‌ها</div>
+                  <div className="text-[10px] text-muted-foreground">{t("هزینه‌ها")}</div>
                   <div className="text-base font-bold tabular-nums">{detail._count.materialCosts}</div>
                 </div>
                 <div className="rounded-lg bg-card border p-2 text-center">
-                  <div className="text-[10px] text-muted-foreground">مانده حساب</div>
+                  <div className="text-[10px] text-muted-foreground">{t("مانده حساب")}</div>
                   <div className="text-xs font-bold tabular-nums" dir="ltr">
                     {formatCurrency(detail.balanceDue)}
                   </div>
@@ -615,14 +616,14 @@ function SupplierDetailDrawer({
                   {detail.contactPerson && (
                     <div className="flex items-center gap-1.5">
                       <Icon name="user" size={12} className="text-muted-foreground" />
-                      <span className="text-muted-foreground">شخص مسئول:</span>
+                      <span className="text-muted-foreground">{t("شخص مسئول:")}</span>
                       <span className="font-medium">{detail.contactPerson}</span>
                     </div>
                   )}
                   {detail.address && (
                     <div className="flex items-start gap-1.5">
                       <Icon name="mapPin" size={12} className="text-muted-foreground mt-0.5" />
-                      <span className="text-muted-foreground shrink-0">نشانی:</span>
+                      <span className="text-muted-foreground shrink-0">{t("نشانی:")}</span>
                       <span className="font-medium">{detail.address}</span>
                     </div>
                   )}
@@ -645,11 +646,11 @@ function SupplierDetailDrawer({
                 <TabsList className="w-full">
                   <TabsTrigger value="services" className="flex-1 gap-1">
                     <Icon name="task" size={14} />
-                    خدمات ({detail.services.length})
+                    {t("خدمات ({p0})", { p0: detail.services.length })}
                   </TabsTrigger>
                   <TabsTrigger value="costs" className="flex-1 gap-1">
                     <Icon name="coins" size={14} />
-                    هزینه‌ها ({detail.materialCosts.length})
+                    {t("هزینه‌ها ({p0})", { p0: detail.materialCosts.length })}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -657,7 +658,7 @@ function SupplierDetailDrawer({
               {/* Services tab */}
               <TabsContent value="services" className="px-5 py-3 m-0">
                 {detail.services.length === 0 ? (
-                  <EmptyState icon="task" title="خدماتی ثبت نشده" />
+                  <EmptyState icon="task" title={t("خدماتی ثبت نشده")} />
                 ) : (
                   <div className="space-y-2">
                     {detail.services.map((svc) => {
@@ -677,7 +678,7 @@ function SupplierDetailDrawer({
                                   </span>
                                 )}
                                 <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                                  واحد: {svc.unit}
+                                  {t("واحد: {p0}", { p0: svc.unit })}
                                 </span>
                               </div>
                               {svc.description && (
@@ -693,11 +694,11 @@ function SupplierDetailDrawer({
                                     {formatCurrency(latest.price)}
                                   </div>
                                   <div className="text-[10px] text-muted-foreground">
-                                    حداقل: {latest.minQuantity} {svc.unit}
+                                    {t("حداقل: {p0} {p1}", { p0: latest.minQuantity, p1: svc.unit })}
                                   </div>
                                 </>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground">بدون قیمت</span>
+                                <span className="text-[10px] text-muted-foreground">{t("بدون قیمت")}</span>
                               )}
                             </div>
                           </div>
@@ -717,11 +718,11 @@ function SupplierDetailDrawer({
                     onClick={onNavigateCosts}
                     className="gap-1.5"
                   >
-                    <Icon name="arrowLeft" size={14} /> مشاهده در ماژول هزینه‌ها
+                    <Icon name="arrowLeft" size={14} /> {t("مشاهده در ماژول هزینه‌ها")}
                   </Button>
                 </div>
                 {detail.materialCosts.length === 0 ? (
-                  <EmptyState icon="coins" title="هزینه‌ای ثبت نشده" />
+                  <EmptyState icon="coins" title={t("هزینه‌ای ثبت نشده")} />
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin">
                     {detail.materialCosts.map((c: MaterialCost) => (
@@ -734,7 +735,7 @@ function SupplierDetailDrawer({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">
-                            {c.description || c.expenseType?.name || `سفارش #${c.order?.number ?? "—"}`}
+                            {c.description || c.expenseType?.name || t("سفارش #{p0}", { p0: c.order?.number ?? "—" })}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {c.order?.customer?.name ?? "—"} • {relativeTime(c.createdAt)}

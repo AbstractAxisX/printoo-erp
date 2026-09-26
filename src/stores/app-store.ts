@@ -33,6 +33,8 @@ type AppUser = {
   modulePages?: Record<string, string[] | null> | null;
   // Phase 23: تولتیپ‌های راهنما — ترجیح per-profile (دیفالت روشن)
   guideTooltips?: boolean;
+  // Phase 27: زبان رابط کاربر (en دیفالت | fa) — per-profile
+  language?: "en" | "fa";
 };
 
 type AppState = {
@@ -73,6 +75,9 @@ type AppState = {
   // Phase 23: ترجیح تولتیپ راهنما — به‌روزرسانی درجا (بدون رفرش)
   setGuideTooltips: (on: boolean) => void;
 
+  // Phase 27: زبان رابط — به‌روزرسانی درجا (اعمال کامل با reload از فراخوانیکننده)
+  setLanguage: (lang: "en" | "fa") => void;
+
   // notifications panel
   notifOpen: boolean;
   setNotifOpen: (open: boolean) => void;
@@ -110,6 +115,8 @@ export const useAppStore = create<AppState>()(
             // Phase 23: دیفالت روشن برای تولتیپ راهنما / دمو فقط اگر صریح آمده باشد
             isDemo: u.isDemo ?? false,
             guideTooltips: u.guideTooltips ?? true,
+            // Phase 27: زبان — دیفالت انگلیسی
+            language: u.language === "fa" ? "fa" : "en",
           };
           const allowed = allowedModuleKeys(withPages);
           const sanitizedTabs = s.tabs.filter(
@@ -207,6 +214,9 @@ export const useAppStore = create<AppState>()(
 
       setGuideTooltips: (on) =>
         set((s) => (s.user ? { user: { ...s.user, guideTooltips: on } } : s)),
+
+      setLanguage: (lang) =>
+        set((s) => (s.user ? { user: { ...s.user, language: lang } } : s)),
 
       notifOpen: false,
       setNotifOpen: (open) => set({ notifOpen: open }),

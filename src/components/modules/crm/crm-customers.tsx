@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Customer360Drawer } from "@/components/shared/customer-360-drawer";
+import { t } from "@/lib/i18n";
 
 type Customer = {
   id: string;
@@ -97,7 +98,7 @@ export function CRMCustomers() {
       api("/api/customers/quick", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["customers", "crm-dashboard", "deals"]);
-      toast.success("مشتری ایجاد شد");
+      toast.success(t("مشتری ایجاد شد"));
       setDialogOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -107,7 +108,7 @@ export function CRMCustomers() {
       api(`/api/customers/${editing?.id}`, { method: "PUT", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["customers", "crm-dashboard", "deals"]);
-      toast.success("مشتری ویرایش شد");
+      toast.success(t("مشتری ویرایش شد"));
       setDialogOpen(false);
       setEditing(null);
     },
@@ -122,9 +123,9 @@ export function CRMCustomers() {
         body: JSON.stringify({ isFavorite: !c.isFavorite }),
       });
       invalidate(["customers"]);
-      toast.success(c.isFavorite ? "از ویژه‌ها حذف شد" : "به ویژه‌ها اضافه شد");
+      toast.success(c.isFavorite ? t("از ویژه‌ها حذف شد") : t("به ویژه‌ها اضافه شد"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "خطا در تغییر وضعیت");
+      toast.error(e instanceof Error ? e.message : t("خطا در تغییر وضعیت"));
     }
   }
 
@@ -147,7 +148,7 @@ export function CRMCustomers() {
   const columns: ColumnDef<Customer>[] = [
     {
       id: "fav",
-      header: () => <div className="text-center">ویژه</div>,
+      header: () => <div className="text-center">{t("ویژه")}</div>,
       cell: ({ row }) => (
         <div className="flex justify-center">
           <FavoriteStarButton
@@ -161,7 +162,7 @@ export function CRMCustomers() {
     },
     {
       accessorKey: "name",
-      header: "نام مشتری",
+      header: t("نام مشتری"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="size-8 rounded-full bg-primary/10 text-primary grid place-items-center text-xs font-bold shrink-0">
@@ -181,7 +182,7 @@ export function CRMCustomers() {
     },
     {
       accessorKey: "phone",
-      header: "تلفن",
+      header: t("تلفن"),
       cell: ({ row }) => (
         <span className="text-muted-foreground tabular-nums" dir="ltr">
           {row.original.phone}
@@ -192,7 +193,7 @@ export function CRMCustomers() {
     {
       id: "orders",
       accessorFn: (r) => r._count?.orders ?? 0,
-      header: "سفارش‌ها",
+      header: t("سفارش‌ها"),
       cell: ({ row }) => (
         <span className={cn("tabular-nums", (row.original._count?.orders ?? 0) === 0 && "text-muted-foreground")}>
           {row.original._count?.orders ?? 0}
@@ -203,7 +204,7 @@ export function CRMCustomers() {
     {
       id: "deals",
       accessorFn: (r) => r._count?.deals ?? 0,
-      header: "معاملات",
+      header: t("معاملات"),
       cell: ({ row }) => (
         <span className={cn("tabular-nums", (row.original._count?.deals ?? 0) === 0 && "text-muted-foreground")}>
           {row.original._count?.deals ?? 0}
@@ -214,7 +215,7 @@ export function CRMCustomers() {
     {
       // فاز 20 (باگ 7): unsettled زنده به‌جای balanceDue مردهٔ همیشه‌صفر
       accessorKey: "unsettled",
-      header: "مانده حساب",
+      header: t("مانده حساب"),
       cell: ({ row }) => {
         const due = row.original.unsettled ?? 0;
         return (
@@ -233,7 +234,7 @@ export function CRMCustomers() {
     },
     {
       accessorKey: "createdAt",
-      header: "تاریخ ثبت",
+      header: t("تاریخ ثبت"),
       cell: ({ row }) => (
         <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>
       ),
@@ -241,7 +242,7 @@ export function CRMCustomers() {
     },
     {
       id: "actions",
-      header: () => <div className="text-center">عملیات</div>,
+      header: () => <div className="text-center">{t("عملیات")}</div>,
       cell: ({ row }) => (
         <div className="flex items-center justify-center gap-0.5">
           <Button
@@ -252,7 +253,7 @@ export function CRMCustomers() {
               e.stopPropagation();
               setSelectedId(row.original.id);
             }}
-            title="مشاهده جزئیات"
+            title={t("مشاهده جزئیات")}
           >
             <Icon name="eye" size={16} />
           </Button>
@@ -264,7 +265,7 @@ export function CRMCustomers() {
               e.stopPropagation();
               openEdit(row.original);
             }}
-            title="ویرایش"
+            title={t("ویرایش")}
           >
             <Icon name="edit" size={16} />
           </Button>
@@ -278,12 +279,12 @@ export function CRMCustomers() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="مشتریان"
-        description="نمای 360 درجه مشتریان، سفارش‌ها و فعالیت‌ها"
+        title={t("مشتریان")}
+        description={t("نمای 360 درجه مشتریان، سفارش‌ها و فعالیت‌ها")}
         icon="customers"
         actions={
           <Button onClick={openNew} className="gap-2">
-            <Icon name="plus" size={16} /> مشتری جدید
+            <Icon name="plus" size={16} /> {t("مشتری جدید")}
           </Button>
         }
       />
@@ -295,7 +296,7 @@ export function CRMCustomers() {
           isLoading={isLoading}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="جستجوی نام یا تلفن..."
+          searchPlaceholder={t("جستجوی نام یا تلفن...")}
           pageSize={10}
           onRowClick={(c) => setSelectedId(c.id)}
           // 20-E — نمای کارتی موبایل (کلیک = نمای 360)
@@ -309,21 +310,21 @@ export function CRMCustomers() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">همه مشتریان</SelectItem>
-                <SelectItem value="favorite">فقط ویژه‌ها</SelectItem>
-                <SelectItem value="has-orders">دارای سفارش</SelectItem>
-                <SelectItem value="no-orders">بدون سفارش</SelectItem>
+                <SelectItem value="all">{t("همه مشتریان")}</SelectItem>
+                <SelectItem value="favorite">{t("فقط ویژه‌ها")}</SelectItem>
+                <SelectItem value="has-orders">{t("دارای سفارش")}</SelectItem>
+                <SelectItem value="no-orders">{t("بدون سفارش")}</SelectItem>
               </SelectContent>
             </Select>
           }
           emptyState={
             <EmptyState
               icon="customers"
-              title="مشتری‌ای یافت نشد"
-              description="اولین مشتری خود را اضافه کنید یا فیلترها را تغییر دهید."
+              title={t("مشتری‌ای یافت نشد")}
+              description={t("اولین مشتری خود را اضافه کنید یا فیلترها را تغییر دهید.")}
               action={
                 <Button onClick={openNew} className="gap-2">
-                  <Icon name="plus" size={16} /> افزودن مشتری
+                  <Icon name="plus" size={16} /> {t("افزودن مشتری")}
                 </Button>
               }
             />
@@ -335,17 +336,17 @@ export function CRMCustomers() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>{editing ? "ویرایش مشتری" : "مشتری جدید"}</DialogTitle>
+            <DialogTitle>{editing ? t("ویرایش مشتری") : t("مشتری جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
-            <Field label="نام مشتری" required>
+            <Field label={t("نام مشتری")} required>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
               />
             </Field>
-            <Field label="شماره تلفن" required>
+            <Field label={t("شماره تلفن")} required>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -358,11 +359,11 @@ export function CRMCustomers() {
               checked={form.isFavorite}
               onChange={(v) => setForm({ ...form, isFavorite: v })}
               id="fav"
-              label="مشتری ویژه"
+              label={t("مشتری ویژه")}
               activeIcon="star"
               activeColor="amber"
             />
-            <Field label="یادداشت">
+            <Field label={t("یادداشت")}>
               <Textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
@@ -371,7 +372,7 @@ export function CRMCustomers() {
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createMut.isPending || updateMut.isPending} className="gap-2">
                 {(createMut.isPending || updateMut.isPending) ? (
@@ -379,7 +380,7 @@ export function CRMCustomers() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                {editing ? "ذخیره تغییرات" : "ذخیره"}
+                {editing ? t("ذخیره تغییرات") : t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>
@@ -421,7 +422,7 @@ function CustomerMobileCard({ customer: c }: { customer: Customer }) {
             </span>
           ) : (
             <span className="text-[10px] font-medium rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 shrink-0">
-              تسویه
+              {t("تسویه")}
             </span>
           )}
         </div>
@@ -431,7 +432,7 @@ function CustomerMobileCard({ customer: c }: { customer: Customer }) {
             {c.phone}
           </span>
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-            {(c._count?.orders ?? 0).toLocaleString("en-US")} سفارش
+            {t("{p0} سفارش", { p0: (c._count?.orders ?? 0).toLocaleString("en-US") })}
           </span>
         </div>
       </div>
@@ -453,7 +454,7 @@ function FavoriteStarButton({
         e.stopPropagation();
         onClick();
       }}
-      title={isFavorite ? "حذف از ویژه‌ها" : "افزودن به ویژه‌ها"}
+      title={isFavorite ? t("حذف از ویژه‌ها") : t("افزودن به ویژه‌ها")}
       className={cn(
         "size-7 rounded-lg grid place-items-center border-2 transition-all",
         isFavorite

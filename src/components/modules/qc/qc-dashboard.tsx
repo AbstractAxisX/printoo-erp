@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { useQcReportDetail } from "@/lib/use-qc-report-detail";
 import type { QcReport } from "./qc-report-detail";
+import { t } from "@/lib/i18n";
 
 // ─── Module & status meta ─────────────────────────────────────────────
 const MODULE_META: Record<
@@ -19,19 +20,19 @@ const MODULE_META: Record<
   { label: string; icon: IconName; color: string; bar: string }
 > = {
   designer: {
-    label: "طراح",
+    label: t("طراح"),
     icon: "design",
     color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
     bar: "bg-violet-500",
   },
   print: {
-    label: "چاپ",
+    label: t("چاپ"),
     icon: "print",
     color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     bar: "bg-amber-500",
   },
   warehouse: {
-    label: "انبار",
+    label: t("انبار"),
     icon: "warehouse",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
     bar: "bg-cyan-500",
@@ -46,10 +47,10 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  reviewing: "در حال بررسی",
-  approved: "تأیید شده",
-  rejected: "رد شده",
+  pending: t("در انتظار"),
+  reviewing: t("در حال بررسی"),
+  approved: t("تأیید شده"),
+  rejected: t("رد شده"),
 };
 
 // ─── KPI Card ─────────────────────────────────────────────────────────
@@ -155,12 +156,12 @@ export function QcDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="داشبورد کنترل کیفیت"
-        description="نمای کلی گزارشات دریافتی از ماژول‌های طراح، چاپ و انبار"
+        title={t("داشبورد کنترل کیفیت")}
+        description={t("نمای کلی گزارشات دریافتی از ماژول‌های طراح، چاپ و انبار")}
         icon="shield"
         actions={
           <Button onClick={() => navigate("qc", "reports")} className="gap-2">
-            <Icon name="checkList" size={16} /> همه گزارشات
+            <Icon name="checkList" size={16} /> {t("همه گزارشات")}
           </Button>
         }
       />
@@ -169,33 +170,33 @@ export function QcDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
           icon="clock"
-          label="گزارشات در انتظار"
+          label={t("گزارشات در انتظار")}
           value={pendingCount}
-          hint="نیازمند بررسی کنترل کیفیت"
+          hint={t("نیازمند بررسی کنترل کیفیت")}
           color="amber"
           onClick={() => navigate("qc", "reports")}
         />
         <KpiCard
           icon="eye"
-          label="در حال بررسی"
+          label={t("در حال بررسی")}
           value={reviewingCount}
-          hint="در فرآیند بررسی"
+          hint={t("در فرآیند بررسی")}
           color="violet"
           onClick={() => navigate("qc", "reports")}
         />
         <KpiCard
           icon="checkCircle"
-          label="تأیید شده"
+          label={t("تأیید شده")}
           value={approvedCount}
-          hint="گزارشات تأیید شده"
+          hint={t("گزارشات تأیید شده")}
           color="emerald"
           onClick={() => navigate("qc", "reports")}
         />
         <KpiCard
           icon="cancel"
-          label="رد شده"
+          label={t("رد شده")}
           value={rejectedCount}
-          hint="گزارشات رد شده"
+          hint={t("گزارشات رد شده")}
           color="rose"
           onClick={() => navigate("qc", "reports")}
         />
@@ -208,7 +209,7 @@ export function QcDashboard() {
           <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
             <div className="flex items-center gap-2">
               <Icon name="checkList" size={18} className="text-primary" />
-              <h3 className="font-semibold text-sm">گزارشات اخیر</h3>
+              <h3 className="font-semibold text-sm">{t("گزارشات اخیر")}</h3>
               <span className="text-[11px] text-muted-foreground">
                 ({reports.length})
               </span>
@@ -217,19 +218,19 @@ export function QcDashboard() {
               onClick={() => navigate("qc", "reports")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              مشاهده همه <Icon name="arrowLeft" size={12} />
+              {t("مشاهده همه")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           {isLoading ? (
             <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
               <Icon name="loading" size={16} className="animate-spin" />
-              در حال بارگذاری...
+              {t("در حال بارگذاری...")}
             </div>
           ) : recentReports.length === 0 ? (
             <EmptyState
               icon="checkCircle"
-              title="گزارشی وجود ندارد"
-              description="هنوز گزارشی از ماژول‌ها دریافت نشده است"
+              title={t("گزارشی وجود ندارد")}
+              description={t("هنوز گزارشی از ماژول‌ها دریافت نشده است")}
             />
           ) : (
             <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
@@ -293,7 +294,7 @@ export function QcDashboard() {
         <Card className="p-0 overflow-hidden">
           <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center gap-2">
             <Icon name="grid" size={18} className="text-primary" />
-            <h3 className="font-semibold text-sm">گزارشات بر اساس ماژول</h3>
+            <h3 className="font-semibold text-sm">{t("گزارشات بر اساس ماژول")}</h3>
           </div>
           <div className="p-5 space-y-4">
             {Object.entries(MODULE_META).map(([key, meta]) => {
@@ -334,7 +335,7 @@ export function QcDashboard() {
 
             {/* Total at the bottom */}
             <div className="pt-3 border-t flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">مجموع گزارشات</span>
+              <span className="text-xs text-muted-foreground">{t("مجموع گزارشات")}</span>
               <span className="text-lg font-bold tabular-nums">
                 {reports.length}
               </span>

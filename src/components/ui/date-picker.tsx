@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 type DatePickerProps = {
   value?: Date | string | null;
@@ -22,7 +23,7 @@ type DatePickerProps = {
  * Gregorian dates, English numerals.
  */
 export function DatePicker({
-  value, onChange, placeholder = "انتخاب تاریخ", className, clearable = true, disabled,
+  value, onChange, placeholder = t("انتخاب تاریخ"), className, clearable = true, disabled,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const date = React.useMemo(() => {
@@ -88,9 +89,9 @@ export function DateRangePicker({
 }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <DatePicker value={start} onChange={onStartChange} placeholder="از تاریخ" />
+      <DatePicker value={start} onChange={onStartChange} placeholder={t("از تاریخ")} />
       <Icon name="arrowLeft" size={14} className="text-muted-foreground" />
-      <DatePicker value={end} onChange={onEndChange} placeholder="تا تاریخ" />
+      <DatePicker value={end} onChange={onEndChange} placeholder={t("تا تاریخ")} />
     </div>
   );
 }

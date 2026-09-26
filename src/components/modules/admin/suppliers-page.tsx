@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 type Supplier = {
   id: string; name: string; phone: string | null; contactPerson: string | null;
@@ -35,14 +36,14 @@ export function SuppliersPage() {
 
   const createMut = useMutation({
     mutationFn: (body: typeof form) => api("/api/suppliers", { method: "POST", body: JSON.stringify(body) }),
-    onSuccess: () => { invalidate(["suppliers", "dashboard"]); toast.success("تامین‌کننده ایجاد شد"); setOpen(false); setForm({ name: "", phone: "", contactPerson: "", address: "", note: "" }); },
+    onSuccess: () => { invalidate(["suppliers", "dashboard"]); toast.success(t("تامین‌کننده ایجاد شد")); setOpen(false); setForm({ name: "", phone: "", contactPerson: "", address: "", note: "" }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const columns = React.useMemo<ColumnDef<Supplier>[]>(() => [
     {
       accessorKey: "name",
-      header: "نام",
+      header: t("نام"),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="size-8 rounded-lg bg-orange-100 text-orange-600 dark:bg-orange-950/40 grid place-items-center">
@@ -55,23 +56,23 @@ export function SuppliersPage() {
     },
     {
       accessorKey: "phone",
-      header: "تلفن",
+      header: t("تلفن"),
       cell: ({ row }) => <span className="text-muted-foreground tabular-nums" dir="ltr">{row.original.phone || "—"}</span>,
     },
     {
       accessorKey: "contactPerson",
-      header: "مسئول ارتباط",
+      header: t("مسئول ارتباط"),
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.contactPerson || "—"}</span>,
     },
     {
       accessorKey: "balanceDue",
-      header: "مانده بدهی",
+      header: t("مانده بدهی"),
       cell: ({ row }) => <span className="tabular-nums font-medium" dir="ltr">{formatCurrency(row.original.balanceDue)}</span>,
       enableSorting: true,
     },
     {
       accessorKey: "createdAt",
-      header: "تاریخ ثبت",
+      header: t("تاریخ ثبت"),
       cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
       enableSorting: true,
     },
@@ -80,10 +81,10 @@ export function SuppliersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تامین‌کنندگان (SRM)"
-        description="مدیریت تامین‌کنندگان و چاپخانه‌های خارجی"
+        title={t("تامین‌کنندگان (SRM)")}
+        description={t("مدیریت تامین‌کنندگان و چاپخانه‌های خارجی")}
         icon="suppliers"
-        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> تامین‌کننده جدید</Button>}
+        actions={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> {t("تامین‌کننده جدید")}</Button>}
       />
 
       <Card className="p-4">
@@ -93,14 +94,14 @@ export function SuppliersPage() {
           isLoading={isLoading}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="جستجوی نام یا تلفن..."
+          searchPlaceholder={t("جستجوی نام یا تلفن...")}
           pageSize={10}
           emptyState={
             <EmptyState
               icon="suppliers"
-              title="تامین‌کننده‌ای یافت نشد"
-              description="اولین تامین‌کننده را اضافه کنید."
-              action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> افزودن</Button>}
+              title={t("تامین‌کننده‌ای یافت نشد")}
+              description={t("اولین تامین‌کننده را اضافه کنید.")}
+              action={<Button onClick={() => setOpen(true)} className="gap-2"><Icon name="plus" size={16} /> {t("افزودن")}</Button>}
             />
           }
         />
@@ -108,30 +109,30 @@ export function SuppliersPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent aria-describedby={undefined}>
-          <DialogHeader><DialogTitle>تامین‌کننده جدید</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("تامین‌کننده جدید")}</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); createMut.mutate(form); }} className="space-y-4">
-            <Field label="نام تامین‌کننده" required>
+            <Field label={t("نام تامین‌کننده")} required>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="تلفن">
+              <Field label={t("تلفن")}>
                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} dir="ltr" />
               </Field>
-              <Field label="مسئول ارتباط">
+              <Field label={t("مسئول ارتباط")}>
                 <Input value={form.contactPerson} onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} />
               </Field>
             </div>
-            <Field label="آدرس">
+            <Field label={t("آدرس")}>
               <Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} rows={2} />
             </Field>
-            <Field label="یادداشت">
+            <Field label={t("یادداشت")}>
               <Textarea value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} rows={2} />
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>انصراف</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>{t("انصراف")}</Button>
               <Button type="submit" disabled={createMut.isPending} className="gap-2">
                 {createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-                ذخیره
+                {t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>

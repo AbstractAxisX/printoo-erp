@@ -1,6 +1,7 @@
 // CRM shared constants & helpers
 
 import type { IconName } from "@/lib/icons";
+import { t } from "@/lib/i18n";
 
 export type DealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
 export type ActivityType = "call" | "email" | "meeting" | "note" | "visit";
@@ -16,12 +17,12 @@ export const DEAL_STAGES: DealStage[] = [
 ];
 
 export const STAGE_LABELS: Record<DealStage, string> = {
-  lead: "سرنخ",
-  qualified: "واجد شرایط",
-  proposal: "پیشنهاد",
-  negotiation: "مذاکره",
-  won: "برنده",
-  lost: "بازنده",
+  lead: t("سرنخ"),
+  qualified: t("واجد شرایط"),
+  proposal: t("پیشنهاد"),
+  negotiation: t("مذاکره"),
+  won: t("برنده"),
+  lost: t("بازنده"),
 };
 
 export const STAGE_COLORS: Record<DealStage, { bg: string; text: string; bar: string; dot: string; border: string }> = {
@@ -84,27 +85,27 @@ export const ACTIVITY_META: Record<
   ActivityType,
   { label: string; icon: IconName; color: string; bg: string }
 > = {
-  call: { label: "تماس تلفنی", icon: "customers", color: "text-sky-600 dark:text-sky-300", bg: "bg-sky-100 dark:bg-sky-950/60" },
-  email: { label: "ایمیل", icon: "mail", color: "text-violet-600 dark:text-violet-300", bg: "bg-violet-100 dark:bg-violet-950/60" },
-  meeting: { label: "جلسه", icon: "userGroup", color: "text-amber-600 dark:text-amber-300", bg: "bg-amber-100 dark:bg-amber-950/60" },
-  note: { label: "یادداشت", icon: "file", color: "text-slate-600 dark:text-slate-300", bg: "bg-slate-100 dark:bg-slate-800" },
-  visit: { label: "ویزیت حضوری", icon: "mapPin", color: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-100 dark:bg-emerald-950/60" },
+  call: { label: t("تماس تلفنی"), icon: "customers", color: "text-sky-600 dark:text-sky-300", bg: "bg-sky-100 dark:bg-sky-950/60" },
+  email: { label: t("ایمیل"), icon: "mail", color: "text-violet-600 dark:text-violet-300", bg: "bg-violet-100 dark:bg-violet-950/60" },
+  meeting: { label: t("جلسه"), icon: "userGroup", color: "text-amber-600 dark:text-amber-300", bg: "bg-amber-100 dark:bg-amber-950/60" },
+  note: { label: t("یادداشت"), icon: "file", color: "text-slate-600 dark:text-slate-300", bg: "bg-slate-100 dark:bg-slate-800" },
+  visit: { label: t("ویزیت حضوری"), icon: "mapPin", color: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-100 dark:bg-emerald-950/60" },
 };
 
 export const SOURCE_LABELS: Record<DealSource, string> = {
-  "walk-in": "مراجعه حضوری",
-  phone: "تماس تلفنی",
-  referral: "معرفی",
-  online: "آنلاین",
-  other: "سایر",
+  "walk-in": t("مراجعه حضوری"),
+  phone: t("تماس تلفنی"),
+  referral: t("معرفی"),
+  online: t("آنلاین"),
+  other: t("سایر"),
 };
 
 export const SOURCE_OPTIONS: { value: DealSource; label: string }[] = [
-  { value: "walk-in", label: "مراجعه حضوری" },
-  { value: "phone", label: "تماس تلفنی" },
-  { value: "referral", label: "معرفی" },
-  { value: "online", label: "آنلاین" },
-  { value: "other", label: "سایر" },
+  { value: "walk-in", label: t("مراجعه حضوری") },
+  { value: "phone", label: t("تماس تلفنی") },
+  { value: "referral", label: t("معرفی") },
+  { value: "online", label: t("آنلاین") },
+  { value: "other", label: t("سایر") },
 ];
 
 export const STAGE_OPTIONS: { value: DealStage; label: string }[] = DEAL_STAGES.map((s) => ({

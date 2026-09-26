@@ -17,6 +17,7 @@ import { useAppStore } from "@/stores/app-store";
 import { useQcReportDetail } from "@/lib/use-qc-report-detail";
 import { cn } from "@/lib/utils";
 import type { QcReport } from "./qc-report-detail";
+import { t } from "@/lib/i18n";
 
 // ─── Module & status meta ─────────────────────────────────────────────
 const MODULE_META: Record<
@@ -24,17 +25,17 @@ const MODULE_META: Record<
   { label: string; icon: IconName; color: string }
 > = {
   designer: {
-    label: "طراح",
+    label: t("طراح"),
     icon: "design",
     color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
   },
   print: {
-    label: "چاپ",
+    label: t("چاپ"),
     icon: "print",
     color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
   },
   warehouse: {
-    label: "انبار",
+    label: t("انبار"),
     icon: "warehouse",
     color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
   },
@@ -48,10 +49,10 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  reviewing: "در حال بررسی",
-  approved: "تأیید شده",
-  rejected: "رد شده",
+  pending: t("در انتظار"),
+  reviewing: t("در حال بررسی"),
+  approved: t("تأیید شده"),
+  rejected: t("رد شده"),
 };
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -114,7 +115,7 @@ export function QcReports() {
     () => [
       {
         accessorKey: "number",
-        header: "شماره سفارش",
+        header: t("شماره سفارش"),
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold">
             #{row.original.order?.number ?? "—"}
@@ -125,7 +126,7 @@ export function QcReports() {
       {
         id: "customer",
         accessorFn: (r) => r.order?.customer?.name ?? "",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <span className="font-medium">
             {row.original.order?.customer?.name ?? "—"}
@@ -136,7 +137,7 @@ export function QcReports() {
       {
         id: "fromModule",
         accessorFn: (r) => r.fromModule,
-        header: "ماژول گزارش‌دهنده",
+        header: t("ماژول گزارش‌دهنده"),
         cell: ({ row }) => {
           const meta =
             MODULE_META[row.original.fromModule] ?? {
@@ -161,7 +162,7 @@ export function QcReports() {
       {
         id: "description",
         accessorFn: (r) => r.description ?? "",
-        header: "توضیحات",
+        header: t("توضیحات"),
         cell: ({ row }) => (
           <span
             className="text-xs text-muted-foreground line-clamp-1 max-w-[280px] inline-block"
@@ -175,7 +176,7 @@ export function QcReports() {
       {
         id: "status",
         accessorFn: (r) => r.status,
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => (
           <span
             className={cn(
@@ -191,7 +192,7 @@ export function QcReports() {
       {
         id: "createdAt",
         accessorFn: (r) => new Date(r.createdAt).getTime(),
-        header: "تاریخ",
+        header: t("تاریخ"),
         cell: ({ row }) => (
           <span className="text-xs tabular-nums text-muted-foreground">
             {formatDate(row.original.createdAt)}
@@ -206,8 +207,8 @@ export function QcReports() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="گزارشات کنترل کیفیت"
-        description="همه گزارشات دریافتی از ماژول‌های طراح، چاپ و انبار"
+        title={t("گزارشات کنترل کیفیت")}
+        description={t("همه گزارشات دریافتی از ماژول‌های طراح، چاپ و انبار")}
         icon="checkList"
         actions={
           <Button
@@ -215,7 +216,7 @@ export function QcReports() {
             onClick={() => navigate("qc", "dashboard")}
             className="gap-2"
           >
-            <Icon name="dashboard" size={16} /> داشبورد
+            <Icon name="dashboard" size={16} /> {t("داشبورد")}
           </Button>
         }
       />
@@ -234,44 +235,44 @@ export function QcReports() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو بر اساس شماره سفارش یا نام مشتری..."
+              placeholder={t("جستجو بر اساس شماره سفارش یا نام مشتری...")}
               className="w-full h-9 rounded-md border bg-background pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <div className="mr-auto text-xs text-muted-foreground">
-            مجموع: {filteredReports.length} از {allReports.length} گزارش
+            {t("مجموع: {p0} از {p1} گزارش", { p0: filteredReports.length, p1: allReports.length })}
           </div>
         </div>
 
         {/* Status filter toggles */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground shrink-0">وضعیت:</span>
+          <span className="text-xs text-muted-foreground shrink-0">{t("وضعیت:")}</span>
           <ToggleButton
             checked={statusFilters.pending}
             onChange={(v) => setStatusFilters((p) => ({ ...p, pending: v }))}
-            label="در انتظار"
+            label={t("در انتظار")}
             size="sm"
             activeColor="primary"
           />
           <ToggleButton
             checked={statusFilters.reviewing}
             onChange={(v) => setStatusFilters((p) => ({ ...p, reviewing: v }))}
-            label="در حال بررسی"
+            label={t("در حال بررسی")}
             size="sm"
             activeColor="amber"
           />
           <ToggleButton
             checked={statusFilters.approved}
             onChange={(v) => setStatusFilters((p) => ({ ...p, approved: v }))}
-            label="تأیید شده"
+            label={t("تأیید شده")}
             size="sm"
             activeColor="emerald"
           />
           <ToggleButton
             checked={statusFilters.rejected}
             onChange={(v) => setStatusFilters((p) => ({ ...p, rejected: v }))}
-            label="رد شده"
+            label={t("رد شده")}
             size="sm"
             activeColor="primary"
             activeIcon="alert"
@@ -281,25 +282,25 @@ export function QcReports() {
 
         {/* Module filter toggles */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground shrink-0">ماژول:</span>
+          <span className="text-xs text-muted-foreground shrink-0">{t("ماژول:")}</span>
           <ToggleButton
             checked={moduleFilters.designer}
             onChange={(v) => setModuleFilters((p) => ({ ...p, designer: v }))}
-            label="طراح"
+            label={t("طراح")}
             size="sm"
             activeColor="primary"
           />
           <ToggleButton
             checked={moduleFilters.print}
             onChange={(v) => setModuleFilters((p) => ({ ...p, print: v }))}
-            label="چاپ"
+            label={t("چاپ")}
             size="sm"
             activeColor="primary"
           />
           <ToggleButton
             checked={moduleFilters.warehouse}
             onChange={(v) => setModuleFilters((p) => ({ ...p, warehouse: v }))}
-            label="انبار"
+            label={t("انبار")}
             size="sm"
             activeColor="primary"
           />
@@ -318,8 +319,8 @@ export function QcReports() {
           emptyState={
             <EmptyState
               icon="checkList"
-              title="گزارشی یافت نشد"
-              description="با فیلترهای فعلی گزارشی برای نمایش وجود ندارد"
+              title={t("گزارشی یافت نشد")}
+              description={t("با فیلترهای فعلی گزارشی برای نمایش وجود ندارد")}
             />
           }
         />

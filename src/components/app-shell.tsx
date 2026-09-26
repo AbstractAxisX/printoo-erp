@@ -12,6 +12,7 @@ import { useAutoTabs } from "@/lib/use-auto-tabs";
 import { useCrossTabSync } from "@/lib/cross-tab";
 import { useHeartbeat } from "@/lib/use-heartbeat";
 import { useAppStore } from "@/stores/app-store";
+import { t } from "@/lib/i18n";
 
 export function AppShell() {
   useAutoTabs();
@@ -29,13 +30,13 @@ export function AppShell() {
         <TabBar />
         {/* دکمهٔ bookmark: جمع/نمایش هدر — فقط با CSS (بدون جاوااسکریپت اینلاین)
             فاز 4: حذف style={{ opacity }} + onMouseEnter/Leave که رفتار ناهماهنگ
-            داشت (inline style بر Tailwind غلبه می‌کرد). حالا با کلاس‌های Tailwind
-            مدیریت می‌شود: 30٪ پیش‌فرض (محو)، 100٪ هنگام hover/focus-visible.
+            {t("داشت (inline style بر Tailwind غلبه می‌کرد). حالا با کلاس‌های Tailwind")}
+            {t("مدیریت می‌شود: 30٪ پیش‌فرض (محو)، 100٪ هنگام hover/focus-visible.")}
             فاز 6: گرادیانت emerald + شکل bookmark ظریف‌تر (rounded-b-xl). */}
         <button
           onClick={toggleHeader}
-          aria-label={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}
-          title={headerCollapsed ? "نمایش هدر" : "جمع کردن هدر"}
+          aria-label={headerCollapsed ? t("نمایش هدر") : t("جمع کردن هدر")}
+          title={headerCollapsed ? t("نمایش هدر") : t("جمع کردن هدر")}
           className="fixed top-0 left-1/2 -translate-x-1/2 z-50 h-6 px-4 rounded-b-xl bg-gradient-to-r from-primary to-emerald-700 text-primary-foreground text-[10px] font-medium flex items-center gap-1 shadow-md shadow-primary/20 transition-all duration-200 opacity-30 hover:opacity-100 hover:shadow-lg hover:shadow-primary/30 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {/* پیکان فقط تزئینی است — معنا از aria-label دکمه می‌آید */}
@@ -52,10 +53,10 @@ export function AppShell() {
               </span>
               <div className="min-w-0">
                 <div className="text-sm font-bold text-amber-800 dark:text-amber-300">
-                  حالت دمو — فقط مشاهده
+                  {t("حالت دمو — فقط مشاهده")}
                 </div>
                 <div className="text-xs text-amber-700/80 dark:text-amber-400/70">
-                  همهٔ ماژول‌ها را می‌بینید اما امکان ثبت، ویرایش یا حذف داده وجود ندارد.
+                  {t("همهٔ ماژول‌ها را می‌بینید اما امکان ثبت، ویرایش یا حذف داده وجود ندارد.")}
                 </div>
               </div>
             </div>

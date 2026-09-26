@@ -29,6 +29,7 @@ import {
   RecentOrders,
 } from "./dashboard-sections";
 import { DASHBOARD_PAGES } from "./use-dashboard-data";
+import { t } from "@/lib/i18n";
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -98,8 +99,8 @@ function SectionCard({
               <button
                 type="button"
                 className="size-8 rounded-md hover:bg-accent grid place-items-center text-muted-foreground hover:text-foreground transition"
-                title={open ? "جمع کردن بخش" : "باز کردن بخش"}
-                aria-label={open ? "جمع کردن بخش" : "باز کردن بخش"}
+                title={open ? t("جمع کردن بخش") : t("باز کردن بخش")}
+                aria-label={open ? t("جمع کردن بخش") : t("باز کردن بخش")}
               >
                 <Icon name={open ? "chevronUp" : "chevronDown"} size={16} />
               </button>
@@ -118,7 +119,7 @@ function SectionCard({
 
 // ─── "View all" link action ────────────────────────────────────────────────
 
-function ViewAllLink({ onClick, label = "مشاهده همه" }: { onClick: () => void; label?: string }) {
+function ViewAllLink({ onClick, label = t("مشاهده همه") }: { onClick: () => void; label?: string }) {
   return (
     <button
       type="button"
@@ -174,14 +175,14 @@ function ShortcutsSection() {
   return (
     <SectionCard
       icon="bookmark"
-      title="میانبرها"
-      description="دسترسی سریع به صفحه‌های پراستفاده"
+      title={t("میانبرها")}
+      description={t("دسترسی سریع به صفحه‌های پراستفاده")}
       bodyClassName="!p-4"
     >
       <div className="flex flex-wrap gap-3">
         {shortcutItems.length === 0 && (
           <div className="text-sm text-muted-foreground py-3 px-1">
-            هنوز میانبری اضافه نشده است. روی «افزودن میانبر» بزنید.
+            {t("هنوز میانبری اضافه نشده است. روی «افزودن میانبر» بزنید.")}
           </div>
         )}
 
@@ -203,8 +204,8 @@ function ShortcutsSection() {
               type="button"
               onClick={() => removeShortcut(key)}
               className="absolute -top-1.5 -left-1.5 size-5 rounded-full bg-rose-500 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition hover:bg-rose-600 shadow-sm focus:opacity-100"
-              title="حذف میانبر"
-              aria-label={`حذف میانبر ${item.label}`}
+              title={t("حذف میانبر")}
+              aria-label={t("حذف میانبر {p0}", { p0: item.label })}
             >
               <Icon name="cancel" size={11} />
             </button>
@@ -219,21 +220,21 @@ function ShortcutsSection() {
               className="flex items-center gap-2 ps-3 pe-4 py-2.5 rounded-xl border border-dashed hover:border-primary/50 hover:bg-accent/30 transition text-sm text-muted-foreground hover:text-foreground"
             >
               <Icon name="plus" size={16} />
-              افزودن میانبر
+              {t("افزودن میانبر")}
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-64 p-0">
             <div className="px-3 py-2.5 border-b">
-              <h3 className="text-sm font-semibold">افزودن میانبر جدید</h3>
+              <h3 className="text-sm font-semibold">{t("افزودن میانبر جدید")}</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                یک صفحه را برای میانبر انتخاب کنید
+                {t("یک صفحه را برای میانبر انتخاب کنید")}
               </p>
             </div>
             <ScrollArea className="max-h-72">
               <div className="p-1">
                 {availableToAdd.length === 0 ? (
                   <div className="py-6 text-center text-xs text-muted-foreground">
-                    همه صفحه‌ها اضافه شده‌اند
+                    {t("همه صفحه‌ها اضافه شده‌اند")}
                   </div>
                 ) : (
                   availableToAdd.map((item) => (
@@ -274,12 +275,12 @@ export function AdminDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="داشبورد"
-        description="نمای کلی سامانه مدیریت چاپ Printoo24"
+        title={t("داشبورد")}
+        description={t("نمای کلی سامانه مدیریت چاپ Printoo24")}
         icon="dashboard"
         actions={
           <Button onClick={() => navigate("admin", DASHBOARD_PAGES.newOrder)} className="gap-2">
-            <Icon name="plus" size={16} /> سفارش جدید
+            <Icon name="plus" size={16} /> {t("سفارش جدید")}
           </Button>
         }
       />
@@ -293,8 +294,8 @@ export function AdminDashboard() {
       {/* 3) KPI cards */}
       <SectionCard
         icon="chart"
-        title="شاخص‌های کلیدی (KPI)"
-        description="عملکرد کلی در بازه‌ی زمانی انتخاب‌شده"
+        title={t("شاخص‌های کلیدی (KPI)")}
+        description={t("عملکرد کلی در بازه‌ی زمانی انتخاب‌شده")}
         bodyClassName="!p-4"
       >
         <KpiCardsGrid
@@ -306,7 +307,7 @@ export function AdminDashboard() {
       </SectionCard>
 
       {/* 4) Quick stats */}
-      <SectionCard icon="grid" title="آمار سریع" bodyClassName="!p-4">
+      <SectionCard icon="grid" title={t("آمار سریع")} bodyClassName="!p-4">
         <QuickStatsRow />
       </SectionCard>
 
@@ -315,7 +316,7 @@ export function AdminDashboard() {
           which we visually merge via MERGE_INNER_CARD so only its list shows. */}
       <SectionCard
         icon="orders"
-        title="آخرین سفارشات"
+        title={t("آخرین سفارشات")}
         bodyClassName="!p-0"
         action={<ViewAllLink onClick={() => navigate("admin", DASHBOARD_PAGES.allOrders)} />}
       >
@@ -328,7 +329,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <SectionCard
           icon="clock"
-          title="سفارشات نزدیک سررسید"
+          title={t("سفارشات نزدیک سررسید")}
           bodyClassName="!p-0"
           action={<ViewAllLink onClick={() => navigate("admin", DASHBOARD_PAGES.openOrders)} />}
         >
@@ -339,7 +340,7 @@ export function AdminDashboard() {
 
         <SectionCard
           icon="task"
-          title="آخرین تسک‌ها"
+          title={t("آخرین تسک‌ها")}
           bodyClassName="!p-0"
           action={<ViewAllLink onClick={() => navigate("admin", DASHBOARD_PAGES.tasks)} />}
         >
@@ -350,7 +351,7 @@ export function AdminDashboard() {
       </div>
 
       {/* 7) آخرین رویدادها — لاگ سراسری (Phase 19: «در آخر، لاگ‌ها») */}
-      <SectionCard icon="info" title="آخرین رویدادها" description="جریان کاری لحظه‌ای — همهٔ ماژول‌ها" bodyClassName="!p-0">
+      <SectionCard icon="info" title={t("آخرین رویدادها")} description={t("جریان کاری لحظه‌ای — همهٔ ماژول‌ها")} bodyClassName="!p-0">
         <LatestEvents />
       </SectionCard>
     </div>

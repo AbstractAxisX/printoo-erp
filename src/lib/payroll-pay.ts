@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { computeNetPay, allocateAdvanceDeduction, ensureSalaryExpenseType, payTypeLabel } from "@/lib/payroll";
 import { parseCurrency, parsePayType, formatMoney, FX_SEED, type FxRates } from "@/lib/money";
 import { getLiveRates } from "@/lib/fx";
+import { t } from "@/lib/i18n";
 
 // ─── Phase 16: پرداختِ یک ورودی حقوق — منطق مشترک (رگانی/جاری) ──
 // داخل transaction:
@@ -27,8 +28,8 @@ export async function payPayrollEntry(
       user: { select: { id: true, name: true, modules: { select: { module: true } } } },
     },
   });
-  if (!entry) return { ok: false, reason: "ورودی حقوق یافت نشد" };
-  if (entry.status === "paid") return { ok: false, reason: "قبلاً پرداخت شده" };
+  if (!entry) return { ok: false, reason: t("ورودی حقوق یافت نشد") };
+  if (entry.status === "paid") return { ok: false, reason: t("قبلاً پرداخت شده") };
 
   const nums = {
     payType: entry.payType,
@@ -45,7 +46,7 @@ export async function payPayrollEntry(
   const cur = parseCurrency(entry.currency);
   const pt = parsePayType(entry.payType);
   const net = computeNetPay(nums);
-  if (net <= 0) return { ok: false, reason: "خالص حقوق باید مثبت باشد" };
+  if (net <= 0) return { ok: false, reason: t("خالص حقوق باید مثبت باشد") };
 
   // 1) کسر مساعدهٔ «هم‌ارز» (FIFO تا سقف بودجهٔ کسرِ همین ورودی — فاز ۲۵)
   const { advances: deducted } = await allocateAdvanceDeduction(
@@ -88,7 +89,7 @@ export async function payPayrollEntry(
   const cost = await tx.materialCost.create({
     data: {
       expenseTypeId: salaryType.id,
-      title: `حقوق ${entry.user.name} — دورهٔ ${entry.period.key} (${payTypeLabel(pt)})`,
+      title: t("حقوق {p0} — دورهٔ {p1} ({p2})", { p0: entry.user.name, p1: entry.period.key, p2: payTypeLabel(pt) }),
       description: breakdown + (entry.note ? ` — یادداشت: ${entry.note}` : ""),
       amount: net,
       currency: cur, // فاز ۲۵: ارز خالص پرداختی
@@ -115,8 +116,8 @@ export async function payPayrollEntry(
   await tx.notification.create({
     data: {
       userId: entry.userId,
-      title: "پرداخت حقوق",
-      message: `حقوق ${payTypeLabel(pt)} دورهٔ ${entry.period.key} پرداخت شد — خالص ${formatMoney(net, cur)}`,
+      title: t("پرداخت حقوق"),
+      message: t("حقوق {p0} دورهٔ {p1} پرداخت شد — خالص {p2}", { p0: payTypeLabel(pt), p1: entry.period.key, p2: formatMoney(net, cur) }),
       type: "success",
       link: "profile:view",
     },
@@ -170,7 +171,7 @@ export async function payPayrollPeriod(periodId: string, actor: CtxUser) {
       orderBy: { user: { name: "asc" } },
     });
     if (drafts.length === 0) {
-      return { paid: [], skipped: [], error: "ورودی پرداخت‌نشده‌ای در این دوره نیست" };
+      return { paid: [], skipped: [], error: t("ورودی پرداخت‌نشده‌ای در این دوره نیست") };
     }
     const paid: { name: string; netPay: number }[] = [];
     const skipped: { name: string; reason: string }[] = [];

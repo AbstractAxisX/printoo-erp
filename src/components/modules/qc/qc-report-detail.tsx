@@ -15,6 +15,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 export type QcReport = {
@@ -41,17 +42,17 @@ const MODULE_META: Record<
   { label: string; icon: IconName; color: string }
 > = {
   designer: {
-    label: "طراح",
+    label: t("طراح"),
     icon: "design",
     color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   },
   print: {
-    label: "چاپ",
+    label: t("چاپ"),
     icon: "print",
     color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   },
   warehouse: {
-    label: "انبار",
+    label: t("انبار"),
     icon: "warehouse",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   },
@@ -62,31 +63,31 @@ const STATUS_META: Record<
   { label: string; cls: string; icon: IconName }
 > = {
   pending: {
-    label: "در انتظار",
+    label: t("در انتظار"),
     cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
     icon: "clock",
   },
   reviewing: {
-    label: "در حال بررسی",
+    label: t("در حال بررسی"),
     cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
     icon: "eye",
   },
   approved: {
-    label: "تأیید شده",
+    label: t("تأیید شده"),
     cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
     icon: "checkCircle",
   },
   rejected: {
-    label: "رد شده",
+    label: t("رد شده"),
     cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
     icon: "cancel",
   },
 };
 
 const STAGE_OPTIONS: { value: "design" | "print" | "warehouse"; label: string; icon: IconName }[] = [
-  { value: "design", label: "طراحی", icon: "design" },
-  { value: "print", label: "چاپ", icon: "print" },
-  { value: "warehouse", label: "انبار", icon: "warehouse" },
+  { value: "design", label: t("طراحی"), icon: "design" },
+  { value: "print", label: t("چاپ"), icon: "print" },
+  { value: "warehouse", label: t("انبار"), icon: "warehouse" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -131,7 +132,7 @@ export function QcReportDetailModal({
         body: JSON.stringify({ action: "approve", returnStage: stage }),
       }),
     onSuccess: () => {
-      toast.success("گزارش تأیید شد و سفارش به مرحله انتخابی بازگشت");
+      toast.success(t("گزارش تأیید شد و سفارش به مرحله انتخابی بازگشت"));
       invalidate(["qc-reports", "orders", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["qc-report", reportId] });
       setReturnStageOpen(false);
@@ -148,7 +149,7 @@ export function QcReportDetailModal({
         body: JSON.stringify({ action: "reject" }),
       }),
     onSuccess: () => {
-      toast.success("گزارش رد شد");
+      toast.success(t("گزارش رد شد"));
       invalidate(["qc-reports", "orders", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["qc-report", reportId] });
       onOpenChange(false);
@@ -161,17 +162,17 @@ export function QcReportDetailModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
-          <DialogTitle className="sr-only">جزئیات گزارش کنترل کیفیت</DialogTitle>
+          <DialogTitle className="sr-only">{t("جزئیات گزارش کنترل کیفیت")}</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
                 <span className="text-sm text-muted-foreground">
-                  در حال بارگذاری گزارش...
+                  {t("در حال بارگذاری گزارش...")}
                 </span>
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">گزارش یافت نشد</span>
+              <span className="text-sm text-muted-foreground">{t("گزارش یافت نشد")}</span>
             )}
           </div>
         </DialogContent>
@@ -213,7 +214,7 @@ export function QcReportDetailModal({
                 </div>
                 <div className="min-w-0">
                   <DialogTitle className="text-lg font-bold truncate">
-                    گزارش کنترل کیفیت
+                    {t("گزارش کنترل کیفیت")}
                   </DialogTitle>
                   <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="font-mono font-bold">
@@ -247,20 +248,20 @@ export function QcReportDetailModal({
             {/* Quick stats */}
             <div className="grid grid-cols-3 gap-2 mt-4">
               <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground">ماژول گزارش‌دهنده</div>
+                <div className="text-[10px] text-muted-foreground">{t("ماژول گزارش‌دهنده")}</div>
                 <div className="text-sm font-bold mt-0.5 flex items-center gap-1.5">
                   <Icon name={moduleMeta.icon} size={13} />
                   {moduleMeta.label}
                 </div>
               </div>
               <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground">تاریخ گزارش</div>
+                <div className="text-[10px] text-muted-foreground">{t("تاریخ گزارش")}</div>
                 <div className="text-sm font-bold mt-0.5 tabular-nums">
                   {formatDate(report.createdAt)}
                 </div>
               </div>
               <div className="rounded-lg bg-background/60 p-2.5 border">
-                <div className="text-[10px] text-muted-foreground">گزارش‌دهنده</div>
+                <div className="text-[10px] text-muted-foreground">{t("گزارش‌دهنده")}</div>
                 <div className="text-sm font-bold mt-0.5 truncate">
                   {report.reportedBy ?? "—"}
                 </div>
@@ -276,7 +277,7 @@ export function QcReportDetailModal({
             {/* Report description — prominent */}
             <div>
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                <Icon name="info" size={13} /> متن گزارش
+                <Icon name="info" size={13} /> {t("متن گزارش")}
               </div>
               <div className="rounded-lg border bg-amber-50/40 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900 p-3 text-sm whitespace-pre-wrap leading-6">
                 {report.description || "—"}
@@ -286,11 +287,11 @@ export function QcReportDetailModal({
             {/* Order items (name only — no prices) */}
             <div>
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                <Icon name="orders" size={13} /> آیتم‌های سفارش
+                <Icon name="orders" size={13} /> {t("آیتم‌های سفارش")}
               </div>
               {(report.order?.items ?? []).length === 0 ? (
                 <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg">
-                  آیتمی برای این سفارش ثبت نشده است.
+                  {t("آیتمی برای این سفارش ثبت نشده است.")}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -319,20 +320,20 @@ export function QcReportDetailModal({
                     <Icon name="checkCircle" size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold">گزارش تأیید شده است</div>
+                    <div className="text-sm font-semibold">{t("گزارش تأیید شده است")}</div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      سفارش به مرحله{" "}
+                      {t("سفارش به مرحله{p0}", { p0: " " })}
                       <span className="font-medium text-emerald-700 dark:text-emerald-300">
                         {report.returnStage
                           ? STAGE_OPTIONS.find((s) => s.value === report.returnStage)?.label ??
                             report.returnStage
-                          : "نامشخص"}
+                          : t("نامشخص")}
                       </span>{" "}
-                      بازگردانده شد.
+                      {t("بازگردانده شد.")}
                     </p>
                     {report.reviewedAt && (
                       <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-                        تاریخ بررسی: {formatDate(report.reviewedAt)}
+                        {t("تاریخ بررسی: {p0}", { p0: formatDate(report.reviewedAt) })}
                       </div>
                     )}
                   </div>
@@ -348,13 +349,13 @@ export function QcReportDetailModal({
                     <Icon name="cancel" size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold">گزارش رد شده است</div>
+                    <div className="text-sm font-semibold">{t("گزارش رد شده است")}</div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      این گزارش توسط کنترل کیفیت رد شده است.
+                      {t("این گزارش توسط کنترل کیفیت رد شده است.")}
                     </p>
                     {report.reviewedAt && (
                       <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-                        تاریخ بررسی: {formatDate(report.reviewedAt)}
+                        {t("تاریخ بررسی: {p0}", { p0: formatDate(report.reviewedAt) })}
                       </div>
                     )}
                   </div>
@@ -377,7 +378,7 @@ export function QcReportDetailModal({
                 ) : (
                   <Icon name="check" size={14} />
                 )}
-                تأیید و بازگشت به مرحله
+                {t("تأیید و بازگشت به مرحله")}
               </Button>
               <Button
                 size="sm"
@@ -391,7 +392,7 @@ export function QcReportDetailModal({
                 ) : (
                   <Icon name="cancel" size={14} />
                 )}
-                رد گزارش
+                {t("رد گزارش")}
               </Button>
             </div>
           )}
@@ -401,16 +402,16 @@ export function QcReportDetailModal({
       {/* Sub-dialog: choose return stage */}
       <Dialog open={returnStageOpen} onOpenChange={setReturnStageOpen}>
         <DialogContent aria-describedby={undefined} className="max-w-md p-0 gap-0">
-          <DialogTitle className="sr-only">انتخاب مرحله بازگشت</DialogTitle>
+          <DialogTitle className="sr-only">{t("انتخاب مرحله بازگشت")}</DialogTitle>
           <div className="px-6 pt-5 pb-3 border-b">
             <div className="flex items-center gap-2">
               <div className="size-9 rounded-lg bg-primary/10 text-primary grid place-items-center">
                 <Icon name="route" size={18} />
               </div>
               <div>
-                <div className="font-semibold text-sm">انتخاب مرحله بازگشت</div>
+                <div className="font-semibold text-sm">{t("انتخاب مرحله بازگشت")}</div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  سفارش پس از تأیید گزارش به کدام مرحله بازگردد؟
+                  {t("سفارش پس از تأیید گزارش به کدام مرحله بازگردد؟")}
                 </p>
               </div>
             </div>
@@ -441,7 +442,7 @@ export function QcReportDetailModal({
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm">{s.label}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    سفارش به مرحله {s.label} بازمی‌گردد
+                    {t("سفارش به مرحله {p0} بازمی‌گردد", { p0: s.label })}
                   </div>
                 </div>
                 {selectedStage === s.value && (
@@ -458,14 +459,14 @@ export function QcReportDetailModal({
               onClick={() => setReturnStageOpen(false)}
               disabled={actionPending}
             >
-              انصراف
+              {t("انصراف")}
             </Button>
             <Button
               size="sm"
               className="gap-1.5"
               onClick={() => {
                 if (selectedStage) approveMut.mutate(selectedStage);
-                else toast.error("لطفاً یک مرحله انتخاب کنید");
+                else toast.error(t("لطفاً یک مرحله انتخاب کنید"));
               }}
               disabled={!selectedStage || actionPending}
             >
@@ -474,7 +475,7 @@ export function QcReportDetailModal({
               ) : (
                 <Icon name="check" size={14} />
               )}
-              تأیید و بازگشت
+              {t("تأیید و بازگشت")}
             </Button>
           </DialogFooter>
         </DialogContent>

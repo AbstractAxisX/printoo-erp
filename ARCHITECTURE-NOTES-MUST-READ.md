@@ -7,6 +7,12 @@
 
 ---
 
+> 🔴 **PHASE 27 (2026-09-26) — MANDATORY:** The system is now **bilingual**
+> (English default / فارسی per-profile). Before writing ANY user-visible
+> string you MUST read **`I18N_RULES.md`** (repo root) and use the `t()`
+> mechanism from `@/lib/i18n`. Raw UI strings are forbidden. New features
+> must be tested in both languages.
+
 ## 0. How to use this file
 
 - **Before touching any file**, read the «حساسیت‌ها» (Sensitivities) section — it lists contracts that MUST NOT break.

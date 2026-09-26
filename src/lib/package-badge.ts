@@ -12,6 +12,7 @@
 import QRCode from "qrcode";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import { t } from "@/lib/i18n";
 
 export type BadgePackage = {
   code: string;
@@ -38,11 +39,11 @@ const LOGO_DATA_URL =
   (typeof window === "undefined" ? "" : btoa(SVG_LOGO));
 
 const STATUS_FA: Record<string, string> = {
-  packing: "در حال بسته‌بندی",
-  ready: "آمادهٔ ارسال",
-  sent: "ارسال شد",
-  delivered: "تحویل شد",
-  cancelled: "لغو شده",
+  packing: t("در حال بسته‌بندی"),
+  ready: t("آمادهٔ ارسال"),
+  sent: t("ارسال شد"),
+  delivered: t("تحویل شد"),
+  cancelled: t("لغو شده"),
 };
 
 /** QR data-url — به صفحهٔ عمومی بسته می‌رسد. */
@@ -135,7 +136,7 @@ export async function buildBadgeElement(pkg: BadgePackage): Promise<HTMLDivEleme
     "border-radius: 5px",
   ].join(";");
   const seqChip = document.createElement("div");
-  seqChip.textContent = `بستهٔ #${pkg.seq}`;
+  seqChip.textContent = t("بستهٔ #{p0}", { p0: pkg.seq });
   seqChip.style.cssText =
     "font-size: 10px; font-weight: 700; color: #111827; border: 1px solid #9ca3af; padding: 1px 6px; border-radius: 4px;";
   codeRow.append(codeChip, seqChip);
@@ -192,7 +193,7 @@ export async function buildBadgeElement(pkg: BadgePackage): Promise<HTMLDivEleme
   qrImg.src = qr;
   qrImg.style.cssText = "width: 158px; height: 158px; border: 1px solid #e5e7eb; border-radius: 4px;";
   const scanHint = document.createElement("div");
-  scanHint.textContent = "برای پیگیری اسکن کنید";
+  scanHint.textContent = t("برای پیگیری اسکن کنید");
   scanHint.style.cssText = "font-size: 7.5px; color: #6b7280; white-space: nowrap;";
   qrWrap.append(qrImg, scanHint);
 

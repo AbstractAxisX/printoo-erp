@@ -14,6 +14,7 @@ import { db } from "@/lib/db";
 import { createHmac, timingSafeEqual } from "crypto";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { isModuleLevel } from "@/lib/module-pages";
+import { t } from "@/lib/i18n";
 
 // Re-export password primitives so existing imports
 // `import { hashPassword } from "@/lib/auth"` keep working.
@@ -146,7 +147,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
   const user = await getSession();
   if (!user) {
     return NextResponse.json(
-      { error: "دسترسی غیرمجاز — ابتدا وارد شوید" },
+      { error: t("دسترسی غیرمجاز — ابتدا وارد شوید") },
       { status: 401 }
     );
   }
@@ -171,7 +172,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
     if (!fresh || fresh.status !== "active") {
       await clearSession();
       return NextResponse.json(
-        { error: "نشست شما منقضی شده — دوباره وارد شوید" },
+        { error: t("نشست شما منقضی شده — دوباره وارد شوید") },
         { status: 401 }
       );
     }
@@ -180,7 +181,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
     if (fresh.isDemo && fresh.demoExpiresAt && fresh.demoExpiresAt.getTime() <= Date.now()) {
       await clearSession();
       return NextResponse.json(
-        { error: "حساب دمو منقضی شده است — از مدیر سیستم بخواهید دموی جدید بسازد" },
+        { error: t("حساب دمو منقضی شده است — از مدیر سیستم بخواهید دموی جدید بسازد") },
         { status: 401 }
       );
     }
@@ -209,7 +210,7 @@ export async function requireUser(): Promise<SessionUser | NextResponse> {
   } catch {
     // DB unreachable — fail closed.
     return NextResponse.json(
-      { error: "خطا در اعتبارسنجی نشست" },
+      { error: t("خطا در اعتبارسنجی نشست") },
       { status: 500 }
     );
   }

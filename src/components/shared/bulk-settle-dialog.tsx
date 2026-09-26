@@ -43,6 +43,7 @@ import {
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -85,9 +86,9 @@ type BulkSettleResponse = {
 };
 
 const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: "cash", label: "نقدی" },
-  { value: "transfer", label: "کارت به کارت" },
-  { value: "cheque", label: "چک" },
+  { value: "cash", label: t("نقدی") },
+  { value: "transfer", label: t("کارت به کارت") },
+  { value: "cheque", label: t("چک") },
 ];
 
 // ─── Component ─────────────────────────────────────────────────────────
@@ -268,7 +269,7 @@ export function BulkSettleDialog({
       setResult(res);
       invalidate(["orders", "revenues", "finance", "dashboard", "customers", "customer-detail"]);
       toast.success(
-        `تسویه گروهی ثبت شد — ${formatMoney(res.totalApplied, res.currency)} روی ${res.applied.length} سفارش`
+        t("تسویه گروهی ثبت شد — {p0} روی {p1} سفارش", { p0: formatMoney(res.totalApplied, res.currency), p1: res.applied.length })
       );
     },
     onError: (e: Error) => toast.error(e.message),
@@ -308,16 +309,16 @@ export function BulkSettleDialog({
             </div>
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-base font-bold">
-                {result ? "نتیجهٔ تسویه گروهی" : "تسویه گروهی بدهی"}
+                {result ? t("نتیجهٔ تسویه گروهی") : t("تسویه گروهی بدهی")}
               </DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 {result
-                  ? `${result.customer.name} — ${formatMoney(result.totalApplied, result.currency)} از ${formatMoney(result.requestedAmount, result.currency)}`
+                  ? t("{p0} — {p1} از {p2}", { p0: result.customer.name, p1: formatMoney(result.totalApplied, result.currency), p2: formatMoney(result.requestedAmount, result.currency) })
                   : customerId && customer
-                  ? `${customer.name} • ${formatNumber(openOrders.length)} سفارش بدهکار`
+                  ? t("{p0} • {p1} سفارش بدهکار", { p0: customer.name, p1: formatNumber(openOrders.length) })
                   : customerId
-                  ? "در حال دریافت سفارش‌های باز…"
-                  : "یک موج پرداخت را روی همهٔ سفارش‌های باز مشتری تخصیص بده"}
+                  ? t("در حال دریافت سفارش‌های باز…")
+                  : t("یک موج پرداخت را روی همهٔ سفارش‌های باز مشتری تخصیص بده")}
               </p>
             </div>
             {customerId && !result && (
@@ -338,7 +339,7 @@ export function BulkSettleDialog({
                 }}
               >
                 {!presetCustomerId && <Icon name="arrowLeft" size={13} />}
-                {!presetCustomerId ? "تغییر مشتری" : "بستن"}
+                {!presetCustomerId ? t("تغییر مشتری") : t("بستن")}
               </Button>
             )}
           </div>
@@ -350,13 +351,13 @@ export function BulkSettleDialog({
             <div className="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20 p-3">
               <Icon name="check" size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
               <div className="text-xs leading-relaxed">
-                <b>{formatMoney(result.totalApplied, result.currency)}</b> از{" "}
-                {formatMoney(result.requestedAmount, result.currency)} دریافتی، روی{" "}
-                <b>{result.applied.length}</b> سفارش ثبت شد.
+                <b>{formatMoney(result.totalApplied, result.currency)}</b> {t("از")}{" "}
+                {t("{p0} دریافتی، روی{p1}", { p0: formatMoney(result.requestedAmount, result.currency), p1: " " })}
+                <b>{result.applied.length}</b> {t("سفارش ثبت شد.")}
                 {result.excess > 0.001 && (
                   <span className="text-amber-600 dark:text-amber-400">
                     {" "}
-                    مازاد {formatMoney(result.excess, result.currency)} بدهی نداشت و ثبت نشد.
+                    {t("مازاد {p0} بدهی نداشت و ثبت نشد.", { p0: formatMoney(result.excess, result.currency) })}
                   </span>
                 )}
               </div>
@@ -366,10 +367,10 @@ export function BulkSettleDialog({
               <table className="w-full text-xs">
                 <thead className="bg-muted/50">
                   <tr className="text-muted-foreground">
-                    <th className="text-right font-medium px-3 py-2">سفارش</th>
-                    <th className="text-right font-medium px-3 py-2">تخصیص</th>
-                    <th className="text-right font-medium px-3 py-2">پرداخت‌شده</th>
-                    <th className="text-right font-medium px-3 py-2">مانده</th>
+                    <th className="text-right font-medium px-3 py-2">{t("سفارش")}</th>
+                    <th className="text-right font-medium px-3 py-2">{t("تخصیص")}</th>
+                    <th className="text-right font-medium px-3 py-2">{t("پرداخت‌شده")}</th>
+                    <th className="text-right font-medium px-3 py-2">{t("مانده")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -384,7 +385,7 @@ export function BulkSettleDialog({
                       </td>
                       <td className="px-3 py-2">
                         {r.fullySettled ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">تسویه کامل ✓</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">{t("تسویه کامل ✓")}</span>
                         ) : (
                           <span className="tabular-nums text-rose-600 dark:text-rose-400 font-semibold" dir="ltr">
                             {formatMoney(r.remainingAfter, result.currency)}
@@ -399,7 +400,7 @@ export function BulkSettleDialog({
 
             {/* بدهی باقی‌ماندهٔ مشتری (همهٔ ارزها) */}
             <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
-              <div className="text-[11px] text-muted-foreground">بدهی باقی‌ماندهٔ {result.customer.name}:</div>
+              <div className="text-[11px] text-muted-foreground">{t("بدهی باقی‌ماندهٔ {p0}:", { p0: result.customer.name })}</div>
               {CURRENCY_LIST.filter((c) => result.remainingDebtPer[c] > 0.0001).length > 0 ? (
                 CURRENCY_LIST.filter((c) => result.remainingDebtPer[c] > 0.0001).map((c) => (
                   <div key={c} className="flex items-center gap-2 text-xs">
@@ -411,7 +412,7 @@ export function BulkSettleDialog({
                 ))
               ) : (
                 <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  هیچ — تمام بدهی‌ها تسویه شد ✓
+                  {t("هیچ — تمام بدهی‌ها تسویه شد ✓")}
                 </div>
               )}
             </div>
@@ -419,15 +420,15 @@ export function BulkSettleDialog({
         ) : !customerId ? (
           /* ═══ مرحلهٔ ۱: انتخاب مشتری ═══ */
           <div className="px-6 py-5">
-            <Field label="مشتری بدهکار" required hint="فقط مشتری‌هایی که ماندهٔ باز دارند">
+            <Field label={t("مشتری بدهکار")} required hint={t("فقط مشتری‌هایی که ماندهٔ باز دارند")}>
               {custLoading ? (
                 <div className="h-10 rounded-lg bg-muted/40 animate-pulse" />
               ) : (
                 <SearchSelect
                   value={customerId}
                   onChange={(v) => setCustomerId(v)}
-                  placeholder="انتخاب مشتری…"
-                  searchPlaceholder="جستجوی نام یا شماره…"
+                  placeholder={t("انتخاب مشتری…")}
+                  searchPlaceholder={t("جستجوی نام یا شماره…")}
                   options={(custData?.customers ?? [])
                     .filter((c) => (c.unsettled ?? 0) > 0.0001)
                     .sort((a, b) => (b.unsettled ?? 0) - (a.unsettled ?? 0))
@@ -436,7 +437,7 @@ export function BulkSettleDialog({
                         ({
                           value: c.id,
                           label: c.name,
-                          sub: `${c.phone} • بدهی: ${formatMoney(c.unsettled ?? 0, "IQD")}`,
+                          sub: t("{p0} • بدهی: {p1}", { p0: c.phone, p1: formatMoney(c.unsettled ?? 0, "IQD") }),
                         } as SearchOption)
                     )}
                   className="w-full"
@@ -444,9 +445,9 @@ export function BulkSettleDialog({
               )}
             </Field>
             <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
-              همهٔ سفارش‌های بازِ همین مشتری به تفکیک ارز نمایش داده می‌شود؛ مبلغ دریافتی
-              را یک‌بار وارد می‌کنید و سیستم خودش آن را «قدیمی‌ترین‌اول» تخصیص می‌دهد —
-              قابل ویرایش دستی.
+              {t("همهٔ سفارش‌های بازِ همین مشتری به تفکیک ارز نمایش داده می‌شود؛ مبلغ دریافتی")}
+              {t("را یک‌بار وارد می‌کنید و سیستم خودش آن را «قدیمی‌ترین‌اول» تخصیص می‌دهد —")}
+              {t("قابل ویرایش دستی.")}
             </p>
           </div>
         ) : (
@@ -455,19 +456,19 @@ export function BulkSettleDialog({
             {ordLoading ? (
               <div className="py-10 grid place-items-center text-muted-foreground gap-2">
                 <Icon name="loading" size={20} className="animate-spin" />
-                <span className="text-xs">در حال دریافت سفارش‌های باز…</span>
+                <span className="text-xs">{t("در حال دریافت سفارش‌های باز…")}</span>
               </div>
             ) : rows.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground space-y-2">
                 <Icon name="check" size={24} className="mx-auto text-emerald-500" />
-                این مشتری در ارز انتخابی بدهی باز ندارد.
+                {t("این مشتری در ارز انتخابی بدهی باز ندارد.")}
               </div>
             ) : (
               <>
                 {/* ارز وجه */}
                 {debtCurrencies.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] text-muted-foreground shrink-0">ارز وجه دریافتی:</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{t("ارز وجه دریافتی:")}</span>
                     {debtCurrencies.map((c) => (
                       <button
                         key={c}
@@ -490,19 +491,19 @@ export function BulkSettleDialog({
                 {/* آمار سریع */}
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-rose-500/8 p-2.5">
-                    <div className="text-[10px] text-muted-foreground">بدهی این ارز</div>
+                    <div className="text-[10px] text-muted-foreground">{t("بدهی این ارز")}</div>
                     <div className="text-sm font-bold tabular-nums mt-1 text-rose-600 dark:text-rose-400" dir="ltr">
                       {formatMoney(rowsDebt, currency)}
                     </div>
                   </div>
                   <div className="rounded-lg bg-muted/40 p-2.5">
-                    <div className="text-[10px] text-muted-foreground">سفارش باز این ارز</div>
+                    <div className="text-[10px] text-muted-foreground">{t("سفارش باز این ارز")}</div>
                     <div className="text-sm font-bold tabular-nums mt-1">
                       {formatNumber(rows.length)}
                     </div>
                   </div>
                   <div className="rounded-lg bg-muted/40 p-2.5">
-                    <div className="text-[10px] text-muted-foreground">بدهی کل (معادل دیناری)</div>
+                    <div className="text-[10px] text-muted-foreground">{t("بدهی کل (معادل دیناری)")}</div>
                     <div className="text-sm font-bold tabular-nums mt-1" dir="ltr">
                       {formatMoney(toIqdEquivalent(debtPer, rates), "IQD")}
                     </div>
@@ -511,7 +512,7 @@ export function BulkSettleDialog({
 
                 {/* مبلغ + روش */}
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2.5">
-                  <Field label={`مبلغ دریافتی (${CURRENCIES[currency].fa})`} required>
+                  <Field label={t("مبلغ دریافتی ({p0})", { p0: CURRENCIES[currency].fa })} required>
                     <Input
                       type="number"
                       min={0}
@@ -519,10 +520,10 @@ export function BulkSettleDialog({
                       className="text-center h-11 text-lg font-bold tabular-nums"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      placeholder="مثلاً 500000"
+                      placeholder={t("مثلاً 500000")}
                     />
                   </Field>
-                  <Field label="روش پرداخت">
+                  <Field label={t("روش پرداخت")}>
                     <div className="flex gap-1 h-11 items-center">
                       {PAYMENT_METHODS.map((m) => (
                         <button
@@ -547,25 +548,25 @@ export function BulkSettleDialog({
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-xs font-bold text-muted-foreground">
-                      تخصیص روی سفارش‌ها (قدیمی‌ترین اول)
+                      {t("تخصیص روی سفارش‌ها (قدیمی‌ترین اول)")}
                     </span>
                     <button
                       type="button"
                       onClick={autoFifo}
                       className="text-[11px] text-primary hover:underline flex items-center gap-1"
                     >
-                      <Icon name="refresh" size={11} /> بازچین خودکار
+                      <Icon name="refresh" size={11} /> {t("بازچین خودکار")}
                     </button>
                   </div>
                   <div className="rounded-lg border overflow-hidden">
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50">
                         <tr className="text-muted-foreground">
-                          <th className="text-right font-medium px-2.5 py-2">سفارش</th>
-                          <th className="text-right font-medium px-2.5 py-2">جمع</th>
-                          <th className="text-right font-medium px-2.5 py-2">پرداخت‌شده</th>
-                          <th className="text-right font-medium px-2.5 py-2">مانده</th>
-                          <th className="text-right font-medium px-2.5 py-2 w-[130px]">تخصیص</th>
+                          <th className="text-right font-medium px-2.5 py-2">{t("سفارش")}</th>
+                          <th className="text-right font-medium px-2.5 py-2">{t("جمع")}</th>
+                          <th className="text-right font-medium px-2.5 py-2">{t("پرداخت‌شده")}</th>
+                          <th className="text-right font-medium px-2.5 py-2">{t("مانده")}</th>
+                          <th className="text-right font-medium px-2.5 py-2 w-[130px]">{t("تخصیص")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -607,7 +608,7 @@ export function BulkSettleDialog({
                                 />
                                 {a > 0 && full && (
                                   <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold text-center mt-0.5">
-                                    تسویه کامل ✓
+                                    {t("تسویه کامل ✓")}
                                   </div>
                                 )}
                               </td>
@@ -619,16 +620,16 @@ export function BulkSettleDialog({
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
                     عدد هر ردیف را دستی عوض کن (صفر = رد نشود) — سرور باز هم همه را با
-                    ماندهٔ تازهٔ دیتابیس چک و کلمپ می‌کند.
+                    {t("ماندهٔ تازهٔ دیتابیس چک و کلمپ می‌کند.")}
                   </p>
                 </div>
 
                 {/* یادداشت */}
-                <Field label="یادداشت (اختیاری)">
+                <Field label={t("یادداشت (اختیاری)")}>
                   <Input
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="مثلاً: تسویهٔ حساب روز گذشته"
+                    placeholder={t("مثلاً: تسویهٔ حساب روز گذشته")}
                     maxLength={300}
                   />
                 </Field>
@@ -636,19 +637,19 @@ export function BulkSettleDialog({
                 {/* جمع زنده */}
                 <div className="rounded-lg border bg-muted/30 p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   <div>
-                    <div className="text-[10px] text-muted-foreground">مبلغ دریافتی</div>
+                    <div className="text-[10px] text-muted-foreground">{t("مبلغ دریافتی")}</div>
                     <div className="text-sm font-bold tabular-nums mt-0.5" dir="ltr">
                       {amountValid ? formatMoney(amountNum, currency) : "—"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-muted-foreground">ثبت می‌شود</div>
+                    <div className="text-[10px] text-muted-foreground">{t("ثبت می‌شود")}</div>
                     <div className="text-sm font-bold tabular-nums mt-0.5 text-emerald-600 dark:text-emerald-400" dir="ltr">
                       {formatMoney(allocatedSum, currency)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-muted-foreground">بدهی این ارز بعد از تسویه</div>
+                    <div className="text-[10px] text-muted-foreground">{t("بدهی این ارز بعد از تسویه")}</div>
                     <div className={cn(
                       "text-sm font-bold tabular-nums mt-0.5",
                       debtAfter <= 0.001
@@ -659,7 +660,7 @@ export function BulkSettleDialog({
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-muted-foreground">ردیف تخصیص‌یافته</div>
+                    <div className="text-[10px] text-muted-foreground">{t("ردیف تخصیص‌یافته")}</div>
                     <div className="text-sm font-bold tabular-nums mt-0.5">
                       {formatNumber(rows.filter((o) => (allocNum.get(o.id) ?? 0) > 0.001).length)}
                     </div>
@@ -671,9 +672,9 @@ export function BulkSettleDialog({
                   <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-xs flex items-start gap-2">
                     <Icon name="coins" size={14} className="text-amber-600 mt-0.5 shrink-0" />
                     <span className="leading-relaxed">
-                      <b>مازاد {formatMoney(excess, currency)}</b> بدهی متناظری ندارد و ثبت
-                      نمی‌شود — اگر مشتری بیشتر از بدهی‌اش پول داده، این مبلغ را جدا پیگیری
-                      کنید. برای ثبت کامل، عدد ردیف‌ها را در جدول بالا کم کنید.
+                      <b>{t("مازاد {p0}", { p0: formatMoney(excess, currency) })}</b> {t("بدهی متناظری ندارد و ثبت")}
+                      {t("نمی‌شود — اگر مشتری بیشتر از بدهی‌اش پول داده، این مبلغ را جدا پیگیری")}
+                      {t("کنید. برای ثبت کامل، عدد ردیف‌ها را در جدول بالا کم کنید.")}
                     </span>
                   </div>
                 )}
@@ -681,12 +682,12 @@ export function BulkSettleDialog({
                 {/* یادآوری ارزهای دیگر */}
                 {debtMixed && (
                   <div className="text-[11px] text-muted-foreground leading-relaxed">
-                    ⚠ این مشتری در ارزهای دیگر هم بدهی دارد (
+                    {t("⚠ این مشتری در ارزهای دیگر هم بدهی دارد")} (
                     {debtCurrencies
                       .filter((c) => c !== currency)
                       .map((c) => `${CURRENCIES[c].short}: ${formatMoney(debtPer[c], c)}`)
                       .join(" + ")}{" "}
-                    ) — آن‌ها دست‌نخورده می‌مانند؛ بعداً با ارز مربوط تسویه کنید.
+                    ) {t("— آن‌ها دست‌نخورده می‌مانند؛ بعداً با ارز مربوط تسویه کنید.")}
                   </div>
                 )}
               </>
@@ -699,7 +700,7 @@ export function BulkSettleDialog({
           {result ? (
             <>
               <Button variant="ghost" size="sm" onClick={closeDialog}>
-                بستن
+                {t("بستن")}
               </Button>
               <Button
                 size="sm"
@@ -713,13 +714,13 @@ export function BulkSettleDialog({
                 }}
               >
                 <Icon name="creditCard" size={14} />
-                پرداخت دیگر
+                {t("پرداخت دیگر")}
               </Button>
             </>
           ) : (
             <>
               <Button variant="ghost" size="sm" onClick={closeDialog} disabled={settleMut.isPending}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button
                 size="sm"
@@ -738,7 +739,7 @@ export function BulkSettleDialog({
                 ) : (
                   <Icon name="check" size={14} />
                 )}
-                ثبت تسویه گروهی
+                {t("ثبت تسویه گروهی")}
               </Button>
             </>
           )}

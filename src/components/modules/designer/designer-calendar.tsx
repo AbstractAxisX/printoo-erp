@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Icon } from "@/lib/icons";
 import { useDesignerOrderDetail } from "@/lib/use-designer-order-detail";
 import { useAppStore } from "@/stores/app-store";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 type DesignerOrder = {
@@ -136,19 +137,19 @@ export function DesignerCalendar() {
   const filterButtons = [
     {
       id: "orders",
-      label: "سفارشات",
+      label: t("سفارشات"),
       active: filters.orders,
       onToggle: () => setFilters((f) => ({ ...f, orders: !f.orders })),
     },
     {
       id: "tasks",
-      label: "تسک‌ها",
+      label: t("تسک‌ها"),
       active: filters.tasks,
       onToggle: () => setFilters((f) => ({ ...f, tasks: !f.tasks })),
     },
     {
       id: "urgent",
-      label: "فقط فوری",
+      label: t("فقط فوری"),
       active: filters.urgent,
       onToggle: () => setFilters((f) => ({ ...f, urgent: !f.urgent })),
     },
@@ -168,18 +169,18 @@ export function DesignerCalendar() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تقویم طراحی"
-        description="نمای تقویمی و گانت سفارشات در حال طراحی و تسک‌های طراح"
+        title={t("تقویم طراحی")}
+        description={t("نمای تقویمی و گانت سفارشات در حال طراحی و تسک‌های طراح")}
         icon="calendar"
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="calendar" className="gap-1.5">
-            <Icon name="calendar" size={14} /> تقویم
+            <Icon name="calendar" size={14} /> {t("تقویم")}
           </TabsTrigger>
           <TabsTrigger value="gantt" className="gap-1.5">
-            <Icon name="chart" size={14} /> گانت چارت
+            <Icon name="chart" size={14} /> {t("گانت چارت")}
           </TabsTrigger>
         </TabsList>
 
@@ -199,8 +200,8 @@ export function DesignerCalendar() {
           <ReusableGantt
             events={allEvents}
             onEventClick={handleEventClick}
-            title="گانت چارت سفارشات و تسک‌های طراحی"
-            emptyMessage="رویدادی برای نمایش در گانت نیست"
+            title={t("گانت چارت سفارشات و تسک‌های طراحی")}
+            emptyMessage={t("رویدادی برای نمایش در گانت نیست")}
             filters={filterButtons}
           />
         </TabsContent>

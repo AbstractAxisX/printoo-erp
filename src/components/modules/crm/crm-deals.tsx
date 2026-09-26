@@ -47,6 +47,7 @@ import {
   STAGE_COLORS,
 } from "./crm-types";
 import { DealFormDialog, StageBadge } from "./deal-form-dialog";
+import { t } from "@/lib/i18n";
 
 type CustomerOption = { id: string; name: string; phone: string };
 
@@ -86,7 +87,7 @@ export function CRMDeals() {
     mutationFn: (id: string) => api(`/api/deals/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["deals", "crm-dashboard", "customers"]);
-      toast.success("معامله حذف شد");
+      toast.success(t("معامله حذف شد"));
       setDeleteTarget(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -103,7 +104,7 @@ export function CRMDeals() {
     },
     onSuccess: (count, vars) => {
       invalidate(["deals", "crm-dashboard", "customers"]);
-      toast.success(`${count} معامله به «${STAGE_LABELS[vars.stage]}» منتقل شد`);
+      toast.success(t("{p0} معامله به «{p1}» منتقل شد", { p0: count, p1: STAGE_LABELS[vars.stage] }));
       setSelected({});
       setBulkStageOpen(false);
     },
@@ -154,7 +155,7 @@ export function CRMDeals() {
     },
     {
       accessorKey: "title",
-      header: "عنوان معامله",
+      header: t("عنوان معامله"),
       cell: ({ row }) => (
         <div className="flex items-start gap-2 max-w-[260px]">
           <div className="size-8 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0">
@@ -174,7 +175,7 @@ export function CRMDeals() {
     },
     {
       accessorKey: "customer.name",
-      header: "مشتری",
+      header: t("مشتری"),
       cell: ({ row }) => (
         <span className="text-sm">{row.original.customer?.name ?? "—"}</span>
       ),
@@ -182,7 +183,7 @@ export function CRMDeals() {
     },
     {
       accessorKey: "value",
-      header: "ارزش",
+      header: t("ارزش"),
       cell: ({ row }) => (
         <span className="tabular-nums font-semibold" dir="ltr">
           {formatCurrency(row.original.value)}
@@ -192,13 +193,13 @@ export function CRMDeals() {
     },
     {
       accessorKey: "stage",
-      header: "مرحله",
+      header: t("مرحله"),
       cell: ({ row }) => <StageBadge stage={row.original.stage} />,
       enableSorting: true,
     },
     {
       accessorKey: "probability",
-      header: "احتمال",
+      header: t("احتمال"),
       cell: ({ row }) => {
         const p = row.original.probability;
         const colors = STAGE_COLORS[row.original.stage];
@@ -218,7 +219,7 @@ export function CRMDeals() {
     },
     {
       accessorKey: "expectedCloseDate",
-      header: "سررسید پیش‌بینی",
+      header: t("سررسید پیش‌بینی"),
       cell: ({ row }) => {
         if (!row.original.expectedCloseDate) return <span className="text-muted-foreground text-xs">—</span>;
         const dr = daysRemaining(row.original.expectedCloseDate);
@@ -243,7 +244,7 @@ export function CRMDeals() {
     },
     {
       accessorKey: "source",
-      header: "منبع",
+      header: t("منبع"),
       cell: ({ row }) => {
         const s = row.original.source as DealSource | null;
         if (!s) return <span className="text-muted-foreground text-xs">—</span>;
@@ -254,7 +255,7 @@ export function CRMDeals() {
     },
     {
       id: "actions",
-      header: () => <div className="text-center">عملیات</div>,
+      header: () => <div className="text-center">{t("عملیات")}</div>,
       cell: ({ row }) => (
         <div className="flex items-center justify-center gap-0.5">
           <Button
@@ -265,7 +266,7 @@ export function CRMDeals() {
               e.stopPropagation();
               openEdit(row.original);
             }}
-            title="ویرایش"
+            title={t("ویرایش")}
           >
             <Icon name="edit" size={16} />
           </Button>
@@ -277,7 +278,7 @@ export function CRMDeals() {
               e.stopPropagation();
               setDeleteTarget(row.original);
             }}
-            title="حذف"
+            title={t("حذف")}
           >
             <Icon name="trash" size={16} />
           </Button>
@@ -293,8 +294,8 @@ export function CRMDeals() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="معاملات"
-        description={`${deals.length} معامله • ${formatCurrency(totalValue)}`}
+        title={t("معاملات")}
+        description={t("{p0} معامله • {p1}", { p0: deals.length, p1: formatCurrency(totalValue) })}
         icon="orders"
         actions={
           <div className="flex items-center gap-2">
@@ -303,12 +304,12 @@ export function CRMDeals() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-1.5">
                     <Icon name="layers" size={15} />
-                    تغییر مرحله ({selectedIds.length})
+                    {t("تغییر مرحله ({p0})", { p0: selectedIds.length })}
                     <Icon name="chevronDown" size={12} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>انتخاب مرحله جدید</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("انتخاب مرحله جدید")}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {STAGE_OPTIONS.map((s) => (
                     <DropdownMenuItem
@@ -330,7 +331,7 @@ export function CRMDeals() {
               </DropdownMenu>
             )}
             <Button onClick={openNew} className="gap-2">
-              <Icon name="plus" size={16} /> معامله جدید
+              <Icon name="plus" size={16} /> {t("معامله جدید")}
             </Button>
           </div>
         }
@@ -343,7 +344,7 @@ export function CRMDeals() {
           isLoading={isLoading}
           globalFilter={search}
           onGlobalFilterChange={setSearch}
-          searchPlaceholder="جستجوی عنوان یا مشتری..."
+          searchPlaceholder={t("جستجوی عنوان یا مشتری...")}
           pageSize={10}
           onRowClick={(d) => openEdit(d)}
           toolbar={
@@ -353,10 +354,10 @@ export function CRMDeals() {
                 onValueChange={(v) => setStageFilter(v as DealStage | "all")}
               >
                 <SelectTrigger className="w-[140px] h-9">
-                  <SelectValue placeholder="مرحله" />
+                  <SelectValue placeholder={t("مرحله")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه مراحل</SelectItem>
+                  <SelectItem value="all">{t("همه مراحل")}</SelectItem>
                   {STAGE_OPTIONS.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label}
@@ -369,10 +370,10 @@ export function CRMDeals() {
                 onValueChange={(v) => setSourceFilter(v as DealSource | "all")}
               >
                 <SelectTrigger className="w-[140px] h-9">
-                  <SelectValue placeholder="منبع" />
+                  <SelectValue placeholder={t("منبع")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">همه منابع</SelectItem>
+                  <SelectItem value="all">{t("همه منابع")}</SelectItem>
                   {SOURCE_OPTIONS.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label}
@@ -390,7 +391,7 @@ export function CRMDeals() {
                   }}
                   className="gap-1"
                 >
-                  <Icon name="cancel" size={13} /> پاک فیلتر
+                  <Icon name="cancel" size={13} /> {t("پاک فیلتر")}
                 </Button>
               )}
             </div>
@@ -398,11 +399,11 @@ export function CRMDeals() {
           emptyState={
             <EmptyState
               icon="orders"
-              title="معامله‌ای یافت نشد"
-              description="اولین معامله خود را ایجاد کنید یا فیلترها را تغییر دهید."
+              title={t("معامله‌ای یافت نشد")}
+              description={t("اولین معامله خود را ایجاد کنید یا فیلترها را تغییر دهید.")}
               action={
                 <Button onClick={openNew} className="gap-2">
-                  <Icon name="plus" size={16} /> ایجاد معامله
+                  <Icon name="plus" size={16} /> {t("ایجاد معامله")}
                 </Button>
               }
             />
@@ -423,18 +424,18 @@ export function CRMDeals() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف معامله</AlertDialogTitle>
+            <AlertDialogTitle>{t("حذف معامله")}</AlertDialogTitle>
             <AlertDialogDescription>
-              آیا از حذف «{deleteTarget?.title}» مطمئن هستید؟ این عمل قابل بازگشت نیست.
+              {t("آیا از حذف «{p0}» مطمئن هستید؟ این عمل قابل بازگشت نیست.", { p0: deleteTarget?.title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>انصراف</AlertDialogCancel>
+            <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteTarget && deleteMut.mutate(deleteTarget.id)}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
-              حذف
+              {t("حذف")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -442,7 +443,7 @@ export function CRMDeals() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 justify-center pt-1">
         <Icon name="refresh" size={11} />
-        به‌روزرسانی خودکار هر 30 ثانیه
+        {t("به‌روزرسانی خودکار هر 30 ثانیه")}
       </div>
     </div>
   );

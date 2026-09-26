@@ -41,14 +41,15 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/stores/app-store";
 import type { OrderDetail } from "./order-detail-modal";
+import { t as tr } from "@/lib/i18n";
 
 // ─── Phase 7: وضعیت پیش‌فاکتور — همان رنگ‌های lib/pre-invoice ──────
 const PI_STATUS_BADGE = {
-  draft: { label: "پیش‌نویس", cls: "bg-muted text-muted-foreground" },
-  sent: { label: "ارسال‌شده", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" },
-  approved: { label: "تاییدشده", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  rejected: { label: "ردشده", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
-  converted: { label: "تبدیل به فاکتور", cls: "bg-primary/15 text-primary" },
+  draft: { label: tr("پیش‌نویس"), cls: "bg-muted text-muted-foreground" },
+  sent: { label: tr("ارسال‌شده"), cls: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300" },
+  approved: { label: tr("تاییدشده"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: tr("ردشده"), cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  converted: { label: tr("تبدیل به فاکتور"), cls: "bg-primary/15 text-primary" },
 } as const;
 
 // ─── Phase 18: کارت «مسئولان سفارش» (تغییر مجری — ادمین) ──────────
@@ -88,19 +89,19 @@ function assigneeOptions(
   currentName: string | null
 ): SearchOption[] {
   const opts: SearchOption[] = [
-    { value: "", label: "بدون تخصیص (استخر عمومی)" },
+    { value: "", label: tr("بدون تخصیص (استخر عمومی)") },
     ...users.map((u) => ({
       value: u.id,
-      label: u.onLeaveToday ? `${u.name} — مرخصی` : u.name,
-      sub: u.onLeaveToday ? "امروز در مرخصی است" : USER_ROLE[u.role]?.label ?? u.role,
+      label: u.onLeaveToday ? tr("{p0} — مرخصی", { p0: u.name }) : u.name,
+      sub: u.onLeaveToday ? tr("امروز در مرخصی است") : USER_ROLE[u.role]?.label ?? u.role,
     })),
   ];
   // مجری فعلیِ خارج از فهرست فعال (غیرفعال/بی‌ماژول شده) — گزینهٔ fallback تا نامش گم نشود
   if (currentId && !opts.some((o) => o.value === currentId)) {
     opts.push({
       value: currentId,
-      label: currentName ?? "کاربر تخصیص‌یافته",
-      sub: "خارج از فهرست فعال",
+      label: currentName ?? tr("کاربر تخصیص‌یافته"),
+      sub: tr("خارج از فهرست فعال"),
     });
   }
   return opts;
@@ -146,9 +147,9 @@ function AssigneeRow({
           {onLeave && (
             <span
               className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-medium"
-              title={leaveNote ?? "امروز در مرخصی است"}
+              title={leaveNote ?? tr("امروز در مرخصی است")}
             >
-              مرخصی
+              {tr("مرخصی")}
             </span>
           )}
           {pending && (
@@ -161,7 +162,7 @@ function AssigneeRow({
               value={currentId ?? ""}
               onChange={onChange}
               options={options}
-              placeholder="انتخاب مجری..."
+              placeholder={tr("انتخاب مجری...")}
               searchPlaceholder={searchPlaceholder}
               className="w-full h-8 text-xs"
             />
@@ -173,7 +174,7 @@ function AssigneeRow({
               !currentName && "text-muted-foreground"
             )}
           >
-            {currentName ?? "بدون تخصیص (استخر عمومی)"}
+            {currentName ?? tr("بدون تخصیص (استخر عمومی)")}
           </div>
         )}
       </div>
@@ -249,17 +250,17 @@ export function OrderAssigneesCard({ order }: { order: OrderDetail }) {
     <div className="rounded-lg border">
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/30">
         <span className="text-xs font-medium flex items-center gap-1.5">
-          <Icon name="users" size={13} /> مسئولان سفارش
+          <Icon name="users" size={13} /> {tr("مسئولان سفارش")}
         </span>
         {canManage && (
           <span className="text-[10px] text-muted-foreground">
-            تغییر مجری، سفارش را بین پنل کارکنان جابجا می‌کند
+            {tr("تغییر مجری، سفارش را بین پنل کارکنان جابجا می‌کند")}
           </span>
         )}
       </div>
       <div className="divide-y">
         <AssigneeRow
-          label="طراح مسئول"
+          label={tr("طراح مسئول")}
           icon="design"
           accent="text-violet-600 bg-violet-500/10"
           currentId={designerId}
@@ -270,11 +271,11 @@ export function OrderAssigneesCard({ order }: { order: OrderDetail }) {
           options={assigneeOptions(designers, designerId, designerName)}
           onChange={makeOnChange("designerId", designers, designerId)}
           pending={pendingField === "designerId"}
-          searchPlaceholder="جستجوی طراح..."
-          ariaLabel="تغییر طراح مسئول سفارش"
+          searchPlaceholder={tr("جستجوی طراح...")}
+          ariaLabel={tr("تغییر طراح مسئول سفارش")}
         />
         <AssigneeRow
-          label="چاپ‌کار مسئول"
+          label={tr("چاپ‌کار مسئول")}
           icon="print"
           accent="text-amber-600 bg-amber-500/10"
           currentId={printerId}
@@ -285,8 +286,8 @@ export function OrderAssigneesCard({ order }: { order: OrderDetail }) {
           options={assigneeOptions(printers, printerId, printerName)}
           onChange={makeOnChange("printerId", printers, printerId)}
           pending={pendingField === "printerId"}
-          searchPlaceholder="جستجوی چاپ‌کار..."
-          ariaLabel="تغییر چاپ‌کار مسئول سفارش"
+          searchPlaceholder={tr("جستجوی چاپ‌کار...")}
+          ariaLabel={tr("تغییر چاپ‌کار مسئول سفارش")}
         />
       </div>
     </div>
@@ -296,10 +297,10 @@ export function OrderAssigneesCard({ order }: { order: OrderDetail }) {
 // ─── 1. Overview tab ────────────────────────────────────────────
 // Context-First: identity, next-action CTA, status timeline, note.
 const NEXT_ACTION: Partial<Record<OrderStatus, { to: OrderStatus; label: string; icon: Parameters<typeof Icon>[0]["name"]; }>> = {
-  pending_design: { to: "in_printing", label: "ارسال به چاپ", icon: "print" },
-  in_printing: { to: "warehouse_logistics", label: "ارسال به انبار", icon: "truck" },
-  warehouse_logistics: { to: "completed", label: "تکمیل سفارش", icon: "checkCircle" },
-  completed: { to: "archived", label: "آرشیو سفارش", icon: "archive" },
+  pending_design: { to: "in_printing", label: tr("ارسال به چاپ"), icon: "print" },
+  in_printing: { to: "warehouse_logistics", label: tr("ارسال به انبار"), icon: "truck" },
+  warehouse_logistics: { to: "completed", label: tr("تکمیل سفارش"), icon: "checkCircle" },
+  completed: { to: "archived", label: tr("آرشیو سفارش"), icon: "archive" },
 };
 
 export function OverviewTab({
@@ -341,9 +342,9 @@ export function OverviewTab({
             <Icon name={next.icon} size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold">گام بعدی</div>
+            <div className="text-sm font-semibold">{tr("گام بعدی")}</div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              این سفارش در وضعیت «{ORDER_STATUS[status].label}» است.
+              {tr("این سفارش در وضعیت «{p0}» است.", { p0: ORDER_STATUS[status].label })}
             </div>
           </div>
           <Button
@@ -366,8 +367,8 @@ export function OverviewTab({
             <Icon name="checkBadge" size={20} />
           </div>
           <div className="text-sm">
-            این سفارش در وضعیت نهایی (
-            {ORDER_STATUS[status].label}) قرار دارد.
+            {tr("این سفارش در وضعیت نهایی")} (
+            {tr("{p0}) قرار دارد.", { p0: ORDER_STATUS[status].label })}
           </div>
         </div>
       )}
@@ -378,7 +379,7 @@ export function OverviewTab({
           onClick={() => onGoTab("items")}
           className="rounded-lg border p-3 text-right hover:bg-accent/30 transition"
         >
-          <div className="text-[10px] text-muted-foreground">آیتم‌ها</div>
+          <div className="text-[10px] text-muted-foreground">{tr("آیتم‌ها")}</div>
           <div className="text-lg font-bold mt-0.5 tabular-nums">
             {order.items?.length ?? 0}
           </div>
@@ -387,12 +388,12 @@ export function OverviewTab({
           onClick={() => onGoTab("tasks")}
           className="rounded-lg border p-3 text-right hover:bg-accent/30 transition"
         >
-          <div className="text-[10px] text-muted-foreground">تسک‌ها</div>
+          <div className="text-[10px] text-muted-foreground">{tr("تسک‌ها")}</div>
           <div className="text-lg font-bold mt-0.5 tabular-nums">
             {tasksCount}
             {tasksCount > 0 && (
               <span className="text-[11px] font-normal text-muted-foreground mr-1">
-                ({doneTasks} انجام‌شده)
+                {tr("({p0} انجام‌شده)", { p0: doneTasks })}
               </span>
             )}
           </div>
@@ -401,7 +402,7 @@ export function OverviewTab({
           onClick={() => onGoTab("preInvoice")}
           className="rounded-lg border p-3 text-right hover:bg-accent/30 transition"
         >
-          <div className="text-[10px] text-muted-foreground">باقی‌مانده</div>
+          <div className="text-[10px] text-muted-foreground">{tr("باقی‌مانده")}</div>
           <div
             className={cn(
               "text-lg font-bold mt-0.5 tabular-nums",
@@ -413,7 +414,7 @@ export function OverviewTab({
           </div>
         </button>
         <div className="rounded-lg border p-3">
-          <div className="text-[10px] text-muted-foreground">اولویت</div>
+          <div className="text-[10px] text-muted-foreground">{tr("اولویت")}</div>
           <div className="text-lg font-bold mt-0.5">
             {PRIORITY[order.priority as keyof typeof PRIORITY]?.label ?? "—"}
           </div>
@@ -431,7 +432,7 @@ export function OverviewTab({
         >
           <Icon name="alert" size={16} className="text-amber-600 shrink-0" />
           <span className="text-sm text-amber-800 dark:text-amber-200">
-            {blockingItems} آیتم نیازمند تأمین متریال است — قبل از چاپ بررسی شود.
+            {tr("{p0} آیتم نیازمند تأمین متریال است — قبل از چاپ بررسی شود.", { p0: blockingItems })}
           </span>
         </button>
       )}
@@ -440,7 +441,7 @@ export function OverviewTab({
       <div className="rounded-lg border">
         <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
           <span className="text-xs font-medium flex items-center gap-1.5">
-            <Icon name="info" size={13} /> یادداشت سفارش
+            <Icon name="info" size={13} /> {tr("یادداشت سفارش")}
           </span>
           <Button
             size="sm"
@@ -454,14 +455,14 @@ export function OverviewTab({
             ) : (
               <Icon name="check" size={12} />
             )}
-            ذخیره
+            {tr("ذخیره")}
           </Button>
         </div>
         <Textarea
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
           rows={3}
-          placeholder="یادداشت داخلی درباره این سفارش..."
+          placeholder={tr("یادداشت داخلی درباره این سفارش...")}
           className="border-0 rounded-none focus-visible:ring-0 resize-none text-sm"
         />
       </div>
@@ -506,7 +507,7 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
     },
     onSuccess: () => {
       invalidate(["order", "orders"]);
-      toast.success("زمان‌بندی آیتم ذخیره شد");
+      toast.success(tr("زمان‌بندی آیتم ذخیره شد"));
       setEditing(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -515,7 +516,7 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
   if (!order.items?.length) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
-        این سفارش آیتمی ندارد.
+        {tr("این سفارش آیتمی ندارد.")}
       </div>
     );
   }
@@ -574,7 +575,7 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
                   size="sm"
                   variant="ghost"
                   className="size-7"
-                  title={isEditing ? "بستن ویرایش" : "ویرایش زمان‌بندی این آیتم"}
+                  title={isEditing ? tr("بستن ویرایش") : tr("ویرایش زمان‌بندی این آیتم")}
                   onClick={() => (isEditing ? setEditing(null) : startEdit(it))}
                 >
                   <Icon name={isEditing ? "cancel" : "edit"} size={13} />
@@ -598,38 +599,38 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
                     )}
                   >
                     <Icon name={it.materialConfirmed ? "check" : "alert"} size={10} />
-                    {it.materialConfirmed ? "متریال تأمین شد" : "نیازمند متریال"}
+                    {it.materialConfirmed ? tr("متریال تأمین شد") : tr("نیازمند متریال")}
                   </span>
                 )}
                 {/* Phase 18: مجری‌های همین آیتم */}
                 <span
                   className="px-1.5 py-0.5 rounded bg-muted flex items-center gap-0.5"
-                  title="طراح این آیتم"
+                  title={tr("طراح این آیتم")}
                 >
-                  <Icon name="user" size={10} /> طراح: {itemDesigner ?? "—"}
+                  <Icon name="user" size={10} /> {tr("طراح: {p0}", { p0: itemDesigner ?? "—" })}
                 </span>
                 <span
                   className="px-1.5 py-0.5 rounded bg-muted flex items-center gap-0.5"
-                  title="چاپ‌کار این آیتم"
+                  title={tr("چاپ‌کار این آیتم")}
                 >
-                  <Icon name="user" size={10} /> چاپ: {itemPrinter ?? "—"}
+                  <Icon name="user" size={10} /> {tr("چاپ: {p0}", { p0: itemPrinter ?? "—" })}
                 </span>
                 <span className="text-muted-foreground flex items-center gap-0.5">
                   <Icon name="design" size={10} /> طراحی:{" "}
                   {it.designStartDate
-                    ? `${formatDate(it.designStartDate)}${it.designEndDate ? ` تا ${formatDate(it.designEndDate)}` : ""}`
-                    : "ثبت نشده"}
+                    ? tr("{p0}{p1}", { p0: formatDate(it.designStartDate), p1: it.designEndDate ? tr(" تا {p0}", { p0: formatDate(it.designEndDate) }) : "" })
+                    : tr("ثبت نشده")}
                   {designLate && (
-                    <span className="text-rose-600 mr-0.5">(معوق)</span>
+                    <span className="text-rose-600 mr-0.5">{tr("(معوق)")}</span>
                   )}
                 </span>
                 <span className="text-muted-foreground flex items-center gap-0.5">
                   <Icon name="print" size={10} /> چاپ:{" "}
                   {it.printStartDate
-                    ? `${formatDate(it.printStartDate)}${it.printEndDate ? ` تا ${formatDate(it.printEndDate)}` : ""}`
-                    : "ثبت نشده"}
+                    ? tr("{p0}{p1}", { p0: formatDate(it.printStartDate), p1: it.printEndDate ? tr(" تا {p0}", { p0: formatDate(it.printEndDate) }) : "" })
+                    : tr("ثبت نشده")}
                   {printLate && (
-                    <span className="text-rose-600 mr-0.5">(معوق)</span>
+                    <span className="text-rose-600 mr-0.5">{tr("(معوق)")}</span>
                   )}
                 </span>
                 {it.note && (
@@ -645,7 +646,7 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
               <div className="mt-3 rounded-lg border bg-card p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium flex items-center gap-1.5 text-primary">
-                    <Icon name="calendar" size={13} /> زمان‌بندی این آیتم
+                    <Icon name="calendar" size={13} /> {tr("زمان‌بندی این آیتم")}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     خالی = بدون تغییر
@@ -655,35 +656,35 @@ export function ItemsTab({ order }: { order: OrderDetail }) {
                   <DatePicker
                     value={draft.designStart || null}
                     onChange={(d) => setDraft((s) => ({ ...s, designStart: d ? format(d, "yyyy-MM-dd") : "" }))}
-                    placeholder="شروع طراحی"
+                    placeholder={tr("شروع طراحی")}
                     className="w-full bg-transparent"
                   />
                   <DatePicker
                     value={draft.designEnd || null}
                     onChange={(d) => setDraft((s) => ({ ...s, designEnd: d ? format(d, "yyyy-MM-dd") : "" }))}
-                    placeholder="پایان طراحی"
+                    placeholder={tr("پایان طراحی")}
                     className="w-full bg-transparent"
                   />
                   <DatePicker
                     value={draft.printStart || null}
                     onChange={(d) => setDraft((s) => ({ ...s, printStart: d ? format(d, "yyyy-MM-dd") : "" }))}
-                    placeholder="شروع چاپ"
+                    placeholder={tr("شروع چاپ")}
                     className="w-full bg-transparent"
                   />
                   <DatePicker
                     value={draft.printEnd || null}
                     onChange={(d) => setDraft((s) => ({ ...s, printEnd: d ? format(d, "yyyy-MM-dd") : "" }))}
-                    placeholder="پایان چاپ"
+                    placeholder={tr("پایان چاپ")}
                     className="w-full bg-transparent"
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" onClick={() => saveDates.mutate(it.id)} disabled={saveDates.isPending} className="gap-1.5">
                     {saveDates.isPending ? <Icon name="loading" size={13} className="animate-spin" /> : <Icon name="check" size={13} />}
-                    ذخیره زمان‌بندی
+                    {tr("ذخیره زمان‌بندی")}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-                    انصراف
+                    {tr("انصراف")}
                   </Button>
                 </div>
               </div>
@@ -749,7 +750,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
       }),
     onSuccess: () => {
       invalidate(["tasks", "dashboard", "order"]);
-      toast.success("تسک ایجاد و به سفارش متصل شد");
+      toast.success(tr("تسک ایجاد و به سفارش متصل شد"));
       setQcOpen(false);
       setQcTitle("");
       setQcAssignee(null);
@@ -766,7 +767,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
           onSubmit={(e) => {
             e.preventDefault();
             if (!qcTitle.trim()) {
-              toast.error("عنوان الزامی است");
+              toast.error(tr("عنوان الزامی است"));
               return;
             }
             createMut.mutate();
@@ -775,12 +776,12 @@ export function TasksTab({ order }: { order: OrderDetail }) {
         >
           <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
             <Icon name="taskAdd" size={13} />
-            تسک جدید برای سفارش #{order.number}
+            {tr("تسک جدید برای سفارش #{p0}", { p0: order.number })}
           </div>
           <Input
             value={qcTitle}
             onChange={(e) => setQcTitle(e.target.value)}
-            placeholder="مثلاً: طراحی فایل لگو — نسخه 2"
+            placeholder={tr("مثلاً: طراحی فایل لگو — نسخه 2")}
             autoFocus
           />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -802,15 +803,15 @@ export function TasksTab({ order }: { order: OrderDetail }) {
             <SearchSelect
               value={qcAssignee}
               onChange={setQcAssignee}
-              placeholder="مسئول انجام"
-              searchPlaceholder="جستجوی نام کارمند..."
+              placeholder={tr("مسئول انجام")}
+              searchPlaceholder={tr("جستجوی نام کارمند...")}
               options={assigneeOptions}
               className="h-9 text-xs"
             />
             <DatePicker
               value={qcDueDate ? new Date(qcDueDate) : null}
               onChange={(d) => setQcDueDate(d ? format(d, "yyyy-MM-dd") : "")}
-              placeholder="سررسید (اختیاری)"
+              placeholder={tr("سررسید (اختیاری)")}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -820,7 +821,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
               ) : (
                 <Icon name="check" size={14} />
               )}
-              ایجاد و ارجاع
+              {tr("ایجاد و ارجاع")}
             </Button>
             <Button
               type="button"
@@ -828,7 +829,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
               variant="ghost"
               onClick={() => setQcOpen(false)}
             >
-              انصراف
+              {tr("انصراف")}
             </Button>
           </div>
         </form>
@@ -839,7 +840,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
           onClick={() => setQcOpen(true)}
           className="gap-1.5 w-full sm:w-auto"
         >
-          <Icon name="plus" size={14} /> تسک جدید برای این سفارش
+          <Icon name="plus" size={14} /> {tr("تسک جدید برای این سفارش")}
         </Button>
       )}
 
@@ -848,7 +849,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
         <div className="py-6 text-center space-y-1">
           <Icon name="task" size={28} className="mx-auto text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
-            این سفارش هنوز تسکی ندارد — با فرم بالا در چند ثانیه ارجاع دهید.
+            {tr("این سفارش هنوز تسکی ندارد — با فرم بالا در چند ثانیه ارجاع دهید.")}
           </p>
         </div>
       ) : (
@@ -898,7 +899,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
                       >
                         <Icon name="clock" size={10} />
                         {formatDate(t.dueDate)}
-                        {isOverdue && " (معوق)"}
+                        {isOverdue && tr(" (معوق)")}
                         {!isOverdue && dr.status !== "none" && ` (${dr.text})`}
                       </span>
                     )}
@@ -909,7 +910,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
                     ) : (
                       t.status !== "done" && (
                         <span className="inline-flex items-center gap-0.5 text-muted-foreground/70">
-                          <Icon name="user" size={10} /> بدون مسئول
+                          <Icon name="user" size={10} /> {tr("بدون مسئول")}
                         </span>
                       )
                     )}
@@ -927,7 +928,7 @@ export function TasksTab({ order }: { order: OrderDetail }) {
         onClick={() => navigate("admin", "tasks")}
         className="gap-1.5 text-xs"
       >
-        <Icon name="arrowLeft" size={12} /> مدیریت همه تسک‌ها در بورد کانبان
+        <Icon name="arrowLeft" size={12} /> {tr("مدیریت همه تسک‌ها در بورد کانبان")}
       </Button>
     </div>
   );
@@ -946,9 +947,9 @@ type MaterialCostRow = {
 };
 
 const COST_STATUS: Record<string, { label: string; badge: string }> = {
-  pending: { label: "در انتظار", badge: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
-  approved: { label: "تأیید شده", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  rejected: { label: "رد شده", badge: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  pending: { label: tr("در انتظار"), badge: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
+  approved: { label: tr("تأیید شده"), badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: tr("رد شده"), badge: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
 };
 
 export function CostsTab({ order }: { order: OrderDetail }) {
@@ -976,7 +977,7 @@ export function CostsTab({ order }: { order: OrderDetail }) {
       <div className="py-8 text-center space-y-2">
         <Icon name="coins" size={28} className="mx-auto text-muted-foreground/50" />
         <p className="text-sm text-muted-foreground">
-          هزینه متریال/چاپ برای این سفارش ثبت نشده است.
+          {tr("هزینه متریال/چاپ برای این سفارش ثبت نشده است.")}
         </p>
       </div>
     );
@@ -985,19 +986,19 @@ export function CostsTab({ order }: { order: OrderDetail }) {
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg border p-2.5">
-          <div className="text-[10px] text-muted-foreground">کل هزینه‌ها</div>
+          <div className="text-[10px] text-muted-foreground">{tr("کل هزینه‌ها")}</div>
           <div className="text-sm font-bold mt-0.5 tabular-nums" dir="ltr">
             {formatCurrency(total)}
           </div>
         </div>
         <div className="rounded-lg border p-2.5">
-          <div className="text-[10px] text-muted-foreground">تأیید شده</div>
+          <div className="text-[10px] text-muted-foreground">{tr("تأیید شده")}</div>
           <div className="text-sm font-bold mt-0.5 text-emerald-600 tabular-nums" dir="ltr">
             {formatCurrency(approved)}
           </div>
         </div>
         <div className="rounded-lg border p-2.5">
-          <div className="text-[10px] text-muted-foreground">در انتظار</div>
+          <div className="text-[10px] text-muted-foreground">{tr("در انتظار")}</div>
           <div className="text-sm font-bold mt-0.5 text-amber-600 tabular-nums" dir="ltr">
             {formatCurrency(pending)}
           </div>
@@ -1011,7 +1012,7 @@ export function CostsTab({ order }: { order: OrderDetail }) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-sm font-medium">
-                    {c.expenseType?.name ?? "هزینه"} — {c.supplier?.name ?? "بدون تأمین‌کننده"}
+                    {c.expenseType?.name ?? tr("هزینه")} — {c.supplier?.name ?? tr("بدون تأمین‌کننده")}
                   </div>
                   {c.description && (
                     <div className="text-xs text-muted-foreground truncate">
@@ -1038,7 +1039,7 @@ export function CostsTab({ order }: { order: OrderDetail }) {
         onClick={() => navigate("admin", "suppliers")}
         className="gap-1.5 text-xs"
       >
-        <Icon name="arrowLeft" size={12} /> مدیریت در ماژول تأمین‌کنندگان
+        <Icon name="arrowLeft" size={12} /> {tr("مدیریت در ماژول تأمین‌کنندگان")}
       </Button>
     </div>
   );
@@ -1094,19 +1095,19 @@ export function PreInvoiceTab({
       {/* Summary */}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg border p-2.5">
-          <div className="text-[10px] text-muted-foreground">مبلغ کل سفارش</div>
+          <div className="text-[10px] text-muted-foreground">{tr("مبلغ کل سفارش")}</div>
           <div className="text-sm font-bold mt-0.5 tabular-nums" dir="ltr">
             {formatCurrency(order.totalAmount)}
           </div>
         </div>
         <div className="rounded-lg border p-2.5">
-          <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+          <div className="text-[10px] text-muted-foreground">{tr("پرداخت‌شده")}</div>
           <div className="text-sm font-bold mt-0.5 text-emerald-600 tabular-nums" dir="ltr">
             {formatCurrency(order.paidAmount)}
           </div>
         </div>
         <div className="rounded-lg border p-2.5">
-          <div className="text-[10px] text-muted-foreground">باقی‌مانده</div>
+          <div className="text-[10px] text-muted-foreground">{tr("باقی‌مانده")}</div>
           <div className={cn("text-sm font-bold mt-0.5 tabular-nums", unpaid > 0 ? "text-rose-600" : "text-emerald-600")} dir="ltr">
             {formatCurrency(unpaid)}
           </div>
@@ -1119,14 +1120,14 @@ export function PreInvoiceTab({
         <span>
           {perItemMode ? (
             <>
-              <b>پیش‌فاکتور به‌ازای هر آیتم:</b> هر آیتم سند مجزای خودش را دارد
-              {customerName && <> (آیتم‌های {customerName})</>}؛ زمان طراحی/چاپ همان
-              آیتم روی سندش درج می‌شود.
+              <b>{tr("پیش‌فاکتور به‌ازای هر آیتم:")}</b> {tr("هر آیتم سند مجزای خودش را دارد")}
+              {customerName && <> (آیتم‌های {customerName})</>}{tr("}؛ زمان طراحی/چاپ همان")}
+              {tr("آیتم روی سندش درج می‌شود.")}
             </>
           ) : (
             <>
-              <b>یک پیش‌فاکتور برای کل گروه:</b> زمان‌بندی طراحی/چاپ کل گروه روی
-              سند درج می‌شود.
+              <b>{tr("یک پیش‌فاکتور برای کل گروه:")}</b> {tr("زمان‌بندی طراحی/چاپ کل گروه روی")}
+              {tr("سند درج می‌شود.")}
             </>
           )}
         </span>
@@ -1137,10 +1138,10 @@ export function PreInvoiceTab({
         <div className="rounded-lg border overflow-hidden">
           <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2">
             <span className="text-xs font-medium flex items-center gap-1.5">
-              <Icon name="checkList" size={13} /> پیش‌فاکتور آیتم‌ها
+              <Icon name="checkList" size={13} /> {tr("پیش‌فاکتور آیتم‌ها")}
             </span>
             <span className="text-[10px] text-muted-foreground">
-              {fmtNum(itemDocs.length)} از {fmtNum(order.items.length)} آیتم سند دارد
+              {tr("{p0} از {p1} آیتم سند دارد", { p0: fmtNum(itemDocs.length), p1: fmtNum(order.items.length) })}
             </span>
           </div>
           <div className="divide-y">
@@ -1165,19 +1166,19 @@ export function PreInvoiceTab({
                   >
                     <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
                       <span className="text-[10px] text-muted-foreground tabular-nums">{i + 1}.</span>
-                      {it.product?.name ?? "آیتم"}
+                      {it.product?.name ?? tr("آیتم")}
                       {badge ? (
                         <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
                           {badge.label}
                         </span>
                       ) : (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          بدون سند
+                          {tr("بدون سند")}
                         </span>
                       )}
                       {isExpired && (
                         <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                          منقضی
+                          {tr("منقضی")}
                         </span>
                       )}
                     </div>
@@ -1188,13 +1189,13 @@ export function PreInvoiceTab({
                       {dSchedule && (
                         <span className="flex items-center gap-0.5">
                           <Icon name="design" size={10} /> {formatDate(it.designStartDate!)}
-                          {it.designEndDate ? ` تا ${formatDate(it.designEndDate)}` : ""}
+                          {it.designEndDate ? tr(" تا {p0}", { p0: formatDate(it.designEndDate) }) : ""}
                         </span>
                       )}
                       {pSchedule && (
                         <span className="flex items-center gap-0.5">
                           <Icon name="print" size={10} /> {formatDate(it.printStartDate!)}
-                          {it.printEndDate ? ` تا ${formatDate(it.printEndDate)}` : ""}
+                          {it.printEndDate ? tr(" تا {p0}", { p0: formatDate(it.printEndDate) }) : ""}
                         </span>
                       )}
                     </div>
@@ -1207,7 +1208,7 @@ export function PreInvoiceTab({
                           variant="ghost"
                           className="size-7"
                           onClick={() => onOpenDoc(doc.id)}
-                          title={isConverted ? "مشاهده و چاپ" : "مشاهده / ویرایش / چاپ"}
+                          title={isConverted ? tr("مشاهده و چاپ") : tr("مشاهده / ویرایش / چاپ")}
                         >
                           <Icon name="edit" size={13} />
                         </Button>
@@ -1216,7 +1217,7 @@ export function PreInvoiceTab({
                           variant="ghost"
                           className="size-7 hover:text-emerald-600"
                           onClick={() => onOpenDoc(doc.id)}
-                          title="چاپ / PDF"
+                          title={tr("چاپ / PDF")}
                         >
                           <Icon name="print" size={13} />
                         </Button>
@@ -1228,7 +1229,7 @@ export function PreInvoiceTab({
                         className="h-7 text-[11px] gap-1"
                         onClick={() => onIssue(it.id)}
                       >
-                        <Icon name="plus" size={12} /> صدور
+                        <Icon name="plus" size={12} /> {tr("صدور")}
                       </Button>
                     )}
                   </div>
@@ -1245,9 +1246,9 @@ export function PreInvoiceTab({
           <div className="size-12 rounded-2xl bg-primary/10 text-primary grid place-items-center">
             <Icon name="receipt" size={24} />
           </div>
-          <div className="font-semibold text-sm">این سفارش آیتمی ندارد</div>
+          <div className="font-semibold text-sm">{tr("این سفارش آیتمی ندارد")}</div>
           <div className="text-xs text-muted-foreground">
-            ابتدا از ویزارد سفارش، آیتم اضافه کنید.
+            {tr("ابتدا از ویزارد سفارش، آیتم اضافه کنید.")}
           </div>
         </div>
       ) : (
@@ -1255,7 +1256,7 @@ export function PreInvoiceTab({
           <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
             <span className="text-xs font-medium flex items-center gap-1.5">
               <Icon name="receipt" size={13} />
-              {perItemMode ? "سندهای کل گروه (اختیاری)" : "پیش‌فاکتور کل گروه"}
+              {perItemMode ? tr("سندهای کل گروه (اختیاری)") : tr("پیش‌فاکتور کل گروه")}
             </span>
             {/* زمان‌بندی کل گروه — خواستهٔ 3 */}
             {hasAnySchedule && (
@@ -1264,14 +1265,14 @@ export function PreInvoiceTab({
                   <span className="flex items-center gap-0.5">
                     <Icon name="design" size={10} />
                     {formatDate(groupSchedule.designFrom)}
-                    {groupSchedule.designTo ? ` تا ${formatDate(groupSchedule.designTo)}` : ""}
+                    {groupSchedule.designTo ? tr(" تا {p0}", { p0: formatDate(groupSchedule.designTo) }) : ""}
                   </span>
                 )}
                 {groupSchedule.printFrom && (
                   <span className="flex items-center gap-0.5">
                     <Icon name="print" size={10} />
                     {formatDate(groupSchedule.printFrom)}
-                    {groupSchedule.printTo ? ` تا ${formatDate(groupSchedule.printTo)}` : ""}
+                    {groupSchedule.printTo ? tr(" تا {p0}", { p0: formatDate(groupSchedule.printTo) }) : ""}
                   </span>
                 )}
               </span>
@@ -1282,14 +1283,14 @@ export function PreInvoiceTab({
               className="h-7 gap-1 text-xs"
               onClick={() => onIssue(null)}
             >
-              <Icon name="plus" size={12} /> {groupDocs.length ? "سند جدید گروه" : "صدور سند گروه"}
+              <Icon name="plus" size={12} /> {groupDocs.length ? tr("سند جدید گروه") : tr("صدور سند گروه")}
             </Button>
           </div>
           {groupDocs.length === 0 ? (
             <div className="px-3 py-4 text-center text-xs text-muted-foreground">
               {perItemMode
-                ? "برای کل گروه سندی صادر نشده — آیتم‌ها سندهای خودشان را دارند."
-                : "هنوز پیش‌فاکتوری برای این سفارش صادر نشده است."}
+                ? tr("برای کل گروه سندی صادر نشده — آیتم‌ها سندهای خودشان را دارند.")
+                : tr("هنوز پیش‌فاکتوری برای این سفارش صادر نشده است.")}
             </div>
           ) : (
             <div className="divide-y">
@@ -1309,13 +1310,13 @@ export function PreInvoiceTab({
                       className="flex-1 min-w-0 text-right"
                     >
                       <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                        پیش‌فاکتور #{pi.number}
+                        {tr("پیش‌فاکتور #{p0}", { p0: pi.number })}
                         <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", badge.cls)}>
                           {badge.label}
                         </span>
                         {isExpired && (
                           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                            منقضی
+                            {tr("منقضی")}
                           </span>
                         )}
                       </div>
@@ -1328,7 +1329,7 @@ export function PreInvoiceTab({
                         {formatCurrency(pi.totalAmount)}
                       </div>
                       <div className="text-[11px] text-emerald-600 tabular-nums" dir="ltr">
-                        پرداخت: {formatCurrency(pi.paidAmount)}
+                        {tr("پرداخت: {p0}", { p0: formatCurrency(pi.paidAmount) })}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -1337,7 +1338,7 @@ export function PreInvoiceTab({
                         variant="ghost"
                         className="size-7"
                         onClick={() => onOpenDoc(pi.id)}
-                        title={isConverted ? "مشاهده و چاپ" : "مشاهده / ویرایش / چاپ"}
+                        title={isConverted ? tr("مشاهده و چاپ") : tr("مشاهده / ویرایش / چاپ")}
                       >
                         <Icon name="edit" size={13} />
                       </Button>
@@ -1346,7 +1347,7 @@ export function PreInvoiceTab({
                         variant="ghost"
                         className="size-7 hover:text-emerald-600"
                         onClick={() => onOpenDoc(pi.id)}
-                        title="چاپ / PDF"
+                        title={tr("چاپ / PDF")}
                       >
                         <Icon name="print" size={13} />
                       </Button>
@@ -1395,7 +1396,7 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
       icon: meta.icon,
       title: ev.title,
       subtitle:
-        [ev.description, ev.actorName ? `توسط ${ev.actorName}` : null]
+        [ev.description, ev.actorName ? tr("توسط {p0}", { p0: ev.actorName }) : null]
           .filter(Boolean)
           .join(" — ") || undefined,
       tone: meta.tone,
@@ -1430,11 +1431,11 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
   };
 
   const stageLabel: Record<string, string> = {
-    design: "طراحی",
-    print: "چاپ",
-    warehouse: "انبار",
-    qc: "کنترل کیفیت",
-    material: "متریال",
+    design: tr("طراحی"),
+    print: tr("چاپ"),
+    warehouse: tr("انبار"),
+    qc: tr("کنترل کیفیت"),
+    material: tr("متریال"),
   };
 
   if (events.length === 0) {
@@ -1443,10 +1444,10 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
         <div className="mx-auto size-12 rounded-2xl bg-muted grid place-items-center">
           <Icon name="route" size={22} className="text-muted-foreground" />
         </div>
-        <div className="text-sm font-medium">رویدادی ثبت نشده است</div>
+        <div className="text-sm font-medium">{tr("رویدادی ثبت نشده است")}</div>
         <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-          اقدام‌های ماژول‌ها (طراحی، چاپ، متریال، کنترل کیفیت و…) روی این
-          سفارش به‌مرور در این تب با ذکر مرحله و تاریخ نمایش داده می‌شوند.
+          {tr("اقدام‌های ماژول‌ها (طراحی، چاپ، متریال، کنترل کیفیت و…) روی این")}
+          {tr("سفارش به‌مرور در این تب با ذکر مرحله و تاریخ نمایش داده می‌شوند.")}
         </p>
       </div>
     );
@@ -1458,7 +1459,7 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
       {stageOptions.length > 2 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <Icon name="filter" size={12} /> مرحله:
+            <Icon name="filter" size={12} /> {tr("مرحله:")}
           </span>
           {stageOptions.map((st) => (
             <button
@@ -1471,7 +1472,7 @@ export function HistoryTab({ order }: { order: OrderDetail }) {
                   : "bg-muted/40 border-border text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              {st === "all" ? "همه" : stageLabel[st] ?? st}
+              {st === "all" ? tr("همه") : stageLabel[st] ?? st}
             </button>
           ))}
         </div>
@@ -1529,19 +1530,19 @@ const EVENT_META: Record<
   string,
   { icon: Parameters<typeof Icon>[0]["name"]; tone: TimelineEvent["tone"]; label: string }
 > = {
-  created: { icon: "plus", tone: "neutral", label: "ایجاد" },
-  design_completed: { icon: "design", tone: "violet", label: "تکمیل طراحی" },
-  sent_to_print: { icon: "print", tone: "amber", label: "ارسال به چاپ" },
-  material_confirmed: { icon: "boxes", tone: "amber", label: "تأمین متریال" },
-  print_completed: { icon: "checkCircle", tone: "amber", label: "تکمیل چاپ" },
-  sent_to_warehouse: { icon: "warehouse", tone: "emerald", label: "ارسال به انبار" },
-  qc_reported: { icon: "shield", tone: "rose", label: "گزارش QC" },
-  qc_reviewed: { icon: "shield", tone: "rose", label: "بررسی QC" },
-  qc_returned: { icon: "route", tone: "rose", label: "بازگشت از QC" },
-  status_changed: { icon: "edit", tone: "neutral", label: "تغییر وضعیت" },
-  reassigned: { icon: "customers", tone: "violet", label: "تغییر مجری" },
-  cost_registered: { icon: "money", tone: "emerald", label: "ثبت هزینه" },
+  created: { icon: "plus", tone: "neutral", label: tr("ایجاد") },
+  design_completed: { icon: "design", tone: "violet", label: tr("تکمیل طراحی") },
+  sent_to_print: { icon: "print", tone: "amber", label: tr("ارسال به چاپ") },
+  material_confirmed: { icon: "boxes", tone: "amber", label: tr("تأمین متریال") },
+  print_completed: { icon: "checkCircle", tone: "amber", label: tr("تکمیل چاپ") },
+  sent_to_warehouse: { icon: "warehouse", tone: "emerald", label: tr("ارسال به انبار") },
+  qc_reported: { icon: "shield", tone: "rose", label: tr("گزارش QC") },
+  qc_reviewed: { icon: "shield", tone: "rose", label: tr("بررسی QC") },
+  qc_returned: { icon: "route", tone: "rose", label: tr("بازگشت از QC") },
+  status_changed: { icon: "edit", tone: "neutral", label: tr("تغییر وضعیت") },
+  reassigned: { icon: "customers", tone: "violet", label: tr("تغییر مجری") },
+  cost_registered: { icon: "money", tone: "emerald", label: tr("ثبت هزینه") },
   // Phase 17: گیت خروج از انبار
-  invoice_flagged: { icon: "route", tone: "emerald", label: "فاکتور همراه بسته" },
-  invoice_unflagged: { icon: "route", tone: "neutral", label: "برداشتن علامت فاکتور" },
+  invoice_flagged: { icon: "route", tone: "emerald", label: tr("فاکتور همراه بسته") },
+  invoice_unflagged: { icon: "route", tone: "neutral", label: tr("برداشتن علامت فاکتور") },
 };

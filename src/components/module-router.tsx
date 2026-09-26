@@ -78,6 +78,7 @@ import { SRMCosts } from "@/components/modules/srm/srm-costs";
 
 // Generic module page for designer/print/warehouse/finance/qc/crm/srm
 import { GenericModulePage } from "@/components/modules/generic-module-page";
+import { t } from "@/lib/i18n";
 
 /**
  * Registry: (module, page) → component.
@@ -211,8 +212,8 @@ function PlaceholderPage({ title }: { title: string }) {
       <PageHeader title={title} icon="grid" />
       <EmptyState
         icon="tool"
-        title="این صفحه به‌زودی فعال می‌شود"
-        description="این بخش در دست توسعه است و به‌زودی کامل خواهد شد."
+        title={t("این صفحه به‌زودی فعال می‌شود")}
+        description={t("این بخش در دست توسعه است و به‌زودی کامل خواهد شد.")}
       />
     </div>
   );
@@ -233,11 +234,11 @@ function PlaceholderPage({ title }: { title: string }) {
 function AccessDenied() {
   return (
     <div>
-      <PageHeader title="دسترسی محدود" icon="shield" />
+      <PageHeader title={t("دسترسی محدود")} icon="shield" />
       <EmptyState
         icon="shield"
-        title="به این بخش دسترسی ندارید"
-        description="این ماژول در سطوح دسترسی شما فعال نیست. برای فعال‌سازی با مدیر سیستم تماس بگیرید."
+        title={t("به این بخش دسترسی ندارید")}
+        description={t("این ماژول در سطوح دسترسی شما فعال نیست. برای فعال‌سازی با مدیر سیستم تماس بگیرید.")}
       />
     </div>
   );

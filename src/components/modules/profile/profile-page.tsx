@@ -27,15 +27,16 @@ import { MODULES, USER_ROLE, type ModuleKey } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { TimelineEvent, UserDetailReport } from "@/lib/monitoring";
 import { Switch } from "@/components/ui/switch";
+import { getLang, setLang, t, applyUserLanguage } from "@/lib/i18n";
 
 // ─── بازه (yyyy-MM-dd لوکال — قرارداد API) ─────────────────────────
 
 type RangeMode = "week" | "month" | "quarter";
 
 const RANGE_CHIPS: { id: RangeMode; label: string }[] = [
-  { id: "week", label: "این هفته" },
-  { id: "month", label: "این ماه" },
-  { id: "quarter", label: "3 ماه" },
+  { id: "week", label: t("این هفته") },
+  { id: "month", label: t("این ماه") },
+  { id: "quarter", label: t("3 ماه") },
 ];
 
 function localDayKey(d: Date = new Date()): string {
@@ -114,13 +115,13 @@ export function ProfilePage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="پروفایل"
+        title={t("پروفایل")}
         description={
           user
             ? isSelf
-              ? "اطلاعات، عملکرد و مرخصی‌های شما"
-              : `${user.name} — اطلاعات، عملکرد و مرخصی‌ها`
-            : "اطلاعات کاربر"
+              ? t("اطلاعات، عملکرد و مرخصی‌های شما")
+              : t("{p0} — اطلاعات، عملکرد و مرخصی‌ها", { p0: user.name })
+            : t("اطلاعات کاربر")
         }
         icon="userCircle"
         actions={
@@ -145,7 +146,7 @@ export function ProfilePage() {
             {user && !ownerIsMaster && targetId && (
               <Button variant="outline" size="sm" onClick={() => navigate("sysadmin", "user", targetId)}>
                 <Icon name="analytics" size={14} />
-                {isSelf ? "مانیتورینگ کامل من" : "مانیتورینگ کاربر"}
+                {isSelf ? t("مانیتورینگ کامل من") : t("مانیتورینگ کاربر")}
               </Button>
             )}
           </>
@@ -157,11 +158,11 @@ export function ProfilePage() {
       ) : error ? (
         <EmptyState
           icon="shield"
-          title="دسترسی محدود"
-          description={error.message || "مشاهدهٔ این پروفایل مجاز نیست."}
+          title={t("دسترسی محدود")}
+          description={error.message || t("مشاهدهٔ این پروفایل مجاز نیست.")}
         />
       ) : !data || !user || !k ? (
-        <EmptyState icon="userCircle" title="کاربر یافت نشد" description="این پروفایل در دسترس نیست." />
+        <EmptyState icon="userCircle" title={t("کاربر یافت نشد")} description={t("این پروفایل در دسترس نیست.")} />
       ) : (
         <>
           {/* کارت هویت */}
@@ -173,7 +174,7 @@ export function ProfilePage() {
                 </div>
                 {data.online && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-2.5 py-0.5 text-[10px] font-bold">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> آنلاین
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> {t("آنلاین")}
                   </span>
                 )}
               </div>
@@ -183,7 +184,7 @@ export function ProfilePage() {
                   <span className="text-lg font-bold">{user.name}</span>
                   {ownerIsMaster ? (
                     <span className="rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white bg-gradient-to-l from-violet-600 to-rose-500">
-                      مدیر سیستم
+                      {t("مدیر سیستم")}
                     </span>
                   ) : (
                     <span className="rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-[11px] font-bold">
@@ -192,12 +193,12 @@ export function ProfilePage() {
                   )}
                   {user.status !== "active" && (
                     <span className="rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-0.5 text-[11px] font-medium">
-                      غیرفعال
+                      {t("غیرفعال")}
                     </span>
                   )}
                   {data.onLeaveToday && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 px-2.5 py-0.5 text-[11px] font-medium">
-                      <Icon name="calendar" size={11} /> در مرخصی
+                      <Icon name="calendar" size={11} /> {t("در مرخصی")}
                     </span>
                   )}
                 </div>
@@ -205,11 +206,11 @@ export function ProfilePage() {
                 <div className="flex flex-wrap gap-1.5">
                   {ownerIsMaster ? (
                     <span className="rounded-full border px-2.5 py-0.5 text-[10px] text-muted-foreground">
-                      همهٔ ماژول‌ها
+                      {t("همهٔ ماژول‌ها")}
                     </span>
                   ) : user.modules.length === 0 ? (
                     <span className="rounded-full border px-2.5 py-0.5 text-[10px] text-muted-foreground">
-                      بدون ماژول
+                      {t("بدون ماژول")}
                     </span>
                   ) : (
                     user.modules.map((m) => (
@@ -236,7 +237,7 @@ export function ProfilePage() {
                   )}
                   <span className="flex items-center gap-1.5">
                     <Icon name="calendar" size={13} className="shrink-0" />
-                    عضویت از {formatDate(user.createdAt)}
+                    {t("عضویت از {p0}", { p0: formatDate(user.createdAt) })}
                   </span>
                 </div>
               </div>
@@ -246,13 +247,13 @@ export function ProfilePage() {
                   <div className="text-xl font-bold tabular-nums" dir="ltr">
                     {fa(user.loginCount)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">مجموع ورودها</div>
+                  <div className="text-[10px] text-muted-foreground">{t("مجموع ورودها")}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs font-bold tabular-nums" dir="ltr">
                     {formatDate(user.lastLoginAt, true)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">آخرین ورود</div>
+                  <div className="text-[10px] text-muted-foreground">{t("آخرین ورود")}</div>
                 </div>
               </div>
             </div>
@@ -262,30 +263,30 @@ export function ProfilePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MiniStat
               icon="inbox"
-              label="کارهای باز"
+              label={t("کارهای باز")}
               value={fa(k.design.open + k.print.open + k.tasks.open)}
-              sub={`طراحی ${fa(k.design.open)} • چاپ ${fa(k.print.open)} • تسک ${fa(k.tasks.open)}`}
+              sub={t("طراحی {p0} • چاپ {p1} • تسک {p2}", { p0: fa(k.design.open), p1: fa(k.print.open), p2: fa(k.tasks.open) })}
               tone="violet"
             />
             <MiniStat
               icon="alertTriangle"
-              label="تاخیری"
+              label={t("تاخیری")}
               value={fa(k.design.delayed + k.print.delayed + k.tasks.overdue)}
-              sub={`مجموع ${fa(k.design.delayedDays + k.print.delayedDays + k.tasks.overdueDays)} روز`}
+              sub={t("مجموع {p0} روز", { p0: fa(k.design.delayedDays + k.print.delayedDays + k.tasks.overdueDays) })}
               tone="rose"
             />
             <MiniStat
               icon="checkCircle"
-              label="تکمیل در بازه"
+              label={t("تکمیل در بازه")}
               value={fa(k.design.completed + k.print.completed + k.tasks.done)}
-              sub={`طراحی ${fa(k.design.completed)} • چاپ ${fa(k.print.completed)} • تسک ${fa(k.tasks.done)}`}
+              sub={t("طراحی {p0} • چاپ {p1} • تسک {p2}", { p0: fa(k.design.completed), p1: fa(k.print.completed), p2: fa(k.tasks.done) })}
               tone="emerald"
             />
             <MiniStat
               icon="clock"
-              label="ساعت آنلاین ~"
+              label={t("ساعت آنلاین ~")}
               value={fa(Math.round(k.onlineHoursEstimate))}
-              sub={`${fa(k.activeDays)} روز فعال • ${fa(k.loginsInRange)} ورود`}
+              sub={t("{p0} روز فعال • {p1} ورود", { p0: fa(k.activeDays), p1: fa(k.loginsInRange) })}
               tone="sky"
             />
           </div>
@@ -295,15 +296,15 @@ export function ProfilePage() {
             <Card className="p-0 overflow-hidden flex flex-col">
               <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2 shrink-0">
                 <Icon name="clock" size={15} className="text-primary" />
-                <span className="text-sm font-bold">گزارش امروز</span>
+                <span className="text-sm font-bold">{t("گزارش امروز")}</span>
                 <span className="text-[10px] text-muted-foreground mr-auto">
-                  {fa(data.today.events.length)} رویداد
+                  {t("{p0} رویداد", { p0: fa(data.today.events.length) })}
                 </span>
               </div>
               <div className="p-3 max-h-72 overflow-y-auto">
                 {data.today.events.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-8 text-center">
-                    امروز رویدادی ثبت نشده است
+                    {t("امروز رویدادی ثبت نشده است")}
                   </p>
                 ) : (
                   data.today.events.map((ev, i) => <TimelineItem key={i} ev={ev} />)
@@ -314,13 +315,13 @@ export function ProfilePage() {
             <Card className="p-0 overflow-hidden flex flex-col">
               <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2 shrink-0">
                 <Icon name="chartLine" size={15} className="text-primary" />
-                <span className="text-sm font-bold">آخرین فعالیت‌ها</span>
-                <span className="text-[10px] text-muted-foreground mr-auto">12 مورد اخیر</span>
+                <span className="text-sm font-bold">{t("آخرین فعالیت‌ها")}</span>
+                <span className="text-[10px] text-muted-foreground mr-auto">{t("12 مورد اخیر")}</span>
               </div>
               <div className="p-3">
                 {data.timeline.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-8 text-center">
-                    در این بازه فعالیتی ثبت نشده است
+                    {t("در این بازه فعالیتی ثبت نشده است")}
                   </p>
                 ) : (
                   data.timeline.slice(0, 12).map((ev, i) => <TimelineItem key={i} ev={ev} />)
@@ -332,11 +333,14 @@ export function ProfilePage() {
           {/* مرخصی‌ها */}
           <LeavesSection
             userId={targetId}
-            title={isSelf ? "مرخصی‌های من" : "مرخصی‌ها"}
+            title={isSelf ? t("مرخصی‌های من") : t("مرخصی‌ها")}
             leaves={[...data.leaves].reverse()}
             canManage={canManageLeaves}
             selfReadOnly={isSelf && !meIsManager}
           />
+
+          {/* Phase 27: زبان رابط — فقط پروفایل خود */}
+          {isSelf && <LanguageSection />}
 
           {/* Phase 23: تنظیمات نمایش — تولتیپ‌های راهنما (فقط پروفایل خود) */}
           {isSelf && <DisplaySettingsSection />}
@@ -350,7 +354,7 @@ export function ProfilePage() {
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "؟";
+  if (parts.length === 0) return t("؟");
   return parts.slice(0, 2).map((p) => p[0]).join("");
 }
 
@@ -398,7 +402,7 @@ function TimelineItem({ ev }: { ev: TimelineEvent }) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs font-semibold truncate">{ev.title}</span>
+          <span className="text-xs font-semibold truncate">{t(ev.title)}</span>
           <span className="text-[10px] text-muted-foreground tabular-nums shrink-0" dir="ltr">
             {formatDate(ev.at, true)}
           </span>
@@ -434,17 +438,17 @@ function LeavesSection({
 
   const addLeave = useMutation({
     mutationFn: async () => {
-      if (!start || !end) throw new Error("تاریخ شروع و پایان الزامی است");
+      if (!start || !end) throw new Error(t("تاریخ شروع و پایان الزامی است"));
       const startDate = localDayKey(start);
       const endDate = localDayKey(end);
-      if (endDate < startDate) throw new Error("تاریخ پایان نمی‌تواند قبل از شروع باشد");
+      if (endDate < startDate) throw new Error(t("تاریخ پایان نمی‌تواند قبل از شروع باشد"));
       return api("/api/leaves", {
         method: "POST",
         body: JSON.stringify({ userId, startDate, endDate, note }),
       });
     },
     onSuccess: () => {
-      toast.success("مرخصی ثبت شد");
+      toast.success(t("مرخصی ثبت شد"));
       setStart(null);
       setEnd(null);
       setNote("");
@@ -456,7 +460,7 @@ function LeavesSection({
   const deleteLeave = useMutation({
     mutationFn: (id: string) => api(`/api/leaves/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("مرخصی حذف شد");
+      toast.success(t("مرخصی حذف شد"));
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -468,7 +472,7 @@ function LeavesSection({
         <Icon name="calendar" size={15} className="text-primary" />
         <span className="text-sm font-bold">{title}</span>
         <span className="text-[10px] text-muted-foreground mr-auto">
-          {leaves.length > 0 ? `${fa(leaves.length)} بازه ثبت‌شده` : "بدون سابقهٔ مرخصی"}
+          {leaves.length > 0 ? t("{p0} بازه ثبت‌شده", { p0: fa(leaves.length) }) : t("بدون سابقهٔ مرخصی")}
         </span>
       </div>
 
@@ -476,23 +480,23 @@ function LeavesSection({
         {selfReadOnly && (
           <div className="flex items-center gap-2 rounded-lg border border-dashed p-2.5 text-[11px] text-muted-foreground">
             <Icon name="info" size={14} className="shrink-0" />
-            ثبت مرخصی توسط مدیر انجام می‌شود — برای درخواست، با مدیر خود هماهنگ کنید.
+            {t("ثبت مرخصی توسط مدیر انجام می‌شود — برای درخواست، با مدیر خود هماهنگ کنید.")}
           </div>
         )}
 
         {canManage && (
           <div className="rounded-lg border border-dashed p-3 bg-muted/20 space-y-2">
             <div className="text-[11px] font-bold flex items-center gap-1.5">
-              <Icon name="calendarAdd" size={13} /> ثبت مرخصی جدید
+              <Icon name="calendarAdd" size={13} /> {t("ثبت مرخصی جدید")}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <DatePicker value={start} onChange={setStart} placeholder="از تاریخ" className="h-8 w-32 text-xs" clearable={false} />
+              <DatePicker value={start} onChange={setStart} placeholder={t("از تاریخ")} className="h-8 w-32 text-xs" clearable={false} />
               <Icon name="arrowLeft" size={13} className="text-muted-foreground" />
-              <DatePicker value={end} onChange={setEnd} placeholder="تا تاریخ" className="h-8 w-32 text-xs" clearable={false} />
+              <DatePicker value={end} onChange={setEnd} placeholder={t("تا تاریخ")} className="h-8 w-32 text-xs" clearable={false} />
               <Input
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="یادداشت (اختیاری)"
+                placeholder={t("یادداشت (اختیاری)")}
                 className="h-8 flex-1 min-w-40 text-xs"
               />
               <Button
@@ -506,14 +510,14 @@ function LeavesSection({
                 ) : (
                   <Icon name="add" size={14} />
                 )}
-                ثبت
+                {t("ثبت")}
               </Button>
             </div>
           </div>
         )}
 
         {leaves.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-6 text-center">مرخصی ثبت نشده است</p>
+          <p className="text-xs text-muted-foreground py-6 text-center">{t("مرخصی ثبت نشده است")}</p>
         ) : (
           leaves.map((l) => {
             const activeToday = l.startDate <= todayKey && todayKey <= l.endDate;
@@ -540,24 +544,24 @@ function LeavesSection({
                     {formatDayKey(l.startDate)} — {formatDayKey(l.endDate)}
                   </div>
                   <div className="text-[10px] text-muted-foreground truncate">
-                    {fa(l.days)} روز{l.note ? ` • ${l.note}` : ""}
+                    {t("{p0} روز{p1}", { p0: fa(l.days), p1: l.note ? ` • ${l.note}` : "" })}
                   </div>
                 </div>
                 {activeToday && (
                   <span className="rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 text-[10px] font-bold shrink-0">
-                    جاری
+                    {t("جاری")}
                   </span>
                 )}
                 {isFuture && (
                   <span className="rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 px-2 py-0.5 text-[10px] font-medium shrink-0">
-                    پیش‌رو
+                    {t("پیش‌رو")}
                   </span>
                 )}
                 {canManage && (
                   <button
                     onClick={() => deleteLeave.mutate(l.id)}
                     disabled={deleteLeave.isPending}
-                    title="حذف مرخصی"
+                    title={t("حذف مرخصی")}
                     className="size-7 rounded-lg grid place-items-center text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition shrink-0 disabled:opacity-50"
                   >
                     <Icon name="trash" size={14} />
@@ -567,6 +571,89 @@ function LeavesSection({
             );
           })
         )}
+      </div>
+    </Card>
+  );
+}
+
+// ─── Phase 27: زبان رابط کاربر (English دیفالت / فارسی) ───────────
+
+function LanguageSection() {
+  const me = useAppStore((s) => s.user);
+  const setLanguage = useAppStore((s) => s.setLanguage);
+  // زبان مؤثر: ترجیح پروفایل اگر موجود، وگرنه زبان جاری بوت
+  const active = (me?.language ?? getLang()) === "fa" ? "fa" : "en";
+  const [busy, setBusy] = React.useState(false);
+
+  function choose(next: "en" | "fa") {
+    if (next === active || busy) return;
+    setBusy(true);
+    setLanguage(next); // optimistic — store فوراً به‌روز می‌شود
+    api("/api/auth/preferences", {
+      method: "PUT",
+      body: JSON.stringify({ language: next }),
+    })
+      .then(() => {
+        // applyUserLanguage: ذخیرهٔ localStorage+کوکی؛ چون زبان عوض شده،
+        // صفحه یک‌بار تمیز reload می‌شود تا همهٔ متن‌ها با زبان جدید رندر شوند.
+        applyUserLanguage(next);
+      })
+      .catch((e: Error) => {
+        toast.error(e.message);
+        setBusy(false);
+        setLanguage(active === "fa" ? "en" : "fa"); // rollback
+      });
+  }
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
+        <Icon name="globe" size={15} className="text-primary" />
+        <span className="text-sm font-bold">{t("زبان")}</span>
+        <span className="text-[10px] text-muted-foreground mr-auto">{t("شخصی — فقط برای حساب شما")}</span>
+      </div>
+      <div className="p-4" data-guide="language-card">
+        <div className="flex items-center justify-between gap-4 rounded-xl border p-3 hover:bg-accent/30 transition">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
+              <Icon name="globe" size={17} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold">{t("زبان رابط کاربری")}</div>
+              <div className="text-[11px] text-muted-foreground leading-5 mt-0.5">
+                {t("زبان همهٔ صفحه‌ها، منوها و پیام‌ها — انگلیسی (پیش‌فرض) یا فارسی.")}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 rounded-lg border p-0.5 shrink-0" role="radiogroup" aria-label={t("زبان")}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active === "en"}
+              disabled={busy}
+              onClick={() => choose("en")}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-semibold transition",
+                active === "en" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              )}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active === "fa"}
+              disabled={busy}
+              onClick={() => choose("fa")}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-semibold transition",
+                active === "fa" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              )}
+            >
+              {t("فارسی")}
+            </button>
+          </div>
+        </div>
       </div>
     </Card>
   );
@@ -591,7 +678,7 @@ function DisplaySettingsSection() {
     },
     onSuccess: (_d, on) => {
       setGuideTooltips(on);
-      toast.success(on ? "تولتیپ‌های راهنما روشن شد" : "تولتیپ‌های راهنما خاموش شد");
+      toast.success(on ? t("تولتیپ‌های راهنما روشن شد") : t("تولتیپ‌های راهنما خاموش شد"));
     },
     onError: (e: Error, on) => {
       // rollback
@@ -604,8 +691,8 @@ function DisplaySettingsSection() {
     <Card className="p-0 overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-2">
         <Icon name="info" size={15} className="text-primary" />
-        <span className="text-sm font-bold">تنظیمات نمایش</span>
-        <span className="text-[10px] text-muted-foreground mr-auto">شخصی — فقط برای حساب شما</span>
+        <span className="text-sm font-bold">{t("تنظیمات نمایش")}</span>
+        <span className="text-[10px] text-muted-foreground mr-auto">{t("شخصی — فقط برای حساب شما")}</span>
       </div>
       <div className="p-4">
         <div className="flex items-center justify-between gap-4 rounded-xl border p-3 hover:bg-accent/30 transition" data-guide="guide-toggle">
@@ -614,10 +701,10 @@ function DisplaySettingsSection() {
               <Icon name="info" size={17} />
             </span>
             <div className="min-w-0">
-              <div className="text-xs font-bold">تولتیپ‌های راهنما</div>
+              <div className="text-xs font-bold">{t("تولتیپ‌های راهنما")}</div>
               <div className="text-[11px] text-muted-foreground leading-5 mt-0.5">
-                با هاور روی هر جزء سایت — دکمه‌ها، ماژول‌های سایدبار، فرم‌ها، کارت‌ها و جدول‌ها — توضیح
-                آموزشی همان قطعه نمایش داده می‌شود. برای کاربران حرفه‌ای می‌توانید خاموشش کنید.
+                {t("با هاور روی هر جزء سایت — دکمه‌ها، ماژول‌های سایدبار، فرم‌ها، کارت‌ها و جدول‌ها — توضیح")}
+                {t("آموزشی همان قطعه نمایش داده می‌شود. برای کاربران حرفه‌ای می‌توانید خاموشش کنید.")}
               </div>
             </div>
           </div>
@@ -625,7 +712,7 @@ function DisplaySettingsSection() {
             checked={guideOn}
             onCheckedChange={(v) => savePref.mutate(v)}
             disabled={savePref.isPending}
-            aria-label="تولتیپ‌های راهنما"
+            aria-label={t("تولتیپ‌های راهنما")}
           />
         </div>
       </div>

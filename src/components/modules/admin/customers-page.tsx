@@ -40,6 +40,7 @@ import {
   Customer360Drawer, type Customer360,
 } from "@/components/shared/customer-360-drawer";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── تایپ‌ها ─────────────────────────────────────────────────────────────
 
@@ -92,9 +93,9 @@ const EMPTY_FORM: CustomerForm = {
 };
 
 const CHIP_FILTERS: { value: ChipFilter; label: string; icon: Parameters<typeof Icon>[0]["name"] }[] = [
-  { value: "all", label: "همه", icon: "grid2" },
-  { value: "unsettled", label: "تسویه‌نشده", icon: "coins" },
-  { value: "favorite", label: "مورد علاقه", icon: "star" },
+  { value: "all", label: t("همه"), icon: "grid2" },
+  { value: "unsettled", label: t("تسویه‌نشده"), icon: "coins" },
+  { value: "favorite", label: t("مورد علاقه"), icon: "star" },
 ];
 
 // ─── صفحه ───────────────────────────────────────────────────────────────
@@ -206,7 +207,7 @@ export function CustomersPage() {
     mutationFn: (body: CustomerForm) => api("/api/customers", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]);
-      toast.success("مشتری ایجاد شد");
+      toast.success(t("مشتری ایجاد شد"));
       setFormOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -216,7 +217,7 @@ export function CustomersPage() {
       api(`/api/customers/${editing?.id}`, { method: "PUT", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["customers", "customers-list", "customers-wizard", "dashboard"]);
-      toast.success("مشتری ویرایش شد");
+      toast.success(t("مشتری ویرایش شد"));
       setFormOpen(false);
       setEditing(null);
     },
@@ -271,7 +272,7 @@ export function CustomersPage() {
     };
     setErrors(errs);
     if (errs.name || errs.phone || errs.address) {
-      toast.error("نام، شماره تلفن و آدرس الزامی است");
+      toast.error(t("نام، شماره تلفن و آدرس الزامی است"));
       return;
     }
     if (editing) updateMut.mutate(form);
@@ -282,7 +283,7 @@ export function CustomersPage() {
   const columns: ColumnDef<CustomerRow>[] = [
     {
       accessorKey: "name",
-      header: "مشتری",
+      header: t("مشتری"),
       cell: ({ row }) => {
         const c = row.original;
         return (
@@ -298,7 +299,7 @@ export function CustomersPage() {
     },
     {
       accessorKey: "phone",
-      header: "تماس",
+      header: t("تماس"),
       cell: ({ row }) => (
         <span className="text-muted-foreground tabular-nums text-xs" dir="ltr">{row.original.phone}</span>
       ),
@@ -307,7 +308,7 @@ export function CustomersPage() {
     {
       id: "location",
       accessorFn: (r) => `${r.city ?? ""} ${r.province ?? ""}`.trim(),
-      header: "شهر / استان",
+      header: t("شهر / استان"),
       cell: ({ row }) => {
         const { city, province } = row.original;
         if (!city && !province) return <span className="text-muted-foreground/60 text-xs">—</span>;
@@ -323,7 +324,7 @@ export function CustomersPage() {
     },
     {
       accessorKey: "address",
-      header: "آدرس",
+      header: t("آدرس"),
       cell: ({ row }) => {
         const a = row.original.address;
         if (!a) return <span className="text-muted-foreground/60 text-xs">—</span>;
@@ -345,7 +346,7 @@ export function CustomersPage() {
     {
       id: "orders",
       accessorFn: (r) => r.ordersCount,
-      header: "سفارش‌ها",
+      header: t("سفارش‌ها"),
       cell: ({ row }) => (
         <span className="tabular-nums text-xs font-medium">{fa(row.original.ordersCount)}</span>
       ),
@@ -354,7 +355,7 @@ export function CustomersPage() {
     },
     {
       accessorKey: "createdAt",
-      header: "ثبت",
+      header: t("ثبت"),
       cell: ({ row }) => (
         <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
           {formatDate(row.original.createdAt)}
@@ -364,13 +365,13 @@ export function CustomersPage() {
     },
     {
       id: "actions",
-      header: () => <div className="text-center">عملیات</div>,
+      header: () => <div className="text-center">{t("عملیات")}</div>,
       cell: ({ row }) => (
         <div className="flex items-center justify-center gap-0.5">
           <Button
             variant="ghost" size="icon" className="size-8"
             onClick={(e) => { e.stopPropagation(); openEdit(row.original); }}
-            title="ویرایش"
+            title={t("ویرایش")}
           >
             <Icon name="edit" size={16} />
           </Button>
@@ -384,8 +385,8 @@ export function CustomersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="مشتریان"
-        description={`${fa(stats.total)} مشتری · پرونده، مانده حساب و تاریخچه سفارش‌ها`}
+        title={t("مشتریان")}
+        description={t("{p0} مشتری · پرونده، مانده حساب و تاریخچه سفارش‌ها", { p0: fa(stats.total) })}
         icon="customers"
         actions={
           <>
@@ -394,12 +395,12 @@ export function CustomersPage() {
               <Input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="جستجوی نام یا تلفن…"
+                placeholder={t("جستجوی نام یا تلفن…")}
                 className="pr-9"
               />
             </div>
             <Button onClick={openNew} className="gap-2">
-              <Icon name="plus" size={16} /> مشتری جدید
+              <Icon name="plus" size={16} /> {t("مشتری جدید")}
             </Button>
           </>
         }
@@ -407,21 +408,21 @@ export function CustomersPage() {
 
       {/* نوار خلاصه */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard icon="customers" color="violet" value={fa(stats.total)} label="تعداد مشتریان" />
-        <SummaryCard icon="wallet" color="rose" value={fa(stats.unsettledCount)} label="تسویه‌نشده‌ها" />
-        <SummaryCard icon="coins" color="teal" value={formatCurrency(stats.unsettledSum)} label="جمع مطالبات" isCurrency />
-        <SummaryCard icon="star" color="amber" value={fa(stats.favorites)} label="مورد علاقه‌ها" />
+        <SummaryCard icon="customers" color="violet" value={fa(stats.total)} label={t("تعداد مشتریان")} />
+        <SummaryCard icon="wallet" color="rose" value={fa(stats.unsettledCount)} label={t("تسویه‌نشده‌ها")} />
+        <SummaryCard icon="coins" color="teal" value={formatCurrency(stats.unsettledSum)} label={t("جمع مطالبات")} isCurrency />
+        <SummaryCard icon="star" color="amber" value={fa(stats.favorites)} label={t("مورد علاقه‌ها")} />
       </div>
 
       {/* جدول + چیپ‌های فیلتر */}
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-            <Icon name="filter" size={13} /> نمایش:
+            <Icon name="filter" size={13} /> {t("نمایش:")}
           </span>
           <div
             role="radiogroup"
-            aria-label="فیلتر مشتریان"
+            aria-label={t("فیلتر مشتریان")}
             className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-1"
           >
             {CHIP_FILTERS.map((f) => {
@@ -471,18 +472,18 @@ export function CustomersPage() {
           emptyState={
             <EmptyState
               icon="customers"
-              title="مشتری‌ای یافت نشد"
+              title={t("مشتری‌ای یافت نشد")}
               description={
                 search
-                  ? "نتیجه‌ای برای جستجوی شما نیست — عبارت دیگری امتحان کنید."
+                  ? t("نتیجه‌ای برای جستجوی شما نیست — عبارت دیگری امتحان کنید.")
                   : chip === "unsettled"
-                    ? "همهٔ مشتریان تسویه کرده‌اند."
-                    : "اولین مشتری خود را اضافه کنید."
+                    ? t("همهٔ مشتریان تسویه کرده‌اند.")
+                    : t("اولین مشتری خود را اضافه کنید.")
               }
               action={
                 !search && chip === "all" ? (
                   <Button onClick={openNew} className="gap-2">
-                    <Icon name="plus" size={16} /> افزودن مشتری
+                    <Icon name="plus" size={16} /> {t("افزودن مشتری")}
                   </Button>
                 ) : undefined
               }
@@ -492,7 +493,7 @@ export function CustomersPage() {
       </Card>
 
       {/* فاز ۲۴ (خواستهٔ ۵): نمای ۳۶۰ مشترک — همان دراور CRM با همهٔ اپشن‌ها
-          (سفارش‌های پرداخت‌نشده + فاکتور جمعی چاپی + فاکتورها/پرداخت‌ها +
+          {t("(سفارش‌های پرداخت‌نشده + فاکتور جمعی چاپی + فاکتورها/پرداخت‌ها +")}
           معاملات + فعالیت‌ها) — حالا در مدیریت مشتریان ادمین داخلی هم هست */}
       <Customer360Drawer
         customerId={detailId}
@@ -505,19 +506,19 @@ export function CustomersPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>{editing ? `ویرایش «${editing.name}»` : "مشتری جدید"}</DialogTitle>
+            <DialogTitle>{editing ? t("ویرایش «{p0}»", { p0: editing.name }) : t("مشتری جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="نام مشتری" required>
+              <Field label={t("نام مشتری")} required>
                 <Input
                   value={form.name}
                   onChange={(e) => { setForm({ ...form, name: e.target.value }); if (errors.name) setErrors({ ...errors, name: false }); }}
                   aria-invalid={errors.name || undefined}
-                  placeholder="مثلاً فروشگاه مدار"
+                  placeholder={t("مثلاً فروشگاه مدار")}
                 />
               </Field>
-              <Field label="شماره تلفن" required>
+              <Field label={t("شماره تلفن")} required>
                 <Input
                   value={form.phone}
                   onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (errors.phone) setErrors({ ...errors, phone: false }); }}
@@ -528,40 +529,40 @@ export function CustomersPage() {
               </Field>
             </div>
 
-            <Field label="آدرس" required>
+            <Field label={t("آدرس")} required>
               <Textarea
                 value={form.address}
                 onChange={(e) => { setForm({ ...form, address: e.target.value }); if (errors.address) setErrors({ ...errors, address: false }); }}
                 aria-invalid={errors.address || undefined}
                 rows={2}
-                placeholder="اربیل - خیابان 60 - پلاک 12"
+                placeholder={t("اربیل - خیابان 60 - پلاک 12")}
               />
             </Field>
 
             {/* Phase 18-b: شهر/استان از فهرست مجاز /api/locations — دراپ‌داون.
-                تا استان انتخاب نشود شهر قفل است؛ مقدار قدیمی خارج از فهرست
+                {t("تا استان انتخاب نشود شهر قفل است؛ مقدار قدیمی خارج از فهرست")}
                 به‌عنوان آپشن fallback حاضر می‌ماند تا گم نشود */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="استان">
-                <div role="group" aria-label="انتخاب استان">
+              <Field label={t("استان")}>
+                <div role="group" aria-label={t("انتخاب استان")}>
                   <SearchSelect
                     value={form.province || null}
                     onChange={handleProvinceChange}
-                    placeholder="انتخاب استان…"
-                    searchPlaceholder="جستجوی استان…"
+                    placeholder={t("انتخاب استان…")}
+                    searchPlaceholder={t("جستجوی استان…")}
                     options={provinceOptions}
                     className="w-full"
                   />
                 </div>
               </Field>
-              <Field label="شهر">
+              <Field label={t("شهر")}>
                 {form.province ? (
-                  <div role="group" aria-label="انتخاب شهر">
+                  <div role="group" aria-label={t("انتخاب شهر")}>
                     <SearchSelect
                       value={form.city || null}
                       onChange={(v) => setForm({ ...form, city: v ?? "" })}
-                      placeholder="انتخاب شهر…"
-                      searchPlaceholder="جستجوی شهر…"
+                      placeholder={t("انتخاب شهر…")}
+                      searchPlaceholder={t("جستجوی شهر…")}
                       options={cityOptions}
                       className="w-full"
                     />
@@ -572,22 +573,22 @@ export function CustomersPage() {
                   <button
                     type="button"
                     disabled
-                    aria-label="شهر — ابتدا استان را انتخاب کنید"
+                    aria-label={t("شهر — ابتدا استان را انتخاب کنید")}
                     className="flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 py-2 text-sm min-w-0 text-muted-foreground opacity-50 cursor-not-allowed"
                   >
-                    <span className="truncate">اول استان را انتخاب کنید</span>
+                    <span className="truncate">{t("اول استان را انتخاب کنید")}</span>
                     <Icon name="chevronDown" size={14} className="text-muted-foreground shrink-0" />
                   </button>
                 )}
               </Field>
             </div>
 
-            <Field label="یادداشت">
+            <Field label={t("یادداشت")}>
               <Textarea
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
                 rows={2}
-                placeholder="نکته‌ای دربارهٔ این مشتری…"
+                placeholder={t("نکته‌ای دربارهٔ این مشتری…")}
               />
             </Field>
 
@@ -595,26 +596,26 @@ export function CustomersPage() {
               checked={form.isFavorite}
               onChange={(v) => setForm({ ...form, isFavorite: v })}
               id="fav"
-              label="مشتری مورد علاقه"
+              label={t("مشتری مورد علاقه")}
               activeIcon="star"
               activeColor="amber"
             />
 
             {(errors.name || errors.phone || errors.address) && (
               <p className="text-xs text-rose-600 dark:text-rose-400">
-                فیلدهای ستاره‌دار الزامی است.
+                {t("فیلدهای ستاره‌دار الزامی است.")}
               </p>
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>انصراف</Button>
+              <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>{t("انصراف")}</Button>
               <Button type="submit" disabled={createMut.isPending || updateMut.isPending} className="gap-2">
                 {(createMut.isPending || updateMut.isPending) ? (
                   <Icon name="loading" size={16} className="animate-spin" />
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                {editing ? "ذخیره تغییرات" : "ذخیره"}
+                {editing ? t("ذخیره تغییرات") : t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>
@@ -649,7 +650,7 @@ function CustomerRowMobileCard({ customer: c }: { customer: CustomerRow }) {
           </span>
         )}
         <span className="text-[11px] text-muted-foreground tabular-nums ms-auto">
-          {fa(c.ordersCount)} سفارش
+          {t("{p0} سفارش", { p0: fa(c.ordersCount) })}
         </span>
       </div>
     </div>
@@ -678,8 +679,8 @@ function BalanceChip({
         className="shrink-0 inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
         title={
           mixed
-            ? `مانده تفکیکی: ${parts?.join(" + ")} — معادل دیناری: ${formatCurrency(value)} IQD (نرخ لحظه‌ای)`
-            : "مانده حساب (طلب جاری)"
+            ? t("مانده تفکیکی: {p0} — معادل دیناری: {p1} IQD (نرخ لحظه‌ای)", { p0: parts?.join(" + "), p1: formatCurrency(value) })
+            : t("مانده حساب (طلب جاری)")
         }
       >
         {mixed ? `${parts?.join(" + ")}` : formatCurrency(value)}
@@ -689,7 +690,7 @@ function BalanceChip({
   }
   return (
     <span className="shrink-0 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-      تسویه‌شده
+      {t("تسویه‌شده")}
     </span>
   );
 }

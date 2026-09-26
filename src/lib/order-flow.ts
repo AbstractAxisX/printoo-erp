@@ -25,6 +25,7 @@
 //      همگام می‌کند تا سفارش و آیتم‌ها هرگز ناهمخوان نشوند.
 
 import type { Prisma } from "@prisma/client";
+import { t as tr } from "@/lib/i18n";
 
 export type ItemStageStr =
   | "design"
@@ -100,18 +101,18 @@ const TRANSITION_MESSAGES: Partial<
   Record<`${OrderStatusStr}→${OrderStatusStr}`, { title: string; message: string; type: string }>
 > = {
   "pending_design→in_printing": {
-    title: "طراحی سفارش کامل شد",
-    message: "همهٔ آیتم‌های نیازمند طراحی تکمیل شد و سفارش به مرحلهٔ چاپ رفت.",
+    title: tr("طراحی سفارش کامل شد"),
+    message: tr("همهٔ آیتم‌های نیازمند طراحی تکمیل شد و سفارش به مرحلهٔ چاپ رفت."),
     type: "success",
   },
   "in_printing→warehouse_logistics": {
-    title: "چاپ سفارش کامل شد",
-    message: "همهٔ آیتم‌ها چاپ شدند و سفارش به انبار و لجستیک رفت.",
+    title: tr("چاپ سفارش کامل شد"),
+    message: tr("همهٔ آیتم‌ها چاپ شدند و سفارش به انبار و لجستیک رفت."),
     type: "success",
   },
   "warehouse_logistics→completed": {
-    title: "سفارش تکمیل شد",
-    message: "سفارش از انبار خارج و تکمیل شد.",
+    title: tr("سفارش تکمیل شد"),
+    message: tr("سفارش از انبار خارج و تکمیل شد."),
     type: "success",
   },
 };
@@ -136,7 +137,7 @@ export async function recomputeOrderStatus(
     where: { id: orderId },
     select: { id: true, number: true, status: true, items: { select: { stage: true } } },
   });
-  if (!order) throw new Error("سفارش یافت نشد");
+  if (!order) throw new Error(tr("سفارش یافت نشد"));
 
   const next = aggregateStatus(order.items);
   const current = order.status as OrderStatusStr;
@@ -152,7 +153,7 @@ export async function recomputeOrderStatus(
     if (t) {
       await tx.notification.create({
         data: {
-          title: `${t.title} — سفارش #${order.number}`,
+          title: tr("{p0} — سفارش #{p1}", { p0: t.title, p1: order.number }),
           message: t.message,
           type: t.type,
           link: "admin:orders",

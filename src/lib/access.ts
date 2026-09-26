@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser, touchLastSeen } from "@/lib/auth";
+import { t } from "@/lib/i18n";
 
 export { touchLastSeen }; // برای routeهای presence (heartbeat/login)
 
@@ -105,7 +106,7 @@ export async function requireModuleAccess(module: string) {
   if (user instanceof NextResponse) return user;
   if (!hasModule(user, module)) {
     return NextResponse.json(
-      { error: "شما به این بخش دسترسی ندارید" },
+      { error: t("شما به این بخش دسترسی ندارید") },
       { status: 403 }
     );
   }
@@ -118,7 +119,7 @@ export async function requireManager() {
   if (user instanceof NextResponse) return user;
   if (!isManager(user)) {
     return NextResponse.json(
-      { error: "این عملیات مخصوص مدیریت است" },
+      { error: t("این عملیات مخصوص مدیریت است") },
       { status: 403 }
     );
   }
@@ -323,7 +324,7 @@ export function isOrderAssigneeAllowed(
   if (blocked.length === stageItems.length) {
     return {
       ok: false,
-      message: "این سفارش به کارمند دیگری تخصیص یافته است — شما مجاز به اقدام روی آن نیستید",
+      message: t("این سفارش به کارمند دیگری تخصیص یافته است — شما مجاز به اقدام روی آن نیستید"),
     };
   }
   return { ok: true };
@@ -340,16 +341,16 @@ export async function validateAssigneeForModule(
     return { ok: true, user: { id: "", name: "" } }; // بدون تخصیص = استخر عمومی
   }
   if (typeof userId !== "string") {
-    return { ok: false, error: "شناسهٔ کاربر نامعتبر است" };
+    return { ok: false, error: t("شناسهٔ کاربر نامعتبر است") };
   }
   const found = await db.user.findUnique({
     where: { id: userId },
     select: { id: true, name: true, status: true, role: true, modules: { select: { module: true } } },
   });
-  if (!found) return { ok: false, error: "کاربر انتخاب‌شده وجود ندارد (ممکن است حذف شده باشد)" };
-  if (found.status !== "active") return { ok: false, error: "کاربر انتخاب‌شده غیرفعال است" };
+  if (!found) return { ok: false, error: t("کاربر انتخاب‌شده وجود ندارد (ممکن است حذف شده باشد)") };
+  if (found.status !== "active") return { ok: false, error: t("کاربر انتخاب‌شده غیرفعال است") };
   if (found.role !== "master" && !found.modules.some((m) => m.module === module)) {
-    return { ok: false, error: `کاربر «${found.name}» دسترسی ماژول ${module === "designer" ? "طراحی" : "چاپ"} ندارد` };
+    return { ok: false, error: t("کاربر «{p0}» دسترسی ماژول {p1} ندارد", { p0: found.name, p1: module === "designer" ? "طراحی" : "چاپ" }) };
   }
   return { ok: true, user: { id: found.id, name: found.name } };
 }

@@ -35,6 +35,7 @@ import { getPreset, type TimeRange } from "@/lib/time-ranges";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/format";
 import { MODULES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── Types (قرارداد /api/payroll/analytics) ─────────────────────────────
 
@@ -104,7 +105,7 @@ function fa(n: number): string {
 
 
 function moduleLabel(key: string): string {
-  if (key === "none") return "بدون ماژول";
+  if (key === "none") return t("بدون ماژول");
   const meta = (MODULES as Record<string, { faLabel: string }>)[key];
   return meta?.faLabel ?? key;
 }
@@ -178,7 +179,7 @@ function MoMDeltaCard({ delta }: { delta: Analytics["lastDelta"] }) {
       <Card className="p-4 ring-1 ring-muted min-h-[152px] flex flex-col items-center justify-center text-center">
         <Icon name="trending" size={24} className="text-muted-foreground/40" />
         <p className="text-xs text-muted-foreground mt-2 max-w-[220px]">
-          برای مقایسهٔ ماه‌به‌ماه، حداقل دو ماه پرداخت در بازه لازم است
+          {t("برای مقایسهٔ ماه‌به‌ماه، حداقل دو ماه پرداخت در بازه لازم است")}
         </p>
       </Card>
     );
@@ -206,10 +207,10 @@ function MoMDeltaCard({ delta }: { delta: Analytics["lastDelta"] }) {
         </div>
         <div className="min-w-0">
           <div className="text-2xl font-bold tabular-nums" dir="ltr">
-            {up ? "+" : "−"}{fa(Math.abs(delta.pct))}٪
+            {t("{p0}{p1}٪", { p0: up ? "+" : "−", p1: fa(Math.abs(delta.pct)) })}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            دورهٔ <span dir="ltr" className="tabular-nums">{delta.currentKey}</span> نسبت به{" "}
+            {t("دورهٔ")}<span dir="ltr" className="tabular-nums">{delta.currentKey}</span> نسبت به{" "}
             <span dir="ltr" className="tabular-nums">{delta.prevKey}</span>
           </div>
         </div>
@@ -233,16 +234,16 @@ function TrendChartCard({ monthly }: { monthly: Analytics["monthly"] }) {
             <Icon name="chartColumn" size={17} />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">روند ماهانهٔ حقوق</h3>
-            <p className="text-[11px] text-muted-foreground">جمع خالص پرداختی هر دوره — کلید دوره میلادی yyyy-MM</p>
+            <h3 className="font-semibold text-sm">{t("روند ماهانهٔ حقوق")}</h3>
+            <p className="text-[11px] text-muted-foreground">{t("جمع خالص پرداختی هر دوره — کلید دوره میلادی yyyy-MM")}</p>
           </div>
         </div>
-        <span className="text-[10px] text-muted-foreground">{fa(monthly.length)} دورهٔ پرداخت‌شده</span>
+        <span className="text-[10px] text-muted-foreground">{t("{p0} دورهٔ پرداخت‌شده", { p0: fa(monthly.length) })}</span>
       </div>
       <div className="p-4">
         {monthly.length === 0 ? (
           <div className="h-60 grid place-items-center text-xs text-muted-foreground">
-            در این بازه حقوقی پرداخت نشده است
+            {t("در این بازه حقوقی پرداخت نشده است")}
           </div>
         ) : (
           <div className="h-60" dir="ltr">
@@ -275,13 +276,13 @@ function TrendChartCard({ monthly }: { monthly: Analytics["monthly"] }) {
                     padding: "4px 8px",
                     direction: "rtl",
                   }}
-                  formatter={(value: number) => [formatCurrency(value), "جمع پرداختی"]}
+                  formatter={(value: number) => [formatCurrency(value), t("جمع پرداختی")]}
                   labelFormatter={(label: string) => {
                     const m = monthly.find((x) => x.key === label);
-                    return m ? `${label} • ${fa(m.entriesCount)} ورودی` : label;
+                    return m ? t("{p0} • {p1} ورودی", { p0: label, p1: fa(m.entriesCount) }) : label;
                   }}
                 />
-                <Bar dataKey="paidSum" name="جمع پرداختی" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
+                <Bar dataKey="paidSum" name={t("جمع پرداختی")} fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -302,21 +303,21 @@ function ModuleCardsSection({ byModule, totalPaid }: { byModule: Analytics["byMo
             <Icon name="grid" size={17} />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">حقوق به تفکیک ماژول</h3>
-            <p className="text-[11px] text-muted-foreground">جمع پرداختیِ ورودی‌های هر ماژول در بازه</p>
+            <h3 className="font-semibold text-sm">{t("حقوق به تفکیک ماژول")}</h3>
+            <p className="text-[11px] text-muted-foreground">{t("جمع پرداختیِ ورودی‌های هر ماژول در بازه")}</p>
           </div>
         </div>
         <span
           className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground"
-          title="ورودی هر کارمند به ازای هر ماژولش شمرده می‌شود"
+          title={t("ورودی هر کارمند به ازای هر ماژولش شمرده می‌شود")}
         >
           <Icon name="info" size={11} />
-          کارمندان چند-ماژولی در هر ماژول شمرده می‌شوند
+          {t("کارمندان چند-ماژولی در هر ماژول شمرده می‌شوند")}
         </span>
       </div>
       <div className="p-4">
         {byModule.length === 0 ? (
-          <div className="text-xs text-muted-foreground text-center py-8">در این بازه حقوقی پرداخت نشده است</div>
+          <div className="text-xs text-muted-foreground text-center py-8">{t("در این بازه حقوقی پرداخت نشده است")}</div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {byModule.map((m) => {
@@ -325,18 +326,18 @@ function ModuleCardsSection({ byModule, totalPaid }: { byModule: Analytics["byMo
                 <Card key={m.module} className="p-3.5">
                   <div className="flex items-center justify-between gap-1.5">
                     <ModuleChip module={m.module} />
-                    <span className="text-[10px] text-muted-foreground shrink-0">{fa(m.count)} ورودی</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{t("{p0} ورودی", { p0: fa(m.count) })}</span>
                   </div>
                   <div className="text-lg font-bold tabular-nums mt-2.5 truncate" dir="ltr" title={formatCurrency(m.sum)}>
                     {formatCurrency(m.sum)}
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted mt-2.5 overflow-hidden" title={`سهم ${Math.round(share)}٪ از کل`}>
+                  <div className="h-1.5 rounded-full bg-muted mt-2.5 overflow-hidden" title={t("سهم {p0}٪ از کل", { p0: Math.round(share) })}>
                     <div
                       className={cn("h-full rounded-full", MODULE_BAR[m.module] ?? "bg-slate-400")}
                       style={{ width: `${Math.max(share, 2)}%` }}
                     />
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-1.5">{Math.round(share).toLocaleString("en-US")}٪ از کل بازه</div>
+                  <div className="text-[10px] text-muted-foreground mt-1.5">{t("{p0}٪ از کل بازه", { p0: Math.round(share).toLocaleString("en-US") })}</div>
                 </Card>
               );
             })}
@@ -380,7 +381,7 @@ export function PayrollAnalyticsPage() {
   const columns = React.useMemo<ColumnDef<Analytics["byEmployee"][number]>[]>(() => [
     {
       accessorKey: "name",
-      header: "کارمند",
+      header: t("کارمند"),
       cell: ({ row }) => (
         <div className="min-w-0">
           <div className="font-medium text-sm truncate">{row.original.name}</div>
@@ -394,7 +395,7 @@ export function PayrollAnalyticsPage() {
     },
     {
       accessorKey: "sum",
-      header: "جمع بازه",
+      header: t("جمع بازه"),
       meta: { align: "end" },
       cell: ({ row }) => (
         <span className="font-semibold tabular-nums" dir="ltr">{formatCurrency(row.original.sum)}</span>
@@ -402,13 +403,13 @@ export function PayrollAnalyticsPage() {
     },
     {
       accessorKey: "monthsCount",
-      header: "ماه‌ها",
+      header: t("ماه‌ها"),
       meta: { align: "center" },
       cell: ({ row }) => <span className="tabular-nums">{fa(row.original.monthsCount)}</span>,
     },
     {
       accessorKey: "avg",
-      header: "میانگین ماهانه",
+      header: t("میانگین ماهانه"),
       meta: { align: "end" },
       cell: ({ row }) => (
         <span className="tabular-nums text-muted-foreground" dir="ltr">{formatCurrency(row.original.avg)}</span>
@@ -416,7 +417,7 @@ export function PayrollAnalyticsPage() {
     },
     {
       accessorKey: "lastPaidAt",
-      header: "آخرین پرداخت",
+      header: t("آخرین پرداخت"),
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground tabular-nums" dir="ltr">
           {formatDate(row.original.lastPaidAt)}
@@ -428,29 +429,29 @@ export function PayrollAnalyticsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تحلیل حقوق"
+        title={t("تحلیل حقوق")}
         icon="chartColumn"
-        description={`روند ماهانه، تفکیک ماژول و مقایسهٔ کارمندان — بازهٔ ${range.label}`}
+        description={t("روند ماهانه، تفکیک ماژول و مقایسهٔ کارمندان — بازهٔ {p0}", { p0: range.label })}
         actions={
           <div className="flex items-center gap-2">
             <TimeRangePicker value={range} onChange={setRange} compact />
-            <Button variant="outline" size="sm" onClick={() => refetch()} title="به‌روزرسانی">
+            <Button variant="outline" size="sm" onClick={() => refetch()} title={t("به‌روزرسانی")}>
               <Icon name="refresh" size={14} className={isFetching ? "animate-spin" : ""} />
             </Button>
           </div>
         }
       />
 
-      {isLoading && <LoadingState label="در حال بارگذاری تحلیل حقوق…" />}
+      {isLoading && <LoadingState label={t("در حال بارگذاری تحلیل حقوق…")} />}
 
       {!isLoading && (error || !data) && (
         <EmptyState
           icon="alertTriangle"
-          title="خطا در دریافت تحلیل حقوق"
-          description={error instanceof Error ? error.message : "داده‌ای دریافت نشد"}
+          title={t("خطا در دریافت تحلیل حقوق")}
+          description={error instanceof Error ? error.message : t("داده‌ای دریافت نشد")}
           action={
             <Button size="sm" variant="outline" className="gap-1.5" onClick={() => refetch()}>
-              <Icon name="refresh" size={14} /> تلاش دوباره
+              <Icon name="refresh" size={14} /> {t("تلاش دوباره")}
             </Button>
           }
         />
@@ -463,42 +464,42 @@ export function PayrollAnalyticsPage() {
             <KpiCard
               icon="money"
               tone="emerald"
-              label="جمع پرداختی بازه"
+              label={t("جمع پرداختی بازه")}
               value={formatCurrency(k?.totalPaid ?? 0)}
-              hint={`${fa(k?.entriesCount ?? 0)} ورودی پرداخت‌شده`}
+              hint={t("{p0} ورودی پرداخت‌شده", { p0: fa(k?.entriesCount ?? 0) })}
               rangeLabel={range.label}
             />
             <KpiCard
               icon="chartColumn"
               tone="teal"
-              label="میانگین ماهانه"
+              label={t("میانگین ماهانه")}
               value={formatCurrency(k?.avgPerMonth ?? 0)}
-              hint="جمع ÷ ماه‌های پرداخت"
+              hint={t("جمع ÷ ماه‌های پرداخت")}
               rangeLabel={range.label}
             />
             <KpiCard
               icon="calendar"
               tone="violet"
-              label="ماه‌های پرداخت"
+              label={t("ماه‌های پرداخت")}
               value={fa(k?.monthsCount ?? 0)}
-              hint="دوره‌های دارای پرداخت در بازه"
+              hint={t("دوره‌های دارای پرداخت در بازه")}
               rangeLabel={range.label}
             />
             <KpiCard
               icon="userGroup"
               tone="rose"
-              label="کارمندان"
+              label={t("کارمندان")}
               value={fa(k?.employeesCount ?? 0)}
-              hint="دریافت‌کنندگان حقوق در بازه"
+              hint={t("دریافت‌کنندگان حقوق در بازه")}
               rangeLabel={range.label}
             />
             <KpiCard
               icon="giftCard"
               tone="amber"
-              label="مساعدهٔ کسرنشده"
+              label={t("مساعدهٔ کسرنشده")}
               value={formatCurrency(adv?.pendingSum ?? 0)}
-              hint={`${fa(adv?.pendingCount ?? 0)} مساعده در انتظار کسر`}
-              rangeLabel="همه زمان‌ها"
+              hint={t("{p0} مساعده در انتظار کسر", { p0: fa(adv?.pendingCount ?? 0) })}
+              rangeLabel={t("همه زمان‌ها")}
             />
           </div>
 
@@ -520,9 +521,9 @@ export function PayrollAnalyticsPage() {
                 <Icon name="userGroup" size={17} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">کارمندان ({fa(filteredEmployees.length)})</h3>
+                <h3 className="font-semibold text-sm">{t("کارمندان ({p0})", { p0: fa(filteredEmployees.length) })}</h3>
                 <p className="text-[11px] text-muted-foreground">
-                  جمع بازه و میانگین ماهانهٔ هر کارمند{isMaster ? " — کلیک: مانیتورینگ کاربر" : ""}
+                  {t("جمع بازه و میانگین ماهانهٔ هر کارمند{p0}", { p0: isMaster ? t(" — کلیک: مانیتورینگ کاربر") : "" })}
                 </p>
               </div>
             </div>
@@ -530,8 +531,8 @@ export function PayrollAnalyticsPage() {
               {data.byEmployee.length === 0 ? (
                 <EmptyState
                   icon="userGroup"
-                  title="کارمندی در این بازه حقوق نگرفته است"
-                  description="پس از پرداخت دوره، آمار همین‌جا جمع می‌شود."
+                  title={t("کارمندی در این بازه حقوق نگرفته است")}
+                  description={t("پس از پرداخت دوره، آمار همین‌جا جمع می‌شود.")}
                   className="py-8"
                 />
               ) : (
@@ -540,7 +541,7 @@ export function PayrollAnalyticsPage() {
                   data={filteredEmployees}
                   globalFilter={q}
                   onGlobalFilterChange={setQ}
-                  searchPlaceholder="جستجوی کارمند…"
+                  searchPlaceholder={t("جستجوی کارمند…")}
                   showColumnToggle={false}
                   pageSize={10}
                   dense
@@ -569,9 +570,9 @@ export function PayrollAnalyticsPage() {
                   <Icon name="receipt" size={19} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-sm">هزینه‌های حقوق در تاریخچه هزینه‌ها</h3>
+                  <h3 className="font-semibold text-sm">{t("هزینه‌های حقوق در تاریخچه هزینه‌ها")}</h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    هر پرداخت حقوق/مساعده یک سند هزینهٔ تأییدشدهٔ «حقوق» است
+                    {t("هر پرداخت حقوق/مساعده یک سند هزینهٔ تأییدشدهٔ «حقوق» است")}
                   </p>
                 </div>
                 <Icon name="arrowLeft" size={15} className="text-muted-foreground/40 group-hover:text-foreground group-hover:-translate-x-0.5 transition mr-auto shrink-0" />
@@ -594,9 +595,9 @@ export function PayrollAnalyticsPage() {
                   <Icon name="wallet" size={19} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-sm">مدیریت دورهٔ جاری</h3>
+                  <h3 className="font-semibold text-sm">{t("مدیریت دورهٔ جاری")}</h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    ویرایش ارقام، مساعده و پرداخت دورهٔ باز
+                    {t("ویرایش ارقام، مساعده و پرداخت دورهٔ باز")}
                   </p>
                 </div>
                 <Icon name="arrowLeft" size={15} className="text-muted-foreground/40 group-hover:text-foreground group-hover:-translate-x-0.5 transition mr-auto shrink-0" />

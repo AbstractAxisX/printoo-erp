@@ -37,6 +37,7 @@ import {
   emptyFilters,
   activeFilterCount,
 } from "./types";
+import { t } from "@/lib/i18n";
 
 // ─── Hook: owns filter state + helpers ─────────────────────────
 export function useOrdersFilters() {
@@ -253,7 +254,7 @@ export function SearchCombobox({
               }}
               className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 flex items-center justify-center gap-1"
             >
-              <Icon name="cancel" size={12} /> پاک کردن انتخاب
+              <Icon name="cancel" size={12} /> {t("پاک کردن انتخاب")}
             </button>
           </div>
         )}
@@ -359,8 +360,8 @@ export function OrdersFilterBar({
           onChange={setCustomer}
           search={customerSearch}
           onSearchChange={setCustomerSearch}
-          placeholder="جستجوی مشتری (نام یا شماره)..."
-          emptyText="مشتری‌ای یافت نشد"
+          placeholder={t("جستجوی مشتری (نام یا شماره)...")}
+          emptyText={t("مشتری‌ای یافت نشد")}
           options={customers.map((c) => ({
             value: c.id,
             label: c.name,
@@ -375,8 +376,8 @@ export function OrdersFilterBar({
           onChange={setProduct}
           search={productSearch}
           onSearchChange={setProductSearch}
-          placeholder="جستجوی آیتم سفارش..."
-          emptyText="محصولی یافت نشد"
+          placeholder={t("جستجوی آیتم سفارش...")}
+          emptyText={t("محصولی یافت نشد")}
           options={products.map((p) => ({ value: p.id, label: p.name }))}
           icon="package"
           className="w-56"
@@ -389,7 +390,7 @@ export function OrdersFilterBar({
           onClick={() => setShowFilters(!showFilters)}
         >
           <Icon name="filter" size={14} />
-          فیلترها
+          {t("فیلترها")}
           {count > 0 && (
             <span className="size-5 rounded-full bg-primary-foreground/20 grid place-items-center text-[10px] font-bold">
               {count}
@@ -404,18 +405,18 @@ export function OrdersFilterBar({
             className="gap-1.5 text-muted-foreground"
             onClick={clear}
           >
-            <Icon name="cancel" size={14} /> پاک کردن همه ({count})
+            <Icon name="cancel" size={14} /> {t("پاک کردن همه ({p0})", { p0: count })}
           </Button>
         )}
 
         <div className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {resultCount.toLocaleString("en-US")} سفارش
+          {t("{p0} سفارش", { p0: resultCount.toLocaleString("en-US") })}
         </div>
       </div>
 
       {showFilters && (
         <div className="border-t pt-3 space-y-3">
-          <FilterGroup label="وضعیت سفارش" icon="route">
+          <FilterGroup label={t("وضعیت سفارش")} icon="route">
             {Object.entries(ORDER_STATUS).map(([k, v]) => (
               <FilterToggle
                 key={k}
@@ -426,7 +427,7 @@ export function OrdersFilterBar({
             ))}
           </FilterGroup>
 
-          <FilterGroup label="اولویت" icon="alertTriangle">
+          <FilterGroup label={t("اولویت")} icon="alertTriangle">
             {Object.entries(PRIORITY).map(([k, v]) => (
               <FilterToggle
                 key={k}
@@ -440,7 +441,7 @@ export function OrdersFilterBar({
             ))}
           </FilterGroup>
 
-          <FilterGroup label="مرحله آیتم" icon="layers">
+          <FilterGroup label={t("مرحله آیتم")} icon="layers">
             {Object.entries(ITEM_STAGE).map(([k, v]) => (
               <FilterToggle
                 key={k}
@@ -451,10 +452,10 @@ export function OrdersFilterBar({
             ))}
           </FilterGroup>
 
-          <FilterGroup label="بازه تاریخ ساخت" icon="calendar">
-            <DatePicker value={filters.dateFrom} onChange={setDateFrom} placeholder="از تاریخ" />
+          <FilterGroup label={t("بازه تاریخ ساخت")} icon="calendar">
+            <DatePicker value={filters.dateFrom} onChange={setDateFrom} placeholder={t("از تاریخ")} />
             <Icon name="arrowLeft" size={14} className="text-muted-foreground" />
-            <DatePicker value={filters.dateTo} onChange={setDateTo} placeholder="تا تاریخ" />
+            <DatePicker value={filters.dateTo} onChange={setDateTo} placeholder={t("تا تاریخ")} />
           </FilterGroup>
         </div>
       )}

@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useAppStore } from "@/stores/app-store";
 import { api } from "@/lib/api";
+import { applyUserLanguage } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
 import { LoginForm } from "@/components/auth/login-form";
 import { AppShell } from "@/components/app-shell";
 import { LoadingState } from "@/components/shared";
@@ -15,6 +17,7 @@ type MeUser = {
   role: string;
   isDemo?: boolean;
   guideTooltips?: boolean;
+  language?: "en" | "fa";
   modules?: string[];
   // Phase 18: صفحات مجاز هر ماژول (null = همه)
   modulePages?: Record<string, string[] | null> | null;
@@ -48,7 +51,10 @@ export default function Home() {
           modulePages: u.modulePages ?? {},
           isDemo: u.isDemo ?? false,
           guideTooltips: u.guideTooltips ?? true,
+          language: u.language ?? "en",
         });
+        // Phase 27: زبان پروفایل — فقط برای کاربر لاگین‌شده (لاگین‌نشده زبانِ خودِ صفحه لاگین را دارد)
+        if (u) applyUserLanguage(u.language);
       } catch {
         /* not logged in */
       } finally {
@@ -76,7 +82,7 @@ export default function Home() {
   if (checking) {
     return (
       <div className="min-h-screen grid place-items-center bg-background">
-        <LoadingState label="در حال بارگذاری سامانه..." />
+        <LoadingState label={t("در حال بارگذاری سامانه...")} />
       </div>
     );
   }

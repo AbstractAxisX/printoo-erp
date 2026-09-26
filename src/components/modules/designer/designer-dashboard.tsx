@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate, daysRemaining } from "@/lib/format";
 import { useDesignerOrderDetail } from "@/lib/use-designer-order-detail";
+import { t as tr } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 type DesignerOrder = {
@@ -207,12 +208,12 @@ export function DesignerDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="داشبورد طراح"
-        description="نمای کلی سفارشات طراحی، موعدها و تسک‌ها — روی هر کارت کلیک کنید تا همان سفارشات فیلترشده نمایش داده شوند"
+        title={tr("داشبورد طراح")}
+        description={tr("نمای کلی سفارشات طراحی، موعدها و تسک‌ها — روی هر کارت کلیک کنید تا همان سفارشات فیلترشده نمایش داده شوند")}
         icon="design"
         actions={
           <Button onClick={() => goWithFilter("all")} className="gap-2">
-            <Icon name="orders" size={16} /> سفارشات طراحی
+            <Icon name="orders" size={16} /> {tr("سفارشات طراحی")}
           </Button>
         }
       />
@@ -221,49 +222,49 @@ export function DesignerDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <KpiCard
           icon="design"
-          label="در حال طراحی"
+          label={tr("در حال طراحی")}
           value={inDesignCount}
-          hint="مجموع سفارشات مرحله طراحی"
+          hint={tr("مجموع سفارشات مرحله طراحی")}
           color="violet"
           onClick={() => goWithFilter("all")}
         />
         <KpiCard
           icon="alertTriangle"
-          label="موعد گذشته"
+          label={tr("موعد گذشته")}
           value={overdueCount}
-          hint="موعد طراحی‌شان رسیده و گذشته"
+          hint={tr("موعد طراحی‌شان رسیده و گذشته")}
           color="rose"
           onClick={() => goWithFilter("overdue")}
         />
         <KpiCard
           icon="clock"
-          label="موعد امروز"
+          label={tr("موعد امروز")}
           value={todayCount}
-          hint="امروز باید تحویل شوند"
+          hint={tr("امروز باید تحویل شوند")}
           color="amber"
           onClick={() => goWithFilter("today")}
         />
         <KpiCard
           icon="calendar"
-          label="نزدیک موعد"
+          label={tr("نزدیک موعد")}
           value={nearCount}
-          hint="2 روز یا کمتر تا موعد"
+          hint={tr("2 روز یا کمتر تا موعد")}
           color="amber"
           onClick={() => goWithFilter("near")}
         />
         <KpiCard
           icon="alert"
-          label="فوری"
+          label={tr("فوری")}
           value={urgentCount}
-          hint="اولویت فوری در مرحله طراحی"
+          hint={tr("اولویت فوری در مرحله طراحی")}
           color="rose"
           onClick={() => goWithFilter("all")}
         />
         <KpiCard
           icon="task"
-          label="تسک‌های فعال"
+          label={tr("تسک‌های فعال")}
           value={activeTasksCount}
-          hint="در صف یا در حال انجام"
+          hint={tr("در صف یا در حال انجام")}
           color="emerald"
           onClick={() => navigate("designer", "tasks")}
         />
@@ -278,10 +279,10 @@ export function DesignerDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm">
-                {overdueOrders.length.toLocaleString("en-US")} سفارش با موعد طراحی گذشته
+                {tr("{p0} سفارش با موعد طراحی گذشته", { p0: overdueOrders.length.toLocaleString("en-US") })}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                موعد طراحی این سفارشات رسیده است. لطفاً هرچه زودتر اقدام کنید.
+                {tr("موعد طراحی این سفارشات رسیده است. لطفاً هرچه زودتر اقدام کنید.")}
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
                 {overdueOrders.slice(0, 5).map((o) => {
@@ -298,7 +299,7 @@ export function DesignerDashboard() {
                         {o.customer?.name ?? "—"}
                       </span>
                       <span className="text-rose-600 dark:text-rose-400 font-medium">
-                        {dr.days} روز گذشته
+                        {tr("{p0} روز گذشته", { p0: dr.days })}
                       </span>
                     </button>
                   );
@@ -308,7 +309,7 @@ export function DesignerDashboard() {
                     onClick={() => goWithFilter("overdue")}
                     className="inline-flex items-center gap-1 rounded-lg border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition"
                   >
-                    +{overdueOrders.length - 5} مورد دیگر
+                    {tr("+{p0} مورد دیگر", { p0: overdueOrders.length - 5 })}
                   </button>
                 )}
               </div>
@@ -324,25 +325,25 @@ export function DesignerDashboard() {
           <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
             <div className="flex items-center gap-2">
               <Icon name="design" size={18} className="text-violet-500" />
-              <h3 className="font-semibold text-sm">سفارشات در حال طراحی</h3>
+              <h3 className="font-semibold text-sm">{tr("سفارشات در حال طراحی")}</h3>
             </div>
             <button
               onClick={() => goWithFilter("all")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              مشاهده همه <Icon name="arrowLeft" size={12} />
+              {tr("مشاهده همه")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           {ordersLoading ? (
             <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
               <Icon name="loading" size={16} className="animate-spin" />
-              در حال بارگذاری...
+              {tr("در حال بارگذاری...")}
             </div>
           ) : recentDesignOrders.length === 0 ? (
             <EmptyState
               icon="checkCircle"
-              title="سفارشی در صف طراحی نیست"
-              description="همه سفارشات طراحی پردازش شده‌اند"
+              title={tr("سفارشی در صف طراحی نیست")}
+              description={tr("همه سفارشات طراحی پردازش شده‌اند")}
             />
           ) : (
             <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
@@ -372,11 +373,11 @@ export function DesignerDashboard() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
-                        {(o.items ?? []).length} آیتم •{" "}
+                        {tr("{p0} آیتم •{p1}", { p0: (o.items ?? []).length, p1: " " })}
                         {(o.items ?? [])
                           .slice(0, 2)
                           .map((it) => it.product?.name ?? "—")
-                          .join("، ")}
+                          .join(tr("، "))}
                         {(o.items ?? []).length > 2 && "..."}
                       </div>
                     </div>
@@ -402,7 +403,7 @@ export function DesignerDashboard() {
                         </>
                       ) : (
                         <span className="text-[11px] text-muted-foreground">
-                          بدون موعد طراحی
+                          {tr("بدون موعد طراحی")}
                         </span>
                       )}
                     </div>
@@ -418,22 +419,22 @@ export function DesignerDashboard() {
           <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
             <div className="flex items-center gap-2">
               <Icon name="task" size={18} className="text-emerald-500" />
-              <h3 className="font-semibold text-sm">تسک‌های فعال</h3>
+              <h3 className="font-semibold text-sm">{tr("تسک‌های فعال")}</h3>
             </div>
             <button
               onClick={() => navigate("designer", "tasks")}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
-              همه <Icon name="arrowLeft" size={12} />
+              {tr("همه")}<Icon name="arrowLeft" size={12} />
             </button>
           </div>
           {tasksLoading ? (
             <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
               <Icon name="loading" size={16} className="animate-spin" />
-              در حال بارگذاری...
+              {tr("در حال بارگذاری...")}
             </div>
           ) : activeTasks.length === 0 ? (
-            <EmptyState icon="task" title="تسک فعالی نیست" />
+            <EmptyState icon="task" title={tr("تسک فعالی نیست")} />
           ) : (
             <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
               {activeTasks.map((t) => {
@@ -464,7 +465,7 @@ export function DesignerDashboard() {
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {t.status === "todo" ? "در صف" : "در حال انجام"}
+                        {t.status === "todo" ? tr("در صف") : tr("در حال انجام")}
                       </div>
                     </div>
                     {t.dueDate && (

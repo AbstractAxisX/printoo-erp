@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // Re-export ColumnDef so consumers import from one place.
 export type { ColumnDef, Row };
@@ -252,17 +253,17 @@ export function VirtualizedDataTable<TData, TValue = unknown>({
       {!isLoading && rows.length > 0 && (
         <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/30 text-[11px] text-muted-foreground">
           <span>
-            مجموع{" "}
+            {t("مجموع{p0}", { p0: " " })}
             <span className="font-semibold text-foreground tabular-nums">
               {rows.length.toLocaleString("en-US")}
             </span>{" "}
-            رکورد
+            {t("رکورد")}
           </span>
           {virtualItems.length > 0 && (
             <span className="tabular-nums">
-              نمایش{" "}
+              {t("نمایش{p0}", { p0: " " })}
               {Math.min(virtualItems[0].index + 1, rows.length).toLocaleString("en-US")}{" "}
-              تا{" "}
+              {t("تا{p0}", { p0: " " })}
               {Math.min(
                 virtualItems[virtualItems.length - 1].index + 1,
                 rows.length
@@ -335,7 +336,7 @@ function DefaultEmpty() {
   return (
     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground h-full">
       <Icon name="inbox" size={28} className="opacity-40" />
-      <span className="text-sm">موردی یافت نشد</span>
+      <span className="text-sm">{t("موردی یافت نشد")}</span>
     </div>
   );
 }

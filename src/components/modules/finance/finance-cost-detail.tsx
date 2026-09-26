@@ -18,6 +18,7 @@ import {
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 export type CostAttachment = {
@@ -57,27 +58,27 @@ const MODULE_META: Record<
   { label: string; icon: IconName; color: string }
 > = {
   print: {
-    label: "چاپ",
+    label: t("چاپ"),
     icon: "print",
     color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   },
   material: {
-    label: "متریال",
+    label: t("متریال"),
     icon: "boxes",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   },
   warehouse: {
-    label: "انبار",
+    label: t("انبار"),
     icon: "warehouse",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   },
   logistics: {
-    label: "لجستیک",
+    label: t("لجستیک"),
     icon: "truck",
     color: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
   },
   finance: {
-    label: "مالی",
+    label: t("مالی"),
     icon: "wallet",
     color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   },
@@ -88,17 +89,17 @@ const STATUS_META: Record<
   { label: string; cls: string; icon: IconName }
 > = {
   pending: {
-    label: "در انتظار",
+    label: t("در انتظار"),
     cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
     icon: "clock",
   },
   approved: {
-    label: "تأیید شده",
+    label: t("تأیید شده"),
     cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
     icon: "checkCircle",
   },
   rejected: {
-    label: "رد شده",
+    label: t("رد شده"),
     cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
     icon: "cancel",
   },
@@ -160,7 +161,7 @@ export function FinanceCostDetailModal({
         body: JSON.stringify({ status: "approved" }),
       }),
     onSuccess: () => {
-      toast.success("هزینه تأیید شد");
+      toast.success(t("هزینه تأیید شد"));
       invalidate(["material-costs", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["material-cost", costId] });
       onOpenChange(false);
@@ -177,7 +178,7 @@ export function FinanceCostDetailModal({
         body: JSON.stringify({ status: "rejected" }),
       }),
     onSuccess: () => {
-      toast.success("هزینه رد شد");
+      toast.success(t("هزینه رد شد"));
       invalidate(["material-costs", "dashboard"]);
       qc.invalidateQueries({ queryKey: ["material-cost", costId] });
       onOpenChange(false);
@@ -192,7 +193,7 @@ export function FinanceCostDetailModal({
   const deleteMut = useMutation({
     mutationFn: () => api(`/api/material-costs/${costId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("هزینه حذف شد");
+      toast.success(t("هزینه حذف شد"));
       invalidate(["material-costs", "dashboard", "finance"]);
       setDeleteOpen(false);
       onOpenChange(false);
@@ -205,17 +206,17 @@ export function FinanceCostDetailModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
-          <DialogTitle className="sr-only">جزئیات هزینه</DialogTitle>
+          <DialogTitle className="sr-only">{t("جزئیات هزینه")}</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
                 <span className="text-sm text-muted-foreground">
-                  در حال بارگذاری هزینه...
+                  {t("در حال بارگذاری هزینه...")}
                 </span>
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">هزینه یافت نشد</span>
+              <span className="text-sm text-muted-foreground">{t("هزینه یافت نشد")}</span>
             )}
           </div>
         </DialogContent>
@@ -274,7 +275,7 @@ export function FinanceCostDetailModal({
               </div>
               <div className="min-w-0">
                 <DialogTitle className="text-lg font-bold truncate">
-                  {cost.title || "جزئیات هزینه"}
+                  {cost.title || t("جزئیات هزینه")}
                 </DialogTitle>
                 <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
                   {cost.order ? (
@@ -289,7 +290,7 @@ export function FinanceCostDetailModal({
                   ) : (
                     <span className="flex items-center gap-1">
                       <Icon name="coins" size={12} />
-                      هزینهٔ آزاد{cost.expenseType?.name ? ` — ${cost.expenseType.name}` : ""}
+                      {t("هزینهٔ آزاد{p0}", { p0: cost.expenseType?.name ? ` — ${cost.expenseType.name}` : "" })}
                     </span>
                   )}
                   <span>•</span>
@@ -317,7 +318,7 @@ export function FinanceCostDetailModal({
                 <Icon name="coins" size={16} />
               </div>
               <div>
-                <div className="text-[10px] text-muted-foreground">مبلغ هزینه</div>
+                <div className="text-[10px] text-muted-foreground">{t("مبلغ هزینه")}</div>
                 <div className="text-base font-bold tabular-nums" dir="ltr">
                   {formatCurrency(cost.amount)}
                 </div>
@@ -335,7 +336,7 @@ export function FinanceCostDetailModal({
             {cost.includeInInvoice && (
               <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                 <Icon name="invoice" size={11} />
-                در فاکتور سفارش
+                {t("در فاکتور سفارش")}
               </span>
             )}
           </div>
@@ -350,7 +351,7 @@ export function FinanceCostDetailModal({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="userCircle" size={11} /> ثبت‌کننده
+                <Icon name="userCircle" size={11} /> {t("ثبت‌کننده")}
               </div>
               <div className="text-sm font-medium mt-1 truncate">
                 {cost.createdByName ?? cost.createdByUser?.name ?? "—"}
@@ -358,7 +359,7 @@ export function FinanceCostDetailModal({
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="calendar" size={11} /> تاریخ و ساعت ثبت
+                <Icon name="calendar" size={11} /> {t("تاریخ و ساعت ثبت")}
               </div>
               <div className="text-sm font-medium mt-1 tabular-nums">
                 {formatDateTime(cost.createdAt)}
@@ -366,15 +367,15 @@ export function FinanceCostDetailModal({
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="orders" size={11} /> سفارش
+                <Icon name="orders" size={11} /> {t("سفارش")}
               </div>
               <div className="text-sm font-medium mt-1 font-mono">
-                {cost.order ? `#${cost.order.number}` : "هزینهٔ آزاد"}
+                {cost.order ? `#${cost.order.number}` : t("هزینهٔ آزاد")}
               </div>
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="suppliers" size={11} /> تامین‌کننده
+                <Icon name="suppliers" size={11} /> {t("تامین‌کننده")}
               </div>
               <div className="text-sm font-medium mt-1 truncate">
                 {cost.supplier?.name ?? "—"}
@@ -382,7 +383,7 @@ export function FinanceCostDetailModal({
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="tag" size={11} /> {cost.order ? "نوع هزینه" : "دستهٔ هزینه"}
+                <Icon name="tag" size={11} /> {cost.order ? t("نوع هزینه") : t("دستهٔ هزینه")}
               </div>
               <div className="text-sm font-medium mt-1 truncate">
                 {cost.expenseType?.name ?? "—"}
@@ -390,10 +391,10 @@ export function FinanceCostDetailModal({
             </div>
             <div className="rounded-lg border p-3">
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Icon name="wallet" size={11} /> فاکتور سفارش
+                <Icon name="wallet" size={11} /> {t("فاکتور سفارش")}
               </div>
               <div className="text-sm font-medium mt-1">
-                {cost.includeInInvoice ? "نشسته در فاکتور/پیش‌فاکتور" : "خارج از فاکتور"}
+                {cost.includeInInvoice ? t("نشسته در فاکتور/پیش‌فاکتور") : t("خارج از فاکتور")}
               </div>
             </div>
           </div>
@@ -401,7 +402,7 @@ export function FinanceCostDetailModal({
           {/* Description */}
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-              <Icon name="info" size={13} /> توضیحات
+              <Icon name="info" size={13} /> {t("توضیحات")}
             </div>
             <div
               className={cn(
@@ -411,14 +412,14 @@ export function FinanceCostDetailModal({
                   : "bg-muted/10 text-muted-foreground italic"
               )}
             >
-              {cost.description || "بدون توضیحات"}
+              {cost.description || t("بدون توضیحات")}
             </div>
           </div>
 
           {/* File attachments */}
           <div>
             <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-              <Icon name="file" size={13} /> پیوست‌ها
+              <Icon name="file" size={13} /> {t("پیوست‌ها")}
               {files.length > 0 && (
                 <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full">
                   {files.length.toLocaleString("en-US")}
@@ -427,7 +428,7 @@ export function FinanceCostDetailModal({
             </div>
             {files.length === 0 ? (
               <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg bg-muted/10">
-                پیوستی برای این هزینه ثبت نشده است.
+                {t("پیوستی برای این هزینه ثبت نشده است.")}
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -448,7 +449,7 @@ export function FinanceCostDetailModal({
                         {f.name}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
-                        {f.size ? `${formatSize(f.size)} • ` : ""}پیوست{" "}
+                        {t("{p0}پیوست{p1}", { p0: f.size ? `${formatSize(f.size)} • ` : "", p1: " " })}
                         {(i + 1).toLocaleString("en-US")}
                       </div>
                     </div>
@@ -488,15 +489,15 @@ export function FinanceCostDetailModal({
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold">
                     {cost.status === "approved"
-                      ? "هزینه تأیید شده است"
-                      : "هزینه رد شده است"}
+                      ? t("هزینه تأیید شده است")
+                      : t("هزینه رد شده است")}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    این هزینه توسط واحد مالی{" "}
-                    {cost.status === "approved" ? "تأیید" : "رد"} شده است.
+                    {t("این هزینه توسط واحد مالی{p0}", { p0: " " })}
+                    {cost.status === "approved" ? t("تأیید") : t("رد")} شده است.
                   </p>
                   <div className="text-[11px] text-muted-foreground mt-1 tabular-nums">
-                    تاریخ ثبت: {formatDateTime(cost.createdAt)}
+                    {t("تاریخ ثبت: {p0}", { p0: formatDateTime(cost.createdAt) })}
                   </div>
                 </div>
               </div>
@@ -519,7 +520,7 @@ export function FinanceCostDetailModal({
                 ) : (
                   <Icon name="check" size={14} />
                 )}
-                تأیید هزینه
+                {t("تأیید هزینه")}
               </Button>
             )}
             {canReject && (
@@ -535,7 +536,7 @@ export function FinanceCostDetailModal({
                 ) : (
                   <Icon name="cancel" size={14} />
                 )}
-                {cost.status === "approved" ? "رد (اصلاح)" : "رد هزینه"}
+                {cost.status === "approved" ? t("رد (اصلاح)") : t("رد هزینه")}
               </Button>
             )}
             {/* حذف (خواسته‌های 5 و 8) — جدا از رد، سمت چپ */}
@@ -546,10 +547,10 @@ export function FinanceCostDetailModal({
                 className="gap-1.5 text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 mr-auto"
                 onClick={() => setDeleteOpen(true)}
                 disabled={actionPending}
-                title="حذف کامل از دیتابیس (هزینهٔ اشتباهی/ردشده)"
+                title={t("حذف کامل از دیتابیس (هزینهٔ اشتباهی/ردشده)")}
               >
                 <Icon name="trash" size={14} />
-                حذف هزینه
+                {t("حذف هزینه")}
               </Button>
             )}
           </div>
@@ -559,15 +560,15 @@ export function FinanceCostDetailModal({
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>حذف این هزینه؟</AlertDialogTitle>
+              <AlertDialogTitle>{t("حذف این هزینه؟")}</AlertDialogTitle>
               <AlertDialogDescription>
-                «{cost.title || "هزینه"}» به مبلغ {formatCurrency(cost.amount)} برای همیشه
-                از دیتابیس حذف می‌شود. این عمل قابل بازگشت نیست — اگر فقط می‌خواهید در
-                گزارش‌ها نیاید، «رد هزینه» کافی است.
+                {t("«{p0}» به مبلغ {p1} برای همیشه", { p0: cost.title || t("هزینه"), p1: formatCurrency(cost.amount) })}
+                {t("از دیتابیس حذف می‌شود. این عمل قابل بازگشت نیست — اگر فقط می‌خواهید در")}
+                {t("گزارش‌ها نیاید، «رد هزینه» کافی است.")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>انصراف</AlertDialogCancel>
+              <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
               <Button
                 variant="destructive"
                 disabled={deleteMut.isPending}
@@ -579,7 +580,7 @@ export function FinanceCostDetailModal({
                 ) : (
                   <Icon name="trash" size={14} />
                 )}
-                حذف قطعی
+                {t("حذف قطعی")}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

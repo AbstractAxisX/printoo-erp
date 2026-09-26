@@ -18,11 +18,15 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { guideTooltips } = body ?? {};
+    const { guideTooltips, language } = body ?? {};
 
-    const data: { guideTooltips?: boolean } = {};
+    const data: { guideTooltips?: boolean; language?: string } = {};
     if (typeof guideTooltips === "boolean") {
       data.guideTooltips = guideTooltips;
+    }
+    // Phase 27: زبان رابط کاربر — فقط en | fa معتبر است
+    if (language === "en" || language === "fa") {
+      data.language = language;
     }
 
     if (Object.keys(data).length === 0) {
@@ -35,12 +39,15 @@ export async function PUT(req: NextRequest) {
     const updated = await db.user.update({
       where: { id: user.id },
       data,
-      select: { id: true, guideTooltips: true },
+      select: { id: true, guideTooltips: true, language: true },
     });
 
     return NextResponse.json({
       ok: true,
-      preferences: { guideTooltips: updated.guideTooltips },
+      preferences: {
+        guideTooltips: updated.guideTooltips,
+        language: updated.language,
+      },
     });
   } catch {
     return NextResponse.json(

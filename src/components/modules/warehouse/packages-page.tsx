@@ -54,6 +54,7 @@ import {
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -133,31 +134,31 @@ const PKG_STATUS_META: Record<
   { label: string; chip: string; icon: IconName; step: number }
 > = {
   packing: {
-    label: "در حال بسته‌بندی",
+    label: t("در حال بسته‌بندی"),
     chip: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
     icon: "package",
     step: 0,
   },
   ready: {
-    label: "آمادهٔ ارسال",
+    label: t("آمادهٔ ارسال"),
     chip: "bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300",
     icon: "packageAdd",
     step: 1,
   },
   sent: {
-    label: "در راه",
+    label: t("در راه"),
     chip: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300",
     icon: "truckDelivery",
     step: 2,
   },
   delivered: {
-    label: "تحویل‌شده",
+    label: t("تحویل‌شده"),
     chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
     icon: "packageDelivered",
     step: 3,
   },
   cancelled: {
-    label: "لغوشده",
+    label: t("لغوشده"),
     chip: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
     icon: "cancel",
     step: -1,
@@ -165,20 +166,20 @@ const PKG_STATUS_META: Record<
 };
 
 const STATUS_FILTERS: { value: "all" | PkgStatus; label: string }[] = [
-  { value: "all", label: "همه" },
-  { value: "packing", label: "بسته‌بندی" },
-  { value: "ready", label: "آمادهٔ ارسال" },
-  { value: "sent", label: "در راه" },
-  { value: "delivered", label: "تحویل‌شده" },
-  { value: "cancelled", label: "لغوشده" },
+  { value: "all", label: t("همه") },
+  { value: "packing", label: t("بسته‌بندی") },
+  { value: "ready", label: t("آمادهٔ ارسال") },
+  { value: "sent", label: t("در راه") },
+  { value: "delivered", label: t("تحویل‌شده") },
+  { value: "cancelled", label: t("لغوشده") },
 ];
 
 const STAGE_CHIP: Record<string, { label: string; cls: string }> = {
-  design: { label: "طراح", cls: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300" },
-  print: { label: "چاپ", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
-  warehouse: { label: "انبار", cls: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300" },
-  completed: { label: "تکمیل", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  archive: { label: "آرشیو", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  design: { label: t("طراح"), cls: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300" },
+  print: { label: t("چاپ"), cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
+  warehouse: { label: t("انبار"), cls: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300" },
+  completed: { label: t("تکمیل"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  archive: { label: t("آرشیو"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
 };
 
 const fa = (n: number) => n.toLocaleString("en-US");
@@ -388,7 +389,7 @@ export function PackagesPage() {
         }
       ),
     onSuccess: (res) => {
-      toast.success(`بستهٔ ${res.package.code} ساخته شد — بج QR آماده است`);
+      toast.success(t("بستهٔ {p0} ساخته شد — بج QR آماده است", { p0: res.package.code }));
       invalidate(["packages", "warehouse", "orders"]);
       qc.invalidateQueries({ queryKey: ["packages", "packable"] });
       setSelected(new Set());
@@ -405,7 +406,7 @@ export function PackagesPage() {
       {
         id: "code",
         accessorFn: (r) => r.seq,
-        header: "بسته",
+        header: t("بسته"),
         cell: ({ row }) => (
           <div className="flex items-center gap-1.5">
             <span
@@ -424,7 +425,7 @@ export function PackagesPage() {
       {
         id: "orders",
         accessorFn: (r) => r.orders[0]?.number ?? 0,
-        header: "سفارش‌ها",
+        header: t("سفارش‌ها"),
         cell: ({ row }) => (
           <div className="flex flex-wrap gap-1">
             {row.original.orders.slice(0, 3).map((o) => (
@@ -449,7 +450,7 @@ export function PackagesPage() {
       {
         id: "customer",
         accessorFn: (r) => r.orders[0]?.customer.name ?? "",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <span className="font-medium text-sm">
             {row.original.orders[0]?.customer.name ?? "—"}
@@ -459,7 +460,7 @@ export function PackagesPage() {
       {
         id: "address",
         accessorFn: (r) => r.address,
-        header: "آدرس",
+        header: t("آدرس"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground block truncate max-w-[180px]">
             {row.original.address || "—"}
@@ -469,14 +470,14 @@ export function PackagesPage() {
       {
         id: "items",
         accessorFn: (r) => r.itemsCount,
-        header: "اقلام",
+        header: t("اقلام"),
         cell: ({ row }) => {
           const names = row.original.items.map((i) => i.productName);
           return (
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="text-xs font-semibold tabular-nums bg-muted rounded-md px-2 py-0.5 cursor-help">
-                  {fa(row.original.itemsCount)} قلم
+                  {t("{p0} قلم", { p0: fa(row.original.itemsCount) })}
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[240px]">
@@ -485,7 +486,7 @@ export function PackagesPage() {
                     <div key={i}>• {n}</div>
                   ))}
                   {names.length > 8 && (
-                    <div className="text-muted-foreground">+{fa(names.length - 8)} مورد دیگر</div>
+                    <div className="text-muted-foreground">{t("+{p0} مورد دیگر", { p0: fa(names.length - 8) })}</div>
                   )}
                   {names.length === 0 && <div className="text-muted-foreground">—</div>}
                 </div>
@@ -498,7 +499,7 @@ export function PackagesPage() {
       {
         id: "courier",
         accessorFn: (r) => r.courier ?? "",
-        header: "پیک / پیگیری",
+        header: t("پیک / پیگیری"),
         cell: ({ row }) => (
           <div className="text-xs min-w-0">
             <div className="truncate max-w-[120px]">
@@ -539,14 +540,14 @@ export function PackagesPage() {
       {
         id: "status",
         accessorFn: (r) => PKG_STATUS_META[r.status]?.step ?? 0,
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => <PkgStatusChip status={row.original.status} />,
         enableSorting: true,
       },
       {
         id: "packedAt",
         accessorFn: (r) => new Date(r.packedAt).getTime(),
-        header: "تاریخ",
+        header: t("تاریخ"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground tabular-nums">
             {formatDate(row.original.packedAt)}
@@ -569,7 +570,7 @@ export function PackagesPage() {
                 openPkg(row.original.id, "details");
               }}
             >
-              <Icon name="view" size={13} /> مشاهده
+              <Icon name="view" size={13} /> {t("مشاهده")}
             </Button>
             <Button
               variant="outline"
@@ -580,7 +581,7 @@ export function PackagesPage() {
                 openPkg(row.original.id, "badge");
               }}
             >
-              <Icon name="print" size={13} /> بج
+              <Icon name="print" size={13} /> {t("بج")}
             </Button>
           </div>
         ),
@@ -595,9 +596,9 @@ export function PackagesPage() {
     <TooltipProvider delayDuration={200}>
       <div className="space-y-5">
         <PageHeader
-          title="بسته‌بندی و ارسال"
+          title={t("بسته‌بندی و ارسال")}
           icon="package"
-          description="دریافت کالا از چاپ → بسته‌بندی و بج QR → ارسال → تحویل و پول در محل"
+          description={t("دریافت کالا از چاپ → بسته‌بندی و بج QR → ارسال → تحویل و پول در محل")}
           actions={
             <Button
               variant="outline"
@@ -609,7 +610,7 @@ export function PackagesPage() {
               className="gap-1.5"
             >
               <Icon name="packageAdd" size={14} />
-              بسته جدید
+              {t("بسته جدید")}
             </Button>
           }
         />
@@ -623,16 +624,16 @@ export function PackagesPage() {
                   <Icon name="packageAdd" size={17} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">بسته جدید</h3>
+                  <h3 className="font-semibold text-sm">{t("بسته جدید")}</h3>
                   <p className="text-[11px] text-muted-foreground">
-                    اقلام آمادهٔ انبار را انتخاب کنید، مقصد را مشخص کنید و بج QR بگیرید
+                    {t("اقلام آمادهٔ انبار را انتخاب کنید، مقصد را مشخص کنید و بج QR بگیرید")}
                   </p>
                 </div>
               </div>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-1.5">
                   <Icon name={createOpen ? "chevronUp" : "chevronDown"} size={14} />
-                  {createOpen ? "بستن" : "باز کردن"}
+                  {createOpen ? t("بستن") : t("باز کردن")}
                 </Button>
               </CollapsibleTrigger>
             </div>
@@ -645,7 +646,7 @@ export function PackagesPage() {
                       <span className="size-5 rounded-md bg-primary/10 text-primary grid place-items-center text-[10px] font-bold shrink-0">
                         1
                       </span>
-                      انتخاب اقلام (دریافت‌شده از چاپ)
+                      {t("انتخاب اقلام (دریافت‌شده از چاپ)")}
                     </div>
                     <span
                       className={cn(
@@ -655,19 +656,19 @@ export function PackagesPage() {
                           : "bg-muted text-muted-foreground"
                       )}
                     >
-                      {fa(selectedCount)} قلم انتخاب‌شده از {fa(packableFreeCount)} قلم آماده
+                      {t("{p0} قلم انتخاب‌شده از {p1} قلم آماده", { p0: fa(selectedCount), p1: fa(packableFreeCount) })}
                     </span>
                   </div>
 
                   {packableLoading ? (
                     <div className="py-8 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
                       <Icon name="loading" size={16} className="animate-spin" />
-                      در حال بارگذاری اقلام انبار...
+                      {t("در حال بارگذاری اقلام انبار...")}
                     </div>
                   ) : packableOrders.length === 0 ? (
                     <div className="rounded-xl border border-dashed p-5 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
                       <Icon name="checkCircle" size={18} className="text-emerald-500" />
-                      قلم آمادهٔ بسته‌بندی نیست — اقلام بعد از تکمیل چاپ به انبار می‌رسند
+                      {t("قلم آمادهٔ بسته‌بندی نیست — اقلام بعد از تکمیل چاپ به انبار می‌رسند")}
                     </div>
                   ) : (
                     <div className="space-y-2.5">
@@ -689,10 +690,10 @@ export function PackagesPage() {
                     <span className="size-5 rounded-md bg-primary/10 text-primary grid place-items-center text-[10px] font-bold shrink-0">
                       2
                     </span>
-                    مشخصات مقصد و ارسال
+                    {t("مشخصات مقصد و ارسال")}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field label="آدرس تحویل" required className="md:col-span-2">
+                    <Field label={t("آدرس تحویل")} required className="md:col-span-2">
                       <Textarea
                         rows={2}
                         value={form.address}
@@ -700,17 +701,17 @@ export function PackagesPage() {
                           setForm((f) => ({ ...f, address: e.target.value }));
                           setTouched((t) => ({ ...t, address: true }));
                         }}
-                        placeholder="نشانی گیرنده — از سفارش اول انتخاب‌شده پیشنهاد می‌شود…"
+                        placeholder={t("نشانی گیرنده — از سفارش اول انتخاب‌شده پیشنهاد می‌شود…")}
                       />
                     </Field>
-                    <Field label="نام گیرنده">
+                    <Field label={t("نام گیرنده")}>
                       <Input
                         value={form.receiverName}
                         onChange={(e) => setForm((f) => ({ ...f, receiverName: e.target.value }))}
-                        placeholder="اختیاری — مثلاً خانم احمدی"
+                        placeholder={t("اختیاری — مثلاً خانم احمدی")}
                       />
                     </Field>
-                    <Field label="تلفن گیرنده">
+                    <Field label={t("تلفن گیرنده")}>
                       <Input
                         dir="ltr"
                         value={form.receiverPhone}
@@ -719,9 +720,9 @@ export function PackagesPage() {
                       />
                     </Field>
                     <Field
-                      label="شرح محتویات"
+                      label={t("شرح محتویات")}
                       className="md:col-span-2"
-                      hint={touched.contentsNote ? undefined : "از اقلام انتخابی پیشنهاد شده — قابل ویرایش"}
+                      hint={touched.contentsNote ? undefined : t("از اقلام انتخابی پیشنهاد شده — قابل ویرایش")}
                     >
                       <Input
                         value={form.contentsNote}
@@ -729,25 +730,25 @@ export function PackagesPage() {
                           setForm((f) => ({ ...f, contentsNote: e.target.value }));
                           setTouched((t) => ({ ...t, contentsNote: true }));
                         }}
-                        placeholder="2× کارت ویزیت + 1× تراکت"
+                        placeholder={t("2× کارت ویزیت + 1× تراکت")}
                       />
                     </Field>
-                    <Field label="شرکت پیک">
+                    <Field label={t("شرکت پیک")}>
                       <Input
                         value={form.courier}
                         onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))}
-                        placeholder="اختیاری — بعداً هم قابل ثبت است"
+                        placeholder={t("اختیاری — بعداً هم قابل ثبت است")}
                       />
                     </Field>
-                    <Field label="شماره پیگیری">
+                    <Field label={t("شماره پیگیری")}>
                       <Input
                         dir="ltr"
                         value={form.trackingNo}
                         onChange={(e) => setForm((f) => ({ ...f, trackingNo: e.target.value }))}
-                        placeholder="اختیاری…"
+                        placeholder={t("اختیاری…")}
                       />
                     </Field>
-                    <Field label="پول در محل (COD)">
+                    <Field label={t("پول در محل (COD)")}>
                       <Input
                         type="number"
                         min={0}
@@ -758,16 +759,16 @@ export function PackagesPage() {
                         placeholder="0"
                       />
                     </Field>
-                    <Field label="یادداشت">
+                    <Field label={t("یادداشت")}>
                       <Input
                         value={form.note}
                         onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                        placeholder="اختیاری…"
+                        placeholder={t("اختیاری…")}
                       />
                     </Field>
                     {!codValid && (
                       <p className="md:col-span-2 text-[11px] text-rose-600">
-                        مبلغ پول در محل نامعتبر است
+                        {t("مبلغ پول در محل نامعتبر است")}
                       </p>
                     )}
                   </div>
@@ -777,11 +778,11 @@ export function PackagesPage() {
                 <div className="rounded-xl border bg-primary/[0.04] p-3.5 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-2.5 flex-wrap text-xs">
                     <span className="font-medium">
-                      <b className="tabular-nums">{fa(selectedOrderCount)}</b> سفارش
+                      <b className="tabular-nums">{fa(selectedOrderCount)}</b> {t("سفارش")}
                     </span>
                     <span className="text-muted-foreground">·</span>
                     <span className="font-medium">
-                      <b className="tabular-nums">{fa(selectedCount)}</b> قلم
+                      <b className="tabular-nums">{fa(selectedCount)}</b> {t("قلم")}
                     </span>
                     {codValid && codNum > 0 && (
                       <>
@@ -793,7 +794,7 @@ export function PackagesPage() {
                     )}
                     {selectedCount === 0 && (
                       <span className="text-muted-foreground">
-                        برای ساخت بسته حداقل یک قلم انتخاب کنید
+                        {t("برای ساخت بسته حداقل یک قلم انتخاب کنید")}
                       </span>
                     )}
                   </div>
@@ -808,7 +809,7 @@ export function PackagesPage() {
                       size={18}
                       className={createMut.isPending ? "animate-spin" : ""}
                     />
-                    ساخت بسته
+                    {t("ساخت بسته")}
                   </Button>
                 </div>
               </div>
@@ -820,11 +821,11 @@ export function PackagesPage() {
         <Card className="p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-              <Icon name="filter" size={13} /> وضعیت:
+              <Icon name="filter" size={13} /> {t("وضعیت:")}
             </span>
             <div
               role="radiogroup"
-              aria-label="فیلتر وضعیت بسته"
+              aria-label={t("فیلتر وضعیت بسته")}
               className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-1"
             >
               {STATUS_FILTERS.map((f) => {
@@ -870,14 +871,14 @@ export function PackagesPage() {
                 type="text"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="جستجو: کد بسته، آدرس، پیک، مشتری…"
+                placeholder={t("جستجو: کد بسته، آدرس، پیک، مشتری…")}
                 className="w-full h-9 rounded-md border bg-background pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-              {fa(packages.length)} بسته
-              {status !== "all" && activeFilter ? ` در «${activeFilter.label}»` : ""}
-              {debouncedQ !== q && " — در حال جستجو…"}
+              {t("{p0} بسته", { p0: fa(packages.length) })}
+              {status !== "all" && activeFilter ? t(" در «{p0}»", { p0: activeFilter.label }) : ""}
+              {debouncedQ !== q && t(" — در حال جستجو…")}
             </span>
           </div>
         </Card>
@@ -895,14 +896,14 @@ export function PackagesPage() {
               q.trim() || status !== "all" ? (
                 <EmptyState
                   icon="search"
-                  title="بسته‌ای یافت نشد"
-                  description="فیلتر وضعیت یا عبارت جستجو را تغییر دهید"
+                  title={t("بسته‌ای یافت نشد")}
+                  description={t("فیلتر وضعیت یا عبارت جستجو را تغییر دهید")}
                 />
               ) : (
                 <EmptyState
                   icon="package"
-                  title="هنوز بسته‌ای ساخته نشده"
-                  description="از فرم «بسته جدید» بالای صفحه، اقلام انبار را بسته‌بندی کنید"
+                  title={t("هنوز بسته‌ای ساخته نشده")}
+                  description={t("از فرم «بسته جدید» بالای صفحه، اقلام انبار را بسته‌بندی کنید")}
                 />
               )
             }
@@ -972,12 +973,12 @@ function PackableOrderCard({
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">{it.productName}</div>
                 <div className="text-[11px] text-muted-foreground truncate">
-                  {fa(it.quantity)} عدد{it.note ? ` — ${it.note}` : ""}
+                  {t("{p0} عدد{p1}", { p0: fa(it.quantity), p1: it.note ? ` — ${it.note}` : "" })}
                 </div>
               </div>
               {it.packedIn && (
                 <span className="text-[10px] font-medium text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/60 rounded-full px-2 py-0.5 shrink-0 font-mono">
-                  در بستهٔ {it.packedIn.code}
+                  {t("در بستهٔ {p0}", { p0: it.packedIn.code })}
                 </span>
               )}
             </label>
@@ -1036,7 +1037,7 @@ function PackageDetailModal({
         { method: "PATCH", body: JSON.stringify(body) }
       ),
     onSuccess: (res) => {
-      toast.success(res.message ?? "بسته به‌روزرسانی شد");
+      toast.success(res.message ?? t("بسته به‌روزرسانی شد"));
       setSendOpen(false);
       setDeliverOpen(false);
       setCancelOpen(false);
@@ -1070,9 +1071,9 @@ function PackageDetailModal({
     try {
       if (kind === "pdf") await downloadBadgePdf(pkg as BadgePackage);
       else await downloadBadgePng(pkg as BadgePackage);
-      toast.success(kind === "pdf" ? "فایل PDF بج دانلود شد" : "تصویر PNG بج دانلود شد");
+      toast.success(kind === "pdf" ? t("فایل PDF بج دانلود شد") : t("تصویر PNG بج دانلود شد"));
     } catch {
-      toast.error("ساخت فایل بج ناموفق بود");
+      toast.error(t("ساخت فایل بج ناموفق بود"));
     } finally {
       setBadgeBusy(null);
     }
@@ -1082,9 +1083,9 @@ function PackageDetailModal({
     if (!pkg) return;
     try {
       await navigator.clipboard.writeText(packagePublicUrl(pkg.code));
-      toast.success("لینک عمومی بسته کپی شد");
+      toast.success(t("لینک عمومی بسته کپی شد"));
     } catch {
-      toast.error("کپی لینک ناموفق بود");
+      toast.error(t("کپی لینک ناموفق بود"));
     }
   };
 
@@ -1124,16 +1125,16 @@ function PackageDetailModal({
       >
         {!pkg ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <DialogTitle className="sr-only">جزئیات بسته</DialogTitle>
+            <DialogTitle className="sr-only">{t("جزئیات بسته")}</DialogTitle>
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">در حال بارگذاری بسته…</span>
+                <span className="text-sm text-muted-foreground">{t("در حال بارگذاری بسته…")}</span>
               </>
             ) : isError ? (
               <>
                 <Icon name="alertTriangle" size={26} className="text-rose-500" />
-                <span className="text-sm text-muted-foreground">خطا در دریافت جزئیات بسته</span>
+                <span className="text-sm text-muted-foreground">{t("خطا در دریافت جزئیات بسته")}</span>
               </>
             ) : null}
           </div>
@@ -1152,7 +1153,7 @@ function PackageDetailModal({
                         {pkg.code}
                       </DialogTitle>
                       <span className="text-[11px] font-semibold border px-2 py-0.5 rounded-full">
-                        بستهٔ #{pkg.seq}
+                        {t("بستهٔ #{p0}", { p0: pkg.seq })}
                       </span>
                       <PkgStatusChip status={pkg.status} />
                     </div>
@@ -1165,7 +1166,7 @@ function PackageDetailModal({
                       <span className="tabular-nums">{formatDateTime(pkg.packedAt)}</span>
                       <span>•</span>
                       <span className="tabular-nums">
-                        {fa(pkg.orders.length)} سفارش · {fa(pkgItemCount)} قلم
+                        {t("{p0} سفارش · {p1} قلم", { p0: fa(pkg.orders.length), p1: fa(pkgItemCount) })}
                       </span>
                     </div>
                   </div>
@@ -1201,14 +1202,14 @@ function PackageDetailModal({
                     className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-cyan-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                   >
                     <Icon name="info" size={15} />
-                    جزئیات
+                    {t("جزئیات")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="contents"
                     className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-cyan-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                   >
                     <Icon name="layers" size={15} />
-                    محتویات
+                    {t("محتویات")}
                     <span className="text-[11px] text-muted-foreground tabular-nums">
                       ({fa(pkgItemCount)})
                     </span>
@@ -1218,7 +1219,7 @@ function PackageDetailModal({
                     className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-cyan-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                   >
                     <Icon name="grid" size={15} />
-                    بج و QR
+                    {t("بج و QR")}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1239,7 +1240,7 @@ function PackageDetailModal({
                   {pkg.status !== "delivered" && pkg.status !== "cancelled" && (
                     <div className="rounded-xl border bg-muted/20 p-3.5 flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                        <Icon name="route" size={14} /> اقدام بعدی:
+                        <Icon name="route" size={14} /> {t("اقدام بعدی:")}
                       </span>
                       {pkg.status === "packing" && (
                         <Button
@@ -1253,13 +1254,13 @@ function PackageDetailModal({
                             size={15}
                             className={patchMut.isPending ? "animate-spin" : ""}
                           />
-                          آمادهٔ ارسال
+                          {t("آمادهٔ ارسال")}
                         </Button>
                       )}
                       {pkg.status === "ready" && (
                         <>
                           <Button size="sm" className="gap-2" onClick={openSend}>
-                            <Icon name="truckDelivery" size={15} /> ارسال شد
+                            <Icon name="truckDelivery" size={15} /> {t("ارسال شد")}
                           </Button>
                           <Button
                             size="sm"
@@ -1267,7 +1268,7 @@ function PackageDetailModal({
                             className="gap-2 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                             onClick={() => setCancelOpen(true)}
                           >
-                            <Icon name="cancel" size={15} /> لغو
+                            <Icon name="cancel" size={15} /> {t("لغو")}
                           </Button>
                         </>
                       )}
@@ -1278,7 +1279,7 @@ function PackageDetailModal({
                             className="gap-2 bg-emerald-600 hover:bg-emerald-700"
                             onClick={openDeliver}
                           >
-                            <Icon name="packageDelivered" size={15} /> تحویل شد
+                            <Icon name="packageDelivered" size={15} /> {t("تحویل شد")}
                           </Button>
                           <Button
                             size="sm"
@@ -1286,7 +1287,7 @@ function PackageDetailModal({
                             className="gap-2 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                             onClick={() => setCancelOpen(true)}
                           >
-                            <Icon name="cancel" size={15} /> مرجوعی
+                            <Icon name="cancel" size={15} /> {t("مرجوعی")}
                           </Button>
                         </>
                       )}
@@ -1296,26 +1297,26 @@ function PackageDetailModal({
                     <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20 p-3.5 text-xs flex items-center gap-2 flex-wrap">
                       <Icon name="checkCircle" size={15} className="text-emerald-600 shrink-0" />
                       <span>
-                        تحویل‌شده در{" "}
+                        {t("تحویل‌شده در{p0}", { p0: " " })}
                         <b className="tabular-nums">{formatDateTime(pkg.deliveredAt)}</b>
                         {pkg.receiverName ? (
                           <>
                             {" "}
-                            به <b>{pkg.receiverName}</b>
+                            {t("به")}<b>{pkg.receiverName}</b>
                           </>
                         ) : null}
                         {pkg.codAmount > 0 &&
                           (pkg.codCollected ? (
                             <>
                               {" "}
-                              — پول در محل{" "}
+                              {t("— پول در محل{p0}", { p0: " " })}
                               <b dir="ltr" className="tabular-nums">
                                 {formatCurrency(pkg.codAmount)}
                               </b>{" "}
-                              دریافت شد
+                              {t("دریافت شد")}
                             </>
                           ) : (
-                            " — پول در محل دریافت نشد"
+                            t(" — پول در محل دریافت نشد")
                           ))}
                       </span>
                     </div>
@@ -1324,7 +1325,7 @@ function PackageDetailModal({
                   {/* سفارش‌های داخل بسته */}
                   <div>
                     <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                      <Icon name="orders" size={13} /> سفارش‌های این بسته
+                      <Icon name="orders" size={13} /> {t("سفارش‌های این بسته")}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {pkg.orders.map((o) => (
@@ -1346,12 +1347,12 @@ function PackageDetailModal({
 
                   {/* شبکهٔ اطلاعات */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <InfoTile icon="mapPin" label="آدرس تحویل" value={pkg.address} className="sm:col-span-2" />
-                    <InfoTile icon="user" label="گیرنده" value={pkg.receiverName} sub={pkg.receiverPhone} ltrSub />
-                    <InfoTile icon="layers" label="شرح محتویات" value={pkg.contentsNote} />
-                    <InfoTile icon="truck" label="پیک" value={pkg.courier} sub={pkg.trackingNo} ltrSub />
+                    <InfoTile icon="mapPin" label={t("آدرس تحویل")} value={pkg.address} className="sm:col-span-2" />
+                    <InfoTile icon="user" label={t("گیرنده")} value={pkg.receiverName} sub={pkg.receiverPhone} ltrSub />
+                    <InfoTile icon="layers" label={t("شرح محتویات")} value={pkg.contentsNote} />
+                    <InfoTile icon="truck" label={t("پیک")} value={pkg.courier} sub={pkg.trackingNo} ltrSub />
                     <CodTile pkg={pkg} />
-                    <InfoTile icon="edit" label="یادداشت" value={pkg.note} className="sm:col-span-2" />
+                    <InfoTile icon="edit" label={t("یادداشت")} value={pkg.note} className="sm:col-span-2" />
                   </div>
                 </div>
               </TabsContent>
@@ -1366,7 +1367,7 @@ function PackageDetailModal({
                   style={{ maxHeight: "64vh" }}
                 >
                   {pkg.orders.length === 0 ? (
-                    <EmptyState icon="layers" title="قلمی در این بسته نیست" />
+                    <EmptyState icon="layers" title={t("قلمی در این بسته نیست")} />
                   ) : (
                     pkg.orders.map((o) => <OrderContentsCard key={o.id} order={o} />)
                   )}
@@ -1402,7 +1403,7 @@ function PackageDetailModal({
                       <div className="rounded-xl border bg-muted/20 p-3">
                         <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
                           <Icon name="globe" size={13} />
-                          لینک عمومی پیگیری (بدون لاگین — برای مشتری/پیک)
+                          {t("لینک عمومی پیگیری (بدون لاگین — برای مشتری/پیک)")}
                         </div>
                         <div className="flex items-center gap-2">
                           <code
@@ -1417,7 +1418,7 @@ function PackageDetailModal({
                             className="gap-1.5 shrink-0"
                             onClick={copyLink}
                           >
-                            <Icon name="copy" size={13} /> کپی
+                            <Icon name="copy" size={13} /> {t("کپی")}
                           </Button>
                         </div>
                       </div>
@@ -1434,7 +1435,7 @@ function PackageDetailModal({
                             size={16}
                             className={badgeBusy === "pdf" ? "animate-spin" : ""}
                           />
-                          دانلود PDF بج
+                          {t("دانلود PDF بج")}
                         </Button>
                         <Button
                           variant="outline"
@@ -1447,13 +1448,13 @@ function PackageDetailModal({
                             size={16}
                             className={badgeBusy === "png" ? "animate-spin" : ""}
                           />
-                          دانلود PNG
+                          {t("دانلود PNG")}
                         </Button>
                       </div>
 
                       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                         <Icon name="info" size={13} className="shrink-0" />
-                        سایز بج: 100×50 میلی‌متر — مناسب چاپ استیکر
+                        {t("سایز بج: 100×50 میلی‌متر — مناسب چاپ استیکر")}
                       </div>
                     </div>
                   </div>
@@ -1470,10 +1471,10 @@ function PackageDetailModal({
                   </div>
                   <div>
                     <DialogTitle className="text-base font-bold font-mono" dir="ltr">
-                      ارسال {pkg.code}
+                      {t("ارسال {p0}", { p0: pkg.code })}
                     </DialogTitle>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      پیک و شماره پیگیری را ثبت کنید
+                      {t("پیک و شماره پیگیری را ثبت کنید")}
                     </p>
                   </div>
                 </div>
@@ -1482,7 +1483,7 @@ function PackageDetailModal({
                   <div className="rounded-xl border bg-muted/40 p-3 space-y-1.5">
                     <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
                       <Icon name="lock" size={12} className="shrink-0" />
-                      تسویهٔ فاکتور سفارش‌ها (گیت خروج از انبار)
+                      {t("تسویهٔ فاکتور سفارش‌ها (گیت خروج از انبار)")}
                     </div>
                     {pkg.orders.map((o) => {
                       const settled =
@@ -1509,10 +1510,10 @@ function PackageDetailModal({
                             )}
                           >
                             {locked
-                              ? "قفل — تسویه نشده"
+                              ? t("قفل — تسویه نشده")
                               : withPkg
-                                ? "فاکتور همراه بسته ✓"
-                                : "تسویه ✓"}
+                                ? t("فاکتور همراه بسته ✓")
+                                : t("تسویه ✓")}
                           </span>
                         </div>
                       );
@@ -1528,30 +1529,30 @@ function PackageDetailModal({
                     ) && (
                       <p className="text-[10px] text-rose-600 dark:text-rose-400 flex items-center gap-1">
                         <Icon name="info" size={11} className="shrink-0" />
-                        تا تسویه یا علامت «فاکتور همراه بسته» توسط واحد مالی، ثبت ارسال
-                        با خطا رد می‌شود.
+                        {t("تا تسویه یا علامت «فاکتور همراه بسته» توسط واحد مالی، ثبت ارسال")}
+                        {t("با خطا رد می‌شود.")}
                       </p>
                     )}
                   </div>
-                  <Field label="شرکت پیک">
+                  <Field label={t("شرکت پیک")}>
                     <Input
                       value={sendCourier}
                       onChange={(e) => setSendCourier(e.target.value)}
-                      placeholder="مثلاً پیک اربیل / باربری…"
+                      placeholder={t("مثلاً پیک اربیل / باربری…")}
                     />
                   </Field>
-                  <Field label="شماره پیگیری">
+                  <Field label={t("شماره پیگیری")}>
                     <Input
                       dir="ltr"
                       value={sendTracking}
                       onChange={(e) => setSendTracking(e.target.value)}
-                      placeholder="اختیاری…"
+                      placeholder={t("اختیاری…")}
                     />
                   </Field>
                 </div>
                 <div className="px-5 pb-4 flex items-center justify-end gap-2 border-t pt-3">
                   <Button variant="outline" size="sm" onClick={() => setSendOpen(false)}>
-                    انصراف
+                    {t("انصراف")}
                   </Button>
                   <Button
                     size="sm"
@@ -1564,7 +1565,7 @@ function PackageDetailModal({
                       size={14}
                       className={patchMut.isPending ? "animate-spin" : ""}
                     />
-                    ثبت ارسال
+                    {t("ثبت ارسال")}
                   </Button>
                 </div>
               </DialogContent>
@@ -1579,19 +1580,19 @@ function PackageDetailModal({
                   </div>
                   <div>
                     <DialogTitle className="text-base font-bold font-mono" dir="ltr">
-                      تحویل {pkg.code}
+                      {t("تحویل {p0}", { p0: pkg.code })}
                     </DialogTitle>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      نام گیرنده و وضعیت پول در محل را ثبت کنید
+                      {t("نام گیرنده و وضعیت پول در محل را ثبت کنید")}
                     </p>
                   </div>
                 </div>
                 <div className="p-5 space-y-3">
-                  <Field label="نام گیرنده">
+                  <Field label={t("نام گیرنده")}>
                     <Input
                       value={deliverReceiver}
                       onChange={(e) => setDeliverReceiver(e.target.value)}
-                      placeholder="گیرندهٔ واقعی بسته…"
+                      placeholder={t("گیرندهٔ واقعی بسته…")}
                     />
                   </Field>
                   {pkg.codAmount > 0 && (
@@ -1600,10 +1601,10 @@ function PackageDetailModal({
                         <div>
                           <div className="text-sm font-medium flex items-center gap-1.5">
                             <Icon name="money" size={14} className="text-amber-600" />
-                            پول در محل دریافت شد؟
+                            {t("پول در محل دریافت شد؟")}
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-0.5">
-                            مبلغ:{" "}
+                            {t("مبلغ:{p0}", { p0: " " })}
                             <b dir="ltr" className="tabular-nums text-amber-700 dark:text-amber-300">
                               {formatCurrency(pkg.codAmount)}
                             </b>
@@ -1612,15 +1613,15 @@ function PackageDetailModal({
                         <Switch checked={collectCod} onCheckedChange={setCollectCod} />
                       </div>
                       <p className="text-[10px] text-muted-foreground">
-                        با فعال‌بودن، مبلغ به پرداختی سفارش‌های این بسته اضافه می‌شود و واحد مالی
-                        آن را می‌بیند
+                        {t("با فعال‌بودن، مبلغ به پرداختی سفارش‌های این بسته اضافه می‌شود و واحد مالی")}
+                        {t("آن را می‌بیند")}
                       </p>
                     </div>
                   )}
                 </div>
                 <div className="px-5 pb-4 flex items-center justify-end gap-2 border-t pt-3">
                   <Button variant="outline" size="sm" onClick={() => setDeliverOpen(false)}>
-                    انصراف
+                    {t("انصراف")}
                   </Button>
                   <Button
                     size="sm"
@@ -1633,7 +1634,7 @@ function PackageDetailModal({
                       size={14}
                       className={patchMut.isPending ? "animate-spin" : ""}
                     />
-                    ثبت تحویل
+                    {t("ثبت تحویل")}
                   </Button>
                 </div>
               </DialogContent>
@@ -1645,22 +1646,22 @@ function PackageDetailModal({
                 <AlertDialogHeader>
                   <AlertDialogTitle className="flex items-center gap-2">
                     <Icon name="alertTriangle" size={18} className="text-rose-500" />
-                    لغو بستهٔ {pkg.code}؟
+                    {t("لغو بستهٔ {p0}؟", { p0: pkg.code })}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     {pkg.status === "sent"
-                      ? "مرجوعی — بسته از پیک برگشته و اقلام آن به انبار برمی‌گردند؛ می‌توانید بستهٔ جدید بسازید."
-                      : "اقلام این بسته آزاد می‌شوند و به فهرست بسته‌بندی برمی‌گردند."}
+                      ? t("مرجوعی — بسته از پیک برگشته و اقلام آن به انبار برمی‌گردند؛ می‌توانید بستهٔ جدید بسازید.")
+                      : t("اقلام این بسته آزاد می‌شوند و به فهرست بسته‌بندی برمی‌گردند.")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>انصراف</AlertDialogCancel>
+                  <AlertDialogCancel>{t("انصراف")}</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-rose-600 hover:bg-rose-700"
                     disabled={patchMut.isPending}
                     onClick={() => patchMut.mutate({ status: "cancelled" })}
                   >
-                    بله، لغو کن
+                    {t("بله، لغو کن")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -1676,10 +1677,10 @@ function PackageDetailModal({
 
 function PkgTimeline({ pkg }: { pkg: PkgDetail }) {
   const steps: { label: string; icon: IconName; date: string | null }[] = [
-    { label: "بسته‌بندی", icon: "package", date: pkg.packedAt },
-    { label: "آمادهٔ ارسال", icon: "packageAdd", date: null },
-    { label: "ارسال", icon: "truckDelivery", date: pkg.sentAt },
-    { label: "تحویل", icon: "packageDelivered", date: pkg.deliveredAt },
+    { label: t("بسته‌بندی"), icon: "package", date: pkg.packedAt },
+    { label: t("آمادهٔ ارسال"), icon: "packageAdd", date: null },
+    { label: t("ارسال"), icon: "truckDelivery", date: pkg.sentAt },
+    { label: t("تحویل"), icon: "packageDelivered", date: pkg.deliveredAt },
   ];
   const current = PKG_STATUS_META[pkg.status]?.step ?? -1;
   const isDone = (i: number) => current >= i;
@@ -1710,7 +1711,7 @@ function PkgTimeline({ pkg }: { pkg: PkgDetail }) {
                 {s.label}
               </span>
               <span className="text-[9px] text-muted-foreground tabular-nums text-center">
-                {s.date ? formatDate(s.date) : isDone(i) ? "انجام شد" : "—"}
+                {s.date ? formatDate(s.date) : isDone(i) ? t("انجام شد") : "—"}
               </span>
             </div>
             {i < steps.length - 1 && (
@@ -1727,7 +1728,7 @@ function PkgTimeline({ pkg }: { pkg: PkgDetail }) {
       {pkg.status === "cancelled" && (
         <div className="mt-3 rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 px-3 py-2 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
           <Icon name="cancel" size={13} className="shrink-0" />
-          این بسته لغو شده است — اقلام آن به انبار برگشته‌اند
+          {t("این بسته لغو شده است — اقلام آن به انبار برگشته‌اند")}
         </div>
       )}
     </div>
@@ -1774,7 +1775,7 @@ function InfoTile({
 
 function CodTile({ pkg }: { pkg: PkgDetail }) {
   if (pkg.codAmount <= 0) {
-    return <InfoTile icon="money" label="پول در محل" value="ندارد" />;
+    return <InfoTile icon="money" label={t("پول در محل")} value="ندارد" />;
   }
   return (
     <div
@@ -1796,7 +1797,7 @@ function CodTile({ pkg }: { pkg: PkgDetail }) {
         <Icon name={pkg.codCollected ? "checkCircle" : "money"} size={15} />
       </div>
       <div className="min-w-0">
-        <div className="text-[10px] text-muted-foreground">پول در محل (COD)</div>
+        <div className="text-[10px] text-muted-foreground">{t("پول در محل (COD)")}</div>
         <div className="text-sm font-bold mt-0.5 tabular-nums" dir="ltr">
           {formatCurrency(pkg.codAmount)}
         </div>
@@ -1808,7 +1809,7 @@ function CodTile({ pkg }: { pkg: PkgDetail }) {
               : "text-amber-700 dark:text-amber-300"
           )}
         >
-          {pkg.codCollected ? "دریافت شد" : "هنگام تحویل دریافت می‌شود"}
+          {pkg.codCollected ? t("دریافت شد") : t("هنگام تحویل دریافت می‌شود")}
         </div>
       </div>
     </div>
@@ -1844,7 +1845,7 @@ function OrderContentsCard({
       <div className="p-4 space-y-3">
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
-            <Icon name="package" size={12} /> در این بسته
+            <Icon name="package" size={12} /> {t("در این بسته")}
           </div>
           <div className="space-y-1">
             {order.itemsInPackage.map((it, i) => (
@@ -1869,7 +1870,7 @@ function OrderContentsCard({
               size={12}
               className="transition-transform group-data-[state=open]:rotate-180"
             />
-            همهٔ اقلام سفارش ({fa(order.allItems.length)})
+            {t("همهٔ اقلام سفارش ({p0})", { p0: fa(order.allItems.length) })}
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="mt-2 rounded-lg border divide-y">

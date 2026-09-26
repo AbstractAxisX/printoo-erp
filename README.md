@@ -4,6 +4,9 @@
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8) ![Prisma](https://img.shields.io/badge/Prisma-6-2d3748) ![License](https://img.shields.io/badge/License-MIT-green)
 
+> 🌐 **دوزبانه (فاز ۲۷):** رابط کاربری انگلیسی (پیش‌فرض) / فارسی — انتخاب زبان از پروفایل.
+> برای هر متن قابل‌نمایش در کد جدید، قوانین اجباری [`I18N_RULES.md`](./I18N_RULES.md) را بخوانید.
+
 ---
 
 ## فهرست

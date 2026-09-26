@@ -32,6 +32,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import type { CalendarEvent } from "./reusable-calendar";
+import { t } from "@/lib/i18n";
 
 type DayDetailModalProps = {
   date: Date | null;
@@ -63,11 +64,11 @@ function diffDays(end: string | Date, ref: Date): number {
 }
 
 const NOTE_COLORS = [
-  { id: "default", dot: "bg-foreground/60", ring: "ring-foreground/40", label: "خنثی" },
-  { id: "rose", dot: "bg-rose-500", ring: "ring-rose-400", label: "قرمز" },
-  { id: "amber", dot: "bg-amber-500", ring: "ring-amber-400", label: "کهربایی" },
-  { id: "emerald", dot: "bg-emerald-500", ring: "ring-emerald-400", label: "سبز" },
-  { id: "blue", dot: "bg-blue-500", ring: "ring-blue-400", label: "آبی" },
+  { id: "default", dot: "bg-foreground/60", ring: "ring-foreground/40", label: t("خنثی") },
+  { id: "rose", dot: "bg-rose-500", ring: "ring-rose-400", label: t("قرمز") },
+  { id: "amber", dot: "bg-amber-500", ring: "ring-amber-400", label: t("کهربایی") },
+  { id: "emerald", dot: "bg-emerald-500", ring: "ring-emerald-400", label: t("سبز") },
+  { id: "blue", dot: "bg-blue-500", ring: "ring-blue-400", label: t("آبی") },
 ] as const;
 
 export function DayDetailModal({ date, events, open, onOpenChange, onEventClick }: DayDetailModalProps) {
@@ -106,7 +107,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
         body: JSON.stringify({ date: dateKey, content: noteDraft, color: noteColor }),
       }),
     onSuccess: () => {
-      toast.success("یادداشت روز ذخیره شد");
+      toast.success(t("یادداشت روز ذخیره شد"));
       queryClient.invalidateQueries({ queryKey: ["day-note", dateKey] });
       queryClient.invalidateQueries({ queryKey: ["day-notes"] });
     },
@@ -116,13 +117,13 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
   const deleteNote = useMutation({
     mutationFn: () => api(`/api/day-notes/${dateKey}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("یادداشت حذف شد");
+      toast.success(t("یادداشت حذف شد"));
       setNoteDraft("");
       setNoteColor("default");
       queryClient.invalidateQueries({ queryKey: ["day-note", dateKey] });
       queryClient.invalidateQueries({ queryKey: ["day-notes"] });
     },
-    onError: () => toast.error("حذف یادداشت ناموفق بود"),
+    onError: () => toast.error(t("حذف یادداشت ناموفق بود")),
   });
 
   const hasNote = !!(noteQuery.data?.note && noteQuery.data.note.content.trim());
@@ -158,7 +159,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
       onOpenChange={onOpenChange}
       icon="calendar"
       title={`${weekdayFmt.format(date)} ${format(date, "yyyy/MM/dd")}`}
-      description={`${faNum(totalEvents)} رویداد در این روز`}
+      description={t("{p0} رویداد در این روز", { p0: faNum(totalEvents) })}
       widthClass="sm:max-w-2xl"
     >
       <div className="flex h-full min-h-0 flex-col">
@@ -166,10 +167,10 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
         {/* ─── تب‌های تمام‌عرض + چیپ‌های وضعیت ─────────────────── */}
         <div className="shrink-0 flex items-center gap-1.5 px-5 py-2 border-b bg-card/60 flex-wrap">
           {([
-            { id: "overview", label: "نمای کلی", icon: "dashboard" as const },
-            { id: "orders", label: `سفارشات (${faNum(orders.length)})`, icon: "orders" as const },
-            { id: "tasks", label: `تسک‌ها (${faNum(tasks.length)})`, icon: "task" as const },
-            ...(reports.length > 0 ? [{ id: "reports" as const, label: `گزارش‌ها (${faNum(reports.length)})`, icon: "shield" as const }] : []),
+            { id: "overview", label: t("نمای کلی"), icon: "dashboard" as const },
+            { id: "orders", label: t("سفارشات ({p0})", { p0: faNum(orders.length) }), icon: "orders" as const },
+            { id: "tasks", label: t("تسک‌ها ({p0})", { p0: faNum(tasks.length) }), icon: "task" as const },
+            ...(reports.length > 0 ? [{ id: "reports" as const, label: t("گزارش‌ها ({p0})", { p0: faNum(reports.length) }), icon: "shield" as const }] : []),
           ] as const).map((t) => (
             <button
               key={t.id}
@@ -189,12 +190,12 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
           <span className="ms-auto flex items-center gap-1.5 shrink-0">
             {urgentCount > 0 && (
               <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
-                <Icon name="alertTriangle" size={11} /> {faNum(urgentCount)} فوری
+                <Icon name="alertTriangle" size={11} /> {t("{p0} فوری", { p0: faNum(urgentCount) })}
               </span>
             )}
             {hasNote && (
               <span className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                <Icon name="pencil" size={11} /> یادداشت
+                <Icon name="pencil" size={11} /> {t("یادداشت")}
               </span>
             )}
           </span>
@@ -206,19 +207,19 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
 
           {/* سایدبار (در RTL سمت راست) */}
           <aside className="md:w-56 shrink-0 bg-muted/20 p-3.5 flex flex-row md:flex-col gap-2.5 md:gap-2 md:border-l border-b md:border-b-0">
-            <SideStat label="کل رویدادها" value={totalEvents} icon="inbox" tone="text-foreground" />
-            <SideStat label="سفارشات" value={orders.length} icon="orders" tone="text-blue-600 dark:text-blue-400" />
-            <SideStat label="تسک‌ها" value={tasks.length} icon="task" tone="text-emerald-600 dark:text-emerald-400" />
-            <SideStat label="فوری" value={urgentCount} icon="alertTriangle" tone="text-rose-600 dark:text-rose-400" />
+            <SideStat label={t("کل رویدادها")} value={totalEvents} icon="inbox" tone="text-foreground" />
+            <SideStat label={t("سفارشات")} value={orders.length} icon="orders" tone="text-blue-600 dark:text-blue-400" />
+            <SideStat label={t("تسک‌ها")} value={tasks.length} icon="task" tone="text-emerald-600 dark:text-emerald-400" />
+            <SideStat label={t("فوری")} value={urgentCount} icon="alertTriangle" tone="text-rose-600 dark:text-rose-400" />
 
             {/* نوارهای وضعیت زمانی — فقط دسکتاپ */}
             <div className="hidden md:block rounded-xl border bg-card/70 p-3 space-y-2.5 mt-1">
               <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Icon name="clock" size={12} /> وضعیت زمانی
+                <Icon name="clock" size={12} /> {t("وضعیت زمانی")}
               </div>
-              <TimeBar label="گذشته" value={overdue} pct={pct(overdue)} bar="bg-rose-500" text="text-rose-600 dark:text-rose-400" />
-              <TimeBar label="موعد امروز" value={dueToday} pct={pct(dueToday)} bar="bg-amber-500" text="text-amber-600 dark:text-amber-400" />
-              <TimeBar label="آینده" value={upcoming} pct={pct(upcoming)} bar="bg-emerald-500" text="text-emerald-600 dark:text-emerald-400" />
+              <TimeBar label={t("گذشته")} value={overdue} pct={pct(overdue)} bar="bg-rose-500" text="text-rose-600 dark:text-rose-400" />
+              <TimeBar label={t("موعد امروز")} value={dueToday} pct={pct(dueToday)} bar="bg-amber-500" text="text-amber-600 dark:text-amber-400" />
+              <TimeBar label={t("آینده")} value={upcoming} pct={pct(upcoming)} bar="bg-emerald-500" text="text-emerald-600 dark:text-emerald-400" />
             </div>
           </aside>
 
@@ -229,16 +230,16 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
             {tab === "overview" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2.5">
-                  <StatCard label="کل رویدادها" value={totalEvents} icon="inbox" color="bg-primary/10 text-primary" />
-                  <StatCard label="سفارشات" value={orders.length} icon="orders" color="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400" />
-                  <StatCard label="تسک‌ها" value={tasks.length} icon="task" color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" />
-                  <StatCard label="فوری" value={urgentCount} icon="alertTriangle" color="bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400" />
+                  <StatCard label={t("کل رویدادها")} value={totalEvents} icon="inbox" color="bg-primary/10 text-primary" />
+                  <StatCard label={t("سفارشات")} value={orders.length} icon="orders" color="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400" />
+                  <StatCard label={t("تسک‌ها")} value={tasks.length} icon="task" color="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" />
+                  <StatCard label={t("فوری")} value={urgentCount} icon="alertTriangle" color="bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400" />
                 </div>
 
                 {events.length > 0 && (
                   <div className="rounded-xl border p-3">
                     <div className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                      <Icon name="checkList" size={13} /> رویدادهای این روز
+                      <Icon name="checkList" size={13} /> {t("رویدادهای این روز")}
                     </div>
                     <div className="divide-y divide-border/60">
                       {events.slice(0, 6).map((e) => {
@@ -255,7 +256,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
                               daysLeft < 0 ? "text-rose-600 dark:text-rose-400" :
                               daysLeft === 0 ? "text-amber-600 dark:text-amber-400" :
                               "text-muted-foreground")}>
-                              {Number.isNaN(daysLeft) ? "—" : daysLeft > 0 ? `${faNum(daysLeft)} روز` : daysLeft === 0 ? "امروز" : `${faNum(Math.abs(daysLeft))} روز گذشته`}
+                              {Number.isNaN(daysLeft) ? "—" : daysLeft > 0 ? t("{p0} روز", { p0: faNum(daysLeft) }) : daysLeft === 0 ? t("امروز") : t("{p0} روز گذشته", { p0: faNum(Math.abs(daysLeft)) })}
                             </span>
                           </button>
                         );
@@ -263,7 +264,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
                     </div>
                     {events.length > 6 && (
                       <button onClick={() => setTab("orders")} className="w-full text-xs text-primary hover:underline text-center pt-2 mt-1 border-t border-dashed">
-                        نمایش {faNum(events.length - 6)} مورد دیگر…
+                        {t("نمایش {p0} مورد دیگر…", { p0: faNum(events.length - 6) })}
                       </button>
                     )}
                   </div>
@@ -272,7 +273,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
                 {events.length === 0 && !hasNote && (
                   <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
                     <Icon name="inbox" size={36} className="opacity-30" />
-                    <span className="text-sm">رویدادی در این روز نیست — روز آزاد است</span>
+                    <span className="text-sm">{t("رویدادی در این روز نیست — روز آزاد است")}</span>
                   </div>
                 )}
               </div>
@@ -280,17 +281,17 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
 
             {/* ORDERS TAB */}
             {tab === "orders" && (
-              <EventList events={orders} onEventClick={onEventClick} emptyMessage="سفارشی در این روز نیست" />
+              <EventList events={orders} onEventClick={onEventClick} emptyMessage={t("سفارشی در این روز نیست")} />
             )}
 
             {/* TASKS TAB */}
             {tab === "tasks" && (
-              <EventList events={tasks} onEventClick={onEventClick} emptyMessage="تسکی در این روز نیست" />
+              <EventList events={tasks} onEventClick={onEventClick} emptyMessage={t("تسکی در این روز نیست")} />
             )}
 
             {/* REPORTS TAB */}
             {tab === "reports" && (
-              <EventList events={reports} onEventClick={onEventClick} emptyMessage="گزارشی در این روز نیست" />
+              <EventList events={reports} onEventClick={onEventClick} emptyMessage={t("گزارشی در این روز نیست")} />
             )}
           </div>
           </div>
@@ -300,14 +301,14 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
         <div className="shrink-0 border-t bg-muted/30 px-5 py-3">
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <div className="text-xs font-semibold flex items-center gap-1.5 shrink-0">
-              <Icon name="pencil" size={13} className="text-amber-600" /> یادداشت این روز
+              <Icon name="pencil" size={13} className="text-amber-600" /> {t("یادداشت این روز")}
             </div>
             <div className="flex items-center gap-1.5">
               {NOTE_COLORS.map((c) => (
                 <button
                   key={c.id}
                   title={c.label}
-                  aria-label={`رنگ ${c.label}`}
+                  aria-label={t("رنگ {p0}", { p0: c.label })}
                   onClick={() => setNoteColor(c.id)}
                   className={cn(
                     "size-5 rounded-full transition hover:scale-110",
@@ -322,7 +323,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
             <textarea
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="مثلاً: تحویل بنر باشگاه ورشی، تماس با چاپخانه…"
+              placeholder={t("مثلاً: تحویل بنر باشگاه ورشی، تماس با چاپخانه…")}
               rows={2}
               className="flex-1 min-w-0 rounded-lg border bg-card px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
@@ -334,7 +335,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
                 className="h-8 gap-1"
               >
                 <Icon name="check" size={14} />
-                {saveNote.isPending ? "…" : "ذخیره"}
+                {saveNote.isPending ? "…" : t("ذخیره")}
               </Button>
               {hasNote && (
                 <Button
@@ -344,7 +345,7 @@ export function DayDetailModal({ date, events, open, onOpenChange, onEventClick 
                   disabled={deleteNote.isPending}
                   className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                 >
-                  حذف
+                  {t("حذف")}
                 </Button>
               )}
             </div>
@@ -459,10 +460,10 @@ function EventList({ events, onEventClick, emptyMessage }: { events: CalendarEve
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-3 flex-wrap">
                   <span className="flex items-center gap-1"><Icon name="calendar" size={11} /> {format(start, "yyyy/MM/dd")} → {format(end, "yyyy/MM/dd")}</span>
-                  <span className="flex items-center gap-1"><Icon name="clock" size={11} /> {faNum(totalDays)} روز</span>
-                  {daysLeft > 0 && <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium"><Icon name="checkCircle" size={11} /> {faNum(daysLeft)} روز باقی</span>}
-                  {daysLeft === 0 && <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium"><Icon name="alertTriangle" size={11} /> موعد امروز</span>}
-                  {daysLeft < 0 && <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1 font-medium"><Icon name="alertTriangle" size={11} /> {faNum(Math.abs(daysLeft))} روز گذشته</span>}
+                  <span className="flex items-center gap-1"><Icon name="clock" size={11} /> {t("{p0} روز", { p0: faNum(totalDays) })}</span>
+                  {daysLeft > 0 && <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium"><Icon name="checkCircle" size={11} /> {t("{p0} روز باقی", { p0: faNum(daysLeft) })}</span>}
+                  {daysLeft === 0 && <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium"><Icon name="alertTriangle" size={11} /> {t("موعد امروز")}</span>}
+                  {daysLeft < 0 && <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1 font-medium"><Icon name="alertTriangle" size={11} /> {t("{p0} روز گذشته", { p0: faNum(Math.abs(daysLeft)) })}</span>}
                 </div>
               </div>
               <Icon name="chevronLeft" size={15} className="text-muted-foreground shrink-0 mt-2" />

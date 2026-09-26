@@ -18,6 +18,7 @@ import { formatDate, daysRemaining } from "@/lib/format";
 import { PRIORITY } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 export type DesignerOrderItem = {
@@ -139,11 +140,11 @@ export function DesignerOrderDetailModal({
       qc.invalidateQueries({ queryKey: ["order", orderId] });
       if (res.advanced) {
         // آخرین آیتم طراحی شد → سفارش خودکار به چاپ رفت
-        toast.success("طراحی سفارش کامل شد — سفارش به مرحلهٔ چاپ ارسال شد");
+        toast.success(t("طراحی سفارش کامل شد — سفارش به مرحلهٔ چاپ ارسال شد"));
         setTimeout(() => onOpenChange(false), 900);
       } else {
         toast.success(
-          `طراحی آیتم تکمیل شد — ${res.remainingDesign} آیتم طراحی باقی مانده`
+          t("طراحی آیتم تکمیل شد — {p0} آیتم طراحی باقی مانده", { p0: res.remainingDesign })
         );
       }
     },
@@ -158,7 +159,7 @@ export function DesignerOrderDetailModal({
         body: JSON.stringify({ action: "send_next", note: designerNote }),
       }),
     onSuccess: () => {
-      toast.success("طراحی سفارش کامل شد — سفارش به مرحلهٔ چاپ ارسال شد");
+      toast.success(t("طراحی سفارش کامل شد — سفارش به مرحلهٔ چاپ ارسال شد"));
       invalidate(["orders", "dashboard", "open-orders"]);
       onOpenChange(false);
     },
@@ -176,7 +177,7 @@ export function DesignerOrderDetailModal({
         }),
       }),
     onSuccess: () => {
-      toast.success("گزارش به کنترل کیفیت ارسال شد");
+      toast.success(t("گزارش به کنترل کیفیت ارسال شد"));
       invalidate(["orders", "dashboard"]);
       setQcOpen(false);
       onOpenChange(false);
@@ -191,27 +192,27 @@ export function DesignerOrderDetailModal({
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent aria-describedby={undefined} className="max-w-2xl p-0 gap-0">
-          <DialogTitle className="sr-only">جزئیات سفارش طراحی</DialogTitle>
+          <DialogTitle className="sr-only">{t("جزئیات سفارش طراحی")}</DialogTitle>
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             {isLoading ? (
               <>
                 <Icon name="loading" size={28} className="animate-spin text-primary" />
                 <span className="text-sm text-muted-foreground">
-                  در حال بارگذاری سفارش...
+                  {t("در حال بارگذاری سفارش...")}
                 </span>
               </>
             ) : isError ? (
               <>
                 <Icon name="alertTriangle" size={28} className="text-rose-500" />
                 <span className="text-sm font-medium text-rose-600 text-center leading-relaxed max-w-md">
-                  {(error as Error)?.message || "خطا در بارگذاری سفارش — سرور پاسخ نداد"}
+                  {(error as Error)?.message || t("خطا در بارگذاری سفارش — سرور پاسخ نداد")}
                 </span>
                 <Button size="sm" variant="outline" onClick={() => refetch()}>
-                  تلاش دوباره
+                  {t("تلاش دوباره")}
                 </Button>
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">سفارش یافت نشد</span>
+              <span className="text-sm text-muted-foreground">{t("سفارش یافت نشد")}</span>
             )}
           </div>
         </DialogContent>
@@ -241,10 +242,10 @@ export function DesignerOrderDetailModal({
                 </div>
                 <div className="min-w-0">
                   <DialogTitle className="text-lg font-bold truncate flex items-center gap-2">
-                    سفارش #{order.number}
+                    {t("سفارش #{p0}", { p0: order.number })}
                     {isGrouped && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">
-                        گروهی
+                        {t("گروهی")}
                       </span>
                     )}
                   </DialogTitle>
@@ -273,19 +274,19 @@ export function DesignerOrderDetailModal({
             {/* Design dates card */}
             <div className="grid grid-cols-3 gap-2.5 mt-4">
               <div className="rounded-xl bg-background/70 backdrop-blur-sm p-2.5 border shadow-sm">
-                <div className="text-[10px] text-muted-foreground">شروع طراحی</div>
+                <div className="text-[10px] text-muted-foreground">{t("شروع طراحی")}</div>
                 <div className="text-sm font-bold mt-0.5 tabular-nums">
                   {formatDate(designStart)}
                 </div>
               </div>
               <div className="rounded-xl bg-background/70 backdrop-blur-sm p-2.5 border shadow-sm">
-                <div className="text-[10px] text-muted-foreground">پایان طراحی</div>
+                <div className="text-[10px] text-muted-foreground">{t("پایان طراحی")}</div>
                 <div className="text-sm font-bold mt-0.5 tabular-nums">
                   {formatDate(designEnd)}
                 </div>
               </div>
               <div className="rounded-xl bg-background/70 backdrop-blur-sm p-2.5 border shadow-sm">
-                <div className="text-[10px] text-muted-foreground">باقی‌مانده</div>
+                <div className="text-[10px] text-muted-foreground">{t("باقی‌مانده")}</div>
                 <div
                   className={cn(
                     "text-sm font-bold mt-0.5 tabular-nums",
@@ -295,7 +296,7 @@ export function DesignerOrderDetailModal({
                     dr.status === "none" && "text-muted-foreground"
                   )}
                 >
-                  {dr.status === "none" ? "—" : `${dr.days} روز`}
+                  {dr.status === "none" ? "—" : t("{p0} روز", { p0: dr.days })}
                 </div>
               </div>
             </div>
@@ -306,11 +307,11 @@ export function DesignerOrderDetailModal({
                 <div className="flex items-center justify-between text-[11px] mb-1.5">
                   <span className="font-medium flex items-center gap-1">
                     <Icon name="layers" size={12} className="text-violet-600 dark:text-violet-400" />
-                    پیشرفت طراحی سفارش گروهی
+                    {t("پیشرفت طراحی سفارش گروهی")}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    {completedDesign.length.toLocaleString("en-US")} از{" "}
-                    {designScope.toLocaleString("en-US")} آیتم
+                    {t("{p0} از{p1}", { p0: completedDesign.length.toLocaleString("en-US"), p1: " " })}
+                    {t("{p0} آیتم", { p0: designScope.toLocaleString("en-US") })}
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -321,8 +322,8 @@ export function DesignerOrderDetailModal({
                 </div>
                 {designItems.length > 0 && (
                   <div className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-                    تا طراحی همهٔ آیتم‌ها تمام نشود، سفارش به چاپ نمی‌رود و هیچ
-                    ماژول دیگری حق کار روی آن را ندارد.
+                    {t("تا طراحی همهٔ آیتم‌ها تمام نشود، سفارش به چاپ نمی‌رود و هیچ")}
+                    {t("ماژول دیگری حق کار روی آن را ندارد.")}
                   </div>
                 )}
               </div>
@@ -335,7 +336,7 @@ export function DesignerOrderDetailModal({
             <div>
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Icon name="design" size={13} />
-                آیتم‌های نیازمند طراحی
+                {t("آیتم‌های نیازمند طراحی")}
                 <span className="text-[10px] font-normal text-muted-foreground/70">
                   ({designItems.length.toLocaleString("en-US")})
                 </span>
@@ -362,7 +363,7 @@ export function DesignerOrderDetailModal({
                         {it.designEndDate && (
                           <div className="text-[10px] text-muted-foreground mt-1 tabular-nums flex items-center gap-1">
                             <Icon name="clock" size={10} />
-                            موعد این آیتم: {formatDate(it.designEndDate)}
+                            {t("موعد این آیتم: {p0}", { p0: formatDate(it.designEndDate) })}
                           </div>
                         )}
                       </div>
@@ -378,7 +379,7 @@ export function DesignerOrderDetailModal({
                         ) : (
                           <Icon name="checkCircle" size={13} />
                         )}
-                        تکمیل طراحی
+                        {t("تکمیل طراحی")}
                       </Button>
                     </div>
                     {it.note && (
@@ -391,7 +392,7 @@ export function DesignerOrderDetailModal({
                 ))}
                 {designItems.length === 0 && (
                   <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                    آیتمی در صف طراحی باقی نمانده است.
+                    {t("آیتمی در صف طراحی باقی نمانده است.")}
                   </div>
                 )}
               </div>
@@ -402,7 +403,7 @@ export function DesignerOrderDetailModal({
               <div>
                 <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Icon name="checkCircle" size={13} className="text-emerald-600" />
-                  طراحی‌شده‌ها
+                  {t("طراحی‌شده‌ها")}
                   <span className="text-[10px] font-normal text-muted-foreground/70">
                     ({completedDesign.length.toLocaleString("en-US")})
                   </span>
@@ -430,16 +431,16 @@ export function DesignerOrderDetailModal({
             {otherItems.length > 0 && (
               <div className="text-[11px] text-muted-foreground rounded-lg border border-dashed px-3 py-2 flex items-center gap-1.5">
                 <Icon name="info" size={12} className="shrink-0" />
-                {otherItems.length.toLocaleString("en-US")} آیتم دیگرِ این سفارش
-                طراحی نمی‌خواهند (مرحلهٔ چاپ/انبار) — پس از تکمیل طراحیِ
-                آیتم‌های بالا، سفارش با همهٔ آیتم‌ها به مرحلهٔ بعد می‌رود.
+                {t("{p0} آیتم دیگرِ این سفارش", { p0: otherItems.length.toLocaleString("en-US") })}
+                {t("طراحی نمی‌خواهند (مرحلهٔ چاپ/انبار) — پس از تکمیل طراحیِ")}
+                {t("آیتم‌های بالا، سفارش با همهٔ آیتم‌ها به مرحلهٔ بعد می‌رود.")}
               </div>
             )}
 
             {/* Designer note */}
             <Field
-              label="یادداشت طراح"
-              hint="این یادداشت پس از ارسال به چاپ، برای همه ماژول‌ها قابل مشاهده خواهد بود."
+              label={t("یادداشت طراح")}
+              hint={t("این یادداشت پس از ارسال به چاپ، برای همه ماژول‌ها قابل مشاهده خواهد بود.")}
             >
               <Textarea
                 id="designer-note"
@@ -461,7 +462,7 @@ export function DesignerOrderDetailModal({
               disabled={busy}
             >
               <Icon name="shield" size={14} />
-              گزارش به کنترل کیفیت
+              {t("گزارش به کنترل کیفیت")}
             </Button>
             <Button
               size="sm"
@@ -475,8 +476,8 @@ export function DesignerOrderDetailModal({
                 <Icon name="arrowLeft" size={14} />
               )}
               {designItems.length > 1
-                ? `تکمیل همه و ارسال به چاپ (${designItems.length} آیتم)`
-                : "تکمیل و ارسال به چاپ"}
+                ? t("تکمیل همه و ارسال به چاپ ({p0} آیتم)", { p0: designItems.length })
+                : t("تکمیل و ارسال به چاپ")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -492,23 +493,23 @@ export function DesignerOrderDetailModal({
               </div>
               <div>
                 <DialogTitle className="text-base font-bold">
-                  گزارش به کنترل کیفیت
+                  {t("گزارش به کنترل کیفیت")}
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  سفارش #{order.number}
+                  {t("سفارش #{p0}", { p0: order.number })}
                 </p>
               </div>
             </div>
           </div>
           <div className="px-6 py-4">
             <Field
-              label="توضیح گزارش"
+              label={t("توضیح گزارش")}
               required
               hint={
                 <span className="flex items-start gap-1">
                   <Icon name="info" size={11} className="mt-0.5 shrink-0" />
-                  این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی
-                  (طراحی) باقی می‌ماند.
+                  {t("این گزارش به ماژول کنترل کیفیت ارسال می‌شود و سفارش در وضعیت فعلی")}
+                  {t("(طراحی) باقی می‌ماند.")}
                 </span>
               }
             >
@@ -528,7 +529,7 @@ export function DesignerOrderDetailModal({
               onClick={() => setQcOpen(false)}
               disabled={reportQcMut.isPending}
             >
-              انصراف
+              {t("انصراف")}
             </Button>
             <Button
               size="sm"
@@ -542,7 +543,7 @@ export function DesignerOrderDetailModal({
               ) : (
                 <Icon name="check" size={14} />
               )}
-              ارسال گزارش
+              {t("ارسال گزارش")}
             </Button>
           </DialogFooter>
         </DialogContent>

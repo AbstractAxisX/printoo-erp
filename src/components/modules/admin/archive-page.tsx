@@ -9,6 +9,7 @@ import { Icon } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useOrderDetail } from "@/lib/use-order-detail";
+import { t } from "@/lib/i18n";
 
 type Order = {
   id: string; number: number; status: string; endDate: string | null; totalAmount: number;
@@ -28,14 +29,14 @@ export function ArchivePage() {
   const columns: ColumnDef<Order>[] = [
     {
       accessorKey: "number",
-      header: "شماره",
+      header: t("شماره"),
       cell: ({ row }) => <span className="font-mono text-xs font-semibold">#{row.original.number}</span>,
       enableSorting: true,
     },
     {
       id: "customer",
       accessorFn: (r) => r.customer?.name ?? "",
-      header: "مشتری",
+      header: t("مشتری"),
       cell: ({ row }) => (
         <div>
           <div className="font-medium">{row.original.customer?.name ?? "—"}</div>
@@ -46,25 +47,25 @@ export function ArchivePage() {
     {
       id: "items",
       accessorFn: (r) => r.items?.length ?? 0,
-      header: "آیتم‌ها",
-      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{row.original.items?.length ?? 0} آیتم</span>,
+      header: t("آیتم‌ها"),
+      cell: ({ row }) => <span className="text-muted-foreground tabular-nums">{t("{p0} آیتم", { p0: row.original.items?.length ?? 0 })}</span>,
       enableSorting: true,
     },
     {
       id: "status",
       accessorKey: "status",
-      header: "وضعیت",
+      header: t("وضعیت"),
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: "totalAmount",
-      header: "مبلغ",
+      header: t("مبلغ"),
       cell: ({ row }) => <span className="tabular-nums" dir="ltr">{formatCurrency(row.original.totalAmount)}</span>,
       enableSorting: true,
     },
     {
       accessorKey: "createdAt",
-      header: "تاریخ ثبت",
+      header: t("تاریخ ثبت"),
       cell: ({ row }) => <span className="text-muted-foreground text-xs">{formatDate(row.original.createdAt)}</span>,
       enableSorting: true,
     },
@@ -72,7 +73,7 @@ export function ArchivePage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="آرشیو سفارشات" description="سفارش‌های آرشیو شده (نیمه‌کاره یا غیرفعال)" icon="archive" />
+      <PageHeader title={t("آرشیو سفارشات")} description={t("سفارش‌های آرشیو شده (نیمه‌کاره یا غیرفعال)")} icon="archive" />
 
       <Card className="p-4">
         <DataTable
@@ -84,8 +85,8 @@ export function ArchivePage() {
           emptyState={
             <EmptyState
               icon="archive"
-              title="سفارش آرشیو شده‌ای وجود ندارد"
-              description="سفارش‌های آرشیو شده در اینجا نمایش داده می‌شوند."
+              title={t("سفارش آرشیو شده‌ای وجود ندارد")}
+              description={t("سفارش‌های آرشیو شده در اینجا نمایش داده می‌شوند.")}
             />
           }
         />

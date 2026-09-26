@@ -31,6 +31,7 @@ import {
   STAGE_COLORS,
   STAGE_LABELS,
 } from "./crm-types";
+import { t } from "@/lib/i18n";
 
 type CustomerOption = { id: string; name: string; phone: string };
 
@@ -117,7 +118,7 @@ export function DealFormDialog({
     },
     onSuccess: () => {
       invalidate(["deals", "crm-dashboard", "crm-activities", "customers"]);
-      toast.success(isEdit ? "معامله ویرایش شد" : "معامله ایجاد شد");
+      toast.success(isEdit ? t("معامله ویرایش شد") : t("معامله ایجاد شد"));
       onOpenChange(false);
       onSaved?.();
     },
@@ -127,11 +128,11 @@ export function DealFormDialog({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) {
-      toast.error("عنوان معامله الزامی است");
+      toast.error(t("عنوان معامله الزامی است"));
       return;
     }
     if (!form.customerId) {
-      toast.error("انتخاب مشتری الزامی است");
+      toast.error(t("انتخاب مشتری الزامی است"));
       return;
     }
     saveMut.mutate();
@@ -143,35 +144,35 @@ export function DealFormDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon name="orders" size={18} className="text-primary" />
-            {isEdit ? "ویرایش معامله" : "معامله جدید"}
+            {isEdit ? t("ویرایش معامله") : t("معامله جدید")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? "اطلاعات معامله را به‌روزرسانی کنید" : "یک معامله جدید در قیف فروش ایجاد کنید"}
+            {isEdit ? t("اطلاعات معامله را به‌روزرسانی کنید") : t("یک معامله جدید در قیف فروش ایجاد کنید")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
-          <Field label="عنوان معامله" required>
+          <Field label={t("عنوان معامله")} required>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="مثلاً: چاپ کاتالوگ 500 نسخه"
+              placeholder={t("مثلاً: چاپ کاتالوگ 500 نسخه")}
               required
             />
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="مشتری" required>
+            <Field label={t("مشتری")} required>
               <Select
                 value={form.customerId}
                 onValueChange={(v) => setForm({ ...form, customerId: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="انتخاب مشتری..." />
+                  <SelectValue placeholder={t("انتخاب مشتری...")} />
                 </SelectTrigger>
                 <SelectContent>
                   {customers.length === 0 ? (
                     <div className="px-3 py-2 text-xs text-muted-foreground text-center">
-                      ابتدا یک مشتری ایجاد کنید
+                      {t("ابتدا یک مشتری ایجاد کنید")}
                     </div>
                   ) : (
                     customers.map((c) => (
@@ -186,7 +187,7 @@ export function DealFormDialog({
               </Select>
             </Field>
 
-            <Field label="ارزش معامله (IQD)">
+            <Field label={t("ارزش معامله (IQD)")}>
               <Input
                 type="number"
                 value={form.value || ""}
@@ -196,7 +197,7 @@ export function DealFormDialog({
               />
             </Field>
 
-            <Field label="مرحله">
+            <Field label={t("مرحله")}>
               <Select
                 value={form.stage}
                 onValueChange={(v) => {
@@ -220,7 +221,7 @@ export function DealFormDialog({
               </Select>
             </Field>
 
-            <Field label="منبع">
+            <Field label={t("منبع")}>
               <Select
                 value={form.source || "none"}
                 onValueChange={(v) => setForm({ ...form, source: v === "none" ? "" : (v as DealSource) })}
@@ -239,14 +240,14 @@ export function DealFormDialog({
               </Select>
             </Field>
 
-            <Field label="تاریخ بسته شدن پیش‌بینی">
+            <Field label={t("تاریخ بسته شدن پیش‌بینی")}>
               <DatePicker
                 value={form.expectedCloseDate}
                 onChange={(d) => setForm({ ...form, expectedCloseDate: d })}
               />
             </Field>
 
-            <Field label="مسئول">
+            <Field label={t("مسئول")}>
               <Input
                 value={form.assignedTo}
                 onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
@@ -256,7 +257,7 @@ export function DealFormDialog({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>احتمال موفقیت</Label>
+              <Label>{t("احتمال موفقیت")}</Label>
               <span className="text-sm font-semibold tabular-nums" dir="ltr">
                 {form.probability}%
               </span>
@@ -269,13 +270,13 @@ export function DealFormDialog({
               onValueChange={(v) => setForm({ ...form, probability: v[0] ?? 0 })}
             />
             <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>کم</span>
-              <span>متوسط</span>
-              <span>زیاد</span>
+              <span>{t("کم")}</span>
+              <span>{t("متوسط")}</span>
+              <span>{t("زیاد")}</span>
             </div>
           </div>
 
-          <Field label="توضیحات">
+          <Field label={t("توضیحات")}>
             <Textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -285,7 +286,7 @@ export function DealFormDialog({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              انصراف
+              {t("انصراف")}
             </Button>
             <Button type="submit" disabled={saveMut.isPending} className="gap-2">
               {saveMut.isPending ? (
@@ -293,7 +294,7 @@ export function DealFormDialog({
               ) : (
                 <Icon name="check" size={16} />
               )}
-              {isEdit ? "ذخیره تغییرات" : "ایجاد معامله"}
+              {isEdit ? t("ذخیره تغییرات") : t("ایجاد معامله")}
             </Button>
           </DialogFooter>
         </form>

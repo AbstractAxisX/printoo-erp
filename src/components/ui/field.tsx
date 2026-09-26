@@ -32,6 +32,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 type FieldProps = {
   /** متن برچسب — روی حاشیهٔ بالا سمت راست می‌نشیند */
@@ -60,7 +61,7 @@ export function Field({
       <div className="relative">
         {children}
         {/* برچسب روی مرز بالا — pointer-events:none تا کلیک به اینپوت برسد.
-            bg-card چون همهٔ فرم‌ها روی کارت/دیالوگ سفید نشسته‌اند (تمیزترین
+            {t("bg-card چون همهٔ فرم‌ها روی کارت/دیالوگ سفید نشسته‌اند (تمیزترین")}
             همرنگی در هر دو حالت روشن/تاریک) */}
         <span
           className={cn(

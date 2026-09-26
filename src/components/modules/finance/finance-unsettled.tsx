@@ -30,6 +30,7 @@ import { formatMoney, sumByCurrency, formatSumPerCurrency, toIqdEquivalent, type
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ export function FinanceUnsettled() {
         body: JSON.stringify({
           total: Number.isFinite(total) ? total : 0,
           method: "cash",
-          note: "ثبت سریع از صفحهٔ تسویه‌نشده",
+          note: t("ثبت سریع از صفحهٔ تسویه‌نشده"),
         }),
       });
     },
@@ -113,8 +114,8 @@ export function FinanceUnsettled() {
       const diff = res.diff ?? 0;
       toast.success(
         diff >= 0
-          ? `دریافتی جدید ${formatCurrency(diff)} ثبت شد — کل: ${formatCurrency(res.totalAfter ?? 0)}`
-          : `اصلاح کاهشی ${formatCurrency(Math.abs(diff))} ثبت شد — کل: ${formatCurrency(res.totalAfter ?? 0)}`
+          ? t("دریافتی جدید {p0} ثبت شد — کل: {p1}", { p0: formatCurrency(diff), p1: formatCurrency(res.totalAfter ?? 0) })
+          : t("اصلاح کاهشی {p0} ثبت شد — کل: {p1}", { p0: formatCurrency(Math.abs(diff)), p1: formatCurrency(res.totalAfter ?? 0) })
       );
       setPayOrder(null);
       setPayTotal("");
@@ -132,14 +133,14 @@ export function FinanceUnsettled() {
     () => [
       {
         accessorKey: "number",
-        header: "سفارش",
+        header: t("سفارش"),
         cell: ({ row }) => (
           <div className="font-mono text-xs font-bold">#{row.original.number}</div>
         ),
       },
       {
         id: "customer",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="text-sm font-medium truncate max-w-[140px]">
@@ -153,12 +154,12 @@ export function FinanceUnsettled() {
       },
       {
         accessorKey: "status",
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "totalAmount",
-        header: "جمع سفارش",
+        header: t("جمع سفارش"),
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums inline-flex items-center gap-1.5" dir="ltr">
@@ -171,7 +172,7 @@ export function FinanceUnsettled() {
       },
       {
         accessorKey: "paidAmount",
-        header: "پرداخت‌شده",
+        header: t("پرداخت‌شده"),
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400" dir="ltr">
@@ -181,7 +182,7 @@ export function FinanceUnsettled() {
       },
       {
         id: "remaining",
-        header: "مانده (بستانکار)",
+        header: t("مانده (بستانکار)"),
         meta: { align: "end" },
         cell: ({ row }) => {
           const rem = row.original.totalAmount - row.original.paidAmount;
@@ -201,7 +202,7 @@ export function FinanceUnsettled() {
                 )}
                 dir="ltr"
               >
-                {settled ? "تسویه ✓" : formatMoney(rem, row.original.currency)}
+                {settled ? t("تسویه ✓") : formatMoney(rem, row.original.currency)}
               </span>
               {!settled && (
                 <div className="h-1 rounded-full bg-muted mt-1 overflow-hidden">
@@ -230,7 +231,7 @@ export function FinanceUnsettled() {
             }}
           >
             <Icon name="creditCard" size={12} />
-            ثبت پرداخت
+            {t("ثبت پرداخت")}
           </Button>
         ),
       },
@@ -249,7 +250,7 @@ export function FinanceUnsettled() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تسویه‌نشده"
+        title={t("تسویه‌نشده")}
         icon="wallet"
         actions={
           <div className="flex items-center gap-2">
@@ -259,7 +260,7 @@ export function FinanceUnsettled() {
               onClick={() => setBulkOpen(true)}
             >
               <Icon name="creditCard" size={14} />
-              تسویه گروهی
+              {t("تسویه گروهی")}
             </Button>
             <Button
               variant={includeDone ? "default" : "outline"}
@@ -268,7 +269,7 @@ export function FinanceUnsettled() {
               onClick={() => setIncludeDone((v) => !v)}
             >
               <Icon name="checkCircle" size={14} />
-              {includeDone ? "نمایش همه" : "تسویه‌شده‌ها را هم نشان بده"}
+              {includeDone ? t("نمایش همه") : t("تسویه‌شده‌ها را هم نشان بده")}
             </Button>
           </div>
         }
@@ -279,18 +280,18 @@ export function FinanceUnsettled() {
         <Card className="p-3.5 ring-1 ring-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="wallet" size={13} className="text-rose-600" />
-            مجموع بستانکار (همین الان)
+            {t("مجموع بستانکار (همین الان)")}
           </div>
           <div className="text-xl font-bold tabular-nums mt-1.5" dir="ltr">
             {remainingMixed ? formatSumPerCurrency(remainingPer) : formatCurrency(totalRemaining)}
           </div>
           {remainingMixed && (
             <div className="text-[10px] text-muted-foreground mt-0.5" dir="ltr">
-              ≈ {formatCurrency(remainingIqdEq)} IQD (نرخ لحظه‌ای)
+              {t("≈ {p0} IQD (نرخ لحظه‌ای)", { p0: formatCurrency(remainingIqdEq) })}
             </div>
           )}
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {unsettledRows.length.toLocaleString("en-US")} سفارش با مانده
+            {t("{p0} سفارش با مانده", { p0: unsettledRows.length.toLocaleString("en-US") })}
           </div>
         </Card>
       </div>
@@ -306,12 +307,12 @@ export function FinanceUnsettled() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="جستجو: شماره سفارش، مشتری…"
+            placeholder={t("جستجو: شماره سفارش، مشتری…")}
             className="pr-9"
           />
         </div>
         <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {rows.length.toLocaleString("en-US")} سفارش
+          {t("{p0} سفارش", { p0: rows.length.toLocaleString("en-US") })}
         </span>
       </Card>
 
@@ -325,8 +326,8 @@ export function FinanceUnsettled() {
           emptyState={
             <EmptyState
               icon="checkCircle"
-              title="همه تسویه است!"
-              description="سفارشی با ماندهٔ پرداختی وجود ندارد"
+              title={t("همه تسویه است!")}
+              description={t("سفارشی با ماندهٔ پرداختی وجود ندارد")}
             />
           }
         />
@@ -347,10 +348,10 @@ export function FinanceUnsettled() {
                   </div>
                   <div className="min-w-0">
                     <DialogTitle className="text-base font-bold">
-                      ثبت پرداخت — سفارش #{payOrder.number}
+                      {t("ثبت پرداخت — سفارش #{p0}", { p0: payOrder.number })}
                     </DialogTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {payOrder.customer?.name} • جمع:{" "}
+                      {t("{p0} • جمع:{p1}", { p0: payOrder.customer?.name, p1: " " })}
                       <span dir="ltr" className="tabular-nums font-medium">
                         {formatCurrency(payOrder.totalAmount)}
                       </span>
@@ -362,26 +363,26 @@ export function FinanceUnsettled() {
               <div className="px-6 py-4 space-y-3">
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-lg bg-muted/40 p-2.5">
-                    <div className="text-[10px] text-muted-foreground">جمع سفارش</div>
+                    <div className="text-[10px] text-muted-foreground">{t("جمع سفارش")}</div>
                     <div className="text-sm font-bold tabular-nums mt-1" dir="ltr">
                       {formatCurrency(payOrder.totalAmount)}
                     </div>
                   </div>
                   <div className="rounded-lg bg-emerald-500/10 p-2.5">
-                    <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+                    <div className="text-[10px] text-muted-foreground">{t("پرداخت‌شده")}</div>
                     <div className="text-sm font-bold tabular-nums mt-1 text-emerald-600 dark:text-emerald-400" dir="ltr">
                       {formatCurrency(payOrder.paidAmount)}
                     </div>
                   </div>
                   <div className="rounded-lg bg-rose-500/10 p-2.5">
-                    <div className="text-[10px] text-muted-foreground">مانده</div>
+                    <div className="text-[10px] text-muted-foreground">{t("مانده")}</div>
                     <div className="text-sm font-bold tabular-nums mt-1 text-rose-600 dark:text-rose-400" dir="ltr">
                       {formatCurrency(Math.max(0, payOrder.totalAmount - payOrder.paidAmount))}
                     </div>
                   </div>
                 </div>
 
-                <Field label="کل پرداخت‌شده تا الان (IQD)" required>
+                <Field label={t("کل پرداخت‌شده تا الان (IQD)")} required>
                   <Input
                     type="number"
                     min={0}
@@ -414,21 +415,21 @@ export function FinanceUnsettled() {
                     <div>
                       {current.newTotal - payOrder.paidAmount >= 0 ? (
                         <>
-                          <b>دریافتی جدید</b> که سیستم ثبت می‌کند:{" "}
+                          <b>{t("دریافتی جدید")}</b> که سیستم ثبت می‌کند:{" "}
                           <span dir="ltr" className="tabular-nums font-bold">
                             {formatCurrency(current.newTotal - payOrder.paidAmount)}
                           </span>
                         </>
                       ) : (
                         <>
-                          <b>اصلاح کاهشی</b> که سیستم ثبت می‌کند:{" "}
+                          <b>{t("اصلاح کاهشی")}</b> که سیستم ثبت می‌کند:{" "}
                           <span dir="ltr" className="tabular-nums font-bold">
                             {formatCurrency(Math.abs(current.newTotal - payOrder.paidAmount))}
                           </span>
                         </>
                       )}
                       <div className="text-[10px] text-muted-foreground mt-1">
-                        سیستم خودش تفاضل را می‌فهمد — چه کسی، از کدام ماژول، چه ساعتی ثبت کرد
+                        {t("سیستم خودش تفاضل را می‌فهمد — چه کسی، از کدام ماژول، چه ساعتی ثبت کرد")}
                       </div>
                     </div>
                   </div>
@@ -442,7 +443,7 @@ export function FinanceUnsettled() {
                   onClick={() => setPayOrder(null)}
                   disabled={recordPaymentMut.isPending}
                 >
-                  انصراف
+                  {t("انصراف")}
                 </Button>
                 <Button
                   size="sm"
@@ -460,7 +461,7 @@ export function FinanceUnsettled() {
                   ) : (
                     <Icon name="check" size={14} />
                   )}
-                  ثبت پرداخت
+                  {t("ثبت پرداخت")}
                 </Button>
               </DialogFooter>
             </>

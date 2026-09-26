@@ -58,6 +58,7 @@ import {
 } from "./order-detail-tabs";
 import { InvoiceTab, type InvoiceFull } from "./invoice-tab";
 import { PreInvoiceModal } from "./pre-invoice-modal";
+import { t } from "@/lib/i18n";
 
 /** Phase 9 — شناسهٔ تب مودال جزئیات (برای openOrder(id, tab)) */
 export type OrderDetailTab =
@@ -168,13 +169,13 @@ export type OrderDetail = {
 type TabId = OrderDetailTab;
 
 const TABS: { id: TabId; label: string; icon: Parameters<typeof Icon>[0]["name"] }[] = [
-  { id: "overview", label: "نمای کلی", icon: "dashboard" },
-  { id: "items", label: "آیتم‌ها", icon: "orders" },
-  { id: "tasks", label: "تسک‌ها", icon: "task" },
-  { id: "costs", label: "هزینه‌ها", icon: "coins" },
-  { id: "preInvoice", label: "پیش‌فاکتور", icon: "receipt" },
-  { id: "invoice", label: "فاکتور", icon: "invoice" },
-  { id: "history", label: "تاریخچه", icon: "route" },
+  { id: "overview", label: t("نمای کلی"), icon: "dashboard" },
+  { id: "items", label: t("آیتم‌ها"), icon: "orders" },
+  { id: "tasks", label: t("تسک‌ها"), icon: "task" },
+  { id: "costs", label: t("هزینه‌ها"), icon: "coins" },
+  { id: "preInvoice", label: t("پیش‌فاکتور"), icon: "receipt" },
+  { id: "invoice", label: t("فاکتور"), icon: "invoice" },
+  { id: "history", label: t("تاریخچه"), icon: "route" },
 ];
 
 // ─── Skeleton ────────────────────────────────────────────────────
@@ -284,14 +285,14 @@ function StatusDropdown({
             cur.badge,
             disabled ? "opacity-60 cursor-not-allowed" : "hover:opacity-80"
           )}
-          aria-label="تغییر وضعیت سفارش"
+          aria-label={t("تغییر وضعیت سفارش")}
         >
           {cur.label}
           <Icon name="chevronDown" size={12} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-52">
-        <DropdownMenuLabel>تغییر وضعیت</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("تغییر وضعیت")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {(Object.entries(ORDER_STATUS) as [OrderStatus, { label: string; badge: string }][]).map(
           ([k, v]) => (
@@ -371,7 +372,7 @@ export function OrderDetailModal({
     onSuccess: (_data, newStatus) => {
       setStatus(newStatus);
       invalidate(["orders", "open-orders", "dashboard", "notifications", "order"]);
-      toast.success("وضعیت سفارش به‌روزرسانی شد");
+      toast.success(t("وضعیت سفارش به‌روزرسانی شد"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -385,7 +386,7 @@ export function OrderDetailModal({
       }),
     onSuccess: () => {
       invalidate(["orders", "order"]);
-      toast.success("یادداشت ذخیره شد");
+      toast.success(t("یادداشت ذخیره شد"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -398,19 +399,19 @@ export function OrderDetailModal({
       <Dialog open={open} onOpenChange={onOpenChange}>
         {/* 20-E — موبایل: تمام‌صفحه با اسکرول واحد؛ دسکتاپ عین قبل */}
         <DialogContent className="w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-none overflow-y-auto sm:overflow-hidden sm:h-auto sm:max-w-5xl sm:max-h-[90vh] sm:w-[calc(100%-2rem)] sm:rounded-xl p-0 gap-0 [&>*]:min-w-0">
-          <DialogTitle className="sr-only">جزئیات سفارش</DialogTitle>
+          <DialogTitle className="sr-only">{t("جزئیات سفارش")}</DialogTitle>
           <DialogDescription className="sr-only">
-            در حال بارگذاری اطلاعات سفارش
+            {t("در حال بارگذاری اطلاعات سفارش")}
           </DialogDescription>
           {isError ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Icon name="alertTriangle" size={32} className="text-rose-500" />
               <span className="text-sm font-medium text-rose-600 text-center leading-relaxed max-w-md">
-                {errorMessage || "خطا در بارگذاری سفارش — سرور پاسخ نداد"}
+                {errorMessage || t("خطا در بارگذاری سفارش — سرور پاسخ نداد")}
               </span>
               {onRetry && (
                 <Button size="sm" variant="outline" onClick={onRetry}>
-                  تلاش دوباره
+                  {t("تلاش دوباره")}
                 </Button>
               )}
             </div>
@@ -446,10 +447,10 @@ export function OrderDetailModal({
         {/* 20-E — موبایل: تمام‌صفحه (h-100dvh + اسکرول کل مودال)؛ دسکتاپ عین قبل */}
         <DialogContent className="w-full max-w-none h-[100dvh] max-h-[100dvh] rounded-none overflow-y-auto sm:overflow-hidden sm:h-auto sm:max-w-5xl sm:max-h-[92vh] sm:w-[calc(100%-2rem)] sm:rounded-xl p-0 gap-0 [&>*]:min-w-0">
           <DialogTitle className="sr-only">
-            سفارش #{order.number} — {order.customer?.name}
+            {t("سفارش #{p0} — {p1}", { p0: order.number, p1: order.customer?.name })}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            جزئیات، آیتم‌ها، تسک‌ها، هزینه‌ها، مالی و تاریخچه سفارش
+            {t("جزئیات، آیتم‌ها، تسک‌ها، هزینه‌ها، مالی و تاریخچه سفارش")}
           </DialogDescription>
 
           {/* ── Header ── */}
@@ -473,7 +474,7 @@ export function OrderDetailModal({
                     <span>{formatDate(order.createdAt)}</span>
                     <span className="text-muted-foreground/50">•</span>
                     <span className="text-[11px]">
-                      {order.splitMode === "separated" ? "تفکیک‌شده" : "گروهی"}
+                      {order.splitMode === "separated" ? t("تفکیک‌شده") : t("گروهی")}
                     </span>
                   </div>
                 </div>
@@ -489,62 +490,62 @@ export function OrderDetailModal({
                   <button
                     onClick={() => setGiftOpen(true)}
                     className="text-xs font-medium px-2.5 py-1 rounded-full inline-flex items-center gap-1 transition bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 hover:opacity-80"
-                    title="بخشیدن بخشی یا تمام مبلغ سفارش — مشتری بدهکار نمی‌شود و زیان در هزینه‌ها دیده می‌شود"
+                    title={t("بخشیدن بخشی یا تمام مبلغ سفارش — مشتری بدهکار نمی‌شود و زیان در هزینه‌ها دیده می‌شود")}
                   >
                     <Icon name="gift" size={12} />
-                    {(order.giftAmount ?? 0) > 0 ? "هدیه ثبت شده" : "هدیه"}
+                    {(order.giftAmount ?? 0) > 0 ? t("هدیه ثبت شده") : t("هدیه")}
                   </button>
                 )}
                 {order.priority === "urgent" && (
                   <span className="text-xs font-medium px-2 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center gap-1">
-                    <Icon name="alertTriangle" size={11} /> فوری
+                    <Icon name="alertTriangle" size={11} /> {t("فوری")}
                   </span>
                 )}
               </div>
             </div>
 
             {/* Quick metrics — Phase 22 (خواستهٔ 3):
-                مدیر/مالی: ردیف «هزینه / قیمت داده‌شده / سود / موعد» + کاشی
+                {t("مدیر/مالی: ردیف «هزینه / قیمت داده‌شده / سود / موعد» + کاشی")}
                 کوچک «پرداختی — باقی‌مانده» زیرش. سایر نقش‌ها: چیدمان قبلی. */}
             {cost != null ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                   <MetricTile
                     icon="coins"
-                    label="هزینه سفارش"
+                    label={t("هزینه سفارش")}
                     value={formatCurrency(cost.approved)}
                     hint={
                       cost.pending > 0
-                        ? `در انتظار ${formatCurrency(cost.pending)}`
+                        ? t("در انتظار {p0}", { p0: formatCurrency(cost.pending) })
                         : undefined
                     }
                     tone={cost.approved > 0 ? "rose" : undefined}
                   />
                   <MetricTile
                     icon="money"
-                    label="قیمت داده‌شده"
+                    label={t("قیمت داده‌شده")}
                     value={formatCurrency(order.totalAmount)}
                   />
                   <MetricTile
                     icon={profit != null && profit >= 0 ? "trending" : "arrowDown"}
-                    label="سود"
+                    label={t("سود")}
                     value={profit != null ? formatCurrency(profit) : "—"}
-                    hint="قیمت − هزینه"
+                    hint={t("قیمت − هزینه")}
                     tone={profit != null && profit < 0 ? "rose" : "emerald"}
                   />
                   <MetricTile
                     icon="clock"
-                    label="موعد تحویل"
+                    label={t("موعد تحویل")}
                     value={
                       order.noEndDate
-                        ? "بدون زمان"
+                        ? t("بدون زمان")
                         : order.endDate
                         ? formatDate(order.endDate)
                         : "—"
                     }
                     hint={
                       !order.noEndDate && !closed && dr.status !== "none"
-                        ? `${dr.days} روز`
+                        ? t("{p0} روز", { p0: dr.days })
                         : undefined
                     }
                     tone={
@@ -564,7 +565,7 @@ export function OrderDetailModal({
                     <span className="size-5 rounded-md grid place-items-center shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                       <Icon name="checkCircle" size={11} />
                     </span>
-                    <span className="text-[11px] text-muted-foreground shrink-0">پرداختی</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{t("پرداختی")}</span>
                     <span className="text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400 truncate" dir="ltr">
                       {formatCurrency(order.paidAmount)}
                     </span>
@@ -581,7 +582,7 @@ export function OrderDetailModal({
                     >
                       <Icon name="alert" size={11} />
                     </span>
-                    <span className="text-[11px] text-muted-foreground shrink-0">باقی‌مانده</span>
+                    <span className="text-[11px] text-muted-foreground shrink-0">{t("باقی‌مانده")}</span>
                     <span
                       className={cn(
                         "text-xs font-bold tabular-nums truncate",
@@ -600,34 +601,34 @@ export function OrderDetailModal({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                 <MetricTile
                   icon="money"
-                  label="مبلغ کل"
+                  label={t("مبلغ کل")}
                   value={formatCurrency(order.totalAmount)}
             />
                 <MetricTile
                   icon="checkCircle"
-                  label="پرداختی"
+                  label={t("پرداختی")}
                   value={formatCurrency(order.paidAmount)}
                   tone="emerald"
               />
                 <MetricTile
                   icon="alert"
-                  label="باقی‌مانده"
+                  label={t("باقی‌مانده")}
                   value={formatCurrency(unpaid)}
                   tone={unpaid > 0 ? "rose" : "emerald"}
               />
                 <MetricTile
                   icon="clock"
-                  label="موعد تحویل"
+                  label={t("موعد تحویل")}
                   value={
                     order.noEndDate
-                      ? "بدون زمان"
+                      ? t("بدون زمان")
                       : order.endDate
                       ? formatDate(order.endDate)
                       : "—"
                   }
                   hint={
                     !order.noEndDate && !closed && dr.status !== "none"
-                      ? `${dr.days} روز`
+                      ? t("{p0} روز", { p0: dr.days })
                       : undefined
                   }
                   tone={
@@ -651,7 +652,7 @@ export function OrderDetailModal({
                     onClick={() => setActiveTab("items")}
                     className="text-[11px] px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 flex items-center gap-1 hover:opacity-80"
                   >
-                    <Icon name="alert" size={11} /> {blockingItems} آیتم نیازمند متریال
+                    <Icon name="alert" size={11} /> {t("{p0} آیتم نیازمند متریال", { p0: blockingItems })}
                   </button>
                 )}
                 {overdueTasks > 0 && (
@@ -659,7 +660,7 @@ export function OrderDetailModal({
                     onClick={() => setActiveTab("tasks")}
                     className="text-[11px] px-2 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 flex items-center gap-1 hover:opacity-80"
                   >
-                    <Icon name="clock" size={11} /> {overdueTasks} تسک معوق
+                    <Icon name="clock" size={11} /> {t("{p0} تسک معوق", { p0: overdueTasks })}
                   </button>
                 )}
               </div>
@@ -670,7 +671,7 @@ export function OrderDetailModal({
           {/* 20-E — موبایل: چسبان بالای اسکرولِ مودال تمام‌صفحه */}
           <div
             role="tablist"
-            aria-label="بخش‌های سفارش"
+            aria-label={t("بخش‌های سفارش")}
             className="flex border-b px-4 overflow-x-auto scrollbar-thin bg-muted/20 sticky top-0 z-20 sm:static"
           >
             {TABS.map((t) => {
@@ -799,7 +800,7 @@ export function OrderDetailModal({
               className="gap-1.5"
             >
               <Icon name="receipt" size={14} />
-              {hasPreInvoice ? "مدیریت پیش‌فاکتور" : "صدور پیش‌فاکتور"}
+              {hasPreInvoice ? t("مدیریت پیش‌فاکتور") : t("صدور پیش‌فاکتور")}
             </Button>
             <Button
               size="sm"
@@ -808,7 +809,7 @@ export function OrderDetailModal({
               className="gap-1.5"
             >
               <Icon name="invoice" size={14} />
-              فاکتور نهایی
+              {t("فاکتور نهایی")}
             </Button>
             <Button
               size="sm"
@@ -819,7 +820,7 @@ export function OrderDetailModal({
                 navigate("admin", "orders-new", order.id);
               }}
             >
-              <Icon name="edit" size={14} /> ویرایش کامل
+              <Icon name="edit" size={14} /> {t("ویرایش کامل")}
             </Button>
           </div>
         </DialogContent>
@@ -896,7 +897,7 @@ function GiftDialog({
       }),
     onSuccess: () => {
       toast.success(
-        `هدیه ثبت شد — ${effectivePct.toLocaleString("en-US")}٪ معادل ${formatCurrency(giftValue)} بخشیده شد`
+        t("هدیه ثبت شد — {p0}٪ معادل {p1} بخشیده شد", { p0: effectivePct.toLocaleString("en-US"), p1: formatCurrency(giftValue) })
       );
       onGifted();
       onOpenChange(false);
@@ -914,9 +915,9 @@ function GiftDialog({
               <Icon name="gift" size={20} />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">هدیه دادن سفارش #{order.number}</DialogTitle>
+              <DialogTitle className="text-base font-bold">{t("هدیه دادن سفارش #{p0}", { p0: order.number })}</DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {order.customer?.name} — بخشیدن بخشی یا تمام مبلغ
+                {t("{p0} — بخشیدن بخشی یا تمام مبلغ", { p0: order.customer?.name })}
               </p>
             </div>
           </div>
@@ -926,15 +927,15 @@ function GiftDialog({
           {/* هدیهٔ فعلی */}
           {(order.giftAmount ?? 0) > 0 && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-xs">
-              هدیهٔ فعلی این سفارش: <b dir="ltr">{formatCurrency(order.giftAmount ?? 0)}</b>{" "}
-              ({(order.giftPercentage ?? 0).toLocaleString("en-US")}٪)
-              {order.giftedByName ? ` — ثبت‌شده توسط ${order.giftedByName}` : ""}
-              . ثبت دوباره، مقدار قبلی را جایگزین می‌کند.
+              {t("هدیهٔ فعلی این سفارش:")}<b dir="ltr">{formatCurrency(order.giftAmount ?? 0)}</b>{" "}
+              {t("({p0}٪)", { p0: (order.giftPercentage ?? 0).toLocaleString("en-US") })}
+              {order.giftedByName ? t(" — ثبت‌شده توسط {p0}", { p0: order.giftedByName }) : ""}
+              {t(". ثبت دوباره، مقدار قبلی را جایگزین می‌کند.")}
             </div>
           )}
 
           {/* حالت: درصد / مبلغ */}
-          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="نوع هدیه">
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label={t("نوع هدیه")}>
             <button
               role="radio"
               aria-checked={mode === "percentage"}
@@ -946,7 +947,7 @@ function GiftDialog({
                   : "text-muted-foreground hover:bg-background/60"
               )}
             >
-              به درصد
+              {t("به درصد")}
             </button>
             <button
               role="radio"
@@ -959,7 +960,7 @@ function GiftDialog({
                   : "text-muted-foreground hover:bg-background/60"
               )}
             >
-              مبلغ ثابت
+              {t("مبلغ ثابت")}
             </button>
           </div>
 
@@ -977,7 +978,7 @@ function GiftDialog({
                         : "hover:bg-muted/50"
                     )}
                   >
-                    {p.toLocaleString("en-US")}٪
+                    {t("{p0}٪", { p0: p.toLocaleString("en-US") })}
                   </button>
                 ))}
               </div>
@@ -991,7 +992,7 @@ function GiftDialog({
                   dir="ltr"
                   className="flex-1"
                 />
-                <span className="text-xs text-muted-foreground shrink-0">درصد</span>
+                <span className="text-xs text-muted-foreground shrink-0">{t("درصد")}</span>
               </div>
             </div>
           ) : (
@@ -999,40 +1000,40 @@ function GiftDialog({
               <Input
                 type="number"
                 min={0}
-                placeholder="مبلغ هدیه (دینار)"
+                placeholder={t("مبلغ هدیه (دینار)")}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 dir="ltr"
                 className="flex-1"
               />
-              <span className="text-xs text-muted-foreground shrink-0">دینار</span>
+              <span className="text-xs text-muted-foreground shrink-0">{t("دینار")}</span>
             </div>
           )}
 
           <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="یادداشت هدیه (اختیاری) — در سوابق مشتری ثبت می‌شود، مثلاً: مناسبت تولد"
+            placeholder={t("یادداشت هدیه (اختیاری) — در سوابق مشتری ثبت می‌شود، مثلاً: مناسبت تولد")}
             className="min-h-16 text-xs"
           />
 
           {/* پیش‌نمایش محاسبه */}
           <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">مبلغ خام سفارش</span>
+              <span className="text-muted-foreground">{t("مبلغ خام سفارش")}</span>
               <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(rawTotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">مبلغ هدیه ({effectivePct.toLocaleString("en-US")}٪)</span>
+              <span className="text-muted-foreground">{t("مبلغ هدیه ({p0}٪)", { p0: effectivePct.toLocaleString("en-US") })}</span>
               <span className="font-bold tabular-nums text-amber-600 dark:text-amber-400" dir="ltr">−{formatCurrency(giftValue)}</span>
             </div>
             <div className="flex items-center justify-between border-t pt-1.5">
-              <span className="font-medium">مبلغ نهایی سفارش</span>
+              <span className="font-medium">{t("مبلغ نهایی سفارش")}</span>
               <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(newTotal)}</span>
             </div>
             <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
-              مشتری به‌خاطر هدیه بدهکار نمی‌شود؛ هزینه‌های واقعی سفارش در
-              دیتابیس می‌مانند و «زیان» در سود سفارش و رادار رئیس دیده می‌شود.
+              {t("مشتری به‌خاطر هدیه بدهکار نمی‌شود؛ هزینه‌های واقعی سفارش در")}
+              {t("دیتابیس می‌مانند و «زیان» در سود سفارش و رادار رئیس دیده می‌شود.")}
             </p>
           </div>
         </div>
@@ -1043,7 +1044,7 @@ function GiftDialog({
             size="sm"
             onClick={() => onOpenChange(false)}
           >
-            انصراف
+            {t("انصراف")}
           </Button>
           <Button
             size="sm"
@@ -1056,7 +1057,7 @@ function GiftDialog({
             ) : (
               <Icon name="gift" size={14} />
             )}
-            ثبت هدیه
+            {t("ثبت هدیه")}
           </Button>
         </div>
       </DialogContent>

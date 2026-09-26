@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -55,31 +56,31 @@ const fa = (n: number) => n.toLocaleString("en-US");
 
 const STATUS_FA: Record<PublicPkg["status"], { label: string; cls: string; icon: IconName; step: number }> = {
   packing: {
-    label: "در حال بسته‌بندی",
+    label: t("در حال بسته‌بندی"),
     cls: "text-amber-600 dark:text-amber-400 bg-amber-500/10",
     icon: "package",
     step: 0,
   },
   ready: {
-    label: "آمادهٔ ارسال",
+    label: t("آمادهٔ ارسال"),
     cls: "text-teal-600 dark:text-teal-400 bg-teal-500/10",
     icon: "packageAdd",
     step: 1,
   },
   sent: {
-    label: "ارسال شد",
+    label: t("ارسال شد"),
     cls: "text-violet-600 dark:text-violet-400 bg-violet-500/10",
     icon: "truckDelivery",
     step: 2,
   },
   delivered: {
-    label: "تحویل شد",
+    label: t("تحویل شد"),
     cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
     icon: "packageDelivered",
     step: 3,
   },
   cancelled: {
-    label: "لغو شده",
+    label: t("لغو شده"),
     cls: "text-rose-600 dark:text-rose-400 bg-rose-500/10",
     icon: "cancel",
     step: -1,
@@ -117,12 +118,12 @@ export function PublicPackageView({ code }: { code: string }) {
           const msg =
             data && typeof data === "object" && "error" in data
               ? String((data as { error?: unknown }).error)
-              : "خطا در دریافت اطلاعات بسته";
+              : t("خطا در دریافت اطلاعات بسته");
           setState({ status: "error", message: msg });
         }
       })
       .catch(() => {
-        if (alive) setState({ status: "error", message: "خطای شبکه در دریافت اطلاعات بسته" });
+        if (alive) setState({ status: "error", message: t("خطای شبکه در دریافت اطلاعات بسته") });
       });
     return () => {
       alive = false;
@@ -138,7 +139,7 @@ export function PublicPackageView({ code }: { code: string }) {
 
         <div className="text-center space-y-3 pb-4">
           <div className="text-[11px] text-muted-foreground">
-            Printoo24 — سامانه مدیریت چاپ
+            {t("Printoo24 — سامانه مدیریت چاپ")}
           </div>
           <Button
             variant="outline"
@@ -148,7 +149,7 @@ export function PublicPackageView({ code }: { code: string }) {
             }}
           >
             <Icon name="login" size={15} />
-            ورود به سامانه
+            {t("ورود به سامانه")}
           </Button>
         </div>
       </div>
@@ -187,7 +188,7 @@ function ErrorCard({ message, code }: { message: string; code: string }) {
       <div className="size-14 rounded-2xl bg-rose-500/10 text-rose-600 grid place-items-center">
         <Icon name="alertTriangle" size={26} />
       </div>
-      <h1 className="font-bold text-lg">بسته یافت نشد</h1>
+      <h1 className="font-bold text-lg">{t("بسته یافت نشد")}</h1>
       <p className="text-sm text-muted-foreground">{message}</p>
       <code className="text-xs bg-muted rounded-md px-2.5 py-1 font-mono" dir="ltr">
         {code}
@@ -208,10 +209,10 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
   const company = pkg.company;
 
   const steps: { label: string; date: string | null }[] = [
-    { label: "بسته‌بندی", date: pkg.packedAt },
-    { label: "آمادهٔ ارسال", date: null },
-    { label: "ارسال", date: pkg.sentAt },
-    { label: "تحویل", date: pkg.deliveredAt },
+    { label: t("بسته‌بندی"), date: pkg.packedAt },
+    { label: t("آمادهٔ ارسال"), date: null },
+    { label: t("ارسال"), date: pkg.sentAt },
+    { label: t("تحویل"), date: pkg.deliveredAt },
   ];
   const current = meta.step;
   const isDone = (i: number) => current >= i;
@@ -225,7 +226,7 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
         <div className="flex items-center gap-3">
           <BrandLogo />
           <div>
-            <div className="font-bold text-base">{company?.faName ?? "پرینتو 24"}</div>
+            <div className="font-bold text-base">{company?.faName ?? t("پرینتو 24")}</div>
             <div className="text-[10px] text-muted-foreground tracking-wide" dir="ltr">
               {company?.name ?? "Printoo24"} — printoo24.com
             </div>
@@ -247,7 +248,7 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
         {/* هیرو: کد + وضعیت */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="space-y-1.5">
-            <div className="text-[11px] text-muted-foreground">کد پیگیری بسته</div>
+            <div className="text-[11px] text-muted-foreground">{t("کد پیگیری بسته")}</div>
             <div className="flex items-center gap-2 flex-wrap">
               <span
                 className="font-mono text-lg font-extrabold bg-foreground text-background rounded-lg px-3 py-1.5 tracking-wider"
@@ -256,7 +257,7 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
                 {pkg.code}
               </span>
               <span className="text-xs font-semibold border rounded-full px-2.5 py-1">
-                بستهٔ #{pkg.seq}
+                {t("بستهٔ #{p0}", { p0: pkg.seq })}
               </span>
             </div>
           </div>
@@ -292,7 +293,7 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
                     {s.label}
                   </span>
                   <span className="text-[9px] text-muted-foreground tabular-nums text-center">
-                    {s.date ? formatDate(s.date) : isDone(i) ? "انجام شد" : "—"}
+                    {s.date ? formatDate(s.date) : isDone(i) ? t("انجام شد") : "—"}
                   </span>
                 </div>
                 {i < steps.length - 1 && (
@@ -309,25 +310,25 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
         ) : (
           <div className="rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/20 px-4 py-3 text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
             <Icon name="cancel" size={16} className="shrink-0" />
-            این بسته لغو شده است — برای پیگیری با پرینتو 24 تماس بگیرید
+            {t("این بسته لغو شده است — برای پیگیری با پرینتو 24 تماس بگیرید")}
           </div>
         )}
 
         {/* شبکهٔ اطلاعات */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <InfoTile icon="mapPin" label="آدرس تحویل" value={pkg.address} className="sm:col-span-2" />
+          <InfoTile icon="mapPin" label={t("آدرس تحویل")} value={pkg.address} className="sm:col-span-2" />
           <InfoTile
             icon="user"
-            label="گیرنده"
+            label={t("گیرنده")}
             value={pkg.receiverName}
             sub={pkg.receiverPhone}
             ltrSub
           />
           {pkg.contentsNote && (
-            <InfoTile icon="layers" label="محتویات" value={pkg.contentsNote} />
+            <InfoTile icon="layers" label={t("محتویات")} value={pkg.contentsNote} />
           )}
           {showCourier && (
-            <InfoTile icon="truck" label="پیک" value={pkg.courier} sub={pkg.trackingNo} ltrSub />
+            <InfoTile icon="truck" label={t("پیک")} value={pkg.courier} sub={pkg.trackingNo} ltrSub />
           )}
           {pkg.codAmount > 0 && <CodTile pkg={pkg} />}
         </div>
@@ -337,16 +338,16 @@ function PkgCard({ pkg }: { pkg: PublicPkg }) {
           <div className="space-y-3">
             <div className="text-sm font-semibold flex items-center gap-2">
               <Icon name="orders" size={16} className="text-primary" />
-              سفارش‌های داخل این بسته
+              {t("سفارش‌های داخل این بسته")}
               <span className="text-[11px] text-muted-foreground font-medium">
-                ({fa(pkg.orders.length)} سفارش)
+                {t("({p0} سفارش)", { p0: fa(pkg.orders.length) })}
               </span>
             </div>
             {pkg.orders.map((o, i) => (
               <div key={i} className="rounded-xl border bg-card p-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold">سفارش #{o.number}</span>
+                    <span className="text-sm font-bold">{t("سفارش #{p0}", { p0: o.number })}</span>
                     <StatusBadge status={o.status} />
                   </div>
                   <div className="text-xs text-muted-foreground">{o.customer?.name}</div>
@@ -445,7 +446,7 @@ function CodTile({ pkg }: { pkg: PublicPkg }) {
         <Icon name={pkg.codCollected ? "checkCircle" : "money"} size={15} />
       </div>
       <div className="min-w-0">
-        <div className="text-[10px] text-muted-foreground">پول در محل (COD)</div>
+        <div className="text-[10px] text-muted-foreground">{t("پول در محل (COD)")}</div>
         <div className="text-sm font-bold mt-0.5 tabular-nums" dir="ltr">
           {formatCurrency(pkg.codAmount)}
         </div>
@@ -457,7 +458,7 @@ function CodTile({ pkg }: { pkg: PublicPkg }) {
               : "text-amber-700 dark:text-amber-300"
           )}
         >
-          {pkg.codCollected ? "دریافت شد" : "این مبلغ هنگام تحویل دریافت می‌شود"}
+          {pkg.codCollected ? t("دریافت شد") : t("این مبلغ هنگام تحویل دریافت می‌شود")}
         </div>
       </div>
     </div>

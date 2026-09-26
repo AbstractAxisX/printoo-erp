@@ -26,6 +26,7 @@ import {
   ACTIVITY_TYPES,
   ACTIVITY_META,
 } from "./crm-types";
+import { t } from "@/lib/i18n";
 
 type CustomerOption = { id: string; name: string };
 type DealOption = { id: string; title: string; customerId: string };
@@ -112,7 +113,7 @@ export function ActivityFormDialog({
     },
     onSuccess: () => {
       invalidate(["activities", "crm-activities", "crm-dashboard", "customers", "deals"]);
-      toast.success(isEdit ? "فعالیت ویرایش شد" : "فعالیت ثبت شد");
+      toast.success(isEdit ? t("فعالیت ویرایش شد") : t("فعالیت ثبت شد"));
       onOpenChange(false);
       onSaved?.();
     },
@@ -122,7 +123,7 @@ export function ActivityFormDialog({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) {
-      toast.error("عنوان فعالیت الزامی است");
+      toast.error(t("عنوان فعالیت الزامی است"));
       return;
     }
     saveMut.mutate();
@@ -139,15 +140,15 @@ export function ActivityFormDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon name="task" size={18} className="text-primary" />
-            {isEdit ? "ویرایش فعالیت" : "ثبت فعالیت جدید"}
+            {isEdit ? t("ویرایش فعالیت") : t("ثبت فعالیت جدید")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? "اطلاعات فعالیت را به‌روزرسانی کنید" : "تماس، جلسه یا تعامل با مشتری را ثبت کنید"}
+            {isEdit ? t("اطلاعات فعالیت را به‌روزرسانی کنید") : t("تماس، جلسه یا تعامل با مشتری را ثبت کنید")}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label>نوع فعالیت</Label>
+            <Label>{t("نوع فعالیت")}</Label>
             <div className="grid grid-cols-5 gap-1.5">
               {ACTIVITY_TYPES.map((t) => {
                 const meta = ACTIVITY_META[t];
@@ -175,17 +176,17 @@ export function ActivityFormDialog({
             </div>
           </div>
 
-          <Field label="عنوان" required>
+          <Field label={t("عنوان")} required>
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="مثلاً: تماس برای پیگیری سفارش کاتالوگ"
+              placeholder={t("مثلاً: تماس برای پیگیری سفارش کاتالوگ")}
               required
             />
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="مشتری">
+            <Field label={t("مشتری")}>
               <Select
                 value={form.customerId || "none"}
                 onValueChange={(v) => setForm({ ...form, customerId: v === "none" ? "" : v, dealId: "" })}
@@ -204,7 +205,7 @@ export function ActivityFormDialog({
               </Select>
             </Field>
 
-            <Field label="معامله مرتبط">
+            <Field label={t("معامله مرتبط")}>
               <Select
                 value={form.dealId || "none"}
                 onValueChange={(v) => setForm({ ...form, dealId: v === "none" ? "" : v })}
@@ -224,7 +225,7 @@ export function ActivityFormDialog({
               </Select>
             </Field>
 
-            <Field label="تاریخ و زمان" className="sm:col-span-2">
+            <Field label={t("تاریخ و زمان")} className="sm:col-span-2">
               <DatePicker
                 value={form.date}
                 onChange={(d) => setForm({ ...form, date: d })}
@@ -232,7 +233,7 @@ export function ActivityFormDialog({
             </Field>
           </div>
 
-          <Field label="توضیحات">
+          <Field label={t("توضیحات")}>
             <Textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -242,7 +243,7 @@ export function ActivityFormDialog({
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              انصراف
+              {t("انصراف")}
             </Button>
             <Button type="submit" disabled={saveMut.isPending} className="gap-2">
               {saveMut.isPending ? (
@@ -250,7 +251,7 @@ export function ActivityFormDialog({
               ) : (
                 <Icon name="check" size={16} />
               )}
-              {isEdit ? "ذخیره تغییرات" : "ثبت فعالیت"}
+              {isEdit ? t("ذخیره تغییرات") : t("ثبت فعالیت")}
             </Button>
           </DialogFooter>
         </form>

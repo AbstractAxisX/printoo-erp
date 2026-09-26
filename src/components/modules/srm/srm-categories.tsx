@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SupplierCategory, Supplier } from "./srm-types";
+import { t } from "@/lib/i18n";
 
 // Color palette for categories (cycled)
 const CATEGORY_COLORS = [
@@ -111,7 +112,7 @@ export function SRMCategories() {
       api("/api/supplier-categories", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["supplier-categories", "srm-dashboard"]);
-      toast.success("دسته ایجاد شد");
+      toast.success(t("دسته ایجاد شد"));
       setCatDialogOpen(false);
       setCatForm({ name: "", icon: "grid" });
     },
@@ -122,7 +123,7 @@ export function SRMCategories() {
       api("/api/supplier-subcategories", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidate(["supplier-categories", "srm-dashboard"]);
-      toast.success("زیردسته ایجاد شد");
+      toast.success(t("زیردسته ایجاد شد"));
       setSubDialogOpen(false);
       setSubForm({ name: "", categoryId: "" });
     },
@@ -132,7 +133,7 @@ export function SRMCategories() {
     mutationFn: (id: string) => api(`/api/supplier-categories/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["supplier-categories", "srm-dashboard", "suppliers"]);
-      toast.success("دسته حذف شد");
+      toast.success(t("دسته حذف شد"));
       setSelectedCategoryId(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -141,7 +142,7 @@ export function SRMCategories() {
     mutationFn: (id: string) => api(`/api/supplier-subcategories/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate(["supplier-categories", "srm-dashboard", "suppliers"]);
-      toast.success("زیردسته حذف شد");
+      toast.success(t("زیردسته حذف شد"));
       setSelectedSubcategoryId(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -155,7 +156,7 @@ export function SRMCategories() {
     e.preventDefault();
     const body = { ...subForm, categoryId: subForm.categoryId || selectedCategoryId || "" };
     if (!body.categoryId) {
-      toast.error("انتخاب دسته الزامی است");
+      toast.error(t("انتخاب دسته الزامی است"));
       return;
     }
     createSubMut.mutate(body);
@@ -164,16 +165,16 @@ export function SRMCategories() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="دسته‌بندی‌ها"
-        description="مدیریت دسته‌بندی‌ها و زیردسته‌های تامین‌کنندگان و خدمات"
+        title={t("دسته‌بندی‌ها")}
+        description={t("مدیریت دسته‌بندی‌ها و زیردسته‌های تامین‌کنندگان و خدمات")}
         icon="grid"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setSubDialogOpen(true)} className="gap-2">
-              <Icon name="plus" size={16} /> زیردسته جدید
+              <Icon name="plus" size={16} /> {t("زیردسته جدید")}
             </Button>
             <Button onClick={() => setCatDialogOpen(true)} className="gap-2">
-              <Icon name="plus" size={16} /> دسته جدید
+              <Icon name="plus" size={16} /> {t("دسته جدید")}
             </Button>
           </div>
         }
@@ -185,14 +186,14 @@ export function SRMCategories() {
           <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Icon name="grid" size={16} className="text-primary" />
-              <h3 className="font-semibold text-sm">دسته‌ها ({categories.length})</h3>
+              <h3 className="font-semibold text-sm">{t("دسته‌ها ({p0})", { p0: categories.length })}</h3>
             </div>
             <Button
               variant="ghost"
               size="icon"
               className="size-7"
               onClick={() => setCatDialogOpen(true)}
-              title="دسته جدید"
+              title={t("دسته جدید")}
             >
               <Icon name="plus" size={14} />
             </Button>
@@ -200,16 +201,16 @@ export function SRMCategories() {
           {isLoading ? (
             <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
               <Icon name="loading" size={16} className="animate-spin" />
-              در حال بارگذاری...
+              {t("در حال بارگذاری...")}
             </div>
           ) : categories.length === 0 ? (
             <EmptyState
               icon="grid"
-              title="دسته‌ای ثبت نشده"
-              description="برای شروع، یک دسته جدید بسازید."
+              title={t("دسته‌ای ثبت نشده")}
+              description={t("برای شروع، یک دسته جدید بسازید.")}
               action={
                 <Button size="sm" onClick={() => setCatDialogOpen(true)} className="gap-2">
-                  <Icon name="plus" size={14} /> افزودن دسته
+                  <Icon name="plus" size={14} /> {t("افزودن دسته")}
                 </Button>
               }
             />
@@ -237,7 +238,7 @@ export function SRMCategories() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{c.name}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        {c._count.subcategories} زیردسته
+                        {t("{p0} زیردسته", { p0: c._count.subcategories })}
                       </div>
                     </div>
                     <Icon name="chevronLeft" size={14} className="text-muted-foreground shrink-0" />
@@ -253,8 +254,8 @@ export function SRMCategories() {
           {!selectedCategory ? (
             <EmptyState
               icon="grid"
-              title="یک دسته انتخاب کنید"
-              description="برای مشاهده زیردسته‌ها، از لیست سمت راست یک دسته انتخاب کنید."
+              title={t("یک دسته انتخاب کنید")}
+              description={t("برای مشاهده زیردسته‌ها، از لیست سمت راست یک دسته انتخاب کنید.")}
             />
           ) : (
             <>
@@ -262,7 +263,7 @@ export function SRMCategories() {
                 <div className="flex items-center gap-2 min-w-0">
                   <Icon name="layers" size={16} className="text-primary shrink-0" />
                   <h3 className="font-semibold text-sm truncate">
-                    زیردسته‌های «{selectedCategory.name}»
+                    {t("زیردسته‌های «{p0}»", { p0: selectedCategory.name })}
                   </h3>
                   <span className="text-[11px] text-muted-foreground">
                     ({selectedCategory.subcategories.length})
@@ -274,11 +275,11 @@ export function SRMCategories() {
                     size="icon"
                     className="size-7 hover:text-rose-600"
                     onClick={() => {
-                      if (confirm(`حذف دسته «${selectedCategory.name}» و همه زیردسته‌های آن؟`)) {
+                      if (confirm(t("حذف دسته «{p0}» و همه زیردسته‌های آن؟", { p0: selectedCategory.name }))) {
                         deleteCatMut.mutate(selectedCategory.id);
                       }
                     }}
-                    title="حذف دسته"
+                    title={t("حذف دسته")}
                   >
                     <Icon name="trash" size={14} />
                   </Button>
@@ -290,7 +291,7 @@ export function SRMCategories() {
                       setSubForm({ name: "", categoryId: selectedCategory.id });
                       setSubDialogOpen(true);
                     }}
-                    title="زیردسته جدید"
+                    title={t("زیردسته جدید")}
                   >
                     <Icon name="plus" size={14} />
                   </Button>
@@ -300,8 +301,8 @@ export function SRMCategories() {
               {selectedCategory.subcategories.length === 0 ? (
                 <EmptyState
                   icon="layers"
-                  title="زیردسته‌ای ثبت نشده"
-                  description="برای این دسته زیردسته‌ای ثبت نشده است."
+                  title={t("زیردسته‌ای ثبت نشده")}
+                  description={t("برای این دسته زیردسته‌ای ثبت نشده است.")}
                   action={
                     <Button
                       size="sm"
@@ -311,7 +312,7 @@ export function SRMCategories() {
                       }}
                       className="gap-2"
                     >
-                      <Icon name="plus" size={14} /> افزودن زیردسته
+                      <Icon name="plus" size={14} /> {t("افزودن زیردسته")}
                     </Button>
                   }
                 />
@@ -338,11 +339,11 @@ export function SRMCategories() {
                             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                               <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
                                 <Icon name="suppliers" size={10} />
-                                {supplierCount} تامین‌کننده
+                                {t("{p0} تامین‌کننده", { p0: supplierCount })}
                               </span>
                               <span className="text-[10px] bg-violet-500/10 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
                                 <Icon name="task" size={10} />
-                                {serviceCount} خدمه
+                                {t("{p0} خدمه", { p0: serviceCount })}
                               </span>
                             </div>
                           </div>
@@ -352,11 +353,11 @@ export function SRMCategories() {
                             className="size-7 hover:text-rose-600 shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm(`حذف زیردسته «${s.name}»؟`)) {
+                              if (confirm(t("حذف زیردسته «{p0}»؟", { p0: s.name }))) {
                                 deleteSubMut.mutate(s.id);
                               }
                             }}
-                            title="حذف زیردسته"
+                            title={t("حذف زیردسته")}
                           >
                             <Icon name="trash" size={12} />
                           </Button>
@@ -373,24 +374,24 @@ export function SRMCategories() {
                   <div className="px-4 py-2.5 bg-muted/20 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs">
                       <Icon name="suppliers" size={14} className="text-orange-500" />
-                      <span className="font-medium">تامین‌کنندگان این زیردسته</span>
+                      <span className="font-medium">{t("تامین‌کنندگان این زیردسته")}</span>
                       <span className="text-muted-foreground">({subSuppliers.length})</span>
                     </div>
                     <button
                       onClick={() => navigate("srm", "suppliers")}
                       className="text-xs text-primary hover:underline flex items-center gap-1"
                     >
-                      همه تامین‌کنندگان <Icon name="arrowLeft" size={11} />
+                      {t("همه تامین‌کنندگان")}<Icon name="arrowLeft" size={11} />
                     </button>
                   </div>
                   {subSuppliersLoading ? (
                     <div className="py-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
                       <Icon name="loading" size={14} className="animate-spin" />
-                      در حال بارگذاری...
+                      {t("در حال بارگذاری...")}
                     </div>
                   ) : subSuppliers.length === 0 ? (
                     <div className="py-6 text-center text-xs text-muted-foreground">
-                      تامین‌کننده‌ای در این زیردسته ثبت نشده است.
+                      {t("تامین‌کننده‌ای در این زیردسته ثبت نشده است.")}
                     </div>
                   ) : (
                     <div className="divide-y max-h-72 overflow-y-auto scrollbar-thin">
@@ -405,7 +406,7 @@ export function SRMCategories() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{s.name}</div>
                             <div className="text-[11px] text-muted-foreground" dir="ltr">
-                              {s.phone ?? "بدون تلفن"}
+                              {s.phone ?? t("بدون تلفن")}
                             </div>
                           </div>
                           {s.balanceDue > 0 && (
@@ -428,19 +429,19 @@ export function SRMCategories() {
       <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>دسته جدید</DialogTitle>
+            <DialogTitle>{t("دسته جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitCat} className="space-y-4">
-            <Field label="نام دسته" required>
+            <Field label={t("نام دسته")} required>
               <Input
                 value={catForm.name}
                 onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
                 required
-                placeholder="مثال: متریال، چاپ، خدمات..."
+                placeholder={t("مثال: متریال، چاپ، خدمات...")}
               />
             </Field>
             <div className="space-y-1.5">
-              <Label>آیکون</Label>
+              <Label>{t("آیکون")}</Label>
               <div className="grid grid-cols-6 gap-2">
                 {ICON_CHOICES.map((ic) => (
                   <button
@@ -461,7 +462,7 @@ export function SRMCategories() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCatDialogOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createCatMut.isPending} className="gap-2">
                 {createCatMut.isPending ? (
@@ -469,7 +470,7 @@ export function SRMCategories() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ذخیره
+                {t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>
@@ -480,16 +481,16 @@ export function SRMCategories() {
       <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>زیردسته جدید</DialogTitle>
+            <DialogTitle>{t("زیردسته جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitSub} className="space-y-4">
-            <Field label="دسته والد" required>
+            <Field label={t("دسته والد")} required>
               <Select
                 value={subForm.categoryId}
                 onValueChange={(v) => setSubForm({ ...subForm, categoryId: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="انتخاب دسته..." />
+                  <SelectValue placeholder={t("انتخاب دسته...")} />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
@@ -500,17 +501,17 @@ export function SRMCategories() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="نام زیردسته" required>
+            <Field label={t("نام زیردسته")} required>
               <Input
                 value={subForm.name}
                 onChange={(e) => setSubForm({ ...subForm, name: e.target.value })}
                 required
-                placeholder="مثال: پیپر بگ، کارت ویزیت..."
+                placeholder={t("مثال: پیپر بگ، کارت ویزیت...")}
               />
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setSubDialogOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createSubMut.isPending} className="gap-2">
                 {createSubMut.isPending ? (
@@ -518,7 +519,7 @@ export function SRMCategories() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ذخیره
+                {t("ذخیره")}
               </Button>
             </DialogFooter>
           </form>

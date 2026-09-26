@@ -56,6 +56,7 @@ import { NAV } from "@/lib/nav";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── انواع (قرارداد GET /api/monitoring/users) ─────────────────────
 type UserStats = {
@@ -351,18 +352,18 @@ function WorkStatCell({
   return (
     <div
       className="flex flex-col leading-tight"
-      title={`${doneLabel}: ${fa(done)} · جمع دیرکرد: ${fa(delayedDays)} روز`}
+      title={t("{p0}: {p1} · جمع دیرکرد: {p2} روز", { p0: doneLabel, p1: fa(done), p2: fa(delayedDays) })}
     >
       <span className="text-xs">
         <span className="font-bold tabular-nums">{fa(open)}</span>
-        <span className="text-muted-foreground"> باز</span>
+        <span className="text-muted-foreground"> {t("باز")}</span>
         {delayed > 0 && (
           <>
             <span className="text-muted-foreground/50"> · </span>
             <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums">
               {fa(delayed)}
             </span>
-            <span className="text-rose-600 dark:text-rose-400"> تاخیر</span>
+            <span className="text-rose-600 dark:text-rose-400"> {t("تاخیر")}</span>
           </>
         )}
       </span>
@@ -398,7 +399,7 @@ function SortableHead({
         type="button"
         onClick={() => onSort(sortKey)}
         className="inline-flex items-center gap-1 hover:text-primary transition-colors"
-        aria-label={`مرتب‌سازی بر اساس ${label}`}
+        aria-label={t("مرتب‌سازی بر اساس {p0}", { p0: label })}
       >
         {label}
         <Icon
@@ -480,7 +481,7 @@ export function MonitoringUsersPage() {
       api("/api/users", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       invalidateUserQueries();
-      toast.success("کاربر جدید ایجاد شد");
+      toast.success(t("کاربر جدید ایجاد شد"));
       setCreateOpen(false);
       setCreateForm(EMPTY_FORM);
     },
@@ -492,7 +493,7 @@ export function MonitoringUsersPage() {
       api(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(patch) }),
     onSuccess: () => {
       invalidateUserQueries();
-      toast.success("کاربر به‌روزرسانی شد");
+      toast.success(t("کاربر به‌روزرسانی شد"));
       setEditUser(null);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -518,14 +519,14 @@ export function MonitoringUsersPage() {
 
   function submitCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!createForm.name.trim()) return toast.error("نام الزامی است");
-    if (!createForm.email.trim()) return toast.error("ایمیل الزامی است");
+    if (!createForm.name.trim()) return toast.error(t("نام الزامی است"));
+    if (!createForm.email.trim()) return toast.error(t("ایمیل الزامی است"));
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.email.trim()))
-      return toast.error("ایمیل معتبر وارد کنید");
+      return toast.error(t("ایمیل معتبر وارد کنید"));
     if (createForm.password.length < 6)
-      return toast.error("رمز عبور باید حداقل 6 کاراکتر باشد");
+      return toast.error(t("رمز عبور باید حداقل 6 کاراکتر باشد"));
     if (createForm.modules.length === 0)
-      return toast.error("حداقل یک ماژول (سطح دسترسی) انتخاب کنید");
+      return toast.error(t("حداقل یک ماژول (سطح دسترسی) انتخاب کنید"));
     createMut.mutate({
       name: createForm.name.trim(),
       email: createForm.email.trim(),
@@ -543,11 +544,11 @@ export function MonitoringUsersPage() {
   function submitEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editUser) return;
-    if (!editForm.name.trim()) return toast.error("نام نمی‌تواند خالی باشد");
+    if (!editForm.name.trim()) return toast.error(t("نام نمی‌تواند خالی باشد"));
     if (editUser.role !== "master" && editForm.modules.length === 0)
-      return toast.error("حداقل یک ماژول (سطح دسترسی) باید فعال بماند");
+      return toast.error(t("حداقل یک ماژول (سطح دسترسی) باید فعال بماند"));
     if (newPassword && newPassword.length < 6)
-      return toast.error("رمز عبور باید حداقل 6 کاراکتر باشد");
+      return toast.error(t("رمز عبور باید حداقل 6 کاراکتر باشد"));
     updateMut.mutate({
       id: editUser.id,
       name: editForm.name.trim(),
@@ -593,8 +594,8 @@ export function MonitoringUsersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="مانیتورینگ کاربران"
-        description="حضور، عملکرد و دسترسی همهٔ کاربران — دابل‌کلیک برای صفحهٔ اختصاصی هر کاربر"
+        title={t("مانیتورینگ کاربران")}
+        description={t("حضور، عملکرد و دسترسی همهٔ کاربران — دابل‌کلیک برای صفحهٔ اختصاصی هر کاربر")}
         icon="userGroup"
         actions={
           <Button
@@ -604,9 +605,9 @@ export function MonitoringUsersPage() {
             }}
             className="gap-2"
             disabled={!isMaster}
-            title={isMaster ? undefined : "فقط مدیر سیستم می‌تواند کاربر ایجاد کند"}
+            title={isMaster ? undefined : t("فقط مدیر سیستم می‌تواند کاربر ایجاد کند")}
           >
-            <Icon name="plus" size={16} /> کاربر جدید
+            <Icon name="plus" size={16} /> {t("کاربر جدید")}
           </Button>
         }
       />
@@ -615,45 +616,45 @@ export function MonitoringUsersPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
         <KpiCard
           icon="userGroup"
-          label="کاربران"
+          label={t("کاربران")}
           value={summary?.total ?? 0}
-          sub={`${fa(summary?.active ?? 0)} فعال`}
+          sub={t("{p0} فعال", { p0: fa(summary?.active ?? 0) })}
           tone="primary"
         />
         <KpiCard
           icon="userMultiple"
-          label="آنلاین الان"
+          label={t("آنلاین الان")}
           value={summary?.onlineNow ?? 0}
-          sub="فعال در 3 دقیقهٔ اخیر"
+          sub={t("فعال در 3 دقیقهٔ اخیر")}
           tone="emerald"
           pulseDot
         />
         <KpiCard
           icon="calendar"
-          label="در مرخصی امروز"
+          label={t("در مرخصی امروز")}
           value={summary?.onLeaveNow ?? 0}
-          sub="مرخصی فعال امروز"
+          sub={t("مرخصی فعال امروز")}
           tone="amber"
         />
         <KpiCard
           icon="alertTriangle"
-          label="سفارش‌های تاخیری"
+          label={t("سفارش‌های تاخیری")}
           value={summary?.delayedOrders ?? 0}
-          sub="طراحی + چاپ معوق"
+          sub={t("طراحی + چاپ معوق")}
           tone="rose"
         />
         <KpiCard
           icon="task"
-          label="تسک‌های تاخیری"
+          label={t("تسک‌های تاخیری")}
           value={summary?.delayedTasks ?? 0}
-          sub="موعد گذشته"
+          sub={t("موعد گذشته")}
           tone="rose"
         />
         <KpiCard
           icon="login"
-          label="ورودها"
+          label={t("ورودها")}
           value={loginSum}
-          sub="مجموع ورود کاربران"
+          sub={t("مجموع ورود کاربران")}
           tone="cyan"
         />
       </div>
@@ -670,9 +671,9 @@ export function MonitoringUsersPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجوی نام یا ایمیل…"
+              placeholder={t("جستجوی نام یا ایمیل…")}
               className="pr-9"
-              aria-label="جستجوی کاربر"
+              aria-label={t("جستجوی کاربر")}
             />
           </div>
 
@@ -680,14 +681,14 @@ export function MonitoringUsersPage() {
           <div
             className="flex items-center gap-0.5 rounded-lg border p-0.5"
             role="group"
-            aria-label="فیلتر حضور"
+            aria-label={t("فیلتر حضور")}
           >
             {(
               [
-                ["all", "همه"],
-                ["online", "آنلاین"],
-                ["offline", "آفلاین"],
-                ["leave", "مرخصی"],
+                ["all", t("همه")],
+                ["online", t("آنلاین")],
+                ["offline", t("آفلاین")],
+                ["leave", t("مرخصی")],
               ] as const
             ).map(([k, label]) => (
               <button
@@ -710,15 +711,15 @@ export function MonitoringUsersPage() {
             <Switch
               checked={activeOnly}
               onCheckedChange={setActiveOnly}
-              aria-label="فقط کاربران فعال"
+              aria-label={t("فقط کاربران فعال")}
             />
-            <span className="text-xs font-medium">فقط فعال‌ها</span>
+            <span className="text-xs font-medium">{t("فقط فعال‌ها")}</span>
           </label>
 
           <span className="text-xs text-muted-foreground mr-auto whitespace-nowrap">
-            {fa(filtered.length)} کاربر
+            {t("{p0} کاربر", { p0: fa(filtered.length) })}
             {filtered.length !== users.length && (
-              <span className="opacity-60"> از {fa(users.length)}</span>
+              <span className="opacity-60"> {t("از {p0}", { p0: fa(users.length) })}</span>
             )}
           </span>
         </div>
@@ -726,7 +727,7 @@ export function MonitoringUsersPage() {
         {/* چیپ ماژول‌ها — چند-انتخاب (شامل مدیر سیستم) */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Icon name="filter" size={12} /> ماژول:
+            <Icon name="filter" size={12} /> {t("ماژول:")}
           </span>
           {(Object.keys(MODULES) as ModuleKey[]).map((key) => {
             const active = moduleFilters.has(key);
@@ -760,7 +761,7 @@ export function MonitoringUsersPage() {
             )}
             aria-pressed={moduleFilters.has("master")}
           >
-            مدیر سیستم
+            {t("مدیر سیستم")}
             {moduleFilters.has("master") && <Icon name="cancel" size={10} />}
           </button>
           {hasActiveFilters && (
@@ -769,7 +770,7 @@ export function MonitoringUsersPage() {
               onClick={clearFilters}
               className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mr-1"
             >
-              <Icon name="cancel" size={11} /> پاک‌کردن فیلترها
+              <Icon name="cancel" size={11} /> {t("پاک‌کردن فیلترها")}
             </button>
           )}
         </div>
@@ -777,22 +778,22 @@ export function MonitoringUsersPage() {
 
       {/* ── بدنهٔ اصلی ── */}
       {isLoading ? (
-        <LoadingState label="در حال بارگذاری مانیتورینگ…" />
+        <LoadingState label={t("در حال بارگذاری مانیتورینگ…")} />
       ) : isError ? (
         <div className="rounded-lg border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-900 p-4 text-sm text-rose-700 dark:text-rose-300 flex items-center justify-between gap-3 flex-wrap">
           <span>
-            {error instanceof Error ? error.message : "خطا در بارگذاری مانیتورینگ کاربران."}
+            {error instanceof Error ? error.message : t("خطا در بارگذاری مانیتورینگ کاربران.")}
           </span>
           <Button variant="outline" size="sm" onClick={() => void refetch()}>
-            تلاش دوباره
+            {t("تلاش دوباره")}
           </Button>
         </div>
       ) : users.length === 0 ? (
         <Card className="p-0">
           <EmptyState
             icon="userGroup"
-            title="کاربری وجود ندارد"
-            description="اولین کاربر را ایجاد کنید."
+            title={t("کاربری وجود ندارد")}
+            description={t("اولین کاربر را ایجاد کنید.")}
             action={
               isMaster ? (
                 <Button
@@ -802,7 +803,7 @@ export function MonitoringUsersPage() {
                   }}
                   className="gap-2"
                 >
-                  <Icon name="plus" size={16} /> افزودن کاربر
+                  <Icon name="plus" size={16} /> {t("افزودن کاربر")}
                 </Button>
               ) : undefined
             }
@@ -812,12 +813,12 @@ export function MonitoringUsersPage() {
         <Card className="p-0">
           <EmptyState
             icon="search"
-            title="کاربری یافت نشد"
-            description="با فیلترهای فعلی کاربری مطابقت ندارد."
+            title={t("کاربری یافت نشد")}
+            description={t("با فیلترهای فعلی کاربری مطابقت ندارد.")}
             action={
               hasActiveFilters ? (
                 <Button variant="outline" onClick={clearFilters} className="gap-2">
-                  <Icon name="cancel" size={14} /> پاک‌کردن فیلترها
+                  <Icon name="cancel" size={14} /> {t("پاک‌کردن فیلترها")}
                 </Button>
               ) : undefined
             }
@@ -828,24 +829,24 @@ export function MonitoringUsersPage() {
           {/* سربرگ جدول — شمار + حضور زنده + رفرش دستی */}
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/30 flex-wrap">
             <span className="text-sm font-semibold">
-              فهرست کاربران
+              {t("فهرست کاربران")}
               <span className="text-muted-foreground font-normal text-xs mr-2">
-                {fa(filtered.length)} کاربر
+                {t("{p0} کاربر", { p0: fa(filtered.length) })}
               </span>
             </span>
             <span className="text-[11px] text-muted-foreground flex items-center gap-2">
               <span className="flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                {fa(summary?.onlineNow ?? 0)} آنلاین
+                {t("{p0} آنلاین", { p0: fa(summary?.onlineNow ?? 0) })}
               </span>
               <span className="opacity-40">•</span>
-              <span>به‌روزرسانی خودکار هر 30 ثانیه</span>
+              <span>{t("به‌روزرسانی خودکار هر 30 ثانیه")}</span>
               <button
                 type="button"
                 onClick={() => void refetch()}
                 className="size-7 rounded-lg border grid place-items-center hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-                title="به‌روزرسانی"
-                aria-label="به‌روزرسانی"
+                title={t("به‌روزرسانی")}
+                aria-label={t("به‌روزرسانی")}
               >
                 <Icon
                   name="refresh"
@@ -861,14 +862,14 @@ export function MonitoringUsersPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <SortableHead
-                  label="کاربر"
+                  label={t("کاربر")}
                   sortKey="name"
                   activeKey={sortKey}
                   dir={sortDir}
                   onSort={onSort}
                 />
                 <SortableHead
-                  label="ماژول‌ها"
+                  label={t("ماژول‌ها")}
                   sortKey="modules"
                   activeKey={sortKey}
                   dir={sortDir}
@@ -876,14 +877,14 @@ export function MonitoringUsersPage() {
                   className="hidden lg:table-cell"
                 />
                 <SortableHead
-                  label="حضور"
+                  label={t("حضور")}
                   sortKey="presence"
                   activeKey={sortKey}
                   dir={sortDir}
                   onSort={onSort}
                 />
                 <SortableHead
-                  label="مرخصی"
+                  label={t("مرخصی")}
                   sortKey="leave"
                   activeKey={sortKey}
                   dir={sortDir}
@@ -891,7 +892,7 @@ export function MonitoringUsersPage() {
                   className="hidden xl:table-cell"
                 />
                 <SortableHead
-                  label="طراحی"
+                  label={t("طراحی")}
                   sortKey="design"
                   activeKey={sortKey}
                   dir={sortDir}
@@ -899,7 +900,7 @@ export function MonitoringUsersPage() {
                   className="text-center hidden md:table-cell"
                 />
                 <SortableHead
-                  label="چاپ"
+                  label={t("چاپ")}
                   sortKey="print"
                   activeKey={sortKey}
                   dir={sortDir}
@@ -907,14 +908,14 @@ export function MonitoringUsersPage() {
                   className="text-center hidden md:table-cell"
                 />
                 <SortableHead
-                  label="تسک‌ها"
+                  label={t("تسک‌ها")}
                   sortKey="tasks"
                   activeKey={sortKey}
                   dir={sortDir}
                   onSort={onSort}
                   className="text-center hidden md:table-cell"
                 />
-                <TableHead className="text-right">اقدامات</TableHead>
+                <TableHead className="text-right">{t("اقدامات")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -930,7 +931,7 @@ export function MonitoringUsersPage() {
                       if (e.key === "Enter") navigate("sysadmin", "user", u.id);
                     }}
                     tabIndex={0}
-                    title={`دابل‌کلیک: صفحهٔ اختصاصی ${u.name}`}
+                    title={t("دابل‌کلیک: صفحهٔ اختصاصی {p0}", { p0: u.name })}
                     className={cn(
                       "cursor-pointer",
                       inactive && "opacity-60"
@@ -956,7 +957,7 @@ export function MonitoringUsersPage() {
                             </span>
                             {isSelf && (
                               <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
-                                شما
+                                {t("شما")}
                               </span>
                             )}
                             {isMasterRow && (
@@ -966,12 +967,12 @@ export function MonitoringUsersPage() {
                                   MASTER_CHIP
                                 )}
                               >
-                                مدیر سیستم
+                                {t("مدیر سیستم")}
                               </span>
                             )}
                             {inactive && (
                               <span className="text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 rounded-full px-1.5 py-0.5">
-                                غیرفعال
+                                {t("غیرفعال")}
                               </span>
                             )}
                           </div>
@@ -995,7 +996,7 @@ export function MonitoringUsersPage() {
                               MASTER_CHIP
                             )}
                           >
-                            همه ماژول‌ها
+                            {t("همه ماژول‌ها")}
                           </span>
                         ) : (u.modules ?? []).length === 0 ? (
                           <span className="text-[11px] text-muted-foreground">—</span>
@@ -1019,7 +1020,7 @@ export function MonitoringUsersPage() {
                                         </span>
                                       </TooltipTrigger>
                                       <TooltipContent side="top" className="text-xs max-w-[240px]">
-                                        دسترسی محدود به {fa(pages.length)} صفحه از {fa(total)} صفحهٔ ماژول
+                                        {t("دسترسی محدود به {p0} صفحه از {p1} صفحهٔ ماژول", { p0: fa(pages.length), p1: fa(total) })}
                                       </TooltipContent>
                                     </Tooltip>
                                   )}
@@ -1027,7 +1028,7 @@ export function MonitoringUsersPage() {
                               );
                             })}
                             <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                              {fa(u.modules.length)} ماژول
+                              {t("{p0} ماژول", { p0: fa(u.modules.length) })}
                             </span>
                           </>
                         )}
@@ -1048,26 +1049,26 @@ export function MonitoringUsersPage() {
                           />
                           {u.online ? (
                             <span className="text-emerald-600 dark:text-emerald-400">
-                              آنلاین
+                              {t("آنلاین")}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">آفلاین</span>
+                            <span className="text-muted-foreground">{t("آفلاین")}</span>
                           )}
                         </span>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1 whitespace-nowrap">
                           {u.lastSeenAt ? (
                             <>
-                              آخرین بازدید:{" "}
+                              {t("آخرین بازدید:{p0}", { p0: " " })}
                               <span dir="ltr" className="tabular-nums">
                                 {formatDate(u.lastSeenAt, true)}
                               </span>
                             </>
                           ) : (
-                            "بدون بازدید"
+                            t("بدون بازدید")
                           )}
                         </span>
                         <span className="text-[10px] text-muted-foreground tabular-nums">
-                          {fa(u.loginCount)} ورود
+                          {t("{p0} ورود", { p0: fa(u.loginCount) })}
                         </span>
                       </div>
                     </TableCell>
@@ -1084,7 +1085,7 @@ export function MonitoringUsersPage() {
                               )}
                             >
                               <Icon name="calendar" size={11} />
-                              مرخصی تا{" "}
+                              {t("مرخصی تا{p0}", { p0: " " })}
                               <span dir="ltr" className="tabular-nums">
                                 {formatDate(u.leaveUntil)}
                               </span>
@@ -1093,7 +1094,7 @@ export function MonitoringUsersPage() {
                           <TooltipContent className="max-w-56">
                             {u.leaveNote?.trim()
                               ? u.leaveNote
-                              : "مرخصی بدون توضیح ثبت شده است"}
+                              : t("مرخصی بدون توضیح ثبت شده است")}
                           </TooltipContent>
                         </Tooltip>
                       ) : (
@@ -1108,7 +1109,7 @@ export function MonitoringUsersPage() {
                         delayed={u.stats.design.delayed}
                         done={u.stats.design.completed}
                         delayedDays={u.stats.design.delayedDays}
-                        doneLabel="تکمیل"
+                        doneLabel={t("تکمیل")}
                       />
                     </TableCell>
                     <TableCell className="text-center hidden md:table-cell">
@@ -1117,7 +1118,7 @@ export function MonitoringUsersPage() {
                         delayed={u.stats.print.delayed}
                         done={u.stats.print.completed}
                         delayedDays={u.stats.print.delayedDays}
-                        doneLabel="تکمیل"
+                        doneLabel={t("تکمیل")}
                       />
                     </TableCell>
                     <TableCell className="text-center hidden md:table-cell">
@@ -1126,7 +1127,7 @@ export function MonitoringUsersPage() {
                         delayed={u.stats.tasks.overdue}
                         done={u.stats.tasks.done}
                         delayedDays={u.stats.tasks.overdueDays}
-                        doneLabel="انجام‌شده"
+                        doneLabel={t("انجام‌شده")}
                       />
                     </TableCell>
 
@@ -1141,9 +1142,9 @@ export function MonitoringUsersPage() {
                           variant="outline"
                           className="h-7 px-2.5 gap-1 text-xs"
                           onClick={() => navigate("sysadmin", "user", u.id)}
-                          title={`صفحهٔ اختصاصی ${u.name}`}
+                          title={t("صفحهٔ اختصاصی {p0}", { p0: u.name })}
                         >
-                          <Icon name="userCircle" size={13} /> مانیتورینگ
+                          <Icon name="userCircle" size={13} /> {t("مانیتورینگ")}
                         </Button>
                         <Button
                           size="sm"
@@ -1151,9 +1152,9 @@ export function MonitoringUsersPage() {
                           className="h-7 px-2.5 gap-1 text-xs"
                           onClick={() => openEdit(u)}
                           disabled={!isMaster}
-                          title={isMaster ? undefined : "فقط مدیر سیستم می‌تواند ویرایش کند"}
+                          title={isMaster ? undefined : t("فقط مدیر سیستم می‌تواند ویرایش کند")}
                         >
-                          <Icon name="edit" size={13} /> ویرایش
+                          <Icon name="edit" size={13} /> {t("ویرایش")}
                         </Button>
                       </div>
                     </TableCell>
@@ -1175,13 +1176,13 @@ export function MonitoringUsersPage() {
       >
         <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>کاربر جدید</DialogTitle>
+            <DialogTitle>{t("کاربر جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitCreate} className="space-y-4">
             <UserFormFields form={createForm} setForm={setCreateForm} mode="create" />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createMut.isPending} className="gap-2">
                 {createMut.isPending ? (
@@ -1189,7 +1190,7 @@ export function MonitoringUsersPage() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ایجاد کاربر
+                {t("ایجاد کاربر")}
               </Button>
             </div>
           </form>
@@ -1200,10 +1201,10 @@ export function MonitoringUsersPage() {
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
         <DialogContent aria-describedby={undefined} className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>ویرایش {editUser?.name}</DialogTitle>
+            <DialogTitle>{t("ویرایش {p0}", { p0: editUser?.name })}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-4">
-            <Field label="ایمیل (غیرقابل تغییر)">
+            <Field label={t("ایمیل (غیرقابل تغییر)")}>
               <Input value={editForm.email} disabled dir="ltr" />
             </Field>
             <UserFormFields
@@ -1213,30 +1214,30 @@ export function MonitoringUsersPage() {
               isSelf={!!editUser && editUser.id === me?.id}
               isMasterUser={editUser?.role === "master"}
             />
-            <Field label="رمز عبور جدید (اختیاری)">
+            <Field label={t("رمز عبور جدید (اختیاری)")}>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="برای تغییر رمز پر کنید"
+                placeholder={t("برای تغییر رمز پر کنید")}
                 dir="ltr"
               />
             </Field>
             {editUser?.role === "master" ? (
               <p className="text-xs text-muted-foreground rounded-lg border border-dashed p-3">
-                مدیر سیستم دسترسی ضمنی به همهٔ ماژول‌ها دارد — سطح دسترسی تکی ندارد.
+                {t("مدیر سیستم دسترسی ضمنی به همهٔ ماژول‌ها دارد — سطح دسترسی تکی ندارد.")}
               </p>
             ) : null}
             {editUser && editUser.role !== "master" && (editUser.modules ?? []).length > 0 && (
               <p className="text-[11px] text-amber-600 dark:text-amber-400 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5 leading-relaxed">
                 <Icon name="info" size={12} className="inline ml-1" />
-                اگر ماژولی را برمی‌دارید، سفارش‌ها/تسک‌های تخصیص‌یافتهٔ قبلی او حذف
-                نمی‌شوند؛ اما پنل آن ماژول دیگر برایش نمایش داده نمی‌شود.
+                {t("اگر ماژولی را برمی‌دارید، سفارش‌ها/تسک‌های تخصیص‌یافتهٔ قبلی او حذف")}
+                {t("نمی‌شوند؛ اما پنل آن ماژول دیگر برایش نمایش داده نمی‌شود.")}
               </p>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={updateMut.isPending} className="gap-2">
                 {updateMut.isPending ? (
@@ -1244,7 +1245,7 @@ export function MonitoringUsersPage() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ذخیره تغییرات
+                {t("ذخیره تغییرات")}
               </Button>
             </div>
           </form>
@@ -1291,17 +1292,17 @@ function UserFormFields({
 
   return (
     <div className="space-y-4">
-      <Field label="نام و نام خانوادگی" required>
+      <Field label={t("نام و نام خانوادگی")} required>
         <Input
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="مثلاً: سارا احمدی"
+          placeholder={t("مثلاً: سارا احمدی")}
           autoFocus
         />
       </Field>
       {mode === "create" && (
         <>
-          <Field label="ایمیل" required>
+          <Field label={t("ایمیل")} required>
             <Input
               type="email"
               value={form.email}
@@ -1310,18 +1311,18 @@ function UserFormFields({
               dir="ltr"
             />
           </Field>
-          <Field label="رمز عبور" required>
+          <Field label={t("رمز عبور")} required>
             <Input
               type="password"
               value={form.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-              placeholder="حداقل 6 کاراکتر"
+              placeholder={t("حداقل 6 کاراکتر")}
               dir="ltr"
             />
           </Field>
         </>
       )}
-      <Field label="شماره تماس">
+      <Field label={t("شماره تماس")}>
         <Input
           value={form.phone}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
@@ -1338,11 +1339,11 @@ function UserFormFields({
         )}
       >
         <div>
-          <div className="text-xs font-medium">حساب فعال</div>
+          <div className="text-xs font-medium">{t("حساب فعال")}</div>
           <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
             {isSelf
-              ? "حساب خودتان را نمی‌توانید غیرفعال کنید"
-              : "کاربر غیرفعال از ورود و انتخاب‌گرهای تخصیص حذف می‌شود (تاریخچه می‌ماند)"}
+              ? t("حساب خودتان را نمی‌توانید غیرفعال کنید")
+              : t("کاربر غیرفعال از ورود و انتخاب‌گرهای تخصیص حذف می‌شود (تاریخچه می‌ماند)")}
           </p>
         </div>
         <Switch
@@ -1351,13 +1352,13 @@ function UserFormFields({
             setForm((f) => ({ ...f, status: v ? "active" : "inactive" }))
           }
           disabled={isSelf}
-          aria-label="حساب فعال"
+          aria-label={t("حساب فعال")}
         />
       </div>
 
       {/* ماژول‌های دسترسی — چند انتخاب (چک‌باکس + نقطهٔ رنگ ماژول) + صفحات مجاز */}
       {isMasterUser ? null : (
-        <Field label="ماژول‌های دسترسی و صفحات مجاز" required>
+        <Field label={t("ماژول‌های دسترسی و صفحات مجاز")} required>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {(Object.keys(MODULES) as ModuleKey[]).map((key) => {
               const checked = form.modules.includes(key);
@@ -1419,9 +1420,9 @@ function UserFormFields({
             })}
           </div>
           <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-            ماژول را تیک بزنید تا پنلش باز شود؛ زیر هر ماژول اول «سطح دسترسی» را
-            انتخاب کنید (مشاهده / ادیت / حذف) و بعد در صورت نیاز صفحات مجاز همان
-            ماژول را محدود کنید — مثلاً «چاپ» تیک + سطح ادیت + فقط «سفارشات چاپ».
+            {t("ماژول را تیک بزنید تا پنلش باز شود؛ زیر هر ماژول اول «سطح دسترسی» را")}
+            {t("انتخاب کنید (مشاهده / ادیت / حذف) و بعد در صورت نیاز صفحات مجاز همان")}
+            {t("ماژول را محدود کنید — مثلاً «چاپ» تیک + سطح ادیت + فقط «سفارشات چاپ».")}
           </p>
         </Field>
       )}
@@ -1453,7 +1454,7 @@ function ModuleLevelPanel({
     <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">
-          سطح دسترسی در {faLabel}
+          {t("سطح دسترسی در {p0}", { p0: faLabel })}
         </span>
         <span className="text-[11px] font-medium text-foreground">
           {MODULE_LEVEL_META[level].label}
@@ -1482,7 +1483,7 @@ function ModuleLevelPanel({
         })}
       </div>
       <p className="text-[10px] text-muted-foreground leading-relaxed">
-        {MODULE_LEVEL_META[level].hint} — حداکثر ۴۵ ثانیه بعد نزد کاربر فعال می‌شود.
+        {t("{p0} — حداکثر ۴۵ ثانیه بعد نزد کاربر فعال می‌شود.", { p0: MODULE_LEVEL_META[level].hint })}
       </p>
     </div>
   );
@@ -1531,15 +1532,15 @@ function ModulePagesPanel({
     <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">
-          صفحات مجاز در {faLabel}
+          {t("صفحات مجاز در {p0}", { p0: faLabel })}
         </span>
         <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <Checkbox
             checked={isAll}
             onCheckedChange={(v) => toggleAll(v === true)}
-            aria-label={`همهٔ صفحات ${faLabel}`}
+            aria-label={t("همهٔ صفحات {p0}", { p0: faLabel })}
           />
-          <span className="text-[11px] font-medium">همهٔ صفحات</span>
+          <span className="text-[11px] font-medium">{t("همهٔ صفحات")}</span>
         </label>
       </div>
       {!isAll && (
@@ -1561,8 +1562,8 @@ function ModulePagesPanel({
         </div>
       )}
       <p className="text-[10px] text-muted-foreground leading-relaxed">
-        حداقل یک صفحه باید فعال باشد — اگر هیچ صفحه‌ای تیک نخورد، «همهٔ صفحات» خودکار
-        برمی‌گردد.
+        {t("حداقل یک صفحه باید فعال باشد — اگر هیچ صفحه‌ای تیک نخورد، «همهٔ صفحات» خودکار")}
+        {t("برمی‌گردد.")}
       </p>
     </div>
   );

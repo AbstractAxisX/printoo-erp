@@ -18,6 +18,7 @@ import { formatDate, daysRemaining } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { useDesignerOrderDetail } from "@/lib/use-designer-order-detail";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 // NOTE: Designer view excludes prices, customer phone, and overall endDate.
@@ -42,10 +43,10 @@ type DesignerOrder = {
 type TimeFilter = "all" | "overdue" | "today" | "near";
 
 const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: string }[] = [
-  { value: "all", label: "همه", icon: "inbox", color: "" },
-  { value: "overdue", label: "موعد گذشته", icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
-  { value: "today", label: "موعد امروز", icon: "clock", color: "text-amber-600 dark:text-amber-400" },
-  { value: "near", label: "نزدیک موعد (2روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
+  { value: "all", label: t("همه"), icon: "inbox", color: "" },
+  { value: "overdue", label: t("موعد گذشته"), icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
+  { value: "today", label: t("موعد امروز"), icon: "clock", color: "text-amber-600 dark:text-amber-400" },
+  { value: "near", label: t("نزدیک موعد (2روز)"), icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
 ];
 
 function effectiveDesignDeadline(o: DesignerOrder): string | null {
@@ -109,10 +110,10 @@ function DesignerOrderMobileCard({ order: o }: { order: DesignerOrder }) {
           )}
         >
           <Icon name={dr?.status === "overdue" ? "alertTriangle" : "clock"} size={11} />
-          موعد طراحی {formatDate(end)}{dr && dr.status !== "none" ? ` · ${dr.text}` : ""}
+          {t("موعد طراحی {p0}{p1}", { p0: formatDate(end), p1: dr && dr.status !== "none" ? ` · ${dr.text}` : "" })}
         </div>
       ) : (
-        <div className="text-[11px] text-muted-foreground">بدون موعد طراحی</div>
+        <div className="text-[11px] text-muted-foreground">{t("بدون موعد طراحی")}</div>
       )}
     </div>
   );
@@ -187,7 +188,7 @@ export function DesignerOrders() {
     () => [
       {
         accessorKey: "number",
-        header: "شماره",
+        header: t("شماره"),
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold">
             #{row.original.number}
@@ -198,7 +199,7 @@ export function DesignerOrders() {
       {
         id: "customer",
         accessorFn: (r) => r.customer?.name ?? "",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <span className="font-medium">{row.original.customer?.name ?? "—"}</span>
         ),
@@ -206,7 +207,7 @@ export function DesignerOrders() {
       },
       {
         id: "items",
-        header: "آیتم‌ها",
+        header: t("آیتم‌ها"),
         cell: ({ row }) => {
           const items = row.original.items ?? [];
           return (
@@ -235,7 +236,7 @@ export function DesignerOrders() {
       {
         id: "priority",
         accessorFn: (r) => r.priority,
-        header: "اولویت",
+        header: t("اولویت"),
         cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
         enableSorting: true,
       },
@@ -245,13 +246,13 @@ export function DesignerOrders() {
           const d = effectiveDesignDeadline(r);
           return d ? new Date(d).getTime() : 0;
         },
-        header: "موعد طراحی",
+        header: t("موعد طراحی"),
         cell: ({ row }) => {
           const end = effectiveDesignDeadline(row.original);
           if (!end) {
             return (
               <span className="text-xs text-muted-foreground">
-                بدون موعد طراحی
+                {t("بدون موعد طراحی")}
               </span>
             );
           }
@@ -282,7 +283,7 @@ export function DesignerOrders() {
       },
       {
         accessorKey: "status",
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         enableSorting: true,
       },
@@ -295,8 +296,8 @@ export function DesignerOrders() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="سفارشات طراحی"
-        description="سفارشات در مرحله طراحی — برای مشاهده جزئیات روی ردیف کلیک کنید"
+        title={t("سفارشات طراحی")}
+        description={t("سفارشات در مرحله طراحی — برای مشاهده جزئیات روی ردیف کلیک کنید")}
         icon="orders"
         actions={
           <Button
@@ -304,7 +305,7 @@ export function DesignerOrders() {
             onClick={() => navigate("designer", "dashboard")}
             className="gap-2"
           >
-            <Icon name="dashboard" size={16} /> داشبورد
+            <Icon name="dashboard" size={16} /> {t("داشبورد")}
           </Button>
         }
       />
@@ -314,11 +315,11 @@ export function DesignerOrders() {
         {/* Time filter segmented control */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-            <Icon name="calendar" size={13} /> زمان:
+            <Icon name="calendar" size={13} /> {t("زمان:")}
           </span>
           <div
             role="radiogroup"
-            aria-label="فیلتر زمانی"
+            aria-label={t("فیلتر زمانی")}
             className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-1"
           >
             {TIME_OPTIONS.map((o) => {
@@ -370,20 +371,20 @@ export function DesignerOrders() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو: نام مشتری یا شماره سفارش..."
+              placeholder={t("جستجو: نام مشتری یا شماره سفارش...")}
               className="w-full h-9 rounded-md border bg-background pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           {/* Priority filter toggles */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">اولویت:</span>
+            <span className="text-xs text-muted-foreground">{t("اولویت:")}</span>
             <ToggleButton
               checked={priorityFilters.urgent}
               onChange={(v) =>
                 setPriorityFilters((p) => ({ ...p, urgent: v }))
               }
-              label="فوری"
+              label={t("فوری")}
               size="sm"
               activeColor="amber"
               activeIcon="alert"
@@ -393,14 +394,14 @@ export function DesignerOrders() {
               onChange={(v) =>
                 setPriorityFilters((p) => ({ ...p, normal: v }))
               }
-              label="معمولی"
+              label={t("معمولی")}
               size="sm"
               activeColor="primary"
             />
           </div>
 
           <div className="mr-auto text-xs text-muted-foreground">
-            {orders.length.toLocaleString("en-US")} از {allOrders.length.toLocaleString("en-US")} سفارش
+            {t("{p0} از {p1} سفارش", { p0: orders.length.toLocaleString("en-US"), p1: allOrders.length.toLocaleString("en-US") })}
             {timeFilter !== "all" && activeTime && ` (${activeTime.label})`}
           </div>
         </div>
@@ -421,14 +422,14 @@ export function DesignerOrders() {
             timeFilter !== "all" ? (
               <EmptyState
                 icon="checkCircle"
-                title={`سفارش «${activeTime?.label}» وجود ندارد`}
-                description="این دسته خالی است — فیلتر زمانی را تغییر دهید"
+                title={t("سفارش «{p0}» وجود ندارد", { p0: activeTime?.label })}
+                description={t("این دسته خالی است — فیلتر زمانی را تغییر دهید")}
               />
             ) : (
               <EmptyState
                 icon="checkCircle"
-                title="سفارشی در مرحله طراحی نیست"
-                description="همه سفارشات طراحی به مرحله بعد ارسال شده‌اند"
+                title={t("سفارشی در مرحله طراحی نیست")}
+                description={t("همه سفارشات طراحی به مرحله بعد ارسال شده‌اند")}
               />
             )
           }

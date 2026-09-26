@@ -1,6 +1,7 @@
 // Frontend API helper
 
 import { useAppStore } from "@/stores/app-store";
+import { t } from "@/lib/i18n";
 
 // Endpoints that legitimately return 401 while logged-OUT (the login
 // form itself). A failed login attempt must NOT trigger the bounce.
@@ -37,6 +38,8 @@ function demoBlocked(path: string, method: string): boolean {
 }
 
 const DEMO_ERROR_MESSAGE = "حساب دمو فقط مشاهده است — امکان ثبت یا تغییر داده ندارید";
+// Phase 27: پیام سرور فارسی است؛ ترجمهٔ کلاینتی همین‌جا (choke-point) انجام
+// می‌شود تا APIها دست‌نخورده بمانند و رفتار سرور ذره‌ای عوض نشود.
 
 export async function api<T = unknown>(
   path: string,
@@ -44,7 +47,7 @@ export async function api<T = unknown>(
 ): Promise<T> {
   // Phase 23: بلاک فوری نوشتن‌های دمو (سرور هم بلاک می‌کند — دفاع در عمق)
   if (demoBlocked(path, (options?.method ?? "GET").toUpperCase())) {
-    throw new Error(DEMO_ERROR_MESSAGE);
+    throw new Error(t(DEMO_ERROR_MESSAGE));
   }
   const res = await fetch(path, {
     headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) },
@@ -52,10 +55,11 @@ export async function api<T = unknown>(
   });
   if (!res.ok) {
     bounceIfGhostSession(path, res.status);
-    let msg = `خطای سرور (${res.status})`;
+    let msg = t(`خطای سرور ({p0})`, { p0: res.status });
     try {
       const data = await res.json();
-      msg = data.error || data.message || msg;
+      // Phase 27: پیام‌های فارسی سرور (error/message) در لحظهٔ نمایش ترجمه می‌شوند
+      msg = t(data.error || data.message || `خطای سرور ({p0})`, { p0: res.status }) || msg;
     } catch {}
     throw new Error(msg);
   }

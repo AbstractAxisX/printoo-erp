@@ -28,6 +28,7 @@ import { formatCurrency, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -91,10 +92,10 @@ function LogisticsOrderMobileCard({ order: o }: { order: Order }) {
         </span>
         {rem > 0.001 ? (
           <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 tabular-nums" dir="ltr">
-            پرداخت‌نشده {formatCurrency(rem)}
+            {t("پرداخت‌نشده {p0}", { p0: formatCurrency(rem) })}
           </span>
         ) : (
-          <span className="text-[11px] font-bold text-emerald-600">تسویه ✓</span>
+          <span className="text-[11px] font-bold text-emerald-600">{t("تسویه ✓")}</span>
         )}
       </div>
     </div>
@@ -153,13 +154,13 @@ export function LogisticsOrders() {
         body: JSON.stringify({
           amount,
           method: "cash",
-          note: collectNote.trim() || "دریافت نقدی در محل تحویل",
+          note: collectNote.trim() || t("دریافت نقدی در محل تحویل"),
         }),
       });
     },
     onSuccess: (res) => {
       toast.success(
-        `دریافت ثبت شد — کل پرداخت‌شده: ${formatCurrency(res.totalAfter)} (مالی می‌بیند)`
+        t("دریافت ثبت شد — کل پرداخت‌شده: {p0} (مالی می‌بیند)", { p0: formatCurrency(res.totalAfter) })
       );
       setCollectAmount("");
       setCollectNote("");
@@ -182,12 +183,12 @@ export function LogisticsOrders() {
     () => [
       {
         accessorKey: "number",
-        header: "سفارش",
+        header: t("سفارش"),
         cell: ({ row }) => <div className="font-mono text-xs font-bold">#{row.original.number}</div>,
       },
       {
         id: "customer",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="text-sm font-medium truncate max-w-[150px]">
@@ -201,7 +202,7 @@ export function LogisticsOrders() {
       },
       {
         id: "items",
-        header: "آیتم‌ها",
+        header: t("آیتم‌ها"),
         cell: ({ row }) => (
           <div className="flex items-center gap-1 flex-wrap max-w-[200px]">
             {row.original.items.slice(0, 2).map((it) => (
@@ -219,12 +220,12 @@ export function LogisticsOrders() {
       },
       {
         accessorKey: "status",
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "totalAmount",
-        header: "جمع",
+        header: t("جمع"),
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums" dir="ltr">
@@ -234,7 +235,7 @@ export function LogisticsOrders() {
       },
       {
         id: "remaining",
-        header: "پرداخت‌نشده",
+        header: t("پرداخت‌نشده"),
         meta: { align: "end" },
         cell: ({ row }) => {
           const rem = row.original.totalAmount - row.original.paidAmount;
@@ -246,7 +247,7 @@ export function LogisticsOrders() {
               )}
               dir="ltr"
             >
-              {rem > 0.001 ? formatCurrency(rem) : "تسویه ✓"}
+              {rem > 0.001 ? formatCurrency(rem) : t("تسویه ✓")}
             </span>
           );
         },
@@ -265,7 +266,7 @@ export function LogisticsOrders() {
             }}
           >
             <Icon name="truck" size={12} />
-            تحویل و دریافت
+            {t("تحویل و دریافت")}
           </Button>
         ),
       },
@@ -284,9 +285,9 @@ export function LogisticsOrders() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="سفارشات انبار و لجستیک"
+        title={t("سفارشات انبار و لجستیک")}
         icon="truck"
-        description="تحویل سفارش + دریافت نقدی در محل + هزینه‌های تحویل"
+        description={t("تحویل سفارش + دریافت نقدی در محل + هزینه‌های تحویل")}
       />
 
       {/* فیلتر */}
@@ -300,12 +301,12 @@ export function LogisticsOrders() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="جستجو: شماره سفارش، مشتری…"
+            placeholder={t("جستجو: شماره سفارش، مشتری…")}
             className="pr-9"
           />
         </div>
         <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-          {rows.length.toLocaleString("en-US")} سفارش در دست لجستیک
+          {t("{p0} سفارش در دست لجستیک", { p0: rows.length.toLocaleString("en-US") })}
         </span>
       </Card>
 
@@ -323,8 +324,8 @@ export function LogisticsOrders() {
           emptyState={
             <EmptyState
               icon="truck"
-              title="سفارشی در دست لجستیک نیست"
-              description="سفارش‌ها بعد از تکمیل چاپ، به انبار و لجستیک می‌رسند"
+              title={t("سفارشی در دست لجستیک نیست")}
+              description={t("سفارش‌ها بعد از تکمیل چاپ، به انبار و لجستیک می‌رسند")}
             />
           }
         />
@@ -348,7 +349,7 @@ export function LogisticsOrders() {
                     </div>
                     <div className="min-w-0">
                       <DialogTitle className="text-lg font-bold truncate">
-                        تحویل سفارش #{selected.number}
+                        {t("تحویل سفارش #{p0}", { p0: selected.number })}
                       </DialogTitle>
                       <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="flex items-center gap-1">
@@ -366,13 +367,13 @@ export function LogisticsOrders() {
                 {/* 3 تایل */}
                 <div className="grid grid-cols-3 gap-2.5 mt-4">
                   <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
-                    <div className="text-[10px] text-muted-foreground">جمع سفارش</div>
+                    <div className="text-[10px] text-muted-foreground">{t("جمع سفارش")}</div>
                     <div className="text-sm font-bold mt-1.5 tabular-nums" dir="ltr">
                       {formatCurrency(selected.totalAmount)}
                     </div>
                   </div>
                   <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
-                    <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+                    <div className="text-[10px] text-muted-foreground">{t("پرداخت‌شده")}</div>
                     <div
                       className="text-sm font-bold mt-1.5 tabular-nums text-emerald-600 dark:text-emerald-400"
                       dir="ltr"
@@ -381,7 +382,7 @@ export function LogisticsOrders() {
                     </div>
                   </div>
                   <div className="rounded-xl bg-background/70 backdrop-blur-sm p-3 border shadow-sm">
-                    <div className="text-[10px] text-muted-foreground">پرداخت‌نشده</div>
+                    <div className="text-[10px] text-muted-foreground">{t("پرداخت‌نشده")}</div>
                     <div
                       className={cn(
                         "text-sm font-bold mt-1.5 tabular-nums",
@@ -393,7 +394,7 @@ export function LogisticsOrders() {
                     >
                       {selected.totalAmount - selected.paidAmount > 0.001
                         ? formatCurrency(selected.totalAmount - selected.paidAmount)
-                        : "تسویه ✓"}
+                        : t("تسویه ✓")}
                     </div>
                   </div>
                 </div>
@@ -407,14 +408,14 @@ export function LogisticsOrders() {
                       className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-sky-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                     >
                       <Icon name="creditCard" size={15} />
-                      دریافت نقدی
+                      {t("دریافت نقدی")}
                     </TabsTrigger>
                     <TabsTrigger
                       value="cost"
                       className="px-4 py-2.5 rounded-none border-b-2 border-transparent data-[state=active]:border-sky-500 data-[state=active]:shadow-none rounded-t-lg text-sm gap-1.5"
                     >
                       <Icon name="money" size={15} />
-                      ثبت هزینه تحویل
+                      {t("ثبت هزینه تحویل")}
                     </TabsTrigger>
                   </TabsList>
                 </div>
@@ -425,11 +426,11 @@ export function LogisticsOrders() {
                     <div className="rounded-xl border bg-emerald-500/[0.03] p-4 space-y-3">
                       <div className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                         <Icon name="info" size={13} />
-                        پولی که مشتری در محل تحویل می‌دهد — مستقیم به «پرداخت‌شدهٔ» سفارش اضافه
-                        می‌شود و مالی آن را با نام شما می‌بیند
+                        {t("پولی که مشتری در محل تحویل می‌دهد — مستقیم به «پرداخت‌شدهٔ» سفارش اضافه")}
+                        {t("می‌شود و مالی آن را با نام شما می‌بیند")}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Field label="مبلغ دریافتی (IQD)" required>
+                        <Field label={t("مبلغ دریافتی (IQD)")} required>
                           <Input
                             type="number"
                             min={0}
@@ -440,11 +441,11 @@ export function LogisticsOrders() {
                             placeholder="0"
                           />
                         </Field>
-                        <Field label="یادداشت">
+                        <Field label={t("یادداشت")}>
                           <Input
                             value={collectNote}
                             onChange={(e) => setCollectNote(e.target.value)}
-                            placeholder="اختیاری…"
+                            placeholder={t("اختیاری…")}
                           />
                         </Field>
                       </div>
@@ -452,14 +453,14 @@ export function LogisticsOrders() {
                         <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/10 p-3 text-xs flex items-center gap-2">
                           <Icon name="checkCircle" size={14} className="text-emerald-600" />
                           <span>
-                            بعد از ثبت: کل پرداخت‌شده ={" "}
+                            {t("بعد از ثبت: کل پرداخت‌شده =")}{" "}
                             <b dir="ltr" className="tabular-nums">
                               {formatCurrency(selected.paidAmount + amountNum)}
                             </b>{" "}
                             •{" "}
                             {remainingAfter > 0.001
-                              ? `مانده: ${formatCurrency(remainingAfter)}`
-                              : "سفارش کامل تسویه می‌شود ✓"}
+                              ? t("مانده: {p0}", { p0: formatCurrency(remainingAfter) })
+                              : t("سفارش کامل تسویه می‌شود ✓")}
                           </span>
                         </div>
                       )}
@@ -473,18 +474,18 @@ export function LogisticsOrders() {
                         ) : (
                           <Icon name="check" size={16} />
                         )}
-                        ثبت دریافت نقدی
+                        {t("ثبت دریافت نقدی")}
                       </Button>
                     </div>
 
                     {/* تاریخچهٔ دریافت‌های این سفارش */}
                     <div>
                       <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
-                        <Icon name="trending" size={13} /> دریافت‌های ثبت‌شدهٔ این سفارش
+                        <Icon name="trending" size={13} /> {t("دریافت‌های ثبت‌شدهٔ این سفارش")}
                       </div>
                       {(logsData?.logs ?? []).length === 0 ? (
                         <div className="text-xs text-muted-foreground py-3 text-center border rounded-lg border-dashed">
-                          هنوز دریافت‌ای ثبت نشده
+                          {t("هنوز دریافت‌ای ثبت نشده")}
                         </div>
                       ) : (
                         <div className="rounded-xl border overflow-hidden divide-y">
@@ -543,7 +544,7 @@ export function LogisticsOrders() {
           ) : (
             <div className="flex flex-col items-center justify-center py-16 gap-2">
               <Icon name="loading" size={24} className="animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">در حال بارگذاری…</span>
+              <span className="text-sm text-muted-foreground">{t("در حال بارگذاری…")}</span>
             </div>
           )}
         </DialogContent>

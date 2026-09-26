@@ -9,6 +9,7 @@
 
 import { daysRemaining } from "@/lib/format";
 import type { IconName } from "@/lib/icons";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────
 export type OpenOrder = {
@@ -56,28 +57,28 @@ export const STAGES: {
 }[] = [
   {
     key: "all",
-    label: "همه سفارشات باز",
+    label: t("همه سفارشات باز"),
     icon: "layers",
     color: "slate",
     activeCls: "bg-slate-600 text-white border-slate-600 shadow-sm",
   },
   {
     key: "pending_design",
-    label: "در حال طراحی",
+    label: t("در حال طراحی"),
     icon: "design",
     color: "violet",
     activeCls: "bg-violet-600 text-white border-violet-600 shadow-sm",
   },
   {
     key: "in_printing",
-    label: "در حال چاپ",
+    label: t("در حال چاپ"),
     icon: "print",
     color: "amber",
     activeCls: "bg-amber-600 text-white border-amber-600 shadow-sm",
   },
   {
     key: "warehouse_logistics",
-    label: "انبار و لجستیک",
+    label: t("انبار و لجستیک"),
     icon: "warehouse",
     color: "cyan",
     activeCls: "bg-cyan-600 text-white border-cyan-600 shadow-sm",

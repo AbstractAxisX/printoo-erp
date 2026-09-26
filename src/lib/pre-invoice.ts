@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 // Printoo24 ERP — PreInvoice shared helpers (Phase 7 rebuild)
 //
 // منبع واحد حقیقت برای شکل اقلام، محاسبهٔ مبالغ و چرخهٔ وضعیت
@@ -67,23 +68,23 @@ export const STATUS_META: Record<
   { label: string; badge: string }
 > = {
   draft: {
-    label: "پیش‌نویس",
+    label: t("پیش‌نویس"),
     badge: "bg-muted text-muted-foreground",
   },
   sent: {
-    label: "ارسال‌شده",
+    label: t("ارسال‌شده"),
     badge: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
   },
   approved: {
-    label: "تاییدشده",
+    label: t("تاییدشده"),
     badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
   },
   rejected: {
-    label: "ردشده",
+    label: t("ردشده"),
     badge: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
   },
   converted: {
-    label: "تبدیل به فاکتور",
+    label: t("تبدیل به فاکتور"),
     badge: "bg-primary/15 text-primary",
   },
 };
@@ -94,24 +95,24 @@ export const STATUS_META: Record<
  */
 export function normalizeItems(raw: unknown): PreInvoiceItem[] {
   if (!Array.isArray(raw) || raw.length === 0) {
-    throw new Error("حداقل یک قلم برای پیش‌فاکتور الزامی است");
+    throw new Error(t("حداقل یک قلم برای پیش‌فاکتور الزامی است"));
   }
   return raw.map((r, idx) => {
     const it = r as Partial<PreInvoiceItemInput>;
     const name = typeof it.name === "string" ? it.name.trim() : "";
-    if (!name) throw new Error(`نام قلم ${idx + 1} خالی است`);
+    if (!name) throw new Error(t("نام قلم {p0} خالی است", { p0: idx + 1 }));
     const quantity = Number(it.quantity);
     if (!Number.isFinite(quantity) || quantity <= 0)
-      throw new Error(`تعداد قلم «${name}» نامعتبر است`);
+      throw new Error(t("تعداد قلم «{p0}» نامعتبر است", { p0: name }));
     const unitPrice = Number(it.unitPrice);
     if (!Number.isFinite(unitPrice) || unitPrice < 0)
-      throw new Error(`قیمت واحد قلم «${name}» نامعتبر است`);
+      throw new Error(t("قیمت واحد قلم «{p0}» نامعتبر است", { p0: name }));
     const discount = Math.max(0, Number(it.discount) || 0);
     const total = Math.max(0, quantity * unitPrice - discount);
     return {
       name,
       quantity,
-      unit: typeof it.unit === "string" && it.unit ? it.unit : "عدد",
+      unit: typeof it.unit === "string" && it.unit ? it.unit : t("عدد"),
       unitPrice,
       discount,
       total,
@@ -132,11 +133,11 @@ export function itemsFromOrderItems(
   items: { product?: { name?: string | null; unit?: string | null } | null; note?: string | null; description?: string | null; quantity: number; pricePerUnit: number }[]
 ): PreInvoiceItem[] {
   return items.map((it) => {
-    const name = (it.product?.name ?? "").trim() || "قلم سفارش";
+    const name = (it.product?.name ?? "").trim() || t("قلم سفارش");
     return {
       name,
       quantity: Number(it.quantity) || 1,
-      unit: (it.product?.unit ?? "عدد") || "عدد",
+      unit: t((it.product?.unit ?? "عدد") || "عدد"),
       unitPrice: Number(it.pricePerUnit) || 0,
       discount: 0,
       total: Math.max(0, (Number(it.quantity) || 1) * (Number(it.pricePerUnit) || 0)),

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { useQcReportDetail } from "@/lib/use-qc-report-detail";
 import type { QcReport } from "./qc-report-detail";
+import { t } from "@/lib/i18n";
 
 // ─── Module meta (for color coding events) ────────────────────────────
 const MODULE_COLOR: Record<string, CalendarEvent["color"]> = {
@@ -21,9 +22,9 @@ const MODULE_COLOR: Record<string, CalendarEvent["color"]> = {
 };
 
 const MODULE_LABEL: Record<string, string> = {
-  designer: "طراح",
-  print: "چاپ",
-  warehouse: "انبار",
+  designer: t("طراح"),
+  print: t("چاپ"),
+  warehouse: t("انبار"),
 };
 
 const MODULE_ICON: Record<string, IconName> = {
@@ -40,10 +41,10 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  reviewing: "در حال بررسی",
-  approved: "تأیید شده",
-  rejected: "رد شده",
+  pending: t("در انتظار"),
+  reviewing: t("در حال بررسی"),
+  approved: t("تأیید شده"),
+  rejected: t("رد شده"),
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -52,8 +53,8 @@ function toReportEvents(reports: QcReport[]): CalendarEvent[] {
     const color = MODULE_COLOR[r.fromModule] ?? "blue";
     return {
       id: r.id,
-      title: `#${r.order?.number ?? "؟"}`,
-      fullTitle: `گزارش از ${MODULE_LABEL[r.fromModule] ?? r.fromModule} — #${r.order?.number ?? "؟"} (${r.order?.customer?.name ?? "—"})`,
+      title: t("#{p0}", { p0: r.order?.number ?? t("؟") }),
+      fullTitle: t("گزارش از {p0} — #{p1} ({p2})", { p0: MODULE_LABEL[r.fromModule] ?? r.fromModule, p1: r.order?.number ?? t("؟"), p2: r.order?.customer?.name ?? "—" }),
       startDate: r.createdAt,
       endDate: r.createdAt,
       color,
@@ -99,19 +100,19 @@ export function QcCalendar() {
   const filterButtons = [
     {
       id: "designer",
-      label: "طراح",
+      label: t("طراح"),
       active: filters.designer,
       onToggle: () => setFilters((f) => ({ ...f, designer: !f.designer })),
     },
     {
       id: "print",
-      label: "چاپ",
+      label: t("چاپ"),
       active: filters.print,
       onToggle: () => setFilters((f) => ({ ...f, print: !f.print })),
     },
     {
       id: "warehouse",
-      label: "انبار",
+      label: t("انبار"),
       active: filters.warehouse,
       onToggle: () => setFilters((f) => ({ ...f, warehouse: !f.warehouse })),
     },
@@ -134,8 +135,8 @@ export function QcCalendar() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تقویم کنترل کیفیت"
-        description="نمای تقویمی گزارشات کنترل کیفیت بر اساس تاریخ دریافت"
+        title={t("تقویم کنترل کیفیت")}
+        description={t("نمای تقویمی گزارشات کنترل کیفیت بر اساس تاریخ دریافت")}
         icon="calendar"
       />
 
@@ -156,14 +157,14 @@ export function QcCalendar() {
         <Card className="p-0 overflow-hidden">
           <div className="px-5 py-3.5 border-b bg-muted/30 flex items-center gap-2">
             <Icon name="checkList" size={18} className="text-primary" />
-            <h3 className="font-semibold text-sm">آخرین گزارشات</h3>
+            <h3 className="font-semibold text-sm">{t("آخرین گزارشات")}</h3>
             <span className="text-[11px] text-muted-foreground">({reports.length})</span>
           </div>
           {recentByDate.length === 0 ? (
             <EmptyState
               icon="checkCircle"
-              title="گزارشی وجود ندارد"
-              description="هنوز گزارشی دریافت نشده است"
+              title={t("گزارشی وجود ندارد")}
+              description={t("هنوز گزارشی دریافت نشده است")}
             />
           ) : (
             <div className="divide-y max-h-[520px] overflow-y-auto scrollbar-thin">

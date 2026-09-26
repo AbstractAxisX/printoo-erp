@@ -32,6 +32,7 @@ import {
   GUIDE_BY_HEADER_TEXT,
   type GuideEntry,
 } from "@/lib/guide-content";
+import { t as tr, tFa } from "@/lib/i18n";
 
 const SHOW_DELAY_MS = 550;
 const VIEWPORT_MARGIN = 12;
@@ -51,7 +52,7 @@ function resolveGuide(el: HTMLElement, ctx: { module: string; page: string }): G
     const direct = el.getAttribute("data-guide-text");
     if (direct) {
       const label = visibleTextOf(el) || el.getAttribute("aria-label") || "";
-      return { title: label || "راهنما", text: direct };
+      return { title: label || tr("راهنما"), text: direct };
     }
   }
 
@@ -60,10 +61,14 @@ function resolveGuide(el: HTMLElement, ctx: { module: string; page: string }): G
   if (tag === "th") {
     const text = visibleTextOf(el).replace(/[▲▼↕]/g, "").trim();
     if (!text) return null;
+    // Phase 27: در حالت انگلیسی متن سرستون ترجمه‌شده است؛ معادل فارسی
+    // آن را هم برای کلیدهای رجیستری (فارسی) امتحان می‌کنیم.
+    const textFa = tFa(text);
     return (
-      GUIDE_BY_HEADER_TEXT[text] ?? {
+      GUIDE_BY_HEADER_TEXT[text] ??
+      GUIDE_BY_HEADER_TEXT[textFa] ?? {
         title: text,
-        text: `سرستون «${text}» — روی ردیف‌ها کلیک کنید تا جزئیات همان مورد باز شود؛ کلیک روی خود سرستون، جدول را بر اساس آن مرتب می‌کند.`,
+        text: tr("سرستون «{p0}» — روی ردیف‌ها کلیک کنید تا جزئیات همان مورد باز شود؛ کلیک روی خود سرستون، جدول را بر اساس آن مرتب می‌کند.", { p0: text }),
       }
     );
   }
@@ -76,16 +81,27 @@ function resolveGuide(el: HTMLElement, ctx: { module: string; page: string }): G
   if (isButton) {
     const text = visibleTextOf(el).trim() || el.getAttribute("aria-label")?.trim() || "";
     if (!text) return null;
+    // Phase 27: در حالت انگلیسی متن دکمه ترجمه‌شده است؛ کلیدهای BUTTON_CTX
+    // فارسی‌اند → معادل فارسی متن را هم امتحان می‌کنیم (tFa = reverse dict).
+    const textFa = tFa(text);
+    const words = text.split(/\s+/);
+    const wordsFa = textFa.split(/\s+/);
     // بافت‌آگاه: «module:page|متن» → توضیح مخصوص همین دکمه در همین صفحه
     const ctxHit =
       getButtonCtxEntry(ctx.module, ctx.page, text) ??
-      getButtonCtxEntry(ctx.module, ctx.page, text.split(/\s+/)[0]);
+      getButtonCtxEntry(ctx.module, ctx.page, textFa) ??
+      getButtonCtxEntry(ctx.module, ctx.page, words[0]) ??
+      getButtonCtxEntry(ctx.module, ctx.page, wordsFa[0]);
     if (ctxHit) return ctxHit;
     // فال‌بک 1: دیکشنری متن دکمه (کامل اما عمومی)
-    const hit = GUIDE_BY_BUTTON_TEXT[text] ?? GUIDE_BY_BUTTON_TEXT[text.split(/\s+/)[0]];
+    const hit =
+      GUIDE_BY_BUTTON_TEXT[text] ??
+      GUIDE_BY_BUTTON_TEXT[textFa] ??
+      GUIDE_BY_BUTTON_TEXT[words[0]] ??
+      GUIDE_BY_BUTTON_TEXT[wordsFa[0]];
     if (hit) return hit;
     // فال‌بک 2: جملهٔ معنادار از فعل — نه «دکمه است، کلیک کن»
-    return smartButtonFallback(text);
+    return smartButtonFallback(text, textFa);
   }
 
   // 4) فیلدهای فرم
@@ -102,7 +118,7 @@ function resolveGuide(el: HTMLElement, ctx: { module: string; page: string }): G
     if (label) {
       return {
         title: label,
-        text: `ورودی «${label}» در همین فرم — مقدار درست را طبق توضیح فیلد وارد کنید؛ فیلدهای ستاره‌دار که خالی بمانند، ثبت را بلاک می‌کنند.`,
+        text: tr("ورودی «{p0}» در همین فرم — مقدار درست را طبق توضیح فیلد وارد کنید؛ فیلدهای ستاره‌دار که خالی بمانند، ثبت را بلاک می‌کنند.", { p0: label }),
       };
     }
     return null;
@@ -111,30 +127,32 @@ function resolveGuide(el: HTMLElement, ctx: { module: string; page: string }): G
   return null;
 }
 
-/** فال‌بک هوشمند دکمه — فعل را تحلیل و جملهٔ کامل می‌سازد. */
-function smartButtonFallback(text: string): GuideEntry {
+/** فال‌بک هوشمند دکمه — فعل را تحلیل و جملهٔ کامل می‌سازد.
+ * Phase 27: الگوی فعل روی متن فارسی (متن اصلی) اعمال می‌شود. */
+function smartButtonFallback(text: string, textFa: string): GuideEntry {
   const t = text.length > 28 ? text.slice(0, 28) + "…" : text;
-  if (/^(افزودن|اضافه)/.test(text))
-    return { title: t, text: `«${text}» — یک مورد جدید در همین صفحه می‌سازد؛ فرم ورودش باز می‌شود و بعد از ثبت، در همین فهرست ظاهر می‌شود.` };
-  if (/^(حذف|پاک)/.test(text))
-    return { title: t, text: `«${text}» — این مورد را برای همیشه برمی‌دارد؛ هرجا وابستگی باشد سیستم جلویش را می‌گیرد و از شما تایید دوباره می‌خواهد.` };
-  if (/^(ثبت|ذخیره|ایجاد|ساخت)/.test(text))
-    return { title: t, text: `«${text}» — دادهٔ همین فرم را در سیستم ثبت می‌کند؛ بعد از آن برای همکارانِ حوزهٔ مربوط قابل مشاهده و اقدام است.` };
-  if (/^(تایید|تأیید|قبول)/.test(text))
-    return { title: t, text: `«${text}» — این مورد را تأیید می‌کند و به مرحلهٔ بعد جریان کار می‌برد؛ در موارد مالی یعنی وارد‌شدن در محاسبات رسمی.` };
-  if (/^(چاپ|پرینت)/.test(text))
-    return { title: t, text: `«${text}» — نسخهٔ تمیز و رسمی همین سند را برای پرینتر/PDF آماده می‌کند؛ فقط خود سند، بدون منوهای سایت.` };
-  if (/^(دانلود|دریافت)/.test(text))
-    return { title: t, text: `«${text}» — فایل مرتبط با همین مورد را دانلود می‌کند.` };
-  if (/^(باز|مشاهده|جزئیات|نمایش)/.test(text))
-    return { title: t, text: `«${text}» — جزئیات کامل همین مورد را باز می‌کند؛ فقط برای دیدن، بدون تغییری در داده.` };
-  if (/^(کپی|تکرار)/.test(text))
-    return { title: t, text: `«${text}» — از همین مورد یک نسخهٔ تازه می‌سازد تا ورود داده‌های مشابه سریع‌تر انجام شود.` };
-  if (/^(بستن|انصراف|لغو)/.test(text))
-    return { title: t, text: `«${text}» — پنجره را می‌بندد؛ تغییرات ذخیره‌نشده اعمال نمی‌شوند.` };
+  const src = textFa || text;
+  if (/^(افزودن|اضافه)/.test(src))
+    return { title: t, text: tr("«{p0}» — یک مورد جدید در همین صفحه می‌سازد؛ فرم ورودش باز می‌شود و بعد از ثبت، در همین فهرست ظاهر می‌شود.", { p0: text }) };
+  if (/^(حذف|پاک)/.test(src))
+    return { title: t, text: tr("«{p0}» — این مورد را برای همیشه برمی‌دارد؛ هرجا وابستگی باشد سیستم جلویش را می‌گیرد و از شما تایید دوباره می‌خواهد.", { p0: text }) };
+  if (/^(ثبت|ذخیره|ایجاد|ساخت)/.test(src))
+    return { title: t, text: tr("«{p0}» — دادهٔ همین فرم را در سیستم ثبت می‌کند؛ بعد از آن برای همکارانِ حوزهٔ مربوط قابل مشاهده و اقدام است.", { p0: text }) };
+  if (/^(تایید|تأیید|قبول)/.test(src))
+    return { title: t, text: tr("«{p0}» — این مورد را تأیید می‌کند و به مرحلهٔ بعد جریان کار می‌برد؛ در موارد مالی یعنی وارد‌شدن در محاسبات رسمی.", { p0: text }) };
+  if (/^(چاپ|پرینت)/.test(src))
+    return { title: t, text: tr("«{p0}» — نسخهٔ تمیز و رسمی همین سند را برای پرینتر/PDF آماده می‌کند؛ فقط خود سند، بدون منوهای سایت.", { p0: text }) };
+  if (/^(دانلود|دریافت)/.test(src))
+    return { title: t, text: tr("«{p0}» — فایل مرتبط با همین مورد را دانلود می‌کند.", { p0: text }) };
+  if (/^(باز|مشاهده|جزئیات|نمایش)/.test(src))
+    return { title: t, text: tr("«{p0}» — جزئیات کامل همین مورد را باز می‌کند؛ فقط برای دیدن، بدون تغییری در داده.", { p0: text }) };
+  if (/^(کپی|تکرار)/.test(src))
+    return { title: t, text: tr("«{p0}» — از همین مورد یک نسخهٔ تازه می‌سازد تا ورود داده‌های مشابه سریع‌تر انجام شود.", { p0: text }) };
+  if (/^(بستن|انصراف|لغو)/.test(src))
+    return { title: t, text: tr("«{p0}» — پنجره را می‌بندد؛ تغییرات ذخیره‌نشده اعمال نمی‌شوند.", { p0: text }) };
   return {
     title: t,
-    text: `«${text}» — اقدام همین صفحه؛ با اجرا، نتیجهٔ آن در همین فهرست/فرم به‌روز می‌شود و رویدادش در تاریخچه ثبت می‌گردد.`,
+    text: tr("«{p0}» — اقدام همین صفحه؛ با اجرا، نتیجهٔ آن در همین فهرست/فرم به‌روز می‌شود و رویدادش در تاریخچه ثبت می‌گردد.", { p0: text }),
   };
 }
 

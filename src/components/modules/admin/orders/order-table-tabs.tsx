@@ -12,15 +12,16 @@
 
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 export type OrderTableTab = "all" | "items" | "costs" | "attachments" | "notes";
 
 const TABS: { id: OrderTableTab; label: string; icon: IconName }[] = [
-  { id: "all", label: "همه", icon: "layers" },
-  { id: "items", label: "آیتم‌ها", icon: "orders" },
-  { id: "costs", label: "هزینه‌ها", icon: "coins" },
-  { id: "attachments", label: "پیوست‌ها", icon: "file" },
-  { id: "notes", label: "یادداشت‌ها", icon: "info" },
+  { id: "all", label: t("همه"), icon: "layers" },
+  { id: "items", label: t("آیتم‌ها"), icon: "orders" },
+  { id: "costs", label: t("هزینه‌ها"), icon: "coins" },
+  { id: "attachments", label: t("پیوست‌ها"), icon: "file" },
+  { id: "notes", label: t("یادداشت‌ها"), icon: "info" },
 ];
 
 export function OrderTableTabs({
@@ -35,7 +36,7 @@ export function OrderTableTabs({
   return (
     <div
       role="tablist"
-      aria-label="نمای جنبه‌های جدول سفارشات"
+      aria-label={t("نمای جنبه‌های جدول سفارشات")}
       className={cn(
         "inline-flex flex-wrap items-center gap-1 rounded-lg border bg-card p-1",
         className

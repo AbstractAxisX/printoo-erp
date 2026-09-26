@@ -27,6 +27,7 @@ import { formatCurrency } from "@/lib/format";
 import { CurrencySelect, CurrencyChip } from "@/components/shared/fx-widgets";
 import { formatMoney, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 type ItemDraft = {
   id: string;
@@ -112,18 +113,18 @@ type OrderEditData = {
 };
 
 const STAGES: { value: ItemDraft["stage"]; label: string }[] = [
-  { value: "design", label: "طراح" },
-  { value: "print", label: "چاپ" },
-  { value: "warehouse", label: "انبار و لجستیک" },
-  { value: "completed", label: "تکمیل شده" },
-  { value: "archive", label: "آرشیو" },
+  { value: "design", label: t("طراح") },
+  { value: "print", label: t("چاپ") },
+  { value: "warehouse", label: t("انبار و لجستیک") },
+  { value: "completed", label: t("تکمیل شده") },
+  { value: "archive", label: t("آرشیو") },
 ];
 
 const STEPS = [
-  { n: 1, label: "انتخاب مشتری", icon: "customers" as const },
-  { n: 2, label: "آیتم‌های سفارش", icon: "orders" as const },
-  { n: 3, label: "زمان‌دهی و تخصیص", icon: "calendar" as const },
-  { n: 4, label: "بازنگری و ثبت", icon: "checkCircle" as const },
+  { n: 1, label: t("انتخاب مشتری"), icon: "customers" as const },
+  { n: 2, label: t("آیتم‌های سفارش"), icon: "orders" as const },
+  { n: 3, label: t("زمان‌دهی و تخصیص"), icon: "calendar" as const },
+  { n: 4, label: t("بازنگری و ثبت"), icon: "checkCircle" as const },
 ];
 
 export function OrderWizardPage() {
@@ -476,7 +477,7 @@ export function OrderWizardPage() {
         arr.some((i) => !i.productId)
       );
       if (missingProduct) {
-        throw new Error("برای هر آیتم سفارش یک محصول انتخاب کنید (ردیف‌های قرمز)");
+        throw new Error(t("برای هر آیتم سفارش یک محصول انتخاب کنید (ردیف‌های قرمز)"));
       }
       // Build items payload (shared by create & edit) — Phase 10: per-item
       // dates + dbId (merge هوشمند سرور: آیتم موجود درجا آپدیت می‌شود و
@@ -565,7 +566,7 @@ export function OrderWizardPage() {
       invalidate(["pre-invoices"]);
 
       if (isEditing) {
-        toast.success("تغییرات سفارش ذخیره شد");
+        toast.success(t("تغییرات سفارش ذخیره شد"));
         navigate("admin", "orders");
       } else {
         // Phase 11 — صفحهٔ موفقیت = مدیریت کامل پیش‌فاکتورها (به تفکیک
@@ -583,9 +584,9 @@ export function OrderWizardPage() {
     return (
       <div className="max-w-6xl mx-auto py-20 flex flex-col items-center gap-3">
         <Icon name="alertTriangle" size={32} className="text-rose-500" />
-        <p className="text-sm text-muted-foreground">خطا در بارگذاری سفارش</p>
+        <p className="text-sm text-muted-foreground">{t("خطا در بارگذاری سفارش")}</p>
         <Button variant="outline" size="sm" onClick={() => navigate("admin", "orders")} className="gap-2">
-          <Icon name="arrowRight" size={14} /> بازگشت به سفارشات
+          <Icon name="arrowRight" size={14} /> {t("بازگشت به سفارشات")}
         </Button>
       </div>
     );
@@ -595,7 +596,7 @@ export function OrderWizardPage() {
     return (
       <div className="max-w-6xl mx-auto py-20 flex flex-col items-center gap-3">
         <Icon name="loading" size={32} className="animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">در حال بارگذاری سفارش...</p>
+        <p className="text-sm text-muted-foreground">{t("در حال بارگذاری سفارش...")}</p>
       </div>
     );
   }
@@ -609,8 +610,8 @@ export function OrderWizardPage() {
     const numsFa = nums.length
       ? nums.length === 1
         ? `#${fmtNum(nums[0])}`
-        : `${fmtNum(nums.length)} سفارش (#${nums.map((n) => fmtNum(n)).join("، #")})`
-      : "سفارش";
+        : t("{p0} سفارش (#{p1})", { p0: fmtNum(nums.length), p1: nums.map((n) => fmtNum(n)).join(t("، #")) })
+      : t("سفارش");
     const pis = success.preInvoices;
 
     // گروه‌بندی به تفکیک مشتری (خواستهٔ 2 فاز 98/11)
@@ -637,34 +638,34 @@ export function OrderWizardPage() {
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-bold">
-              {nums.length > 1 ? `${numsFa} با موفقیت ثبت شدند` : `سفارش ${numsFa} با موفقیت ثبت شد`}
+              {nums.length > 1 ? t("{p0} با موفقیت ثبت شدند", { p0: numsFa }) : t("سفارش {p0} با موفقیت ثبت شد", { p0: numsFa })}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               {pis.length > 1 ? (
                 <>
-                  <span className="font-bold text-foreground">{fmtNum(pis.length)} پیش‌فاکتور</span>{" "}
-                  به‌ازای هر آیتم صادر شد — هر سند را می‌توانید ویرایش کنید،
-                  پر کنید و هر وقت خواستید چاپ کنید.
+                  <span className="font-bold text-foreground">{t("{p0} پیش‌فاکتور", { p0: fmtNum(pis.length) })}</span>{" "}
+                  {t("به‌ازای هر آیتم صادر شد — هر سند را می‌توانید ویرایش کنید،")}
+                  {t("پر کنید و هر وقت خواستید چاپ کنید.")}
                 </>
               ) : pis.length === 1 ? (
                 <>
-                  پیش‌فاکتور{" "}
+                  {t("پیش‌فاکتور{p0}", { p0: " " })}
                   <span className="font-bold text-foreground">#{fmtNum(pis[0].number)}</span>{" "}
-                  به‌صورت خودکار صادر شد — می‌توانید همین اولی را
-                  چاپ کنید یا ابتدا ویرایش کنید و سپس چاپ.
+                  {t("به‌صورت خودکار صادر شد — می‌توانید همین اولی را")}
+                  {t("چاپ کنید یا ابتدا ویرایش کنید و سپس چاپ.")}
                 </>
               ) : (
-                "از دکمه‌های زیر برای ادامه استفاده کنید."
+                t("از دکمه‌های زیر برای ادامه استفاده کنید.")
               )}
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
             <Button variant="outline" onClick={resetWizard} className="gap-2 w-full sm:w-auto">
-              <Icon name="plus" size={15} /> ثبت سفارش جدید
+              <Icon name="plus" size={15} /> {t("ثبت سفارش جدید")}
             </Button>
             <Button variant="ghost" onClick={() => navigate("admin", "orders")} className="gap-2 w-full sm:w-auto">
-              بازگشت به سفارشات <Icon name="arrowLeft" size={15} />
+              {t("بازگشت به سفارشات")}<Icon name="arrowLeft" size={15} />
             </Button>
           </div>
         </Card>
@@ -678,11 +679,11 @@ export function OrderWizardPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-sm">
-                  پیش‌فاکتورهای این ثبت
-                  {multiCustomer && " (به تفکیک مشتری)"}
+                  {t("پیش‌فاکتورهای این ثبت")}
+                  {multiCustomer && t(" (به تفکیک مشتری)")}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  {fmtNum(pis.length)} سند · جمع مبلغ:{" "}
+                  {t("{p0} سند · جمع مبلغ:{p1}", { p0: fmtNum(pis.length), p1: " " })}
                   <span className="font-bold tabular-nums" dir="ltr">{formatCurrency(piTotal)}</span>
                 </div>
               </div>
@@ -707,7 +708,7 @@ export function OrderWizardPage() {
                           {pi.itemLabel}
                           {pi.itemId && (
                             <span className="text-[11px] text-muted-foreground font-normal mr-2">
-                              سفارش #{fmtNum(pi.orderNumber)}
+                              {t("سفارش #{p0}", { p0: fmtNum(pi.orderNumber) })}
                             </span>
                           )}
                         </div>
@@ -717,10 +718,10 @@ export function OrderWizardPage() {
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <Button size="sm" variant="outline" onClick={() => openPi(pi, "edit")} className="gap-1.5 h-8">
-                          <Icon name="edit" size={13} /> ویرایش پیش‌فاکتور
+                          <Icon name="edit" size={13} /> {t("ویرایش پیش‌فاکتور")}
                         </Button>
                         <Button size="sm" onClick={() => openPi(pi, "doc")} className="gap-1.5 h-8">
-                          <Icon name="print" size={13} /> چاپ
+                          <Icon name="print" size={13} /> {t("چاپ")}
                         </Button>
                       </div>
                     </div>
@@ -756,10 +757,10 @@ export function OrderWizardPage() {
           </button>
           <div>
             <h1 className="text-xl font-bold tracking-tight">
-              {isEditing && editData?.order ? `ویرایش سفارش #${editData.order.number}` : "سفارش جدید"}
+              {isEditing && editData?.order ? t("ویرایش سفارش #{p0}", { p0: editData.order.number }) : t("سفارش جدید")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isEditing ? "ویرایش سفارش چاپ در 4 مرحله" : "ایجاد سفارش چاپ در 4 مرحله"}
+              {isEditing ? t("ویرایش سفارش چاپ در 4 مرحله") : t("ایجاد سفارش چاپ در 4 مرحله")}
             </p>
           </div>
         </div>
@@ -786,7 +787,7 @@ export function OrderWizardPage() {
                     {done ? <Icon name="check" size={18} /> : s.n}
                   </div>
                   <div className="hidden sm:block text-right">
-                    <div className={cn("text-xs text-muted-foreground", active && "text-primary")}>مرحله {s.n}</div>
+                    <div className={cn("text-xs text-muted-foreground", active && "text-primary")}>{t("مرحله {p0}", { p0: s.n })}</div>
                     <div className={cn("text-sm font-medium", active && "text-primary")}>{s.label}</div>
                   </div>
                 </button>
@@ -879,21 +880,21 @@ export function OrderWizardPage() {
       {/* Footer nav */}
       <div className="flex items-center justify-between gap-2 pt-2">
         <Button variant="outline" onClick={() => (step === 1 ? navigate("admin", "orders") : setStep(step - 1))} className="gap-2">
-          <Icon name="arrowRight" size={16} /> {step === 1 ? "انصراف" : "قبلی"}
+          <Icon name="arrowRight" size={16} /> {step === 1 ? t("انصراف") : t("قبلی")}
         </Button>
         {step < 4 ? (
           <Button
             onClick={() => {
               if (!canGoNext()) {
-                if (step === 1) toast.error("حداقل یک مشتری انتخاب کنید");
+                if (step === 1) toast.error(t("حداقل یک مشتری انتخاب کنید"));
                 if (step === 2) {
                   const hasEmptyProduct = customers.some((c) =>
                     (itemsByCustomer[c] ?? []).some((i) => !i.productId)
                   );
                   toast.error(
                     hasEmptyProduct
-                      ? "برای هر آیتم یک محصول انتخاب کنید (ردیف‌های قرمز)"
-                      : "هر مشتری باید حداقل یک آیتم داشته باشد"
+                      ? t("برای هر آیتم یک محصول انتخاب کنید (ردیف‌های قرمز)")
+                      : t("هر مشتری باید حداقل یک آیتم داشته باشد")
                   );
                 }
                 if (step === 3) {
@@ -906,11 +907,11 @@ export function OrderWizardPage() {
                   );
                   if (designerUsers.length > 1 && missingDesign.length > 0) {
                     toast.error(
-                      `برای ${missingDesign.length} آیتم طراحی، طراحِ همان آیتم را انتخاب کنید (${designerUsers.length} طراح در سیستم)`
+                      t("برای {p0} آیتم طراحی، طراحِ همان آیتم را انتخاب کنید ({p1} طراح در سیستم)", { p0: missingDesign.length, p1: designerUsers.length })
                     );
                   } else if (printerUsers.length > 1 && missingPrint.length > 0) {
                     toast.error(
-                      `برای ${missingPrint.length} آیتم چاپ، چاپ‌کارِ همان آیتم را انتخاب کنید (${printerUsers.length} چاپ‌کار در سیستم)`
+                      t("برای {p0} آیتم چاپ، چاپ‌کارِ همان آیتم را انتخاب کنید ({p1} چاپ‌کار در سیستم)", { p0: missingPrint.length, p1: printerUsers.length })
                     );
                   }
                 }
@@ -920,12 +921,12 @@ export function OrderWizardPage() {
             }}
             className="gap-2"
           >
-            مرحله بعد <Icon name="arrowLeft" size={16} />
+            {t("مرحله بعد")}<Icon name="arrowLeft" size={16} />
           </Button>
         ) : (
           <Button onClick={() => createMut.mutate()} disabled={createMut.isPending} className="gap-2">
             {createMut.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-            {isEditing ? "ذخیره تغییرات" : "ساخت سفارش"}
+            {isEditing ? t("ذخیره تغییرات") : t("ساخت سفارش")}
           </Button>
         )}
       </div>
@@ -970,7 +971,7 @@ function Step1({
       // created customer didn't appear in those dropdowns without a manual refetch.
       invalidate(["customers-list"]);
       addCustomer(data.customer.id);
-      toast.success("مشتری ایجاد و انتخاب شد");
+      toast.success(t("مشتری ایجاد و انتخاب شد"));
       setNewCust({ name: "", phone: "", province: "", city: "" });
       setCreateOpen(false);
     },
@@ -989,12 +990,12 @@ function Step1({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="customers" size={20} /></div>
-          <div><h2 className="font-semibold">انتخاب مشتری</h2><p className="text-xs text-muted-foreground">مشتری سفارش را انتخاب کنید</p></div>
+          <div><h2 className="font-semibold">{t("انتخاب مشتری")}</h2><p className="text-xs text-muted-foreground">{t("مشتری سفارش را انتخاب کنید")}</p></div>
         </div>
         {/* New customer button: only available in multi mode OR when no customer selected yet */}
         {(multiMode || customers.length === 0) && (
           <button onClick={() => setCreateOpen(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
-            <Icon name="plus" size={14} /> مشتری جدید
+            <Icon name="plus" size={14} /> {t("مشتری جدید")}
           </button>
         )}
       </div>
@@ -1009,8 +1010,8 @@ function Step1({
             customers.slice(1).forEach((c) => removeCustomer(c));
             void first;
           }
-        }} id="multi" label="ساخت سفارش برای چند مشتری" />
-        <span className="text-xs text-muted-foreground">{multiMode ? "حالت چندمشتری فعال" : "تک مشتری — برای افزودن بیش از یک مشتری، این گزینه را فعال کنید"}</span>
+        }} id="multi" label={t("ساخت سفارش برای چند مشتری")} />
+        <span className="text-xs text-muted-foreground">{multiMode ? t("حالت چندمشتری فعال") : t("تک مشتری — برای افزودن بیش از یک مشتری، این گزینه را فعال کنید")}</span>
       </div>
 
       {/* Customer selectors */}
@@ -1027,7 +1028,7 @@ function Step1({
                 </div>
                 <StatusPill />
               </div>
-              <Button variant="ghost" size="icon" className="size-9 text-rose-600 hover:text-rose-700" onClick={() => removeCustomer(cid)} title="حذف مشتری">
+              <Button variant="ghost" size="icon" className="size-9 text-rose-600 hover:text-rose-700" onClick={() => removeCustomer(cid)} title={t("حذف مشتری")}>
                 <Icon name="trash" size={16} />
               </Button>
             </div>
@@ -1038,12 +1039,12 @@ function Step1({
         {(customers.length === 0 || multiMode) && (
           <div className="flex items-center gap-2">
             <div className="size-8 shrink-0" />
-            <Field label={customers.length ? "افزودن مشتری دیگر" : "انتخاب مشتری"} className="flex-1">
+            <Field label={customers.length ? t("افزودن مشتری دیگر") : t("انتخاب مشتری")} className="flex-1">
               <SearchSelect
                 value={null}
                 onChange={(v) => v && addCustomer(v)}
-                placeholder="جستجو بر اساس نام یا شماره تلفن…"
-                searchPlaceholder="جستجوی نام یا تلفن..."
+                placeholder={t("جستجو بر اساس نام یا شماره تلفن…")}
+                searchPlaceholder={t("جستجوی نام یا تلفن...")}
                 options={customerOptions.filter((o) => !customers.includes(o.value))}
                 allowClear={false}
                 className="w-full"
@@ -1056,7 +1057,7 @@ function Step1({
         {!multiMode && customers.length === 1 && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground pl-2">
             <Icon name="info" size={13} />
-            برای افزودن مشتری دیگر، حالت «چند مشتری» را فعال کنید.
+            {t("برای افزودن مشتری دیگر، حالت «چند مشتری» را فعال کنید.")}
           </div>
         )}
       </div>
@@ -1075,7 +1076,7 @@ function Step1({
   );
 
   function StatusPill() {
-    return <span className="text-[11px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">انتخاب شده</span>;
+    return <span className="text-[11px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">{t("انتخاب شده")}</span>;
   }
 }
 
@@ -1102,36 +1103,36 @@ function CreateCustomerDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined}>
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="userAdd" size={18} className="text-primary" /> ایجاد مشتری جدید</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="userAdd" size={18} className="text-primary" /> {t("ایجاد مشتری جدید")}</DialogTitle></DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="نام مشتری" required>
+            <Field label={t("نام مشتری")} required>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required autoFocus />
             </Field>
-            <Field label="شماره تلفن" required>
+            <Field label={t("شماره تلفن")} required>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required dir="ltr" placeholder="0912…" />
             </Field>
           </div>
           {/* Phase 18-c: استان/شهر اختیاری از فهرست مجاز (/api/locations) —
               تا استان انتخاب نشود شهر قفل است؛ تغییر استان → پاک‌شدن شهر */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="استان" hint="اختیاری">
+            <Field label={t("استان")} hint={t("اختیاری")}>
               <SearchSelect
                 value={form.province || null}
                 onChange={(v) => setForm({ ...form, province: v ?? "", city: "" })}
-                placeholder="انتخاب استان…"
-                searchPlaceholder="جستجوی استان…"
+                placeholder={t("انتخاب استان…")}
+                searchPlaceholder={t("جستجوی استان…")}
                 options={provinceOptions}
                 allowClear
               />
             </Field>
-            <Field label="شهر" hint="اختیاری">
+            <Field label={t("شهر")} hint={t("اختیاری")}>
               {form.province ? (
                 <SearchSelect
                   value={form.city || null}
                   onChange={(v) => setForm({ ...form, city: v ?? "" })}
-                  placeholder="انتخاب شهر…"
-                  searchPlaceholder="جستجوی شهر…"
+                  placeholder={t("انتخاب شهر…")}
+                  searchPlaceholder={t("جستجوی شهر…")}
                   options={cityOptions}
                   allowClear
                 />
@@ -1144,17 +1145,17 @@ function CreateCustomerDialog({
                   aria-disabled="true"
                   className="flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 py-2 text-sm min-w-0 text-muted-foreground opacity-50 cursor-not-allowed"
                 >
-                  <span className="truncate">اول استان…</span>
+                  <span className="truncate">{t("اول استان…")}</span>
                   <Icon name="chevronDown" size={14} className="text-muted-foreground shrink-0" />
                 </button>
               )}
             </Field>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>انصراف</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t("انصراف")}</Button>
             <Button type="submit" disabled={loading} className="gap-2">
               {loading ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-              ایجاد و انتخاب
+              {t("ایجاد و انتخاب")}
             </Button>
           </DialogFooter>
         </form>
@@ -1208,7 +1209,7 @@ function Step2({
           pricePerUnit: p.basePrice ?? 0,
         });
       }
-      toast.success("محصول ایجاد شد" + (p?.name ? ` — «${p.name}» به آیتم‌ها اضافه شد` : ""));
+      toast.success(t("محصول ایجاد شد") + (p?.name ? t(" — «{p0}» به آیتم‌ها اضافه شد", { p0: p.name }) : ""));
       setProductModal(false);
       setNewProduct("");
     },
@@ -1222,18 +1223,18 @@ function Step2({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="orders" size={20} /></div>
-          <div><h2 className="font-semibold">آیتم‌های سفارش</h2><p className="text-xs text-muted-foreground">محصولات و جزئیات هر آیتم</p></div>
+          <div><h2 className="font-semibold">{t("آیتم‌های سفارش")}</h2><p className="text-xs text-muted-foreground">{t("محصولات و جزئیات هر آیتم")}</p></div>
         </div>
         <div className="flex items-center gap-2">
           {/* فاز ۲۵: ارز کل سفارش — همهٔ قیمت‌ها به این ارز */}
           <div className="flex flex-col items-end gap-1">
             <CurrencySelect value={currency} onChange={(c) => setCurrency(c)} disabled={currencyLocked} />
             <span className="text-[10px] text-muted-foreground">
-              {currencyLocked ? "ارز سفارش ثبت‌شده — قابل تغییر نیست" : "ارز همهٔ مبالغ این سفارش"}
+              {currencyLocked ? t("ارز سفارش ثبت‌شده — قابل تغییر نیست") : t("ارز همهٔ مبالغ این سفارش")}
             </span>
           </div>
           <button onClick={() => setProductModal(true)} className="text-xs text-primary hover:underline flex items-center gap-1">
-            <Icon name="plus" size={14} /> محصول جدید
+            <Icon name="plus" size={14} /> {t("محصول جدید")}
           </button>
         </div>
       </div>
@@ -1256,7 +1257,7 @@ function Step2({
       )}
 
       <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-        <Icon name="info" size={13} /> سفارش برای: <span className="font-medium text-foreground">{customer?.name}</span>
+        <Icon name="info" size={13} /> {t("سفارش برای:")} <span className="font-medium text-foreground">{customer?.name}</span>
       </div>
 
       {/* Items list */}
@@ -1264,8 +1265,8 @@ function Step2({
         {items.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed py-10 text-center">
             <Icon name="orders" size={32} className="mx-auto text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground mt-2">آیتمی اضافه نشده</p>
-            <Button size="sm" className="mt-3 gap-1.5" onClick={() => addItem(cid)}><Icon name="plus" size={14} /> افزودن اولین آیتم</Button>
+            <p className="text-sm text-muted-foreground mt-2">{t("آیتمی اضافه نشده")}</p>
+            <Button size="sm" className="mt-3 gap-1.5" onClick={() => addItem(cid)}><Icon name="plus" size={14} /> {t("افزودن اولین آیتم")}</Button>
           </div>
         ) : (
           items.map((it, idx) => (
@@ -1286,8 +1287,8 @@ function Step2({
 
       {items.length > 0 && (
         <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addItem(cid)}><Icon name="plus" size={14} /> افزودن آیتم جدید</Button>
-          <div className="text-sm"><span className="text-muted-foreground">مجموع: </span><span className="font-bold" dir="ltr">{formatMoney(total, currency)}</span></div>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => addItem(cid)}><Icon name="plus" size={14} /> {t("افزودن آیتم جدید")}</Button>
+          <div className="text-sm"><span className="text-muted-foreground">{t("مجموع:")} </span><span className="font-bold" dir="ltr">{formatMoney(total, currency)}</span></div>
         </div>
       )}
 
@@ -1302,16 +1303,16 @@ function Step2({
       {/* Product create modal */}
       <Dialog open={productModal} onOpenChange={setProductModal}>
         <DialogContent aria-describedby={undefined} className="max-w-sm">
-          <DialogHeader><DialogTitle>محصول جدید</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("محصول جدید")}</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (newProduct.trim()) createProduct.mutate(newProduct.trim()); }} className="space-y-4">
-            <Field label="نام محصول" required>
+            <Field label={t("نام محصول")} required>
               <Input value={newProduct} onChange={(e) => setNewProduct(e.target.value)} required autoFocus />
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setProductModal(false)}>انصراف</Button>
+              <Button type="button" variant="outline" onClick={() => setProductModal(false)}>{t("انصراف")}</Button>
               <Button type="submit" disabled={createProduct.isPending} className="gap-2">
                 {createProduct.isPending ? <Icon name="loading" size={16} className="animate-spin" /> : <Icon name="check" size={16} />}
-                ایجاد
+                {t("ایجاد")}
               </Button>
             </DialogFooter>
           </form>
@@ -1341,53 +1342,53 @@ function ItemRow({
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <div className="size-7 rounded-md bg-primary/10 text-primary grid place-items-center text-xs font-bold shrink-0">{index + 1}</div>
-          <span className={cn("text-sm font-semibold truncate", !item.productId && "text-rose-600 dark:text-rose-400")}>{item.productName || "آیتم جدید"}</span>
+          <span className={cn("text-sm font-semibold truncate", !item.productId && "text-rose-600 dark:text-rose-400")}>{item.productName || t("آیتم جدید")}</span>
           {!item.productId && (
-            <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full shrink-0">محصول انتخاب نشده</span>
+            <span className="text-[10px] font-medium text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full shrink-0">{t("محصول انتخاب نشده")}</span>
           )}
           {item.needsMaterial && (
-            <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full shrink-0">نیازمند متریال</span>
+            <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full shrink-0">{t("نیازمند متریال")}</span>
           )}
           {item.note && (
-            <button onClick={onNote} className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0 hover:bg-primary/20 transition" title="مشاهدهٔ یادداشت">
-              یادداشت دارد
+            <button onClick={onNote} className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0 hover:bg-primary/20 transition" title={t("مشاهدهٔ یادداشت")}>
+              {t("یادداشت دارد")}
             </button>
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-sm font-bold tabular-nums" dir="ltr">{formatMoney(total, cur)}</span>
-          <Button variant="ghost" size="icon" className="size-8" onClick={onNote} title="یادداشت آیتم"><Icon name="info" size={15} /></Button>
-          <Button variant="ghost" size="icon" className="size-8" onClick={onCopy} title="کپی آیتم"><Icon name="copy" size={15} /></Button>
-          <Button variant="ghost" size="icon" className="size-8 text-rose-600 hover:text-rose-700" onClick={onDelete} title="حذف آیتم"><Icon name="trash" size={15} /></Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={onNote} title={t("یادداشت آیتم")}><Icon name="info" size={15} /></Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={onCopy} title={t("کپی آیتم")}><Icon name="copy" size={15} /></Button>
+          <Button variant="ghost" size="icon" className="size-8 text-rose-600 hover:text-rose-700" onClick={onDelete} title={t("حذف آیتم")}><Icon name="trash" size={15} /></Button>
         </div>
       </div>
 
       {/* فیلدهای آیتم — همه با برچسب روی حاشیه */}
       <div className="grid grid-cols-2 md:grid-cols-12 gap-x-3 gap-y-2.5">
-        <Field label="محصول" required className="col-span-2 md:col-span-4">
+        <Field label={t("محصول")} required className="col-span-2 md:col-span-4">
           <SearchSelect
             value={item.productId}
             onChange={(v) => {
               const p = productOptions.find((x) => x.id === v);
               onUpdate({ productId: v ?? "", productName: p?.name ?? "", pricePerUnit: p?.basePrice ?? item.pricePerUnit });
             }}
-            placeholder="جستجو و انتخاب محصول…"
-            searchPlaceholder="نام محصول…"
+            placeholder={t("جستجو و انتخاب محصول…")}
+            searchPlaceholder={t("نام محصول…")}
             options={productOptions.map((p) => ({ value: p.id, label: p.name }))}
             className="w-full"
             allowClear={false}
           />
         </Field>
 
-        <Field label="تعداد" required className="col-span-1 md:col-span-2">
+        <Field label={t("تعداد")} required className="col-span-1 md:col-span-2">
           <Input type="number" min={1} value={item.quantity} onChange={(e) => onUpdate({ quantity: Math.max(1, Number(e.target.value)) })} className="text-center" dir="ltr" />
         </Field>
 
-        <Field label={`قیمت واحد (${cur === "IRT" ? "تومان" : cur})`} required className="col-span-1 md:col-span-3">
+        <Field label={t("قیمت واحد ({p0})", { p0: cur === "IRT" ? t("تومان") : cur })} required className="col-span-1 md:col-span-3">
           <Input type="number" min={0} value={item.pricePerUnit || ""} placeholder="—" onChange={(e) => onUpdate({ pricePerUnit: Number(e.target.value) || 0 })} className="text-center" dir="ltr" />
         </Field>
 
-        <Field label="مرحله" className="col-span-2 md:col-span-3">
+        <Field label={t("مرحله")} className="col-span-2 md:col-span-3">
           <Select value={item.stage} onValueChange={(v) => onUpdate({ stage: v as ItemDraft["stage"] })}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -1396,11 +1397,11 @@ function ItemRow({
           </Select>
         </Field>
 
-        <Field label="توضیح آیتم" className="col-span-2 md:col-span-5">
-          <Input value={item.description} onChange={(e) => onUpdate({ description: e.target.value })} placeholder="مثلاً: کوت گلاسه 135 گرمی" />
+        <Field label={t("توضیح آیتم")} className="col-span-2 md:col-span-5">
+          <Input value={item.description} onChange={(e) => onUpdate({ description: e.target.value })} placeholder={t("مثلاً: کوت گلاسه 135 گرمی")} />
         </Field>
 
-        <Field label="جمع کل" className="col-span-2 md:col-span-3">
+        <Field label={t("جمع کل")} className="col-span-2 md:col-span-3">
           <Input readOnly tabIndex={-1} value={formatMoney(total, cur)} dir="ltr"
             className="text-center font-bold bg-transparent cursor-default focus-visible:ring-0" />
         </Field>
@@ -1409,7 +1410,7 @@ function ItemRow({
         <div className="col-span-2 md:col-span-4 flex items-center">
           <label className="flex items-center gap-2 h-9 w-full px-3 rounded-md border cursor-pointer hover:bg-accent/50 transition text-xs">
             <Checkbox checked={item.needsMaterial} onCheckedChange={(v) => onUpdate({ needsMaterial: !!v })} />
-            <span className="text-muted-foreground">این آیتم نیازمند متریال است</span>
+            <span className="text-muted-foreground">{t("این آیتم نیازمند متریال است")}</span>
           </label>
         </div>
       </div>
@@ -1423,13 +1424,13 @@ function NoteItemModal({ open, onOpenChange, note, onSave }: { open: boolean; on
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined} className="max-w-sm">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="info" size={18} className="text-primary" /> یادداشت آیتم</DialogTitle></DialogHeader>
-        <Field label="یادداشت اختصاصی این ردیف" hint="فقط برای تیم داخلی — روی پیش‌فاکتور چاپ نمی‌شود">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Icon name="info" size={18} className="text-primary" /> {t("یادداشت آیتم")}</DialogTitle></DialogHeader>
+        <Field label={t("یادداشت اختصاصی این ردیف")} hint={t("فقط برای تیم داخلی — روی پیش‌فاکتور چاپ نمی‌شود")}>
           <Textarea value={val} onChange={(e) => setVal(e.target.value)} rows={4} autoFocus />
         </Field>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>انصراف</Button>
-          <Button onClick={() => onSave(val)} className="gap-2"><Icon name="check" size={16} /> ذخیره</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("انصراف")}</Button>
+          <Button onClick={() => onSave(val)} className="gap-2"><Icon name="check" size={16} /> {t("ذخیره")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1475,18 +1476,18 @@ function ItemAssigneePicker({
           {activeUser?.onLeaveToday && (
             <span
               className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-medium"
-              title={activeUser.leaveNote || "امروز در مرخصی است"}
+              title={activeUser.leaveNote || t("امروز در مرخصی است")}
             >
-              مرخصی امروز
+              {t("مرخصی امروز")}
             </span>
           )}
         </div>
         {required && !value && (
-          <span className="text-[9px] text-rose-600 dark:text-rose-400 font-medium">انتخاب کنید</span>
+          <span className="text-[9px] text-rose-600 dark:text-rose-400 font-medium">{t("انتخاب کنید")}</span>
         )}
       </div>
       {users.length === 0 ? (
-        <p className="text-[10px] text-muted-foreground">کاربری با این ماژول نیست — استخر عمومی</p>
+        <p className="text-[10px] text-muted-foreground">{t("کاربری با این ماژول نیست — استخر عمومی")}</p>
       ) : (
         <div className="flex flex-wrap gap-1">
           {users.map((u) => {
@@ -1519,7 +1520,7 @@ function ItemAssigneePicker({
                 !value ? "border-primary/40 text-primary font-medium" : "text-muted-foreground hover:bg-accent"
               )}
             >
-              بدون تخصیص (استخر عمومی)
+              {t("بدون تخصیص (استخر عمومی)")}
             </button>
           )}
         </div>
@@ -1530,8 +1531,8 @@ function ItemAssigneePicker({
 
 function missingCountLabel(designN: number, printN: number) {
   const parts: string[] = [];
-  if (designN > 0) parts.push(`${designN} آیتم بدون طراح`);
-  if (printN > 0) parts.push(`${printN} آیتم بدون چاپ‌کار`);
+  if (designN > 0) parts.push(t("{p0} آیتم بدون طراح", { p0: designN }));
+  if (printN > 0) parts.push(t("{p0} آیتم بدون چاپ‌کار", { p0: printN }));
   if (!parts.length) return null;
   return (
     <span className="text-[10px] px-2 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-medium">
@@ -1595,7 +1596,7 @@ function Step3(props: {
     <Card className="p-5 space-y-5">
       <div className="flex items-center gap-2.5">
         <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="calendar" size={20} /></div>
-        <div><h2 className="font-semibold">زمان‌دهی، اولویت و تخصیص</h2><p className="text-xs text-muted-foreground">زمان‌بندی هر آیتم جداگانه است + تعیین مسئول طراحی و چاپ</p></div>
+        <div><h2 className="font-semibold">{t("زمان‌دهی، اولویت و تخصیص")}</h2><p className="text-xs text-muted-foreground">{t("زمان‌بندی هر آیتم جداگانه است + تعیین مسئول طراحی و چاپ")}</p></div>
       </div>
 
       {/* ═══ Phase 13: تخصیص مجری‌ها per-item — فقط مراحل موجود (Phase 19) ═══ */}
@@ -1605,18 +1606,18 @@ function Step3(props: {
           <div className="flex items-center gap-2">
             <Icon name="userMultiple" size={17} className="text-primary" />
             <h3 className="font-medium text-sm">
-              تخصیص مجری‌ها (هر آیتم مجزا)
-              {!needsDesign && " — فقط چاپ"}
-              {!needsPrint && needsDesign && " — فقط طراحی"}
+              {t("تخصیص مجری‌ها (هر آیتم مجزا)")}
+              {!needsDesign && t(" — فقط چاپ")}
+              {!needsPrint && needsDesign && t(" — فقط طراحی")}
             </h3>
           </div>
           {(designerRequired || printerRequired) && missingCountLabel(missingDesign.length, missingPrint.length)}
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {needsDesign && "طراح و چاپِ هر آیتم در همان کارتِ زمان‌بندی همان آیتم انتخاب می‌شود — سفارش فقط در پنل مجریِ همان آیتم ظاهر می‌شود."}
-          {!needsDesign && needsPrint && "این سفارش طراحی ندارد — فقط چاپ‌کارِ هر آیتم انتخاب می‌شود و سفارش مستقیم در پنل چاپ همان مجری می‌آید."}
+          {needsDesign && t("طراح و چاپِ هر آیتم در همان کارتِ زمان‌بندی همان آیتم انتخاب می‌شود — سفارش فقط در پنل مجریِ همان آیتم ظاهر می‌شود.")}
+          {!needsDesign && needsPrint && t("این سفارش طراحی ندارد — فقط چاپ‌کارِ هر آیتم انتخاب می‌شود و سفارش مستقیم در پنل چاپ همان مجری می‌آید.")}
           {designerUsers.length <= 1 && printerUsers.length <= 1
-            ? " تنها یک کاربر در هر ماژول دارید — به‌صورت خودکار انتخاب می‌شود."
+            ? t(" تنها یک کاربر در هر ماژول دارید — به‌صورت خودکار انتخاب می‌شود.")
             : ""}
         </p>
         {/* اعمال سریع مجری روی همهٔ آیتم‌ها */}
@@ -1625,7 +1626,7 @@ function Step3(props: {
             {needsDesign && designerUsers.length > 1 && (
               <div className="rounded-lg border bg-card p-2 flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Icon name="design" size={11} className="text-violet-500" /> طراح همه:
+                  <Icon name="design" size={11} className="text-violet-500" /> {t("طراح همه:")}
                 </span>
                 {designerUsers.map((u) => (
                   <button
@@ -1640,7 +1641,7 @@ function Step3(props: {
                     )}
                   >
                     {u.name}
-                    {u.onLeaveToday && " (مرخصی)"}
+                    {u.onLeaveToday && t(" (مرخصی)")}
                   </button>
                 ))}
               </div>
@@ -1648,7 +1649,7 @@ function Step3(props: {
             {needsPrint && printerUsers.length > 1 && (
               <div className="rounded-lg border bg-card p-2 flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <Icon name="print" size={11} className="text-amber-500" /> چاپ همه:
+                  <Icon name="print" size={11} className="text-amber-500" /> {t("چاپ همه:")}
                 </span>
                 {printerUsers.map((u) => (
                   <button
@@ -1663,7 +1664,7 @@ function Step3(props: {
                     )}
                   >
                     {u.name}
-                    {u.onLeaveToday && " (مرخصی)"}
+                    {u.onLeaveToday && t(" (مرخصی)")}
                   </button>
                 ))}
               </div>
@@ -1675,19 +1676,19 @@ function Step3(props: {
 
       {/* Split mode */}
       <div className="space-y-2">
-        <Label>نوع ثبت سفارش</Label>
+        <Label>{t("نوع ثبت سفارش")}</Label>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setSplitMode("grouped")} className={cn("rounded-lg border p-3 text-right transition", splitMode === "grouped" ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-accent")}>
-            <div className="flex items-center justify-between"><span className="font-medium text-sm">گروهی</span><Icon name={splitMode === "grouped" ? "checkCircle" : "orders"} size={18} className={splitMode === "grouped" ? "text-primary" : "text-muted-foreground"} /></div>
+            <div className="flex items-center justify-between"><span className="font-medium text-sm">{t("گروهی")}</span><Icon name={splitMode === "grouped" ? "checkCircle" : "orders"} size={18} className={splitMode === "grouped" ? "text-primary" : "text-muted-foreground"} /></div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              همهٔ آیتم‌ها در یک سفارش — آیتم‌ها «با هم» پیش می‌روند: تا طراحی
-              همهٔ آیتم‌های نیازمند طراحی تمام نشود، سفارش به چاپ نمی‌رود.
+              {t("همهٔ آیتم‌ها در یک سفارش — آیتم‌ها «با هم» پیش می‌روند: تا طراحی")}
+              {t("همهٔ آیتم‌های نیازمند طراحی تمام نشود، سفارش به چاپ نمی‌رود.")}
             </p>
           </button>
           <button onClick={() => setSplitMode("separated")} className={cn("rounded-lg border p-3 text-right transition", splitMode === "separated" ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-accent")}>
-            <div className="flex items-center justify-between"><span className="font-medium text-sm">تفکیک شده</span><Icon name={splitMode === "separated" ? "checkCircle" : "layers"} size={18} className={splitMode === "separated" ? "text-primary" : "text-muted-foreground"} /></div>
+            <div className="flex items-center justify-between"><span className="font-medium text-sm">{t("تفکیک شده")}</span><Icon name={splitMode === "separated" ? "checkCircle" : "layers"} size={18} className={splitMode === "separated" ? "text-primary" : "text-muted-foreground"} /></div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              هر آیتم یک سفارش کاملاً مجزا با گردش کار مستقل.
+              {t("هر آیتم یک سفارش کاملاً مجزا با گردش کار مستقل.")}
             </p>
           </button>
         </div>
@@ -1697,15 +1698,15 @@ function Step3(props: {
             <span>
               {splitMode === "grouped" ? (
                 <>
-                  <b>حالت چند-مشتری + گروهی:</b> آیتم‌های هر مشتری در یک سفارش
-                  گروهی مخصوص همان مشتری ثبت می‌شوند — یعنی{" "}
-                  <b>{customerCount.toLocaleString("en-US")} سفارش گروهی</b>{" "}
-                  (هر مشتری، سفارش جداگانهٔ خودش) و به‌ازای هر آیتم یک پیش‌فاکتور جدا.
+                  <b>{t("حالت چند-مشتری + گروهی:")}</b> {t("آیتم‌های هر مشتری در یک سفارش")}
+                  {t("گروهی مخصوص همان مشتری ثبت می‌شوند — یعنی{p0}", { p0: " " })}
+                  <b>{t("{p0} سفارش گروهی", { p0: customerCount.toLocaleString("en-US") })}</b>{" "}
+                  {t("(هر مشتری، سفارش جداگانهٔ خودش) و به‌ازای هر آیتم یک پیش‌فاکتور جدا.")}
                 </>
               ) : (
                 <>
-                  <b>حالت چند-مشتری + تفکیک‌شده:</b> هر آیتم هر مشتری، یک سفارش
-                  کاملاً مجزا با پیش‌فاکتور خودش می‌شود.
+                  <b>{t("حالت چند-مشتری + تفکیک‌شده:")}</b> {t("هر آیتم هر مشتری، یک سفارش")}
+                  {t("کاملاً مجزا با پیش‌فاکتور خودش می‌شود.")}
                 </>
               )}
             </span>
@@ -1715,16 +1716,16 @@ function Step3(props: {
 
       {/* Priority */}
       <div className="space-y-2">
-        <Label>اولویت پروژه</Label>
+        <Label>{t("اولویت پروژه")}</Label>
         <div className="grid grid-cols-2 gap-2">
           <button onClick={() => setPriority("normal")} className={cn("rounded-lg border p-3 text-right transition", priority === "normal" ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "hover:bg-accent")}>
-            <span className="font-medium text-sm">معمولی</span>
+            <span className="font-medium text-sm">{t("معمولی")}</span>
           </button>
           <button onClick={() => setPriority("urgent")} className={cn("rounded-lg border p-3 text-right transition", priority === "urgent" ? "border-rose-500 bg-rose-50 dark:bg-rose-950/20 ring-2 ring-rose-500/20" : "hover:bg-accent")}>
-            <span className="font-medium text-sm flex items-center gap-1.5"><Icon name="alertTriangle" size={15} className="text-rose-500" /> فوری</span>
+            <span className="font-medium text-sm flex items-center gap-1.5"><Icon name="alertTriangle" size={15} className="text-rose-500" /> {t("فوری")}</span>
           </button>
         </div>
-        <p className="text-[11px] text-muted-foreground">اولویت برای کل سفارش اعمال می‌شود (طراح و چاپ).</p>
+        <p className="text-[11px] text-muted-foreground">{t("اولویت برای کل سفارش اعمال می‌شود (طراح و چاپ).")}</p>
       </div>
 
       {/* ═══ Per-item scheduling ═══ */}
@@ -1732,42 +1733,42 @@ function Step3(props: {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Icon name="calendarAdd" size={18} className="text-primary" />
-            <h3 className="font-medium text-sm">زمان‌بندی آیتم‌ها (هر آیتم مجزا)</h3>
+            <h3 className="font-medium text-sm">{t("زمان‌بندی آیتم‌ها (هر آیتم مجزا)")}</h3>
           </div>
           <span className="text-[10px] px-2 py-1 rounded-full bg-muted text-muted-foreground">
-            {fmtNum(scheduledCount)} از {fmtNum(allItems.length)} آیتم زمان‌بندی شده
+            {t("{p0} از {p1} آیتم زمان‌بندی شده", { p0: fmtNum(scheduledCount), p1: fmtNum(allItems.length) })}
           </span>
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          تاریخ طراحی و چاپ برای هر آیتم جداگانه ثبت می‌شود؛ طراح/چاپ همین تاریخ‌ها را
-          در کار خود می‌بینند و روی پیش‌فاکتور هر آیتم هم درج می‌شود.
+          {t("تاریخ طراحی و چاپ برای هر آیتم جداگانه ثبت می‌شود؛ طراح/چاپ همین تاریخ‌ها را")}
+          {t("در کار خود می‌بینند و روی پیش‌فاکتور هر آیتم هم درج می‌شود.")}
         </p>
 
         {/* ابزار اعمال-روی-همه — فقط مراحلِ موجود (Phase 19) */}
         <div className="rounded-lg border bg-card p-3 space-y-2.5">
           <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-            <Icon name="layers" size={14} /> اعمال سریع روی همهٔ آیتم‌ها
+            <Icon name="layers" size={14} /> {t("اعمال سریع روی همهٔ آیتم‌ها")}
           </div>
           <div className="grid grid-cols-2 gap-3">
             {needsDesign && (
             <div className="rounded-md border bg-muted/30 p-2 space-y-2">
-              <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="design" size={12} className="text-violet-500" /> طراحی</div>
-              <DatePicker value={bulkDesign.start || null} onChange={(d) => setBulkDesign((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="شروع" className="w-full bg-transparent" />
-              <DatePicker value={bulkDesign.end || null} onChange={(d) => setBulkDesign((b) => ({ ...b, end: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="پایان" className="w-full bg-transparent" />
+              <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="design" size={12} className="text-violet-500" /> {t("طراحی")}</div>
+              <DatePicker value={bulkDesign.start || null} onChange={(d) => setBulkDesign((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder={t("شروع")} className="w-full bg-transparent" />
+              <DatePicker value={bulkDesign.end || null} onChange={(d) => setBulkDesign((b) => ({ ...b, end: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder={t("پایان")} className="w-full bg-transparent" />
               <Button size="sm" variant="outline" className="w-full h-7 text-[11px]" disabled={!bulkDesign.start && !bulkDesign.end}
                 onClick={() => applyDatesToAll({ designStart: bulkDesign.start, designEnd: bulkDesign.end })}>
-                اعمال طراحی روی همه
+                {t("اعمال طراحی روی همه")}
               </Button>
             </div>
             )}
             {needsPrint && (
             <div className="rounded-md border bg-muted/30 p-2 space-y-2">
-              <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="print" size={12} className="text-amber-500" /> چاپ</div>
-              <DatePicker value={bulkPrint.start || null} onChange={(d) => setBulkPrint((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="شروع" className="w-full bg-transparent" />
-              <DatePicker value={bulkPrint.end || null} onChange={(d) => setBulkPrint((b) => ({ ...b, end: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder="پایان" className="w-full bg-transparent" />
+              <div className="text-[11px] font-medium flex items-center gap-1"><Icon name="print" size={12} className="text-amber-500" /> {t("چاپ")}</div>
+              <DatePicker value={bulkPrint.start || null} onChange={(d) => setBulkPrint((b) => ({ ...b, start: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder={t("شروع")} className="w-full bg-transparent" />
+              <DatePicker value={bulkPrint.end || null} onChange={(d) => setBulkPrint((b) => ({ ...b, end: d ? format(d, "yyyy-MM-dd") : "" }))} placeholder={t("پایان")} className="w-full bg-transparent" />
               <Button size="sm" variant="outline" className="w-full h-7 text-[11px]" disabled={!bulkPrint.start && !bulkPrint.end}
                 onClick={() => applyDatesToAll({ printStart: bulkPrint.start, printEnd: bulkPrint.end })}>
-                اعمال چاپ روی همه
+                {t("اعمال چاپ روی همه")}
               </Button>
             </div>
             )}
@@ -1797,12 +1798,12 @@ function Step3(props: {
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="size-6 rounded-md bg-muted text-muted-foreground grid place-items-center text-[11px] font-bold shrink-0">{idx + 1}</span>
-                      <span className="text-sm font-medium truncate">{it.productName || "آیتم"}</span>
+                      <span className="text-sm font-medium truncate">{it.productName || t("آیتم")}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] rounded bg-muted px-1.5 py-0.5">{STAGES.find((s) => s.value === it.stage)?.label}</span>
                       {(it.designStart || it.designEnd || it.printStart || it.printEnd) && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">زمان‌بندی شده</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">{t("زمان‌بندی شده")}</span>
                       )}
                     </div>
                   </div>
@@ -1810,32 +1811,32 @@ function Step3(props: {
                   {it.stage === "warehouse" || it.stage === "completed" || it.stage === "archive" ? (
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 py-1">
                       <Icon name="checkCircle" size={13} className="text-emerald-500" />
-                      این آیتم از مرحلهٔ چاپ عبور کرده — زمان‌بندی و مجری لازم ندارد.
+                      {t("این آیتم از مرحلهٔ چاپ عبور کرده — زمان‌بندی و مجری لازم ندارد.")}
                     </p>
                   ) : (
                     <>
                       {/* ── تاریخ‌ها: آیتم طراحی → طراحی+چاپ؛ آیتم چاپ → فقط چاپ ── */}
                       {it.stage === "design" ? (
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-                          <Field label="شروع طراحی">
+                          <Field label={t("شروع طراحی")}>
                             <DatePicker value={it.designStart || null} onChange={(d) => updateItem(cid, it.id, { designStart: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
                           </Field>
-                          <Field label="پایان طراحی">
+                          <Field label={t("پایان طراحی")}>
                             <DatePicker value={it.designEnd || null} onChange={(d) => updateItem(cid, it.id, { designEnd: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
                           </Field>
-                          <Field label="شروع چاپ">
+                          <Field label={t("شروع چاپ")}>
                             <DatePicker value={it.printStart || null} onChange={(d) => updateItem(cid, it.id, { printStart: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
                           </Field>
-                          <Field label="پایان چاپ">
+                          <Field label={t("پایان چاپ")}>
                             <DatePicker value={it.printEnd || null} onChange={(d) => updateItem(cid, it.id, { printEnd: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
                           </Field>
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 gap-2.5">
-                          <Field label="شروع چاپ">
+                          <Field label={t("شروع چاپ")}>
                             <DatePicker value={it.printStart || null} onChange={(d) => updateItem(cid, it.id, { printStart: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
                           </Field>
-                          <Field label="پایان چاپ">
+                          <Field label={t("پایان چاپ")}>
                             <DatePicker value={it.printEnd || null} onChange={(d) => updateItem(cid, it.id, { printEnd: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="—" className="w-full bg-transparent" />
                           </Field>
                         </div>
@@ -1845,7 +1846,7 @@ function Step3(props: {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-0.5 border-t border-dashed pt-2.5">
                         {it.stage === "design" && (
                           <ItemAssigneePicker
-                            label="طراح این آیتم"
+                            label={t("طراح این آیتم")}
                             icon="design"
                             accent="violet"
                             users={designerUsers}
@@ -1855,7 +1856,7 @@ function Step3(props: {
                           />
                         )}
                         <ItemAssigneePicker
-                          label="چاپ‌کار این آیتم"
+                          label={t("چاپ‌کار این آیتم")}
                           icon="print"
                           accent="amber"
                           users={printerUsers}
@@ -1876,22 +1877,22 @@ function Step3(props: {
       {/* End date */}
       <div className="rounded-xl border p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2"><Icon name="clock" size={18} className="text-primary" /><h3 className="font-medium text-sm">تاریخ پایان سفارش</h3></div>
-          <ToggleButton checked={noEndDate} onChange={setNoEndDate} id="noend" label="سفارش بدون زمان پایان" size="sm" />
+          <div className="flex items-center gap-2"><Icon name="clock" size={18} className="text-primary" /><h3 className="font-medium text-sm">{t("تاریخ پایان سفارش")}</h3></div>
+          <ToggleButton checked={noEndDate} onChange={setNoEndDate} id="noend" label={t("سفارش بدون زمان پایان")} size="sm" />
         </div>
         {!noEndDate && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="تاریخ پایان">
-              <DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? format(d, "yyyy-MM-dd") : "")} placeholder="انتخاب تاریخ" className="w-full bg-transparent" />
+            <Field label={t("تاریخ پایان")}>
+              <DatePicker value={endDate || null} onChange={(d) => setEndDate(d ? format(d, "yyyy-MM-dd") : "")} placeholder={t("انتخاب تاریخ")} className="w-full bg-transparent" />
             </Field>
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground">تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ هر آیتم می‌باشد.</p>
+        <p className="text-[11px] text-muted-foreground">{t("تاریخ پایان، موعد تحویل کل سفارش است و مستقل از زمان‌بندی طراحی و چاپ هر آیتم می‌باشد.")}</p>
       </div>
 
       {/* Note */}
-      <Field label="یادداشت سفارش" hint="اختیاری — در پیش‌فاکتور چاپ نمی‌شود">
-        <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="مثلاً: تحویل حضوری در دفتر مرکزی" />
+      <Field label={t("یادداشت سفارش")} hint={t("اختیاری — در پیش‌فاکتور چاپ نمی‌شود")}>
+        <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={t("مثلاً: تحویل حضوری در دفتر مرکزی")} />
       </Field>
     </Card>
   );
@@ -1951,46 +1952,46 @@ function Step4(props: {
     <Card className="p-5 space-y-5">
       <div className="flex items-center gap-2.5">
         <div className="size-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><Icon name="checkCircle" size={20} /></div>
-        <div><h2 className="font-semibold">بازنگری و ثبت نهایی</h2><p className="text-xs text-muted-foreground">مرور کامل جزئیات — پیش‌فاکتور پس از ثبت خودکار صادر می‌شود</p></div>
+        <div><h2 className="font-semibold">{t("بازنگری و ثبت نهایی")}</h2><p className="text-xs text-muted-foreground">{t("مرور کامل جزئیات — پیش‌فاکتور پس از ثبت خودکار صادر می‌شود")}</p></div>
       </div>
 
       {/* ═══ 1. خلاصهٔ سفارش ═══ */}
       <section className="rounded-xl border overflow-hidden">
-        <SectionTitle icon="orders" title="خلاصهٔ سفارش" />
+        <SectionTitle icon="orders" title={t("خلاصهٔ سفارش")} />
         <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <InfoCell icon="customers" label="مشتری اصلی" value={allCustomers.find((c) => c.id === customers[0])?.name ?? "—"}
-            sub={customers.length > 1 ? `+${customers.length - 1} مشتری دیگر (سفارش تفکیکی)` : undefined} />
-          <InfoCell icon="layers" label="نوع ثبت" value={splitMode === "grouped" ? "گروهی (یک سفارش)" : "تفکیک‌شده (هر آیتم یک سفارش)"} />
+          <InfoCell icon="customers" label={t("مشتری اصلی")} value={allCustomers.find((c) => c.id === customers[0])?.name ?? "—"}
+            sub={customers.length > 1 ? t("+{p0} مشتری دیگر (سفارش تفکیکی)", { p0: customers.length - 1 }) : undefined} />
+          <InfoCell icon="layers" label={t("نوع ثبت")} value={splitMode === "grouped" ? t("گروهی (یک سفارش)") : t("تفکیک‌شده (هر آیتم یک سفارش)")} />
           {/* Phase 12: تخصیص‌ها در بازنگری نهایی — فقط مراحل موجود (P19) */}
           {needsDesign && (
-            <InfoCell icon="design" label="مسئول طراحی"
+            <InfoCell icon="design" label={t("مسئول طراحی")}
               value={designerName ?? "—"}
-              sub={designerName ? "سفارش فقط در پنل او" : "استخر عمومی طراح‌ها"} />
+              sub={designerName ? t("سفارش فقط در پنل او") : t("استخر عمومی طراح‌ها")} />
           )}
           {needsPrint && (
-            <InfoCell icon="print" label="مسئول چاپ"
+            <InfoCell icon="print" label={t("مسئول چاپ")}
               value={printerName ?? "—"}
-              sub={printerName ? "پس از طراحی به پنل او" : "استخر عمومی چاپ‌کارها"} />
+              sub={printerName ? t("پس از طراحی به پنل او") : t("استخر عمومی چاپ‌کارها")} />
           )}
-          <InfoCell icon={priority === "urgent" ? "alertTriangle" : "tag"} label="اولویت"
-            value={priority === "urgent" ? "فوری" : "معمولی"}
+          <InfoCell icon={priority === "urgent" ? "alertTriangle" : "tag"} label={t("اولویت")}
+            value={priority === "urgent" ? t("فوری") : t("معمولی")}
             tone={priority === "urgent" ? "text-rose-600" : undefined} />
-          <InfoCell icon="clock" label="موعد تحویل"
-            value={noEndDate ? "بدون موعد مشخص" : (endDate ? fmtDate(endDate) : "—")}
+          <InfoCell icon="clock" label={t("موعد تحویل")}
+            value={noEndDate ? t("بدون موعد مشخص") : (endDate ? fmtDate(endDate) : "—")}
             tone={!noEndDate ? "text-primary font-bold" : undefined} />
         </div>
       </section>
 
       {/* ═══ 2. زمان‌بندی — خلاصهٔ گروه + جزئیات per-item ═══ */}
       <section className="rounded-xl border overflow-hidden">
-        <SectionTitle icon="calendar" title="زمان‌بندی مراحل (هر آیتم مجزا)" />
+        <SectionTitle icon="calendar" title={t("زمان‌بندی مراحل (هر آیتم مجزا)")} />
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <DateRangeCard
-              icon="design" label="مرحلهٔ طراحی (کل گروه)" from={groupSchedule.designFrom} to={groupSchedule.designTo}
+              icon="design" label={t("مرحلهٔ طراحی (کل گروه)")} from={groupSchedule.designFrom} to={groupSchedule.designTo}
               applicable={needsDesign} />
             <DateRangeCard
-              icon="print" label="مرحلهٔ چاپ (کل گروه)" from={groupSchedule.printFrom} to={groupSchedule.printTo}
+              icon="print" label={t("مرحلهٔ چاپ (کل گروه)")} from={groupSchedule.printFrom} to={groupSchedule.printTo}
               applicable />
           </div>
           {customers.length > 1 && (
@@ -2012,10 +2013,10 @@ function Step4(props: {
             <table className="w-full text-xs">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
-                  <th className="text-right font-medium px-3 py-2">آیتم{customers.length > 1 ? ` (${activeCustomer?.name ?? ""})` : ""}</th>
-                  <th className="text-center font-medium px-2 py-2">طراحی</th>
-                  <th className="text-center font-medium px-2 py-2">چاپ</th>
-                  <th className="text-center font-medium px-2 py-2">مجری‌ها</th>
+                  <th className="text-right font-medium px-3 py-2">{t("آیتم{p0}", { p0: customers.length > 1 ? ` (${activeCustomer?.name ?? ""})` : "" })}</th>
+                  <th className="text-center font-medium px-2 py-2">{t("طراحی")}</th>
+                  <th className="text-center font-medium px-2 py-2">{t("چاپ")}</th>
+                  <th className="text-center font-medium px-2 py-2">{t("مجری‌ها")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -2028,14 +2029,14 @@ function Step4(props: {
                       <td className="px-2 py-2 text-center">
                         {dHas ? (
                           <span className="tabular-nums" dir="ltr">
-                            {it.designStart ? fmtShort(it.designStart) : "…"} → {it.designEnd ? fmtShort(it.designEnd) : "بدون پایان"}
+                            {it.designStart ? fmtShort(it.designStart) : "…"} → {it.designEnd ? fmtShort(it.designEnd) : t("بدون پایان")}
                           </span>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="px-2 py-2 text-center">
                         {pHas ? (
                           <span className="tabular-nums" dir="ltr">
-                            {it.printStart ? fmtShort(it.printStart) : "…"} → {it.printEnd ? fmtShort(it.printEnd) : "بدون پایان"}
+                            {it.printStart ? fmtShort(it.printStart) : "…"} → {it.printEnd ? fmtShort(it.printEnd) : t("بدون پایان")}
                           </span>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
@@ -2045,16 +2046,16 @@ function Step4(props: {
                             <>
                               {it.designAssignee && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-600 dark:text-violet-300">
-                                  طراح: {designerUsers?.find((u) => u.id === it.designAssignee)?.name ?? "—"}
+                                  {t("طراح: {p0}", { p0: designerUsers?.find((u) => u.id === it.designAssignee)?.name ?? "—" })}
                                 </span>
                               )}
                               {it.printAssignee && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-300">
-                                  چاپ: {printerUsers?.find((u) => u.id === it.printAssignee)?.name ?? "—"}
+                                  {t("چاپ: {p0}", { p0: printerUsers?.find((u) => u.id === it.printAssignee)?.name ?? "—" })}
                                 </span>
                               )}
                               {!it.designAssignee && !it.printAssignee && (
-                                <span className="text-[10px] text-muted-foreground">استخر عمومی</span>
+                                <span className="text-[10px] text-muted-foreground">{t("استخر عمومی")}</span>
                               )}
                             </>
                           ) : (
@@ -2073,7 +2074,7 @@ function Step4(props: {
 
       {/* ═══ 3. اقلام سفارش ═══ */}
       <section className="rounded-xl border overflow-hidden">
-        <SectionTitle icon="checkList" title={`اقلام سفارش (${fmtNum(allItems.length)} قلم)`} />
+        <SectionTitle icon="checkList" title={t("اقلام سفارش ({p0} قلم)", { p0: fmtNum(allItems.length) })} />
         <div className="p-4 space-y-4">
           {customers.length > 1 && (
             <div className="flex flex-wrap gap-1.5">
@@ -2096,7 +2097,7 @@ function Step4(props: {
       {/* ═══ 4. یادداشت سفارش ═══ */}
       {note && (
         <section className="rounded-xl border overflow-hidden">
-          <SectionTitle icon="checkList" title="یادداشت سفارش" />
+          <SectionTitle icon="checkList" title={t("یادداشت سفارش")} />
           <div className="p-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{note}</div>
         </section>
       )}
@@ -2109,11 +2110,11 @@ function Step4(props: {
           </div>
           <div>
             <div className="font-semibold text-sm">
-              پیش‌فاکتور {perItemPI ? `(به‌ازای هر آیتم — ${fmtNum(piDocCount)} سند)` : "(یک سند برای کل گروه)"}
+              {t("پیش‌فاکتور {p0}", { p0: perItemPI ? t("(به‌ازای هر آیتم — {p0} سند)", { p0: fmtNum(piDocCount) }) : t("(یک سند برای کل گروه)") })}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              سندها همزمان با ثبت سفارش به‌صورت خودکار صادر می‌شوند — بلافاصله پس از ثبت، همان‌جا ویرایش و چاپ می‌شوند
-              {perItemPI ? "؛ زمان طراحی/چاپ هر آیتم روی سند خودش درج می‌شود" : "؛ زمان‌بندی کل گروه روی سند درج می‌شود"}
+              {t("سندها همزمان با ثبت سفارش به‌صورت خودکار صادر می‌شوند — بلافاصله پس از ثبت، همان‌جا ویرایش و چاپ می‌شوند")}
+              {perItemPI ? t("؛ زمان طراحی/چاپ هر آیتم روی سند خودش درج می‌شود") : t("؛ زمان‌بندی کل گروه روی سند درج می‌شود")}
             </div>
           </div>
         </div>
@@ -2162,21 +2163,21 @@ function DateRangeCard({ icon, label, from, to, applicable }: {
       <div className="flex-1 min-w-0">
         <div className="text-xs font-bold">{label}</div>
         {applicable === false ? (
-          <div className="text-[11px] text-muted-foreground mt-1">در این سفارش نیازی به طراحی نیست</div>
+          <div className="text-[11px] text-muted-foreground mt-1">{t("در این سفارش نیازی به طراحی نیست")}</div>
         ) : has ? (
           <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[11px]">
             <span className="tabular-nums bg-card border px-2 py-0.5 rounded-md font-medium">{from ? fmtDate(from) : "…"}</span>
             <Icon name="arrowLeft" size={11} className="text-muted-foreground" />
-            <span className="tabular-nums bg-card border px-2 py-0.5 rounded-md font-medium">{to ? fmtDate(to) : "بدون پایان"}</span>
+            <span className="tabular-nums bg-card border px-2 py-0.5 rounded-md font-medium">{to ? fmtDate(to) : t("بدون پایان")}</span>
           </div>
         ) : (
-          <div className="text-[11px] text-muted-foreground mt-1">زمان‌بندی مشخص نشده</div>
+          <div className="text-[11px] text-muted-foreground mt-1">{t("زمان‌بندی مشخص نشده")}</div>
         )}
       </div>
       {applicable !== false && (
         <span className={cn("text-[10px] px-2 py-1 rounded-full shrink-0 font-medium",
           has ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-muted text-muted-foreground")}>
-          {has ? "زمان‌بندی شده" : "مشخص نشده"}
+          {has ? t("زمان‌بندی شده") : t("مشخص نشده")}
         </span>
       )}
     </div>
@@ -2206,18 +2207,18 @@ function CustomerReviewTable({ cid, items, currency }: { cid: string; items: Ite
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-xs text-muted-foreground">
           <tr>
-            <th className="text-right font-medium px-3 py-2">محصول</th>
-            <th className="text-center font-medium px-2 py-2">تعداد</th>
-            <th className="text-center font-medium px-2 py-2">قیمت واحد</th>
-            <th className="text-center font-medium px-2 py-2">مبلغ کل</th>
-            <th className="text-center font-medium px-2 py-2">مرحله</th>
+            <th className="text-right font-medium px-3 py-2">{t("محصول")}</th>
+            <th className="text-center font-medium px-2 py-2">{t("تعداد")}</th>
+            <th className="text-center font-medium px-2 py-2">{t("قیمت واحد")}</th>
+            <th className="text-center font-medium px-2 py-2">{t("مبلغ کل")}</th>
+            <th className="text-center font-medium px-2 py-2">{t("مرحله")}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {items.map((it) => (
             <tr key={it.id}>
               <td className="px-3 py-2 font-medium">{it.productName || "—"}
-                {it.needsMaterial && <span className="mr-1.5 text-[10px] text-amber-600">(نیازمند متریال)</span>}
+                {it.needsMaterial && <span className="mr-1.5 text-[10px] text-amber-600">{t("(نیازمند متریال)")}</span>}
               </td>
               <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{it.quantity}</td>
               <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatMoney(it.pricePerUnit, cur)}</td>
@@ -2228,7 +2229,7 @@ function CustomerReviewTable({ cid, items, currency }: { cid: string; items: Ite
         </tbody>
         <tfoot>
           <tr className="bg-muted/30 font-semibold">
-            <td colSpan={3} className="px-3 py-2 text-left">مجموع کل {items.length > 1 ? `(${fmtNum(items.length)} قلم)` : ""}:</td>
+            <td colSpan={3} className="px-3 py-2 text-left">{t("مجموع کل{p0}:", { p0: items.length > 1 ? t("({p0} قلم)", { p0: fmtNum(items.length) }) : "" })}</td>
             <td className="px-2 py-2 text-center tabular-nums" dir="ltr">{formatMoney(total, cur)}</td>
             <td />
           </tr>

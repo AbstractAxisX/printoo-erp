@@ -75,6 +75,7 @@ import {
 } from "@/lib/constants";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────
 type Assignee = {
@@ -118,21 +119,21 @@ const COLUMNS: {
 }[] = [
   {
     key: "todo",
-    label: "در صف",
+    label: t("در صف"),
     dot: "bg-slate-400",
     ring: "ring-slate-300/60",
     hover: "hover:border-slate-300",
   },
   {
     key: "in_progress",
-    label: "در حال انجام",
+    label: t("در حال انجام"),
     dot: "bg-amber-500",
     ring: "ring-amber-300/60",
     hover: "hover:border-amber-300",
   },
   {
     key: "done",
-    label: "انجام شده",
+    label: t("انجام شده"),
     dot: "bg-emerald-500",
     ring: "ring-emerald-300/60",
     hover: "hover:border-emerald-300",
@@ -265,7 +266,7 @@ export function TasksPage() {
       }),
     onSuccess: () => {
       invalidate(["tasks", "dashboard", "order"]);
-      toast.success("تسک ایجاد شد");
+      toast.success(t("تسک ایجاد شد"));
       setCreateOpen(false);
       setCreateForm(EMPTY_FORM);
     },
@@ -327,7 +328,7 @@ export function TasksPage() {
         onSuccess: () => {
           invalidate(["tasks", "dashboard", "order"]);
           const label = TASK_STATUS[destStatus as TaskStatus]?.label ?? destStatus;
-          toast.success(`به «${label}» منتقل شد`);
+          toast.success(t("به «{p0}» منتقل شد", { p0: label }));
         },
         onError: (err: Error) => {
           setStatusOverride((prev) => {
@@ -360,7 +361,7 @@ export function TasksPage() {
     e.preventDefault();
     if (!editTask) return;
     if (!editForm.title.trim()) {
-      toast.error("عنوان الزامی است");
+      toast.error(t("عنوان الزامی است"));
       return;
     }
     updateMut.mutate(
@@ -368,7 +369,7 @@ export function TasksPage() {
       {
         onSuccess: () => {
           invalidate(["tasks", "dashboard", "order"]);
-          toast.success("تسک به‌روزرسانی شد");
+          toast.success(t("تسک به‌روزرسانی شد"));
           setEditTask(null);
         },
         onError: (err: Error) => toast.error(err.message),
@@ -380,7 +381,7 @@ export function TasksPage() {
     deleteMut.mutate(id, {
       onSuccess: () => {
         invalidate(["tasks", "dashboard", "order"]);
-        toast.success("تسک حذف شد");
+        toast.success(t("تسک حذف شد"));
         onClose?.();
       },
       onError: (err: Error) => toast.error(err.message),
@@ -398,8 +399,8 @@ export function TasksPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تسک‌ها"
-        description="مدیریت کارها و وظایف به سبک کانبان"
+        title={t("تسک‌ها")}
+        description={t("مدیریت کارها و وظایف به سبک کانبان")}
         icon="task"
         actions={
           <div className="flex items-center gap-2">
@@ -411,7 +412,7 @@ export function TasksPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">همه ماژول‌ها</SelectItem>
+                <SelectItem value="all">{t("همه ماژول‌ها")}</SelectItem>
                 {MODULE_OPTIONS.map((m) => (
                   <SelectItem key={m} value={m}>
                     {MODULES[m].faLabel}
@@ -422,8 +423,8 @@ export function TasksPage() {
             <SearchSelect
               value={assigneeFilter}
               onChange={(v) => setAssigneeFilter(v)}
-              placeholder="همه مسئول‌ها"
-              searchPlaceholder="جستجوی نام مسئول..."
+              placeholder={t("همه مسئول‌ها")}
+              searchPlaceholder={t("جستجوی نام مسئول...")}
               options={assigneeOptions}
               className="w-[170px] h-9"
             />
@@ -434,7 +435,7 @@ export function TasksPage() {
               }}
               className="gap-2"
             >
-              <Icon name="plus" size={16} /> تسک جدید
+              <Icon name="plus" size={16} /> {t("تسک جدید")}
             </Button>
           </div>
         }
@@ -444,21 +445,21 @@ export function TasksPage() {
       {tasks.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground tabular-nums">
-            {stats.open} باز از {stats.total}
+            {t("{p0} باز از {p1}", { p0: stats.open, p1: stats.total })}
           </span>
           {stats.overdue > 0 && (
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 tabular-nums flex items-center gap-1">
-              <Icon name="clock" size={11} /> {stats.overdue} معوق
+              <Icon name="clock" size={11} /> {t("{p0} معوق", { p0: stats.overdue })}
             </span>
           )}
           {stats.urgent > 0 && (
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 tabular-nums flex items-center gap-1">
-              <Icon name="alertTriangle" size={11} /> {stats.urgent} فوری
+              <Icon name="alertTriangle" size={11} /> {t("{p0} فوری", { p0: stats.urgent })}
             </span>
           )}
           {stats.unassigned > 0 && (
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 tabular-nums flex items-center gap-1">
-              <Icon name="user" size={11} /> {stats.unassigned} بدون مسئول
+              <Icon name="user" size={11} /> {t("{p0} بدون مسئول", { p0: stats.unassigned })}
             </span>
           )}
         </div>
@@ -470,15 +471,15 @@ export function TasksPage() {
         <Card className="p-0">
           <EmptyState
             icon="task"
-            title="تسکی وجود ندارد"
+            title={t("تسکی وجود ندارد")}
             description={
               assigneeFilter
-                ? "برای این مسئول تسکی در این فیلتر نیست."
-                : "اولین تسک را ایجاد کنید و آن را روی بورد بکشید."
+                ? t("برای این مسئول تسکی در این فیلتر نیست.")
+                : t("اولین تسک را ایجاد کنید و آن را روی بورد بکشید.")
             }
             action={
               <Button onClick={() => setCreateOpen(true)} className="gap-2">
-                <Icon name="plus" size={16} /> افزودن تسک
+                <Icon name="plus" size={16} /> {t("افزودن تسک")}
               </Button>
             }
           />
@@ -517,13 +518,13 @@ export function TasksPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>تسک جدید</DialogTitle>
+            <DialogTitle>{t("تسک جدید")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!createForm.title.trim()) {
-                toast.error("عنوان الزامی است");
+                toast.error(t("عنوان الزامی است"));
                 return;
               }
               createMut.mutate(createForm);
@@ -536,7 +537,7 @@ export function TasksPage() {
             />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createMut.isPending} className="gap-2">
                 {createMut.isPending ? (
@@ -544,7 +545,7 @@ export function TasksPage() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ذخیره
+                {t("ذخیره")}
               </Button>
             </div>
           </form>
@@ -555,7 +556,7 @@ export function TasksPage() {
       <Dialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)}>
         <DialogContent aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>ویرایش تسک</DialogTitle>
+            <DialogTitle>{t("ویرایش تسک")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-4">
             <TaskFormFields
@@ -576,11 +577,11 @@ export function TasksPage() {
                 ) : (
                   <Icon name="trash" size={16} />
                 )}
-                حذف
+                {t("حذف")}
               </Button>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={() => setEditTask(null)}>
-                  انصراف
+                  {t("انصراف")}
                 </Button>
                 <Button type="submit" disabled={updateMut.isPending} className="gap-2">
                   {updateMut.isPending ? (
@@ -588,7 +589,7 @@ export function TasksPage() {
                   ) : (
                     <Icon name="check" size={16} />
                   )}
-                  ذخیره تغییرات
+                  {t("ذخیره تغییرات")}
                 </Button>
               </div>
             </div>
@@ -649,7 +650,7 @@ function Column({
         </SortableContext>
         {tasks.length === 0 && (
           <div className="text-center text-xs text-muted-foreground py-10 select-none">
-            کارتی اینجا نیست — بکشید و رها کنید
+            {t("کارتی اینجا نیست — بکشید و رها کنید")}
           </div>
         )}
       </div>
@@ -761,7 +762,7 @@ function TaskCard({
       ) : (
         task.status !== "done" && (
           <span className="inline-flex items-center gap-1 mt-2 rounded-full bg-muted/70 text-muted-foreground px-1.5 py-0.5 text-[10px]">
-            <Icon name="user" size={10} /> بدون مسئول
+            <Icon name="user" size={10} /> {t("بدون مسئول")}
           </span>
         )
       )}
@@ -792,12 +793,12 @@ function TaskCard({
             e.stopPropagation();
             onOpenOrder(task.order!.id);
           }}
-          title="مشاهده جزئیات سفارش"
+          title={t("مشاهده جزئیات سفارش")}
           className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 hover:text-primary transition-colors"
         >
           <Icon name="orders" size={11} />
           <span>
-            سفارش #{task.order.number}
+            {t("سفارش #{p0}", { p0: task.order.number })}
             {task.order.customer?.name ? ` · ${task.order.customer.name}` : ""}
           </span>
           <Icon name="arrowLeft" size={10} className="opacity-50" />
@@ -811,7 +812,7 @@ function TaskCard({
           e.stopPropagation();
           onDelete(task.id);
         }}
-        title="حذف تسک"
+        title={t("حذف تسک")}
         className="absolute top-2 end-2 size-6 rounded-md grid place-items-center text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-950/60 transition-opacity"
       >
         <Icon name="trash" size={13} />
@@ -896,7 +897,7 @@ function TaskFormFields({
 
   return (
     <div className="space-y-4">
-      <Field label="عنوان" required>
+      <Field label={t("عنوان")} required>
         <Input
           value={form.title}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -904,55 +905,55 @@ function TaskFormFields({
         />
       </Field>
 
-      <Field label="توضیحات">
+      <Field label={t("توضیحات")}>
         <Textarea
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={2}
-          placeholder="توضیحات اختیاری..."
+          placeholder={t("توضیحات اختیاری...")}
         />
       </Field>
 
       <Field
-        label="مسئول انجام"
+        label={t("مسئول انجام")}
         hint={
           <>
-            فقط کاربرانی که ماژول «{MODULES[form.module]?.faLabel}» برایشان فعال است
-            در این لیست می‌آیند — تسک در پنل آن‌ها دیده می‌شود.
+            {t("فقط کاربرانی که ماژول «{p0}» برایشان فعال است", { p0: MODULES[form.module]?.faLabel })}
+            {t("در این لیست می‌آیند — تسک در پنل آن‌ها دیده می‌شود.")}
           </>
         }
       >
         <SearchSelect
           value={form.assignedTo}
           onChange={(v) => setForm((f) => ({ ...f, assignedTo: v }))}
-          placeholder="به کسی ارجاع نشده"
-          searchPlaceholder="جستجوی نام کارمند..."
+          placeholder={t("به کسی ارجاع نشده")}
+          searchPlaceholder={t("جستجوی نام کارمند...")}
           options={assigneeOptions}
         />
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>اولویت</Label>
+          <Label>{t("اولویت")}</Label>
           <div className="flex gap-3 pt-1">
             <ToggleButton
               checked={form.priority === "normal"}
               onChange={(v) => v && setForm((f) => ({ ...f, priority: "normal" }))}
-              label="معمولی"
+              label={t("معمولی")}
               activeColor="emerald"
               activeIcon="check"
             />
             <ToggleButton
               checked={form.priority === "urgent"}
               onChange={(v) => v && setForm((f) => ({ ...f, priority: "urgent" }))}
-              label="فوری"
+              label={t("فوری")}
               activeColor="amber"
               activeIcon="alert"
             />
           </div>
         </div>
 
-        <Field label="تاریخ سررسید">
+        <Field label={t("تاریخ سررسید")}>
           <DatePicker
             value={form.dueDate || null}
             onChange={(d) =>
@@ -963,7 +964,7 @@ function TaskFormFields({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="ماژول">
+        <Field label={t("ماژول")}>
           <Select
             value={form.module}
             onValueChange={(v) => setForm((f) => ({ ...f, module: v as ModuleKey }))}
@@ -982,7 +983,7 @@ function TaskFormFields({
         </Field>
 
         {withStatus && (
-          <Field label="وضعیت">
+          <Field label={t("وضعیت")}>
             <Select
               value={form.status}
               onValueChange={(v) => setForm((f) => ({ ...f, status: v as TaskStatus }))}

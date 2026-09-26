@@ -3,6 +3,7 @@
 // نام آیکون‌ها به کلیدهای src/lib/icons.tsx ارجاع می‌دهد.
 
 import type { IconName } from "@/lib/icons";
+import { t } from "@/lib/i18n";
 
 export type NavItem = {
   id: string; // شناسهٔ صفحه، یکتا درون ماژول
@@ -38,48 +39,48 @@ export const NAV: ModuleNav[] = [
   {
     key: "admin",
     label: "Admin",
-    faLabel: "ادمین داخلی",
+    faLabel: t("ادمین داخلی"),
     icon: "dashboard",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "open-orders", label: "سفارشات باز", icon: "clock", page: "open-orders" },
-          { id: "tasks", label: "تسک‌ها", icon: "task", page: "tasks" },
-          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
+          { id: "dashboard", label: t("داشبورد"), icon: "dashboard", page: "dashboard" },
+          { id: "open-orders", label: t("سفارشات باز"), icon: "clock", page: "open-orders" },
+          { id: "tasks", label: t("تسک‌ها"), icon: "task", page: "tasks" },
+          { id: "calendar", label: t("تقویم"), icon: "calendar", page: "calendar" },
         ],
       },
       {
         id: "orders-group",
-        label: "سفارشات",
+        label: t("سفارشات"),
         icon: "orders",
         items: [
-          { id: "orders", label: "همه سفارشات", icon: "orders", page: "orders" },
-          { id: "orders-new", label: "سفارش جدید", icon: "plusCircle", page: "orders-new" },
-          { id: "archive", label: "آرشیو سفارشات", icon: "archive", page: "archive" },
+          { id: "orders", label: t("همه سفارشات"), icon: "orders", page: "orders" },
+          { id: "orders-new", label: t("سفارش جدید"), icon: "plusCircle", page: "orders-new" },
+          { id: "archive", label: t("آرشیو سفارشات"), icon: "archive", page: "archive" },
         ],
       },
       {
         id: "relations",
-        label: "ارتباطات",
+        label: t("ارتباطات"),
         icon: "customers",
         items: [
-          { id: "customers", label: "مشتریان (CRM)", icon: "customers", page: "customers" },
-          { id: "suppliers", label: "تامین‌کنندگان (SRM)", icon: "suppliers", page: "suppliers" },
-          { id: "products", label: "محصولات", icon: "package", page: "products" },
-          { id: "expense-types", label: "انواع هزینه", icon: "tag", page: "expense-types" },
+          { id: "customers", label: t("مشتریان (CRM)"), icon: "customers", page: "customers" },
+          { id: "suppliers", label: t("تامین‌کنندگان (SRM)"), icon: "suppliers", page: "suppliers" },
+          { id: "products", label: t("محصولات"), icon: "package", page: "products" },
+          { id: "expense-types", label: t("انواع هزینه"), icon: "tag", page: "expense-types" },
         ],
       },
       {
         id: "settings",
-        label: "تنظیمات پایه",
+        label: t("تنظیمات پایه"),
         icon: "grid2",
         items: [
           // Phase 18: فهرست مجاز شهر/استان — منبع دراپ‌داون‌های مشتری
-          { id: "locations", label: "شهرها و استان‌ها", icon: "mapPin", page: "locations" },
+          { id: "locations", label: t("شهرها و استان‌ها"), icon: "mapPin", page: "locations" },
         ],
       },
     ],
@@ -89,18 +90,18 @@ export const NAV: ModuleNav[] = [
   {
     key: "designer",
     label: "Designer",
-    faLabel: "طراح",
+    faLabel: t("طراح"),
     icon: "design",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "orders", label: "سفارشات طراحی", icon: "orders", page: "orders" },
-          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
-          { id: "tasks", label: "تسک‌ها", icon: "task", page: "tasks" },
+          { id: "dashboard", label: t("داشبورد"), icon: "dashboard", page: "dashboard" },
+          { id: "orders", label: t("سفارشات طراحی"), icon: "orders", page: "orders" },
+          { id: "calendar", label: t("تقویم"), icon: "calendar", page: "calendar" },
+          { id: "tasks", label: t("تسک‌ها"), icon: "task", page: "tasks" },
         ],
       },
     ],
@@ -112,17 +113,17 @@ export const NAV: ModuleNav[] = [
   {
     key: "print",
     label: "Print",
-    faLabel: "چاپ",
+    faLabel: t("چاپ"),
     icon: "print",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "orders", label: "سفارشات چاپ", icon: "orders", page: "orders" },
-          { id: "tasks", label: "تسک‌های چاپ", icon: "task", page: "tasks" },
-          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
+          { id: "orders", label: t("سفارشات چاپ"), icon: "orders", page: "orders" },
+          { id: "tasks", label: t("تسک‌های چاپ"), icon: "task", page: "tasks" },
+          { id: "calendar", label: t("تقویم"), icon: "calendar", page: "calendar" },
         ],
       },
     ],
@@ -132,28 +133,28 @@ export const NAV: ModuleNav[] = [
   {
     key: "warehouse",
     label: "Warehouse",
-    faLabel: "انبار و لجستیک",
+    faLabel: t("انبار و لجستیک"),
     icon: "warehouse",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "tasks", label: "تسک‌ها", icon: "task", page: "tasks" },
-          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
+          { id: "dashboard", label: t("داشبورد"), icon: "dashboard", page: "dashboard" },
+          { id: "tasks", label: t("تسک‌ها"), icon: "task", page: "tasks" },
+          { id: "calendar", label: t("تقویم"), icon: "calendar", page: "calendar" },
         ],
       },
       {
         id: "stock",
-        label: "انبار",
+        label: t("انبار"),
         icon: "boxes",
         items: [
           // Phase 16: چرخهٔ کامل — دریافت از چاپ → بسته‌بندی/بج QR → ارسال/تحویل
-          { id: "orders", label: "دریافت و تحویل", icon: "truck", page: "orders" },
-          { id: "packages", label: "بسته‌بندی و ارسال", icon: "package", page: "packages" },
-          { id: "inventory", label: "موجودی و مواد", icon: "boxes", page: "inventory" },
+          { id: "orders", label: t("دریافت و تحویل"), icon: "truck", page: "orders" },
+          { id: "packages", label: t("بسته‌بندی و ارسال"), icon: "package", page: "packages" },
+          { id: "inventory", label: t("موجودی و مواد"), icon: "boxes", page: "inventory" },
         ],
       },
     ],
@@ -166,36 +167,36 @@ export const NAV: ModuleNav[] = [
   {
     key: "finance",
     label: "Finance",
-    faLabel: "مالی",
+    faLabel: t("مالی"),
     icon: "wallet",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "costs", label: "تاریخچه هزینه‌ها", icon: "money", page: "costs" },
-          { id: "orders", label: "سفارش‌ها", icon: "orders", page: "orders" },
+          { id: "dashboard", label: t("داشبورد"), icon: "dashboard", page: "dashboard" },
+          { id: "costs", label: t("تاریخچه هزینه‌ها"), icon: "money", page: "costs" },
+          { id: "orders", label: t("سفارش‌ها"), icon: "orders", page: "orders" },
         ],
       },
       {
         id: "money",
-        label: "گردش مالی",
+        label: t("گردش مالی"),
         icon: "coins",
         items: [
-          { id: "revenues", label: "دریافتی‌ها", icon: "trending", page: "revenues" },
-          { id: "unsettled", label: "تسویه‌نشده", icon: "wallet", page: "unsettled" },
+          { id: "revenues", label: t("دریافتی‌ها"), icon: "trending", page: "revenues" },
+          { id: "unsettled", label: t("تسویه‌نشده"), icon: "wallet", page: "unsettled" },
         ],
       },
       // Phase 16: حقوق و دستمزد — سکشن اختصاصی با صفحات خودش
       {
         id: "payroll",
-        label: "حقوق و دستمزد",
+        label: t("حقوق و دستمزد"),
         icon: "wallet",
         items: [
-          { id: "payroll", label: "حقوق و دستمزد", icon: "wallet", page: "payroll" },
-          { id: "payroll-analytics", label: "تحلیل حقوق", icon: "chartColumn", page: "payroll-analytics" },
+          { id: "payroll", label: t("حقوق و دستمزد"), icon: "wallet", page: "payroll" },
+          { id: "payroll-analytics", label: t("تحلیل حقوق"), icon: "chartColumn", page: "payroll-analytics" },
         ],
       },
     ],
@@ -205,17 +206,17 @@ export const NAV: ModuleNav[] = [
   {
     key: "qc",
     label: "QC",
-    faLabel: "کنترل کیفی",
+    faLabel: t("کنترل کیفی"),
     icon: "shield",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "reports", label: "گزارشات", icon: "checkList", page: "reports" },
-          { id: "calendar", label: "تقویم", icon: "calendar", page: "calendar" },
+          { id: "dashboard", label: t("داشبورد"), icon: "dashboard", page: "dashboard" },
+          { id: "reports", label: t("گزارشات"), icon: "checkList", page: "reports" },
+          { id: "calendar", label: t("تقویم"), icon: "calendar", page: "calendar" },
         ],
       },
     ],
@@ -225,26 +226,26 @@ export const NAV: ModuleNav[] = [
   {
     key: "crm",
     label: "CRM",
-    faLabel: "مدیریت مشتریان",
+    faLabel: t("مدیریت مشتریان"),
     icon: "customers",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد CRM", icon: "dashboard", page: "dashboard" },
-          { id: "pipeline", label: "قیف فروش", icon: "layers", page: "pipeline" },
-          { id: "customers", label: "مشتریان", icon: "customers", page: "customers" },
+          { id: "dashboard", label: t("داشبورد CRM"), icon: "dashboard", page: "dashboard" },
+          { id: "pipeline", label: t("قیف فروش"), icon: "layers", page: "pipeline" },
+          { id: "customers", label: t("مشتریان"), icon: "customers", page: "customers" },
         ],
       },
       {
         id: "sales",
-        label: "فروش",
+        label: t("فروش"),
         icon: "wallet",
         items: [
-          { id: "deals", label: "معاملات", icon: "orders", page: "deals" },
-          { id: "activities", label: "فعالیت‌ها", icon: "task", page: "activities" },
+          { id: "deals", label: t("معاملات"), icon: "orders", page: "deals" },
+          { id: "activities", label: t("فعالیت‌ها"), icon: "task", page: "activities" },
         ],
       },
     ],
@@ -254,27 +255,27 @@ export const NAV: ModuleNav[] = [
   {
     key: "srm",
     label: "SRM",
-    faLabel: "مدیریت تامین‌کنندگان",
+    faLabel: t("مدیریت تامین‌کنندگان"),
     icon: "suppliers",
     groups: [
       {
         id: "main",
-        label: "اصلی",
+        label: t("اصلی"),
         icon: "home",
         items: [
-          { id: "dashboard", label: "داشبورد", icon: "dashboard", page: "dashboard" },
-          { id: "suppliers", label: "تامین‌کنندگان", icon: "suppliers", page: "suppliers" },
-          { id: "costs", label: "هزینه‌ها", icon: "coins", page: "costs" },
+          { id: "dashboard", label: t("داشبورد"), icon: "dashboard", page: "dashboard" },
+          { id: "suppliers", label: t("تامین‌کنندگان"), icon: "suppliers", page: "suppliers" },
+          { id: "costs", label: t("هزینه‌ها"), icon: "coins", page: "costs" },
         ],
       },
       {
         id: "manage",
-        label: "مدیریت",
+        label: t("مدیریت"),
         icon: "grid",
         items: [
-          { id: "categories", label: "دسته‌بندی‌ها", icon: "grid", page: "categories" },
-          { id: "services", label: "خدمات", icon: "task", page: "services" },
-          { id: "compare", label: "مقایسه قیمت", icon: "analytics", page: "compare" },
+          { id: "categories", label: t("دسته‌بندی‌ها"), icon: "grid", page: "categories" },
+          { id: "services", label: t("خدمات"), icon: "task", page: "services" },
+          { id: "compare", label: t("مقایسه قیمت"), icon: "analytics", page: "compare" },
         ],
       },
     ],
@@ -286,38 +287,38 @@ export const NAV: ModuleNav[] = [
   {
     key: "sysadmin",
     label: "SysAdmin",
-    faLabel: "مدیر سیستم",
+    faLabel: t("مدیر سیستم"),
     icon: "shield",
     masterOnly: true,
     groups: [
       {
         id: "monitoring",
-        label: "مانیتورینگ",
+        label: t("مانیتورینگ"),
         icon: "analytics",
         items: [
           // Phase 13: کاربران + مدیریت کاربران (ساخت/ویرایش/ماژول‌ها) +
           // حضور و آمار — دابل‌کلیک روی هر کاربر → صفحهٔ اختصاصی او.
-          { id: "users", label: "مانیتورینگ کاربران", icon: "userGroup", page: "users" },
+          { id: "users", label: t("مانیتورینگ کاربران"), icon: "userGroup", page: "users" },
           // Phase 13: برد هر ماژول — «کی سرش شلوغ‌تره، کی تا کی کار داره،
           // کی خلوت میشه، کی کم‌کاری کرده» برای انتخاب مسئول جدید.
-          { id: "modules", label: "مانیتورینگ ماژول", icon: "chartColumn", page: "modules" },
+          { id: "modules", label: t("مانیتورینگ ماژول"), icon: "chartColumn", page: "modules" },
         ],
       },
       {
         id: "settings",
-        label: "تنظیمات",
+        label: t("تنظیمات"),
         icon: "gear",
         items: [
-          { id: "settings", label: "تنظیمات سیستم", icon: "settings", page: "settings" },
+          { id: "settings", label: t("تنظیمات سیستم"), icon: "settings", page: "settings" },
         ],
       },
       // Phase 16: حقوق کارمندان — ساده (بدون پیچیدگی مالی/تحلیل)
       {
         id: "payroll",
-        label: "حقوق و دستمزد",
+        label: t("حقوق و دستمزد"),
         icon: "wallet",
         items: [
-          { id: "payroll", label: "حقوق کارمندان", icon: "wallet", page: "payroll" },
+          { id: "payroll", label: t("حقوق کارمندان"), icon: "wallet", page: "payroll" },
         ],
       },
     ],
@@ -332,8 +333,8 @@ export const PROFILE_MODULE = "profile";
 // صفحات «مخفی» — برنامه‌ای قابل پیمایش‌اند ولی در سایدبار نیستند.
 // (برچسب/آیکون تب‌ها از اینجا تغذیه می‌شود)
 export const HIDDEN_PAGES: Record<string, { label: string; icon: IconName }> = {
-  "sysadmin:user": { label: "مانیتورینگ کاربر", icon: "userCircle" },
-  "profile:view": { label: "پروفایل", icon: "userCircle" },
+  "sysadmin:user": { label: t("مانیتورینگ کاربر"), icon: "userCircle" },
+  "profile:view": { label: t("پروفایل"), icon: "userCircle" },
 };
 
 /** ماژول‌های قابل مشاهده برای کاربر فعلی.

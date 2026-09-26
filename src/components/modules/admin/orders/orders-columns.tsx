@@ -23,6 +23,7 @@ import {
 import { StatusBadge, PriorityBadge } from "@/components/shared";
 import { OrderRowActions } from "./order-row-actions";
 import type { Order } from "./types";
+import { t } from "@/lib/i18n";
 
 /** اعداد فارسی برای چیپ‌های ردیف */
 function fmtNum(n: number) {
@@ -45,7 +46,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
   return [
     {
       accessorKey: "number",
-      header: "شماره",
+      header: t("شماره"),
       cell: ({ row }) => {
         // Phase 9: سفارش گروهی چندآیتمی → شورون باز/بستهٔ آیتم‌ها.
         // کلیک روی شورون فقط expand می‌کند؛ کلیک روی ردیف → مودال جزئیات.
@@ -59,7 +60,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
                   e.stopPropagation();
                   row.toggleExpanded();
                 }}
-                aria-label={row.getIsExpanded() ? "بستن آیتم‌ها" : "باز کردن آیتم‌ها"}
+                aria-label={row.getIsExpanded() ? t("بستن آیتم‌ها") : t("باز کردن آیتم‌ها")}
                 className={cn(
                   "size-6 rounded-md border grid place-items-center shrink-0 transition",
                   row.getIsExpanded()
@@ -82,7 +83,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
               {isGrouped && (row.original.items?.length ?? 0) > 1 && (
                 <span className="text-[10px] text-primary bg-primary/10 rounded px-1.5 py-0.5 flex items-center gap-0.5 mt-0.5">
                   <Icon name="layers" size={9} />
-                  گروهی {fmtNum(row.original.items.length)} آیتم
+                  {t("گروهی {p0} آیتم", { p0: fmtNum(row.original.items.length) })}
                 </span>
               )}
             </div>
@@ -95,7 +96,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     {
       id: "customer",
       accessorFn: (r) => r.customer?.name ?? "",
-      header: "مشتری",
+      header: t("مشتری"),
       cell: ({ row }) => (
         <div className="min-w-0">
           <div className="font-medium truncate">
@@ -113,7 +114,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     },
     {
       id: "items",
-      header: "آیتم‌ها",
+      header: t("آیتم‌ها"),
       cell: ({ row }) => {
         const items = row.original.items ?? [];
         const canExpand = items.length > 1;
@@ -140,7 +141,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
             {canExpand && designCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300 flex items-center gap-0.5">
                 <Icon name="design" size={9} />
-                {fmtNum(designCount)} در طراحی
+                {t("{p0} در طراحی", { p0: fmtNum(designCount) })}
               </span>
             )}
           </div>
@@ -150,7 +151,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     },
     {
       accessorKey: "status",
-      header: "وضعیت",
+      header: t("وضعیت"),
       cell: ({ row }) => (
         <button
           onClick={(e) => {
@@ -167,12 +168,12 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     {
       id: "endDate",
       accessorFn: (r) => (r.endDate ? new Date(r.endDate).getTime() : 0),
-      header: "تاریخ پایان",
+      header: t("تاریخ پایان"),
       cell: ({ row }) => {
         const o = row.original;
         if (o.noEndDate)
           return (
-            <span className="text-xs text-muted-foreground">بدون زمان پایان</span>
+            <span className="text-xs text-muted-foreground">{t("بدون زمان پایان")}</span>
           );
         if (!o.endDate)
           return <span className="text-xs text-muted-foreground">—</span>;
@@ -208,7 +209,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     },
     {
       accessorKey: "totalAmount",
-      header: "مبلغ کل",
+      header: t("مبلغ کل"),
       cell: ({ row }) => (
         <span className="font-semibold tabular-nums inline-flex items-center gap-1.5" dir="ltr">
           {formatMoney(row.original.totalAmount, row.original.currency)}
@@ -224,7 +225,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     {
       id: "priority",
       accessorFn: (r) => r.priority,
-      header: "اولویت",
+      header: t("اولویت"),
       cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
       enableSorting: true,
       size: 90,
@@ -232,7 +233,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     {
       id: "createdAt",
       accessorFn: (r) => new Date(r.createdAt).getTime(),
-      header: "تاریخ ساخت",
+      header: t("تاریخ ساخت"),
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground tabular-nums">
           {formatDate(row.original.createdAt)}
@@ -245,7 +246,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
       id: "stage",
       // Hidden by default — surfaced via column toggle if admin wants it.
       accessorFn: (r) => r.items?.[0]?.stage ?? "",
-      header: "مرحله",
+      header: t("مرحله"),
       cell: ({ row }) => {
         const s = row.original.items?.[0]?.stage ?? "";
         const label =
@@ -258,7 +259,7 @@ export function getOrderColumns(a: OrderColumnActions): ColumnDef<Order>[] {
     },
     {
       id: "actions",
-      header: () => <div className="text-center">عملیات</div>,
+      header: () => <div className="text-center">{t("عملیات")}</div>,
       cell: ({ row }) => (
         <OrderRowActions
           order={row.original}

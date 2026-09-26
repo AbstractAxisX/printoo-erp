@@ -86,7 +86,8 @@ export async function POST(req: NextRequest) {
       moduleLevels,
     });
     return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, isDemo: user.isDemo, modules, modulePages, moduleLevels },
+      // Phase 27: language هم برگردده می‌شود تا کاربر بلافاصله با زبان خودش فرود بیاید
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, isDemo: user.isDemo, language: user.language === "fa" ? "fa" : "en", guideTooltips: user.guideTooltips, modules, modulePages, moduleLevels },
     });
   } catch {
     // Never leak raw exception text to the client (was a leak pre-Phase-1.5).

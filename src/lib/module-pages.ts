@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n";
 // Printoo24 ERP — Phase 18: دسترسی صفحه‌محور (سِرور-safe)
 //
 // منبع اعتبارسنجی «صفحات موجود هر ماژول» برای API کاربران — آینهٔ ساختاریِ
@@ -39,18 +40,18 @@ export const MODULE_LEVEL_META: Record<
   { label: string; hint: string; rank: number }
 > = {
   view: {
-    label: "مشاهده",
-    hint: "فقط می‌بیند — هیچ ثبت، ویرایش یا حذفی نمی‌تواند انجام دهد",
+    label: t("مشاهده"),
+    hint: t("فقط می‌بیند — هیچ ثبت، ویرایش یا حذفی نمی‌تواند انجام دهد"),
     rank: 1,
   },
   edit: {
-    label: "ادیت",
-    hint: "می‌بیند و ثبت/ویرایش می‌کند — فقط حذف برایش بسته است",
+    label: t("ادیت"),
+    hint: t("می‌بیند و ثبت/ویرایش می‌کند — فقط حذف برایش بسته است"),
     rank: 2,
   },
   delete: {
-    label: "حذف",
-    hint: "دسترسی کامل — مشاهده، ثبت/ویرایش و حذف",
+    label: t("حذف"),
+    hint: t("دسترسی کامل — مشاهده، ثبت/ویرایش و حذف"),
     rank: 3,
   },
 };
@@ -70,11 +71,11 @@ export function validateModuleLevels(
   const value: Record<string, ModuleLevel> = {};
   if (raw === null || raw === undefined) return { ok: true, value };
   if (typeof raw !== "object" || Array.isArray(raw)) {
-    return { ok: false, error: "ساختار moduleLevels نامعتبر است" };
+    return { ok: false, error: t("ساختار moduleLevels نامعتبر است") };
   }
   for (const [key, level] of Object.entries(raw as Record<string, unknown>)) {
     if (!mods.includes(key)) {
-      return { ok: false, error: `ماژول ${key} در دسترسی‌های کاربر انتخاب نشده است` };
+      return { ok: false, error: t("ماژول {p0} در دسترسی‌های کاربر انتخاب نشده است", { p0: key }) };
     }
     if (level === null || level === undefined || level === "") {
       value[key] = "delete";
@@ -83,7 +84,7 @@ export function validateModuleLevels(
     if (!isModuleLevel(level)) {
       return {
         ok: false,
-        error: `سطح دسترسی «${String(level)}» معتبر نیست (مشاهده / ادیت / حذف)`,
+        error: t("سطح دسترسی «{p0}» معتبر نیست (مشاهده / ادیت / حذف)", { p0: String(level) }),
       };
     }
     value[key] = level;
@@ -128,23 +129,23 @@ export function validateModulePages(
   const value: ModulePagesMap = {};
   if (raw === null || raw === undefined) return { ok: true, value };
   if (typeof raw !== "object" || Array.isArray(raw)) {
-    return { ok: false, error: "ساختار modulePages نامعتبر است" };
+    return { ok: false, error: t("ساختار modulePages نامعتبر است") };
   }
   for (const [key, pages] of Object.entries(raw as Record<string, unknown>)) {
     if (!mods.includes(key)) {
-      return { ok: false, error: `ماژول ${key} در دسترسی‌های کاربر انتخاب نشده است` };
+      return { ok: false, error: t("ماژول {p0} در دسترسی‌های کاربر انتخاب نشده است", { p0: key }) };
     }
     if (pages === null || pages === undefined || pages === "") {
       value[key] = null;
       continue;
     }
     if (!Array.isArray(pages)) {
-      return { ok: false, error: `صفحات ماژول ${key} باید آرایه باشد` };
+      return { ok: false, error: t("صفحات ماژول {p0} باید آرایه باشد", { p0: key }) };
     }
     const allowed = PAGES_BY_MODULE[key] ?? [];
     for (const p of pages) {
       if (typeof p !== "string" || !allowed.includes(p)) {
-        return { ok: false, error: `صفحهٔ «${String(p)}» در ماژول ${key} وجود ندارد` };
+        return { ok: false, error: t("صفحهٔ «{p0}» در ماژول {p1} وجود ندارد", { p0: String(p), p1: key }) };
       }
     }
     value[key] = pages.length === 0 ? null : (pages as string[]);

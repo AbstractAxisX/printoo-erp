@@ -24,6 +24,7 @@ import { formatCurrency } from "@/lib/format";
 import { formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -82,11 +83,11 @@ function toOrderOption(o: OrderApiRow): OrderOption {
 }
 
 export const MODULE_LABELS: Record<string, string> = {
-  print: "چاپ",
-  material: "متریال",
-  warehouse: "انبار",
-  logistics: "لجستیک",
-  finance: "مالی",
+  print: t("چاپ"),
+  material: t("متریال"),
+  warehouse: t("انبار"),
+  logistics: t("لجستیک"),
+  finance: t("مالی"),
 };
 
 type CostEntryFormProps = {
@@ -121,7 +122,7 @@ async function uploadFiles(files: File[]): Promise<UploadedFile[]> {
     fd.append("file", f);
     const res = await fetch("/api/uploads", { method: "POST", body: fd });
     if (!res.ok) {
-      let msg = `آپلود «${f.name}» ناموفق بود`;
+      let msg = t("آپلود «{p0}» ناموفق بود", { p0: f.name });
       try {
         const data = await res.json();
         if (data.error) msg = data.error;
@@ -246,12 +247,12 @@ export function CostEntryForm({
   const submit = async () => {
     if (submitting) return;
     if (drafts.some((r) => !rowValid(r))) {
-      toast.error("ردیف‌های ناقص را کامل کنید — نام و مبلغ هر هزینه الزامی است");
+      toast.error(t("ردیف‌های ناقص را کامل کنید — نام و مبلغ هر هزینه الزامی است"));
       return;
     }
     const targetOrderId = isFree ? null : orderId ?? selectedOrder?.id ?? null;
     if (!isFree && !targetOrderId) {
-      toast.error("سفارش را انتخاب کنید");
+      toast.error(t("سفارش را انتخاب کنید"));
       return;
     }
     setSubmitting(true);
@@ -277,20 +278,20 @@ export function CostEntryForm({
         if (res.ok) ok++;
         else {
           const data = await res.json().catch(() => ({}));
-          toast.error((data as { error?: string }).error ?? "ثبت هزینه ناموفق بود");
+          toast.error((data as { error?: string }).error ?? t("ثبت هزینه ناموفق بود"));
           break;
         }
       }
       if (ok > 0) {
         toast.success(
-          ok === 1 ? "هزینه ثبت شد" : `${ok.toLocaleString("en-US")} هزینه ثبت شد`
+          ok === 1 ? t("هزینه ثبت شد") : t("{p0} هزینه ثبت شد", { p0: ok.toLocaleString("en-US") })
         );
         setDrafts([newDraft(defaultModule)]);
         if (!orderId && !isFree) setSelectedOrder(null);
         onSubmitted?.();
       }
     } catch {
-      toast.error("خطای شبکه در ثبت هزینه");
+      toast.error(t("خطای شبکه در ثبت هزینه"));
     } finally {
       setSubmitting(false);
     }
@@ -304,7 +305,7 @@ export function CostEntryForm({
     const room = 6 - row.attachments.length;
     const arr = Array.from(files).slice(0, Math.max(0, room));
     if (!arr.length) {
-      toast.error("حداکثر 6 پیوست برای هر هزینه");
+      toast.error(t("حداکثر 6 پیوست برای هر هزینه"));
       return;
     }
     setUploadingKey(key);
@@ -332,7 +333,7 @@ export function CostEntryForm({
       {/* انتخاب سفارش (فرم مالی — حالت روی سفارش) */}
       {selectableOrder && !isFree && (
         <div className="rounded-xl border bg-muted/20 p-3 space-y-2">
-          <Field label="سفارش" required>
+          <Field label={t("سفارش")} required>
             <SearchSelect
               value={selectedOrder?.id ?? null}
               onChange={(v) => {
@@ -340,12 +341,12 @@ export function CostEntryForm({
                 setSelectedOrder(found);
                 setOrderQuery("");
               }}
-              placeholder="جستجوی سفارش — نام مشتری یا شماره…"
-              searchPlaceholder="نام مشتری / شمارهٔ سفارش…"
+              placeholder={t("جستجوی سفارش — نام مشتری یا شماره…")}
+              searchPlaceholder={t("نام مشتری / شمارهٔ سفارش…")}
               options={orderOptions.map((o) => ({
                 value: o.id,
                 label: `#${o.number} — ${o.customerName}`,
-                sub: `${formatMoney(o.totalAmount, o.currency)} • ${o.preInvoiceCount} پیش‌فاکتور`,
+                sub: t("{p0} • {p1} پیش‌فاکتور", { p0: formatMoney(o.totalAmount, o.currency), p1: o.preInvoiceCount }),
               }))}
               allowClear={false}
               className="w-full"
@@ -355,15 +356,15 @@ export function CostEntryForm({
             <div className="flex items-center gap-2 text-xs text-muted-foreground px-1 flex-wrap">
               <Icon name="checkCircle" size={14} className="text-emerald-500" />
               <span>
-                سفارش <b className="text-foreground">#{selectedOrder.number}</b> —
-                {selectedOrder.customerName} • جمع:{" "}
+                {t("سفارش")}<b className="text-foreground">#{selectedOrder.number}</b> —
+                {t("{p0} • جمع:{p1}", { p0: selectedOrder.customerName, p1: " " })}
                 <b dir="ltr" className="text-foreground tabular-nums">
                   {formatMoney(selectedOrder.totalAmount, selectedOrder.currency)}
                 </b>{" "}
                 <CurrencyChip currency={selectedOrder.currency} />
                 {selectedOrder.preInvoiceCount > 1 && (
                   <span className="text-amber-600 dark:text-amber-400">
-                    {" "}• {selectedOrder.preInvoiceCount.toLocaleString("en-US")} پیش‌فاکتور (هزینهٔ فاکتوری روی سند اول می‌نشیند)
+                    {t("{p0}• {p1} پیش‌فاکتور (هزینهٔ فاکتوری روی سند اول می‌نشیند)", { p0: " ", p1: selectedOrder.preInvoiceCount.toLocaleString("en-US") })}
                   </span>
                 )}
               </span>
@@ -392,16 +393,16 @@ export function CostEntryForm({
                     {(i + 1).toLocaleString("en-US")}
                   </div>
                   <span className="text-sm font-semibold truncate">
-                    {row.title.trim() || "ردیف هزینه"}
+                    {row.title.trim() || t("ردیف هزینه")}
                   </span>
                   {isFree && row.expenseTypeId && (
                     <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
-                      {expenseOptions.find((t) => t.value === row.expenseTypeId)?.label ?? "دسته"}
+                      {expenseOptions.find((t) => t.value === row.expenseTypeId)?.label ?? t("دسته")}
                     </span>
                   )}
                   {row.attachments.length > 0 && (
                     <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
-                      {row.attachments.length.toLocaleString("en-US")} پیوست
+                      {t("{p0} پیوست", { p0: row.attachments.length.toLocaleString("en-US") })}
                     </span>
                   )}
                 </div>
@@ -409,7 +410,7 @@ export function CostEntryForm({
                   <span className="text-sm font-bold tabular-nums" dir="ltr">
                     {amountNum(row) > 0 ? formatMoney(amountNum(row), row.currency) : "—"}
                   </span>
-                  <label className="cursor-pointer" title="پیوست فایل (فاکتور/سند)">
+                  <label className="cursor-pointer" title={t("پیوست فایل (فاکتور/سند)")}>
                     <input
                       type="file"
                       multiple
@@ -431,7 +432,7 @@ export function CostEntryForm({
                       size="icon"
                       className="size-8 text-rose-600 hover:text-rose-700"
                       onClick={() => removeRow(row.key)}
-                      title="حذف ردیف"
+                      title={t("حذف ردیف")}
                     >
                       <Icon name="trash" size={15} />
                     </Button>
@@ -441,14 +442,14 @@ export function CostEntryForm({
 
               {/* فیلدها — گرید 12 ستونه مثل ویزارد */}
               <div className="grid grid-cols-2 md:grid-cols-12 gap-x-3 gap-y-2.5">
-                <Field label="نام هزینه" required className="col-span-2 md:col-span-4">
+                <Field label={t("نام هزینه")} required className="col-span-2 md:col-span-4">
                   <Input
                     value={row.title}
                     onChange={(e) => updateRow(row.key, { title: e.target.value })}
-                    placeholder={isFree ? "مثلاً کرایهٔ مغازه" : "مثلاً خرید کاغذ گلاسه"}
+                    placeholder={isFree ? t("مثلاً کرایهٔ مغازه") : t("مثلاً خرید کاغذ گلاسه")}
                   />
                 </Field>
-                <Field label="مبلغ" required className="col-span-1 md:col-span-3">
+                <Field label={t("مبلغ")} required className="col-span-1 md:col-span-3">
                   <div className="flex items-center gap-1.5">
                     <Input
                       type="number"
@@ -468,21 +469,21 @@ export function CostEntryForm({
                   </div>
                 </Field>
                 <Field
-                  label={isFree ? "دستهٔ هزینه" : "نوع هزینه"}
+                  label={isFree ? t("دستهٔ هزینه") : t("نوع هزینه")}
                   required={isFree}
                   className="col-span-1 md:col-span-2"
                 >
                   <SearchSelect
                     value={row.expenseTypeId || null}
                     onChange={(v) => updateRow(row.key, { expenseTypeId: v ?? "" })}
-                    placeholder={isFree ? "انتخاب دسته…" : "اختیاری…"}
+                    placeholder={isFree ? t("انتخاب دسته…") : t("اختیاری…")}
                     options={expenseOptions}
                     allowClear={!isFree}
                     className="w-full"
                   />
                 </Field>
                 {moduleOptions.length > 1 && (
-                  <Field label="ثبت از طرف" className="col-span-1 md:col-span-3 ">
+                  <Field label={t("ثبت از طرف")} className="col-span-1 md:col-span-3 ">
                     <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
                       {moduleOptions.map((m) => (
                         <button
@@ -503,21 +504,21 @@ export function CostEntryForm({
                   </Field>
                                   )}
                 {!isFree && showSupplier !== false && (
-                  <Field label="تامین‌کننده" className="col-span-2 md:col-span-3">
+                  <Field label={t("تامین‌کننده")} className="col-span-2 md:col-span-3">
                     <SearchSelect
                       value={row.supplierId || null}
                       onChange={(v) => updateRow(row.key, { supplierId: v ?? "" })}
-                      placeholder="اختیاری…"
+                      placeholder={t("اختیاری…")}
                       options={supplierOptions}
                       className="w-full"
                     />
                   </Field>
                 )}
-                <Field label="توضیح" className="col-span-2 md:col-span-5">
+                <Field label={t("توضیح")} className="col-span-2 md:col-span-5">
                   <Input
                     value={row.description}
                     onChange={(e) => updateRow(row.key, { description: e.target.value })}
-                    placeholder="اختیاری…"
+                    placeholder={t("اختیاری…")}
                   />
                 </Field>
                 {showInvoiceOption && !isFree && (
@@ -532,8 +533,8 @@ export function CostEntryForm({
                         }
                       />
                       <span className="text-muted-foreground">
-                        ثبت هزینه در <b className="text-foreground">فاکتور سفارش</b> — به مبلغ
-                        کل اضافه می‌شود
+                        {t("ثبت هزینه در")}<b className="text-foreground">{t("فاکتور سفارش")}</b> {t("— به مبلغ")}
+                        {t("کل اضافه می‌شود")}
                       </span>
                     </label>
                   </div>
@@ -542,7 +543,7 @@ export function CostEntryForm({
                 {showInvoiceOption && !isFree && row.includeInInvoice && selectedOrder &&
                   selectedOrder.currency && selectedOrder.currency !== row.currency && (
                   <p className="col-span-2 md:col-span-12 text-[11px] text-amber-600 dark:text-amber-400 -mt-1">
-                    ارز هزینه ({row.currency}) با ارز سفارش ({selectedOrder.currency}) فرق دارد — موقع ثبت با نرخ لحظه‌ای به ارز سفارش تبدیل و روی فاکتور می‌نشیند.
+                    {t("ارز هزینه ({p0}) با ارز سفارش ({p1}) فرق دارد — موقع ثبت با نرخ لحظه‌ای به ارز سفارش تبدیل و روی فاکتور می‌نشیند.", { p0: row.currency, p1: selectedOrder.currency })}
                   </p>
                 )}
               </div>
@@ -570,7 +571,7 @@ export function CostEntryForm({
                           })
                         }
                         className="text-muted-foreground hover:text-rose-600 transition shrink-0"
-                        title="حذف پیوست"
+                        title={t("حذف پیوست")}
                       >
                         <Icon name="cancel" size={12} />
                       </button>
@@ -588,18 +589,18 @@ export function CostEntryForm({
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={addRow}>
             <Icon name="plus" size={14} />
-            افزودن ردیف هزینه دیگر
+            {t("افزودن ردیف هزینه دیگر")}
           </Button>
           {onManageCategories && (
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={onManageCategories}>
               <Icon name="gear" size={14} />
-              مدیریت دسته‌ها
+              {t("مدیریت دسته‌ها")}
             </Button>
           )}
         </div>
         <div className="flex items-center gap-3">
           <div className="text-sm" dir="rtl">
-            <span className="text-muted-foreground">مجموع: </span>
+            <span className="text-muted-foreground">{t("مجموع:")} </span>
             <span className="font-bold" dir="ltr">
               {formatSumPerCurrency(perSum)}
             </span>
@@ -612,8 +613,8 @@ export function CostEntryForm({
             <Icon name={submitting ? "loading" : "check"} size={16} className={submitting ? "animate-spin" : ""} />
             {submitLabel ??
               (isFree
-                ? "ثبت هزینه"
-                : `ثبت ${validCount > 0 ? validCount.toLocaleString("en-US") : ""} هزینه`)}
+                ? t("ثبت هزینه")
+                : t("ثبت {p0} هزینه", { p0: validCount > 0 ? validCount.toLocaleString("en-US") : "" }))}
           </Button>
         </div>
       </div>

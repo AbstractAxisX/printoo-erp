@@ -17,6 +17,7 @@ import { formatDate, daysRemaining } from "@/lib/format";
 import { useAppStore } from "@/stores/app-store";
 import { usePrintOrderDetail } from "@/lib/use-print-order-detail";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────
 // NOTE: Print view excludes prices, customer phone, and overall endDate.
@@ -54,10 +55,10 @@ type Task = {
 type TimeFilter = "all" | "overdue" | "today" | "near";
 
 const TIME_OPTIONS: { value: TimeFilter; label: string; icon: IconName; color: string }[] = [
-  { value: "all", label: "همه", icon: "inbox", color: "" },
-  { value: "overdue", label: "موعد گذشته", icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
-  { value: "today", label: "موعد امروز", icon: "clock", color: "text-amber-600 dark:text-amber-400" },
-  { value: "near", label: "نزدیک موعد (2روز)", icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
+  { value: "all", label: t("همه"), icon: "inbox", color: "" },
+  { value: "overdue", label: t("موعد گذشته"), icon: "alertTriangle", color: "text-rose-600 dark:text-rose-400" },
+  { value: "today", label: t("موعد امروز"), icon: "clock", color: "text-amber-600 dark:text-amber-400" },
+  { value: "near", label: t("نزدیک موعد (2روز)"), icon: "calendar", color: "text-emerald-600 dark:text-emerald-400" },
 ];
 
 // ─── Time-filter helpers (Phase 17: منتقل از داشبورد حذف‌شده) ────────
@@ -197,11 +198,11 @@ function PrintOrderMobileCard({ order: o }: { order: PrintOrder }) {
         <PriorityBadge priority={o.priority} />
         {materialPending > 0 ? (
           <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 inline-flex items-center gap-0.5">
-            <Icon name="alert" size={10} /> {materialPending.toLocaleString("en-US")} آیتم منتظر متریال
+            <Icon name="alert" size={10} /> {t("{p0} آیتم منتظر متریال", { p0: materialPending.toLocaleString("en-US") })}
           </span>
         ) : (
           <span className="ms-auto text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 inline-flex items-center gap-0.5">
-            <Icon name="check" size={10} /> متریال تأمین‌شده
+            <Icon name="check" size={10} /> {t("متریال تأمین‌شده")}
           </span>
         )}
       </div>
@@ -228,10 +229,10 @@ function PrintOrderMobileCard({ order: o }: { order: PrintOrder }) {
           )}
         >
           <Icon name={dr?.status === "overdue" ? "alertTriangle" : "clock"} size={11} />
-          موعد چاپ {formatDate(end)}{dr && dr.status !== "none" ? ` · ${dr.text}` : ""}
+          {t("موعد چاپ {p0}{p1}", { p0: formatDate(end), p1: dr && dr.status !== "none" ? ` · ${dr.text}` : "" })}
         </div>
       ) : (
-        <div className="text-[11px] text-muted-foreground">بدون موعد چاپ</div>
+        <div className="text-[11px] text-muted-foreground">{t("بدون موعد چاپ")}</div>
       )}
     </div>
   );
@@ -344,7 +345,7 @@ export function PrintOrders() {
     () => [
       {
         accessorKey: "number",
-        header: "شماره",
+        header: t("شماره"),
         cell: ({ row }) => (
           <span className="font-mono text-xs font-bold">
             #{row.original.number}
@@ -355,7 +356,7 @@ export function PrintOrders() {
       {
         id: "customer",
         accessorFn: (r) => r.customer?.name ?? "",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <span className="font-medium">{row.original.customer?.name ?? "—"}</span>
         ),
@@ -363,7 +364,7 @@ export function PrintOrders() {
       },
       {
         id: "items",
-        header: "آیتم‌ها",
+        header: t("آیتم‌ها"),
         cell: ({ row }) => {
           const items = row.original.items ?? [];
           return (
@@ -392,20 +393,20 @@ export function PrintOrders() {
       {
         id: "material",
         accessorFn: (r) => (needsMaterial(r) ? 1 : 0),
-        header: "متریال",
+        header: t("متریال"),
         cell: ({ row }) => {
           const o = row.original;
           const nm = (o.items ?? []).filter((it) => it.needsMaterial && !it.materialConfirmed).length;
           if (nm === 0) {
             return (
               <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 inline-flex items-center gap-0.5">
-                <Icon name="check" size={10} /> تأمین شده
+                <Icon name="check" size={10} /> {t("تأمین شده")}
               </span>
             );
           }
           return (
             <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 inline-flex items-center gap-0.5">
-              <Icon name="alert" size={10} /> {nm.toLocaleString("en-US")} آیتم منتظر
+              <Icon name="alert" size={10} /> {t("{p0} آیتم منتظر", { p0: nm.toLocaleString("en-US") })}
             </span>
           );
         },
@@ -414,7 +415,7 @@ export function PrintOrders() {
       {
         id: "priority",
         accessorFn: (r) => r.priority,
-        header: "اولویت",
+        header: t("اولویت"),
         cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
         enableSorting: true,
       },
@@ -424,13 +425,13 @@ export function PrintOrders() {
           const d = effectivePrintDeadline(r);
           return d ? new Date(d).getTime() : 0;
         },
-        header: "موعد چاپ",
+        header: t("موعد چاپ"),
         cell: ({ row }) => {
           const end = effectivePrintDeadline(row.original);
           if (!end) {
             return (
               <span className="text-xs text-muted-foreground">
-                بدون موعد چاپ
+                {t("بدون موعد چاپ")}
               </span>
             );
           }
@@ -468,15 +469,15 @@ export function PrintOrders() {
   // اجزای فعالِ فیلتر برای نوار خلاصه (زمان + جستجو + اولویت)
   const filterParts: string[] = [];
   if (timeFilter !== "all") filterParts.push(activeTime?.label ?? timeFilter);
-  if (search.trim()) filterParts.push(`جستجو: «${search.trim()}»`);
-  if (priorityFilters.urgent && !priorityFilters.normal) filterParts.push("اولویت: فوری");
-  if (!priorityFilters.urgent && priorityFilters.normal) filterParts.push("اولویت: معمولی");
+  if (search.trim()) filterParts.push(t("جستجو: «{p0}»", { p0: search.trim() }));
+  if (priorityFilters.urgent && !priorityFilters.normal) filterParts.push(t("اولویت: فوری"));
+  if (!priorityFilters.urgent && priorityFilters.normal) filterParts.push(t("اولویت: معمولی"));
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="سفارشات چاپ"
-        description="سفارشات در مرحله چاپ — روی کارت‌های بالا کلیک کنید تا فیلتر شوند؛ برای جزئیات، روی ردیف جدول کلیک کنید"
+        title={t("سفارشات چاپ")}
+        description={t("سفارشات در مرحله چاپ — روی کارت‌های بالا کلیک کنید تا فیلتر شوند؛ برای جزئیات، روی ردیف جدول کلیک کنید")}
         icon="orders"
       />
 
@@ -484,54 +485,54 @@ export function PrintOrders() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiCard
           icon="print"
-          label="در حال چاپ"
+          label={t("در حال چاپ")}
           value={allOrders.length}
-          hint="مجموع سفارشات مرحله چاپ"
+          hint={t("مجموع سفارشات مرحله چاپ")}
           color="amber"
           active={timeFilter === "all"}
           onClick={() => applyTimeCard("all")}
         />
         <KpiCard
           icon="alertTriangle"
-          label="موعد گذشته"
+          label={t("موعد گذشته")}
           value={timeCounts.overdue}
-          hint="موعد چاپ‌شان رسیده و گذشته"
+          hint={t("موعد چاپ‌شان رسیده و گذشته")}
           color="rose"
           active={timeFilter === "overdue"}
           onClick={() => applyTimeCard("overdue")}
         />
         <KpiCard
           icon="clock"
-          label="موعد امروز"
+          label={t("موعد امروز")}
           value={timeCounts.today}
-          hint="امروز باید چاپ شوند"
+          hint={t("امروز باید چاپ شوند")}
           color="rose"
           active={timeFilter === "today"}
           onClick={() => applyTimeCard("today")}
         />
         <KpiCard
           icon="calendar"
-          label="نزدیک موعد"
+          label={t("نزدیک موعد")}
           value={timeCounts.near}
-          hint="2 روز یا کمتر تا موعد چاپ"
+          hint={t("2 روز یا کمتر تا موعد چاپ")}
           color="violet"
           active={timeFilter === "near"}
           onClick={() => applyTimeCard("near")}
         />
         <KpiCard
           icon="boxes"
-          label="نیازمند متریال"
+          label={t("نیازمند متریال")}
           value={needsMaterialOrders.length}
-          hint="در انتظار تأمین متریال"
+          hint={t("در انتظار تأمین متریال")}
           color="amber"
           active={activeTab === "needs-material"}
           onClick={toggleMaterialTab}
         />
         <KpiCard
           icon="task"
-          label="تسک‌های فعال"
+          label={t("تسک‌های فعال")}
           value={activeTasksCount}
-          hint="در صف یا در حال انجام"
+          hint={t("در صف یا در حال انجام")}
           color="emerald"
           onClick={() => navigate("print", "tasks")}
         />
@@ -542,11 +543,11 @@ export function PrintOrders() {
         {/* Time filter segmented control */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-            <Icon name="calendar" size={13} /> زمان:
+            <Icon name="calendar" size={13} /> {t("زمان:")}
           </span>
           <div
             role="radiogroup"
-            aria-label="فیلتر زمانی"
+            aria-label={t("فیلتر زمانی")}
             className="flex flex-wrap items-center gap-1 rounded-lg border bg-muted/30 p-1"
           >
             {TIME_OPTIONS.map((o) => {
@@ -598,20 +599,20 @@ export function PrintOrders() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو: نام مشتری یا شماره سفارش..."
+              placeholder={t("جستجو: نام مشتری یا شماره سفارش...")}
               className="w-full h-9 rounded-md border bg-background pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           {/* Priority filter toggles */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">اولویت:</span>
+            <span className="text-xs text-muted-foreground">{t("اولویت:")}</span>
             <ToggleButton
               checked={priorityFilters.urgent}
               onChange={(v) =>
                 setPriorityFilters((p) => ({ ...p, urgent: v }))
               }
-              label="فوری"
+              label={t("فوری")}
               size="sm"
               activeColor="amber"
               activeIcon="alert"
@@ -621,7 +622,7 @@ export function PrintOrders() {
               onChange={(v) =>
                 setPriorityFilters((p) => ({ ...p, normal: v }))
               }
-              label="معمولی"
+              label={t("معمولی")}
               size="sm"
               activeColor="primary"
             />
@@ -635,14 +636,14 @@ export function PrintOrders() {
       <TabsList >
           <TabsTrigger value="ready" className="gap-1.5">
             <Icon name="print" size={14} />
-            آماده چاپ
+            {t("آماده چاپ")}
             <span className="text-[11px] text-muted-foreground">
               ({filteredReady.length.toLocaleString("en-US")})
             </span>
           </TabsTrigger>
           <TabsTrigger value="needs-material" className="gap-1.5">
             <Icon name="boxes" size={14} />
-            نیازمند متریال
+            {t("نیازمند متریال")}
             <span className="text-[11px] text-muted-foreground">
               ({filteredNeedsMaterial.length.toLocaleString("en-US")})
             </span>
@@ -653,20 +654,20 @@ export function PrintOrders() {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-muted/40 px-3 py-2 text-sm">
           <span className="flex items-center gap-1 text-muted-foreground shrink-0">
             <Icon name="filter" size={13} />
-            {filterParts.length > 0 ? "با این فیلتر:" : "نمای کلی:"}
+            {filterParts.length > 0 ? t("با این فیلتر:") : t("نمای کلی:")}
           </span>
           <span className="font-medium">
             <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
               {filteredReady.length.toLocaleString("en-US")}
             </span>{" "}
-            سفارش در بخش چاپ (آمادهٔ چاپ)
+            {t("سفارش در بخش چاپ (آمادهٔ چاپ)")}
           </span>
-          <span className="text-muted-foreground">و</span>
+          <span className="text-muted-foreground">{t("و")}</span>
           <span className="font-medium">
             <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 font-bold tabular-nums text-amber-700 dark:text-amber-400">
               {filteredNeedsMaterial.length.toLocaleString("en-US")}
             </span>{" "}
-            سفارش در بخش متریال (منتظر تأمین)
+            {t("سفارش در بخش متریال (منتظر تأمین)")}
           </span>
           {filterParts.length > 0 && (
             <span className="text-xs text-muted-foreground">
@@ -690,14 +691,14 @@ export function PrintOrders() {
                 timeFilter !== "all" ? (
                   <EmptyState
                     icon="checkCircle"
-                    title={`سفارش «${activeTime?.label}» در این تب نیست`}
-                    description="فیلتر زمانی را تغییر دهید یا تب دیگر را ببینید"
+                    title={t("سفارش «{p0}» در این تب نیست", { p0: activeTime?.label })}
+                    description={t("فیلتر زمانی را تغییر دهید یا تب دیگر را ببینید")}
                   />
                 ) : (
                   <EmptyState
                     icon="checkCircle"
-                    title="سفارش نیازمند متریال نیست"
-                    description="همه سفارشات چاپ متریال خود را دریافت کرده‌اند"
+                    title={t("سفارش نیازمند متریال نیست")}
+                    description={t("همه سفارشات چاپ متریال خود را دریافت کرده‌اند")}
                   />
                 )
               }
@@ -720,14 +721,14 @@ export function PrintOrders() {
                 timeFilter !== "all" ? (
                   <EmptyState
                     icon="inbox"
-                    title={`سفارش «${activeTime?.label}» در این تب نیست`}
-                    description="فیلتر زمانی را تغییر دهید یا تب دیگر را ببینید"
+                    title={t("سفارش «{p0}» در این تب نیست", { p0: activeTime?.label })}
+                    description={t("فیلتر زمانی را تغییر دهید یا تب دیگر را ببینید")}
                   />
                 ) : (
                   <EmptyState
                     icon="inbox"
-                    title="سفارش آماده چاپ نیست"
-                    description="سفارشات در انتظار تأمین متریال هستند"
+                    title={t("سفارش آماده چاپ نیست")}
+                    description={t("سفارشات در انتظار تأمین متریال هستند")}
                   />
                 )
               }

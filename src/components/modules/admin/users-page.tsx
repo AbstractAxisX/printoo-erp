@@ -45,6 +45,7 @@ import { NAV, type NavItem } from "@/lib/nav";
 import { formatDate, formatNumber } from "@/lib/format";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────
 type ManagedUser = {
@@ -166,7 +167,7 @@ function PageLimitBadge({ module, pages }: { module: string; pages: string[] }) 
   const total = moduleNavItems(module).length;
   return (
     <span
-      title={`دسترسی محدود به ${formatNumber(pages.length)} صفحه از ${formatNumber(total)}`}
+      title={t("دسترسی محدود به {p0} صفحه از {p1}", { p0: formatNumber(pages.length), p1: formatNumber(total) })}
       className="inline-flex items-center gap-0.5 rounded-full bg-muted text-muted-foreground px-1.5 py-0.5 text-[10px] font-medium tabular-nums"
     >
       <Icon name="filter" size={10} />
@@ -176,15 +177,15 @@ function PageLimitBadge({ module, pages }: { module: string; pages: string[] }) 
 }
 
 function presenceText(u: ManagedUser): string {
-  if (u.online) return "آنلاین";
+  if (u.online) return t("آنلاین");
   if (u.lastSeenAt) {
     const mins = Math.floor((Date.now() - new Date(u.lastSeenAt).getTime()) / 60000);
-    if (mins < 60) return `${mins} دقیقه پیش`;
+    if (mins < 60) return t("{p0} دقیقه پیش", { p0: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} ساعت پیش`;
-    return `آخرین بازدید: ${formatDate(u.lastSeenAt)}`;
+    if (hours < 24) return t("{p0} ساعت پیش", { p0: hours });
+    return t("آخرین بازدید: {p0}", { p0: formatDate(u.lastSeenAt) });
   }
-  return "بدون بازدید";
+  return t("بدون بازدید");
 }
 
 // ─── Main page ────────────────────────────────────────────────────
@@ -215,7 +216,7 @@ export function UsersPage() {
       }),
     onSuccess: () => {
       invalidateUsers();
-      toast.success("کاربر جدید ایجاد شد");
+      toast.success(t("کاربر جدید ایجاد شد"));
       setCreateOpen(false);
       setCreateForm(EMPTY_FORM);
     },
@@ -248,7 +249,7 @@ export function UsersPage() {
     },
     onSuccess: () => {
       invalidateUsers();
-      toast.success("کاربر به‌روزرسانی شد");
+      toast.success(t("کاربر به‌روزرسانی شد"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -280,12 +281,12 @@ export function UsersPage() {
 
   function submitCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!createForm.name.trim()) return toast.error("نام الزامی است");
-    if (!createForm.email.trim()) return toast.error("ایمیل الزامی است");
+    if (!createForm.name.trim()) return toast.error(t("نام الزامی است"));
+    if (!createForm.email.trim()) return toast.error(t("ایمیل الزامی است"));
     if (createForm.password.length < 6)
-      return toast.error("رمز عبور باید حداقل 6 کاراکتر باشد");
+      return toast.error(t("رمز عبور باید حداقل 6 کاراکتر باشد"));
     if (createForm.modules.length === 0)
-      return toast.error("حداقل یک ماژول (سطح دسترسی) انتخاب کنید");
+      return toast.error(t("حداقل یک ماژول (سطح دسترسی) انتخاب کنید"));
     // Phase 18: صفحات فقط برای ماژول‌های تیک‌خورده (کلید بیرونی → خطای سرور)
     createMut.mutate({ ...createForm, modulePages: payloadPages(createForm), moduleLevels: payloadLevels(createForm) });
   }
@@ -293,10 +294,10 @@ export function UsersPage() {
   function submitEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!editUser) return;
-    if (!editForm.name.trim()) return toast.error("نام نمی‌تواند خالی باشد");
+    if (!editForm.name.trim()) return toast.error(t("نام نمی‌تواند خالی باشد"));
     const isMasterTarget = editUser.role === "master";
     if (!isMasterTarget && editForm.modules.length === 0)
-      return toast.error("حداقل یک ماژول (سطح دسترسی) باید فعال بماند");
+      return toast.error(t("حداقل یک ماژول (سطح دسترسی) باید فعال بماند"));
     // Phase 18: modules فقط وقتی فرستاده می‌شود که مجموع ماژول‌ها تغییر کرده
     // باشد — با مجموع ثابت، modulePages از مسیر مستقل (تک‌درخواستی) می‌رود.
     const modulesChanged =
@@ -335,8 +336,8 @@ export function UsersPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="کاربران و دسترسی‌ها"
-        description="تنظیمات سیستم — ساخت کاربر و تعیین ماژول‌های دسترسی (هر کاربر می‌تواند چند ماژول داشته باشد)"
+        title={t("کاربران و دسترسی‌ها")}
+        description={t("تنظیمات سیستم — ساخت کاربر و تعیین ماژول‌های دسترسی (هر کاربر می‌تواند چند ماژول داشته باشد)")}
         icon="user"
         actions={
           <Button
@@ -346,9 +347,9 @@ export function UsersPage() {
             }}
             className="gap-2"
             disabled={!isMaster}
-            title={isMaster ? undefined : "فقط مدیر ارشد می‌تواند کاربر ایجاد کند"}
+            title={isMaster ? undefined : t("فقط مدیر ارشد می‌تواند کاربر ایجاد کند")}
           >
-            <Icon name="plus" size={16} /> کاربر جدید
+            <Icon name="plus" size={16} /> {t("کاربر جدید")}
           </Button>
         }
       />
@@ -364,18 +365,18 @@ export function UsersPage() {
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              پنل {MODULES[key].faLabel}
+              {t("پنل {p0}", { p0: MODULES[key].faLabel })}
             </p>
           </Card>
         ))}
         <Card className="p-4 gap-1">
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-              مدیر ارشد
+              {t("مدیر ارشد")}
             </span>
             <span className="text-lg font-bold tabular-nums">{masterCount}</span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">دسترسی کامل به همه بخش‌ها</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{t("دسترسی کامل به همه بخش‌ها")}</p>
         </Card>
       </div>
 
@@ -386,11 +387,11 @@ export function UsersPage() {
         <Card className="p-0">
           <EmptyState
             icon="user"
-            title="کاربری وجود ندارد"
-            description="اولین کاربر را ایجاد کنید."
+            title={t("کاربری وجود ندارد")}
+            description={t("اولین کاربر را ایجاد کنید.")}
             action={
               <Button onClick={() => setCreateOpen(true)} className="gap-2">
-                <Icon name="plus" size={16} /> افزودن کاربر
+                <Icon name="plus" size={16} /> {t("افزودن کاربر")}
               </Button>
             }
           />
@@ -399,14 +400,14 @@ export function UsersPage() {
         <Card className="p-0 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
             <span className="text-sm font-semibold">
-              فهرست کاربران
+              {t("فهرست کاربران")}
               <span className="text-muted-foreground font-normal text-xs mr-2">
-                {activeCount} فعال از {users.length}
+                {t("{p0} فعال از {p1}", { p0: activeCount, p1: users.length })}
               </span>
             </span>
             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="size-2 rounded-full bg-emerald-500" />
-              {onlineCount} آنلاین
+              {t("{p0} آنلاین", { p0: onlineCount })}
             </span>
           </div>
           <div className="divide-y max-h-[560px] overflow-y-auto scrollbar-thin">
@@ -448,12 +449,12 @@ export function UsersPage() {
                       <span className="font-medium text-sm truncate">{u.name}</span>
                       {isSelf && (
                         <span className="text-[10px] bg-muted text-muted-foreground rounded-full px-1.5 py-0.5">
-                          شما
+                          {t("شما")}
                         </span>
                       )}
                       {inactive && (
                         <span className="text-[10px] bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 rounded-full px-1.5 py-0.5">
-                          غیرفعال
+                          {t("غیرفعال")}
                         </span>
                       )}
                     </div>
@@ -468,7 +469,7 @@ export function UsersPage() {
                       {u.createdAt && (
                         <>
                           <span className="opacity-50">•</span>
-                          <span>عضویت: {formatDate(u.createdAt)}</span>
+                          <span>{t("عضویت: {p0}", { p0: formatDate(u.createdAt) })}</span>
                         </>
                       )}
                       <span className="opacity-50">•</span>
@@ -481,7 +482,7 @@ export function UsersPage() {
                   <div className="flex items-center gap-1.5 flex-wrap max-w-[280px] justify-end">
                     {isMasterRow ? (
                       <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 rounded-full px-2 py-0.5">
-                        مدیر ارشد — همه ماژول‌ها
+                        {t("مدیر ارشد — همه ماژول‌ها")}
                       </span>
                     ) : (
                       (u.modules ?? []).map((m) => {
@@ -494,7 +495,7 @@ export function UsersPage() {
                             <ModuleChip module={m} />
                             {lv !== "delete" && (
                               <span
-                                title={`سطح دسترسی: ${MODULE_LEVEL_META[lv].label} — ${MODULE_LEVEL_META[lv].hint}`}
+                                title={t("سطح دسترسی: {p0} — {p1}", { p0: MODULE_LEVEL_META[lv].label, p1: MODULE_LEVEL_META[lv].hint })}
                                 className={cn(
                                   "text-[10px] font-medium rounded-full px-1.5 py-0.5",
                                   lv === "view"
@@ -521,7 +522,7 @@ export function UsersPage() {
                           status: v ? "active" : "inactive",
                         })
                       }
-                      aria-label={`فعال/غیرفعال کردن ${u.name}`}
+                      aria-label={t("فعال/غیرفعال کردن {p0}", { p0: u.name })}
                     />
                   ) : (
                     <span className="w-9" aria-hidden="true" />
@@ -533,7 +534,7 @@ export function UsersPage() {
                     onClick={() => openEdit(u)}
                     disabled={!isMaster}
                   >
-                    <Icon name="edit" size={13} /> ویرایش
+                    <Icon name="edit" size={13} /> {t("ویرایش")}
                   </Button>
                 </div>
               );
@@ -549,7 +550,7 @@ export function UsersPage() {
           className="sm:max-w-md max-h-[90vh] overflow-y-auto scrollbar-thin"
         >
           <DialogHeader>
-            <DialogTitle>کاربر جدید</DialogTitle>
+            <DialogTitle>{t("کاربر جدید")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitCreate} className="space-y-4">
             <UserFormFields
@@ -559,7 +560,7 @@ export function UsersPage() {
             />
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={createMut.isPending} className="gap-2">
                 {createMut.isPending ? (
@@ -567,7 +568,7 @@ export function UsersPage() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ایجاد کاربر
+                {t("ایجاد کاربر")}
               </Button>
             </div>
           </form>
@@ -581,37 +582,37 @@ export function UsersPage() {
           className="sm:max-w-md max-h-[90vh] overflow-y-auto scrollbar-thin"
         >
           <DialogHeader>
-            <DialogTitle>ویرایش {editUser?.name}</DialogTitle>
+            <DialogTitle>{t("ویرایش {p0}", { p0: editUser?.name })}</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-4">
-            <Field label="ایمیل (غیرقابل تغییر)">
+            <Field label={t("ایمیل (غیرقابل تغییر)")}>
               <Input value={editForm.email} disabled dir="ltr" />
             </Field>
             <UserFormFields form={editForm} setForm={setEditForm} />
             {editUser?.role === "master" ? (
               <p className="text-xs text-muted-foreground rounded-lg border border-dashed p-3">
-                مدیر ارشد دسترسی ضمنی به همهٔ ماژول‌ها دارد — سطح دسترسی تکی ندارد.
+                {t("مدیر ارشد دسترسی ضمنی به همهٔ ماژول‌ها دارد — سطح دسترسی تکی ندارد.")}
               </p>
             ) : null}
-            <Field label="رمز عبور جدید (اختیاری)">
+            <Field label={t("رمز عبور جدید (اختیاری)")}>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="برای تغییر رمز پر کنید"
+                placeholder={t("برای تغییر رمز پر کنید")}
                 dir="ltr"
               />
             </Field>
             {editUser && editUser.role !== "master" && (editUser.modules ?? []).length > 0 && (
               <p className="text-[11px] text-amber-600 dark:text-amber-400 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5 leading-relaxed">
                 <Icon name="info" size={12} className="inline ml-1" />
-                اگر ماژولی را برمی‌دارید، سفارش‌ها/تسک‌های تخصیص‌یافتهٔ قبلی او حذف
-                نمی‌شوند؛ اما پنل آن ماژول دیگر برایش نمایش داده نمی‌شود.
+                {t("اگر ماژولی را برمی‌دارید، سفارش‌ها/تسک‌های تخصیص‌یافتهٔ قبلی او حذف")}
+                {t("نمی‌شوند؛ اما پنل آن ماژول دیگر برایش نمایش داده نمی‌شود.")}
               </p>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setEditUser(null)}>
-                انصراف
+                {t("انصراف")}
               </Button>
               <Button type="submit" disabled={updateMut.isPending} className="gap-2">
                 {updateMut.isPending ? (
@@ -619,7 +620,7 @@ export function UsersPage() {
                 ) : (
                   <Icon name="check" size={16} />
                 )}
-                ذخیره تغییرات
+                {t("ذخیره تغییرات")}
               </Button>
             </div>
           </form>
@@ -676,16 +677,16 @@ function UserFormFields({
 
   return (
     <div className="space-y-4">
-      <Field label="نام و نام خانوادگی" required>
+      <Field label={t("نام و نام خانوادگی")} required>
         <Input
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          placeholder="مثلاً: سارا احمدی"
+          placeholder={t("مثلاً: سارا احمدی")}
           autoFocus
         />
       </Field>
       {withPassword && (
-        <Field label="ایمیل" required>
+        <Field label={t("ایمیل")} required>
           <Input
             type="email"
             value={form.email}
@@ -696,17 +697,17 @@ function UserFormFields({
         </Field>
       )}
       {withPassword && (
-        <Field label="رمز عبور" required>
+        <Field label={t("رمز عبور")} required>
           <Input
             type="password"
             value={form.password}
             onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            placeholder="حداقل 6 کاراکتر"
+            placeholder={t("حداقل 6 کاراکتر")}
             dir="ltr"
           />
         </Field>
       )}
-      <Field label="شماره تماس">
+      <Field label={t("شماره تماس")}>
         <Input
           value={form.phone}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
@@ -716,7 +717,7 @@ function UserFormFields({
       </Field>
 
       {/* Phase 12 — انتخاب چند ماژول (چک‌باکس) + Phase 18 پنل صفحات */}
-      <Field label="ماژول‌های دسترسی (چند انتخاب)" required>
+      <Field label={t("ماژول‌های دسترسی (چند انتخاب)")} required>
         <div className="grid grid-cols-2 gap-2 items-start">
           {(Object.keys(MODULES) as ModuleKey[]).map((key) => {
             const checked = form.modules.includes(key);
@@ -760,11 +761,11 @@ function UserFormFields({
           })}
         </div>
         <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-          کاربر فقط پنل ماژول‌های تیک‌خورده را می‌بیند — مثلاً هم «کنترل کیفی» هم «چاپ»
-          را تیک بزنید تا هر دو پنل برایش باز شود. زیر هر ماژول، «سطح دسترسی» را
-          انتخاب کنید: مشاهده (فقط می‌بیند)، ادیت (ثبت/ویرایش بدون حذف) یا حذف
-          (کامل). با برداشتنِ «همهٔ صفحات» می‌توانید صفحات همان ماژول را تک‌به‌تک
-          محدود کنید.
+          {t("کاربر فقط پنل ماژول‌های تیک‌خورده را می‌بیند — مثلاً هم «کنترل کیفی» هم «چاپ»")}
+          {t("را تیک بزنید تا هر دو پنل برایش باز شود. زیر هر ماژول، «سطح دسترسی» را")}
+          {t("انتخاب کنید: مشاهده (فقط می‌بیند)، ادیت (ثبت/ویرایش بدون حذف) یا حذف")}
+          {t("(کامل). با برداشتنِ «همهٔ صفحات» می‌توانید صفحات همان ماژول را تک‌به‌تک")}
+          {t("محدود کنید.")}
         </p>
       </Field>
     </div>
@@ -806,7 +807,7 @@ function ModuleLevelPanel({
     <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">
-          سطح دسترسی در {faLabel}
+          {t("سطح دسترسی در {p0}", { p0: faLabel })}
         </span>
         <span className="text-[11px] font-medium text-foreground">
           {MODULE_LEVEL_META[level].label}
@@ -835,7 +836,7 @@ function ModuleLevelPanel({
         })}
       </div>
       <p className="text-[10px] text-muted-foreground leading-relaxed">
-        {MODULE_LEVEL_META[level].hint} — اعمال آن حداکثر ۴۵ ثانیه بعد نزد کاربر فعال می‌شود.
+        {t("{p0} — اعمال آن حداکثر ۴۵ ثانیه بعد نزد کاربر فعال می‌شود.", { p0: MODULE_LEVEL_META[level].hint })}
       </p>
     </div>
   );
@@ -883,15 +884,15 @@ function ModulePagesPanel({
     <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">
-          صفحات مجاز در {faLabel}
+          {t("صفحات مجاز در {p0}", { p0: faLabel })}
         </span>
         <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <Checkbox
             checked={isAll}
             onCheckedChange={(v) => toggleAll(v === true)}
-            aria-label={`همهٔ صفحات ${faLabel}`}
+            aria-label={t("همهٔ صفحات {p0}", { p0: faLabel })}
           />
-          <span className="text-[11px] font-medium">همهٔ صفحات</span>
+          <span className="text-[11px] font-medium">{t("همهٔ صفحات")}</span>
         </label>
       </div>
       {!isAll && (
@@ -913,8 +914,8 @@ function ModulePagesPanel({
         </div>
       )}
       <p className="text-[10px] text-muted-foreground leading-relaxed">
-        حداقل یک صفحه باید فعال باشد — اگر هیچ صفحه‌ای تیک نخورد، «همهٔ صفحات» خودکار
-        برمی‌گردد.
+        {t("حداقل یک صفحه باید فعال باشد — اگر هیچ صفحه‌ای تیک نخورد، «همهٔ صفحات» خودکار")}
+        {t("برمی‌گردد.")}
       </p>
     </div>
   );

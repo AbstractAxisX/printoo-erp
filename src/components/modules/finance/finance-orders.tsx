@@ -17,6 +17,7 @@ import { FinanceOrderModal } from "./finance-order-modal";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -37,12 +38,12 @@ const OPEN_STATUSES = ["pending_design", "in_printing", "warehouse_logistics"];
 const CLOSED_STATUSES = ["completed", "archived", "cancelled"];
 
 const STATUS_LABELS: Record<string, string> = {
-  pending_design: "در انتظار طراحی",
-  in_printing: "در حال چاپ",
-  warehouse_logistics: "انبار و لجستیک",
-  completed: "تکمیل‌شده",
-  archived: "آرشیو",
-  cancelled: "باطل‌شده",
+  pending_design: t("در انتظار طراحی"),
+  in_printing: t("در حال چاپ"),
+  warehouse_logistics: t("انبار و لجستیک"),
+  completed: t("تکمیل‌شده"),
+  archived: t("آرشیو"),
+  cancelled: t("باطل‌شده"),
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -57,11 +58,11 @@ const STATUS_TONE: Record<string, string> = {
 // «الان کجاست» — برجسته‌ترین مرحلهٔ فعال
 function activeStageOf(o: Order): { label: string; cls: string } {
   const stages = o.items.map((i) => i.stage);
-  if (stages.some((s) => s === "design")) return { label: "طراحی", cls: STATUS_TONE.pending_design };
-  if (stages.some((s) => s === "print")) return { label: "چاپ", cls: STATUS_TONE.in_printing };
-  if (stages.some((s) => s === "warehouse")) return { label: "انبار/لجستیک", cls: STATUS_TONE.warehouse_logistics };
-  if (o.status === "cancelled") return { label: "باطل", cls: STATUS_TONE.cancelled };
-  return { label: "تکمیل", cls: STATUS_TONE.completed };
+  if (stages.some((s) => s === "design")) return { label: t("طراحی"), cls: STATUS_TONE.pending_design };
+  if (stages.some((s) => s === "print")) return { label: t("چاپ"), cls: STATUS_TONE.in_printing };
+  if (stages.some((s) => s === "warehouse")) return { label: t("انبار/لجستیک"), cls: STATUS_TONE.warehouse_logistics };
+  if (o.status === "cancelled") return { label: t("باطل"), cls: STATUS_TONE.cancelled };
+  return { label: t("تکمیل"), cls: STATUS_TONE.completed };
 }
 
 // ─── Phase 20-E: کارت موبایل سفارش — نمای مالی (<768px) ───────────────
@@ -86,13 +87,13 @@ function FinanceOrderMobileCard({ order: o }: { order: Order }) {
       </div>
       <div className="flex items-center gap-4">
         <div>
-          <div className="text-[10px] text-muted-foreground">جمع</div>
+          <div className="text-[10px] text-muted-foreground">{t("جمع")}</div>
           <div className="text-sm font-semibold tabular-nums" dir="ltr">
             {formatCurrency(o.totalAmount)}
           </div>
         </div>
         <div>
-          <div className="text-[10px] text-muted-foreground">پرداخت‌شده</div>
+          <div className="text-[10px] text-muted-foreground">{t("پرداخت‌شده")}</div>
           <div
             className={cn(
               "text-sm font-medium tabular-nums",
@@ -107,7 +108,7 @@ function FinanceOrderMobileCard({ order: o }: { order: Order }) {
         </div>
         {rem > 0.001 && o.status !== "cancelled" && (
           <span className="text-[11px] text-rose-600 dark:text-rose-400 tabular-nums ms-auto" dir="ltr">
-            مانده {formatCurrency(rem)}
+            {t("مانده {p0}", { p0: formatCurrency(rem) })}
           </span>
         )}
       </div>
@@ -153,7 +154,7 @@ export function FinanceOrders() {
     () => [
       {
         accessorKey: "number",
-        header: "سفارش",
+        header: t("سفارش"),
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="font-mono text-xs font-bold">#{row.original.number}</div>
@@ -165,7 +166,7 @@ export function FinanceOrders() {
       },
       {
         id: "customer",
-        header: "مشتری",
+        header: t("مشتری"),
         cell: ({ row }) => (
           <div className="min-w-0">
             <div className="text-sm font-medium truncate max-w-[150px]">
@@ -179,7 +180,7 @@ export function FinanceOrders() {
       },
       {
         id: "items",
-        header: "آیتم‌ها",
+        header: t("آیتم‌ها"),
         cell: ({ row }) => (
           <div className="flex items-center gap-1 flex-wrap max-w-[180px]">
             {row.original.items.slice(0, 2).map((it) => (
@@ -200,7 +201,7 @@ export function FinanceOrders() {
       },
       {
         id: "where",
-        header: "الان کجاست",
+        header: t("الان کجاست"),
         cell: ({ row }) => {
           const st = activeStageOf(row.original);
           return <span className={cn("text-[10px] px-2 py-0.5 rounded-full", st.cls)}>{st.label}</span>;
@@ -208,12 +209,12 @@ export function FinanceOrders() {
       },
       {
         accessorKey: "status",
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         accessorKey: "totalAmount",
-        header: "جمع",
+        header: t("جمع"),
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums" dir="ltr">
@@ -223,7 +224,7 @@ export function FinanceOrders() {
       },
       {
         id: "paid",
-        header: "پرداخت‌شده",
+        header: t("پرداخت‌شده"),
         meta: { align: "end" },
         cell: ({ row }) => {
           const o = row.original;
@@ -243,7 +244,7 @@ export function FinanceOrders() {
               </span>
               {rem > 0.001 && o.status !== "cancelled" && (
                 <span className="text-[10px] text-muted-foreground tabular-nums block" dir="ltr">
-                  مانده {formatCurrency(rem)}
+                  {t("مانده {p0}", { p0: formatCurrency(rem) })}
                 </span>
               )}
             </div>
@@ -266,7 +267,7 @@ export function FinanceOrders() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="سفارش‌ها" icon="orders" />
+      <PageHeader title={t("سفارش‌ها")} icon="orders" />
 
       {/* فیلترها */}
       <Card className="p-4 space-y-3">
@@ -280,16 +281,16 @@ export function FinanceOrders() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="جستجو: شماره سفارش، مشتری…"
+              placeholder={t("جستجو: شماره سفارش، مشتری…")}
               className="pr-9"
             />
           </div>
           {/* باز/بسته/همه */}
           <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1">
             {[
-              { id: "open", label: "باز" },
-              { id: "closed", label: "بسته" },
-              { id: "all", label: "همه" },
+              { id: "open", label: t("باز") },
+              { id: "closed", label: t("بسته") },
+              { id: "all", label: t("همه") },
             ].map((v) => (
               <button
                 key={v.id}
@@ -309,7 +310,7 @@ export function FinanceOrders() {
             ))}
           </div>
           <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-            {rows.length.toLocaleString("en-US")} سفارش
+            {t("{p0} سفارش", { p0: rows.length.toLocaleString("en-US") })}
           </span>
         </div>
         {/* وضعیت‌ها */}
@@ -344,8 +345,8 @@ export function FinanceOrders() {
           emptyState={
             <EmptyState
               icon="orders"
-              title="سفارشی یافت نشد"
-              description="فیلترها را تغییر دهید"
+              title={t("سفارشی یافت نشد")}
+              description={t("فیلترها را تغییر دهید")}
             />
           }
         />

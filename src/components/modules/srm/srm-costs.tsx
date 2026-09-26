@@ -21,16 +21,17 @@ import { useAppStore } from "@/stores/app-store";
 import { useCostDetail } from "@/lib/use-cost-detail";
 import { cn } from "@/lib/utils";
 import type { MaterialCost, Supplier } from "./srm-types";
+import { t } from "@/lib/i18n";
 
 // ─── Module & status meta ─────────────────────────────────────────────
 const MODULE_META: Record<string, { label: string; icon: IconName; color: string }> = {
   print: {
-    label: "چاپ",
+    label: t("چاپ"),
     icon: "print",
     color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
   },
   warehouse: {
-    label: "انبار",
+    label: t("انبار"),
     icon: "warehouse",
     color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300",
   },
@@ -43,9 +44,9 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "در انتظار",
-  approved: "تأیید شده",
-  rejected: "رد شده",
+  pending: t("در انتظار"),
+  approved: t("تأیید شده"),
+  rejected: t("رد شده"),
 };
 
 // ─── Component ────────────────────────────────────────────────────────
@@ -130,7 +131,7 @@ export function SRMCosts() {
     {
       id: "number",
       accessorKey: "number",
-      header: "شماره سفارش",
+      header: t("شماره سفارش"),
       cell: ({ row }) => (
         <span className="font-mono text-xs font-bold">
           #{row.original.order?.number ?? "—"}
@@ -141,7 +142,7 @@ export function SRMCosts() {
     {
       id: "customer",
       accessorFn: (r) => r.order?.customer?.name ?? "",
-      header: "مشتری",
+      header: t("مشتری"),
       cell: ({ row }) => (
         <span className="font-medium text-sm">
           {row.original.order?.customer?.name ?? "—"}
@@ -152,7 +153,7 @@ export function SRMCosts() {
     {
       id: "supplier",
       accessorFn: (r) => r.supplier?.name ?? "",
-      header: "تامین‌کننده",
+      header: t("تامین‌کننده"),
       cell: ({ row }) => {
         const sup = row.original.supplier;
         if (!sup) return <span className="text-xs text-muted-foreground">—</span>;
@@ -170,7 +171,7 @@ export function SRMCosts() {
     {
       id: "expenseType",
       accessorFn: (r) => r.expenseType?.name ?? "",
-      header: "نوع هزینه",
+      header: t("نوع هزینه"),
       cell: ({ row }) => (
         <span className="text-xs px-2 py-0.5 rounded bg-muted">
           {row.original.expenseType?.name ?? "—"}
@@ -181,7 +182,7 @@ export function SRMCosts() {
     {
       id: "description",
       accessorFn: (r) => r.description ?? "",
-      header: "توضیحات",
+      header: t("توضیحات"),
       cell: ({ row }) => (
         <span
           className="text-xs text-muted-foreground line-clamp-1 max-w-[220px] inline-block"
@@ -195,7 +196,7 @@ export function SRMCosts() {
     {
       id: "amount",
       accessorFn: (r) => r.amount,
-      header: "مبلغ (IQD)",
+      header: t("مبلغ (IQD)"),
       cell: ({ row }) => (
         <span className="text-sm font-bold tabular-nums" dir="ltr">
           {formatCurrency(row.original.amount)}
@@ -206,7 +207,7 @@ export function SRMCosts() {
     {
       id: "status",
       accessorFn: (r) => r.status,
-      header: "وضعیت",
+      header: t("وضعیت"),
       cell: ({ row }) => (
         <span
           className={cn(
@@ -222,7 +223,7 @@ export function SRMCosts() {
     {
       id: "module",
       accessorFn: (r) => r.module,
-      header: "ماژول",
+      header: t("ماژول"),
       cell: ({ row }) => {
         const meta =
           MODULE_META[row.original.module] ?? {
@@ -247,7 +248,7 @@ export function SRMCosts() {
     {
       id: "createdAt",
       accessorFn: (r) => new Date(r.createdAt).getTime(),
-      header: "تاریخ",
+      header: t("تاریخ"),
       cell: ({ row }) => (
         <span className="text-xs tabular-nums text-muted-foreground">
           {formatDate(row.original.createdAt)}
@@ -260,8 +261,8 @@ export function SRMCosts() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="هزینه‌های تامین‌کنندگان"
-        description="همه هزینه‌های ثبت‌شده از منظر تامین‌کنندگان (ماژول‌های چاپ و انبار)"
+        title={t("هزینه‌های تامین‌کنندگان")}
+        description={t("همه هزینه‌های ثبت‌شده از منظر تامین‌کنندگان (ماژول‌های چاپ و انبار)")}
         icon="coins"
         actions={
           <Button
@@ -269,7 +270,7 @@ export function SRMCosts() {
             onClick={() => navigate("srm", "suppliers")}
             className="gap-2"
           >
-            <Icon name="suppliers" size={16} /> تامین‌کنندگان
+            <Icon name="suppliers" size={16} /> {t("تامین‌کنندگان")}
           </Button>
         }
       />
@@ -288,18 +289,18 @@ export function SRMCosts() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجو بر اساس شماره سفارش، توضیحات یا تامین‌کننده..."
+              placeholder={t("جستجو بر اساس شماره سفارش، توضیحات یا تامین‌کننده...")}
               className="w-full h-9 rounded-md border bg-background pr-9 pl-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
             <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder="همه تامین‌کنندگان" />
+              <SelectValue placeholder={t("همه تامین‌کنندگان")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">همه تامین‌کنندگان</SelectItem>
-              <SelectItem value="none">بدون تامین‌کننده</SelectItem>
+              <SelectItem value="all">{t("همه تامین‌کنندگان")}</SelectItem>
+              <SelectItem value="none">{t("بدون تامین‌کننده")}</SelectItem>
               {suppliers.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
@@ -309,31 +310,31 @@ export function SRMCosts() {
           </Select>
 
           <div className="mr-auto text-xs text-muted-foreground">
-            مجموع: {filteredCosts.length} از {allCosts.length} هزینه
+            {t("مجموع: {p0} از {p1} هزینه", { p0: filteredCosts.length, p1: allCosts.length })}
           </div>
         </div>
 
         {/* Status filter toggles */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground shrink-0">وضعیت:</span>
+          <span className="text-xs text-muted-foreground shrink-0">{t("وضعیت:")}</span>
           <ToggleButton
             checked={statusFilters.pending}
             onChange={(v) => setStatusFilters((p) => ({ ...p, pending: v }))}
-            label="در انتظار"
+            label={t("در انتظار")}
             size="sm"
             activeColor="primary"
           />
           <ToggleButton
             checked={statusFilters.approved}
             onChange={(v) => setStatusFilters((p) => ({ ...p, approved: v }))}
-            label="تأیید شده"
+            label={t("تأیید شده")}
             size="sm"
             activeColor="emerald"
           />
           <ToggleButton
             checked={statusFilters.rejected}
             onChange={(v) => setStatusFilters((p) => ({ ...p, rejected: v }))}
-            label="رد شده"
+            label={t("رد شده")}
             size="sm"
             activeColor="primary"
             activeIcon="alert"
@@ -343,18 +344,18 @@ export function SRMCosts() {
 
         {/* Module filter toggles */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted-foreground shrink-0">ماژول:</span>
+          <span className="text-xs text-muted-foreground shrink-0">{t("ماژول:")}</span>
           <ToggleButton
             checked={moduleFilters.print}
             onChange={(v) => setModuleFilters((p) => ({ ...p, print: v }))}
-            label="چاپ"
+            label={t("چاپ")}
             size="sm"
             activeColor="primary"
           />
           <ToggleButton
             checked={moduleFilters.warehouse}
             onChange={(v) => setModuleFilters((p) => ({ ...p, warehouse: v }))}
-            label="انبار"
+            label={t("انبار")}
             size="sm"
             activeColor="primary"
           />
@@ -366,7 +367,7 @@ export function SRMCosts() {
         <Card className="p-3 ring-1 ring-amber-500/20 bg-amber-50/40 dark:bg-amber-950/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-muted-foreground">مجموع در انتظار</div>
+              <div className="text-[11px] text-muted-foreground">{t("مجموع در انتظار")}</div>
               <div className="text-sm font-bold tabular-nums mt-0.5" dir="ltr">
                 {formatCurrency(totalPending)}
               </div>
@@ -379,7 +380,7 @@ export function SRMCosts() {
         <Card className="p-3 ring-1 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-muted-foreground">مجموع تأیید شده</div>
+              <div className="text-[11px] text-muted-foreground">{t("مجموع تأیید شده")}</div>
               <div className="text-sm font-bold tabular-nums mt-0.5" dir="ltr">
                 {formatCurrency(totalApproved)}
               </div>
@@ -392,7 +393,7 @@ export function SRMCosts() {
         <Card className="p-3 ring-1 ring-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[11px] text-muted-foreground">مجموع رد شده</div>
+              <div className="text-[11px] text-muted-foreground">{t("مجموع رد شده")}</div>
               <div className="text-sm font-bold tabular-nums mt-0.5" dir="ltr">
                 {formatCurrency(totalRejected)}
               </div>
@@ -416,8 +417,8 @@ export function SRMCosts() {
           emptyState={
             <EmptyState
               icon="coins"
-              title="هزینه‌ای یافت نشد"
-              description="با فیلترهای فعلی هزینه‌ای برای نمایش وجود ندارد"
+              title={t("هزینه‌ای یافت نشد")}
+              description={t("با فیلترهای فعلی هزینه‌ای برای نمایش وجود ندارد")}
             />
           }
         />

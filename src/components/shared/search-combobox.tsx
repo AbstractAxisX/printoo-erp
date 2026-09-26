@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Icon, type IconName } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 export type SearchComboboxOption = {
   value: string;
@@ -163,7 +164,7 @@ export function SearchCombobox({
               }}
               className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 flex items-center justify-center gap-1"
             >
-              <Icon name="cancel" size={12} /> پاک کردن انتخاب
+              <Icon name="cancel" size={12} /> {t("پاک کردن انتخاب")}
             </button>
           </div>
         )}

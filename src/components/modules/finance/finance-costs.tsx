@@ -28,6 +28,7 @@ import { CurrencyChip } from "@/components/shared/fx-widgets";
 import { formatMoney, sumByCurrency, formatSumPerCurrency, type Currency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -55,25 +56,25 @@ type ExpenseType = { id: string; name: string; isDefault: boolean };
 // ─── Meta ──────────────────────────────────────────────────────────────
 
 const MODULE_META: Record<string, { label: string; color: string; icon: IconName }> = {
-  print: { label: "چاپ", color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", icon: "print" },
-  material: { label: "متریال", color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300", icon: "boxes" },
-  warehouse: { label: "انبار", color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", icon: "warehouse" },
-  logistics: { label: "لجستیک", color: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", icon: "truck" },
-  finance: { label: "مالی", color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", icon: "wallet" },
+  print: { label: t("چاپ"), color: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300", icon: "print" },
+  material: { label: t("متریال"), color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300", icon: "boxes" },
+  warehouse: { label: t("انبار"), color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300", icon: "warehouse" },
+  logistics: { label: t("لجستیک"), color: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300", icon: "truck" },
+  finance: { label: t("مالی"), color: "bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300", icon: "wallet" },
 };
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending: { label: "در انتظار", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
-  approved: { label: "تأیید شده", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-  rejected: { label: "رد شده", cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
+  pending: { label: t("در انتظار"), cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  approved: { label: t("تأیید شده"), cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
+  rejected: { label: t("رد شده"), cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
 };
 
 const MODULES = ["print", "material", "warehouse", "logistics", "finance"] as const;
 const STATUSES = ["pending", "approved", "rejected"] as const;
 const SCOPES = [
-  { id: "all", label: "همه" },
-  { id: "order", label: "روی سفارش" },
-  { id: "free", label: "آزاد" },
+  { id: "all", label: t("همه") },
+  { id: "order", label: t("روی سفارش") },
+  { id: "free", label: t("آزاد") },
 ] as const;
 
 // ─── Filter chip (همان الگوی orders-filters ادمین) ────────────────────
@@ -232,7 +233,7 @@ export function FinanceCosts() {
     () => [
       {
         accessorKey: "createdAt",
-        header: "تاریخ و ساعت",
+        header: t("تاریخ و ساعت"),
         cell: ({ row }) => (
           <div className="text-xs tabular-nums text-muted-foreground" dir="ltr">
             {formatDateTime(row.original.createdAt)}
@@ -241,14 +242,14 @@ export function FinanceCosts() {
       },
       {
         id: "order",
-        header: "سفارش",
+        header: t("سفارش"),
         cell: ({ row }) => {
           const o = row.original.order;
           if (!o)
             return (
               <span className="inline-flex items-center gap-1 text-[11px] text-violet-700 dark:text-violet-300 bg-violet-100 dark:bg-violet-950/60 px-2 py-0.5 rounded-full">
                 <Icon name="coins" size={10} />
-                آزاد{row.original.expenseType?.name ? ` — ${row.original.expenseType.name}` : ""}
+                {t("آزاد{p0}", { p0: row.original.expenseType?.name ? ` — ${row.original.expenseType.name}` : "" })}
               </span>
             );
           return (
@@ -261,14 +262,14 @@ export function FinanceCosts() {
       },
       {
         id: "title",
-        header: "هزینه",
+        header: t("هزینه"),
         cell: ({ row }) => {
           const c = row.original;
           const files = (c.attachments?.length ?? 0) + (c.description ? 0 : 0);
           return (
             <div className="min-w-0 max-w-[260px]">
               <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                {c.title || c.description || "هزینه"}
+                {c.title || c.description || t("هزینه")}
                 {(c.attachments?.length ?? 0) > 0 && (
                   <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5 shrink-0">
                     <Icon name="file" size={9} />
@@ -277,7 +278,7 @@ export function FinanceCosts() {
                 )}
                 {c.includeInInvoice && (
                   <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
-                    در فاکتور
+                    {t("در فاکتور")}
                   </span>
                 )}
               </div>
@@ -293,7 +294,7 @@ export function FinanceCosts() {
       },
       {
         accessorKey: "module",
-        header: "ثبت از",
+        header: t("ثبت از"),
         cell: ({ row }) => {
           const m = MODULE_META[row.original.module] ?? {
             label: row.original.module,
@@ -312,7 +313,7 @@ export function FinanceCosts() {
       },
       {
         id: "creator",
-        header: "ثبت‌کننده",
+        header: t("ثبت‌کننده"),
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground truncate block max-w-[120px]">
             {row.original.createdByName ?? "—"}
@@ -321,7 +322,7 @@ export function FinanceCosts() {
       },
       {
         accessorKey: "amount",
-        header: "مبلغ",
+        header: t("مبلغ"),
         meta: { align: "end" },
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums inline-flex items-center gap-1.5" dir="ltr">
@@ -332,7 +333,7 @@ export function FinanceCosts() {
       },
       {
         accessorKey: "status",
-        header: "وضعیت",
+        header: t("وضعیت"),
         cell: ({ row }) => {
           const st = STATUS_META[row.original.status] ?? {
             label: row.original.status,
@@ -365,7 +366,7 @@ export function FinanceCosts() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="تاریخچه هزینه‌ها"
+        title={t("تاریخچه هزینه‌ها")}
         icon="money"
         actions={
           <Button
@@ -375,7 +376,7 @@ export function FinanceCosts() {
             onClick={() => setShowForm((v) => !v)}
           >
             <Icon name={showForm ? "arrowUp" : "plusCircle"} size={14} />
-            {showForm ? "بستن فرم" : "ثبت هزینه جدید"}
+            {showForm ? t("بستن فرم") : t("ثبت هزینه جدید")}
           </Button>
         }
       />
@@ -389,11 +390,11 @@ export function FinanceCosts() {
                 <Icon name="plusCircle" size={17} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">ثبت هزینه جدید</h3>
+                <h3 className="font-semibold text-sm">{t("ثبت هزینه جدید")}</h3>
                 <p className="text-[11px] text-muted-foreground">
                   {costMode === "order"
-                    ? "هزینه روی سفارش — با گزینهٔ نشستن در فاکتور"
-                    : "هزینهٔ آزاد — کرایه، حقوق و هزینه‌های جاری"}
+                    ? t("هزینه روی سفارش — با گزینهٔ نشستن در فاکتور")
+                    : t("هزینهٔ آزاد — کرایه، حقوق و هزینه‌های جاری")}
                 </p>
               </div>
             </div>
@@ -412,7 +413,7 @@ export function FinanceCosts() {
                   )}
                 >
                   <Icon name={m === "order" ? "orders" : "coins"} size={13} />
-                  {m === "order" ? "روی سفارش" : "آزاد"}
+                  {m === "order" ? t("روی سفارش") : t("آزاد")}
                 </button>
               ))}
             </div>
@@ -439,43 +440,43 @@ export function FinanceCosts() {
         <Card className="p-3.5 ring-1 ring-amber-500/20 bg-amber-50/40 dark:bg-amber-950/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="clock" size={13} className="text-amber-600" />
-            در انتظار تأیید
+            {t("در انتظار تأیید")}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
             {formatCurrency(sumOf("pending"))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {allCosts.filter((c) => c.status === "pending").length.toLocaleString("en-US")} مورد
+            {t("{p0} مورد", { p0: allCosts.filter((c) => c.status === "pending").length.toLocaleString("en-US") })}
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="checkCircle" size={13} className="text-emerald-600" />
-            تأیید شده
+            {t("تأیید شده")}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
             {formatCurrency(sumOf("approved"))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {allCosts.filter((c) => c.status === "approved").length.toLocaleString("en-US")} مورد
+            {t("{p0} مورد", { p0: allCosts.filter((c) => c.status === "approved").length.toLocaleString("en-US") })}
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="cancel" size={13} className="text-rose-600" />
-            رد شده
+            {t("رد شده")}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
             {formatCurrency(sumOf("rejected"))}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {allCosts.filter((c) => c.status === "rejected").length.toLocaleString("en-US")} مورد
+            {t("{p0} مورد", { p0: allCosts.filter((c) => c.status === "rejected").length.toLocaleString("en-US") })}
           </div>
         </Card>
         <Card className="p-3.5 ring-1 ring-primary/20">
           <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Icon name="money" size={13} className="text-primary" />
-            مجموع (فیلتر جاری)
+            {t("مجموع (فیلتر جاری)")}
           </div>
           <div className="text-lg font-bold tabular-nums mt-1.5" dir="ltr">
             {filteredMixed
@@ -488,7 +489,7 @@ export function FinanceCosts() {
             </div>
           ) : null}
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {filtered.length.toLocaleString("en-US")} مورد
+            {t("{p0} مورد", { p0: filtered.length.toLocaleString("en-US") })}
           </div>
         </Card>
       </div>
@@ -505,7 +506,7 @@ export function FinanceCosts() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="جستجو: نام، توضیح، سفارش، مشتری، کارمند…"
+              placeholder={t("جستجو: نام، توضیح، سفارش، مشتری، کارمند…")}
               className="pr-9"
             />
           </div>
@@ -527,7 +528,7 @@ export function FinanceCosts() {
             ))}
           </div>
           {/* فاز ۲۵: فیلتر ارزی — همه / دینار / دلار / تومان */}
-          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label="ارز">
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-1" role="radiogroup" aria-label={t("ارز")}>
             {(["", "IQD", "USD", "IRT"] as const).map((c) => (
               <button
                 key={c || "all"}
@@ -541,7 +542,7 @@ export function FinanceCosts() {
                     : "text-muted-foreground hover:bg-background/60"
                 )}
               >
-                {c === "" ? "همه ارزها" : c === "IQD" ? "دینار" : c === "USD" ? "دلار" : "تومان"}
+                {c === "" ? t("همه ارزها") : c === "IQD" ? t("دینار") : c === "USD" ? t("دلار") : t("تومان")}
               </button>
             ))}
           </div>
@@ -552,7 +553,7 @@ export function FinanceCosts() {
             onClick={() => setShowFilters((v) => !v)}
           >
             <Icon name="filter" size={14} />
-            فیلترها
+            {t("فیلترها")}
             {activeFilterCount > 0 && (
               <span className="size-5 rounded-full bg-primary-foreground/20 text-[10px] font-bold grid place-items-center">
                 {activeFilterCount.toLocaleString("en-US")}
@@ -565,10 +566,10 @@ export function FinanceCosts() {
             size="sm"
             className={cn("gap-1.5", !groupByOrder && "text-muted-foreground")}
             onClick={() => setGroupByOrder((v) => !v)}
-            title="هزینه‌ها را به تفکیک هر سفارش گروه‌بندی کن"
+            title={t("هزینه‌ها را به تفکیک هر سفارش گروه‌بندی کن")}
           >
             <Icon name="layers" size={14} />
-            به تفکیک سفارش
+            {t("به تفکیک سفارش")}
           </Button>
           {activeFilterCount > 0 && (
             <Button
@@ -585,11 +586,11 @@ export function FinanceCosts() {
                 setDateTo(null);
               }}
             >
-              <Icon name="cancel" size={13} /> پاک‌کردن
+              <Icon name="cancel" size={13} /> {t("پاک‌کردن")}
             </Button>
           )}
           <span className="mr-auto text-xs text-muted-foreground tabular-nums">
-            {filtered.length.toLocaleString("en-US")} هزینه
+            {t("{p0} هزینه", { p0: filtered.length.toLocaleString("en-US") })}
           </span>
         </div>
 
@@ -597,7 +598,7 @@ export function FinanceCosts() {
         {showFilters && (
           <div className="border-t pt-3 space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium text-muted-foreground min-w-[80px]">وضعیت</span>
+              <span className="text-xs font-medium text-muted-foreground min-w-[80px]">{t("وضعیت")}</span>
               {STATUSES.map((st) => (
                 <FilterChip
                   key={st}
@@ -610,7 +611,7 @@ export function FinanceCosts() {
               ))}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium text-muted-foreground min-w-[80px]">ماژول ثبت</span>
+              <span className="text-xs font-medium text-muted-foreground min-w-[80px]">{t("ماژول ثبت")}</span>
               {MODULES.map((m) => (
                 <FilterChip
                   key={m}
@@ -623,7 +624,7 @@ export function FinanceCosts() {
             </div>
             {scope === "free" && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-medium text-muted-foreground min-w-[80px]">دستهٔ آزاد</span>
+                <span className="text-xs font-medium text-muted-foreground min-w-[80px]">{t("دستهٔ آزاد")}</span>
                 {(typesData?.expenseTypes ?? []).map((t) => (
                   <FilterChip
                     key={t.id}
@@ -636,10 +637,10 @@ export function FinanceCosts() {
               </div>
             )}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium text-muted-foreground min-w-[80px]">بازهٔ زمانی</span>
-              <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="از تاریخ" />
+              <span className="text-xs font-medium text-muted-foreground min-w-[80px]">{t("بازهٔ زمانی")}</span>
+              <DatePicker value={dateFrom} onChange={setDateFrom} placeholder={t("از تاریخ")} />
               <Icon name="arrowLeft" size={14} className="text-muted-foreground" />
-              <DatePicker value={dateTo} onChange={setDateTo} placeholder="تا تاریخ" />
+              <DatePicker value={dateTo} onChange={setDateTo} placeholder={t("تا تاریخ")} />
             </div>
           </div>
         )}
@@ -651,13 +652,13 @@ export function FinanceCosts() {
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Icon name="loading" size={16} className="animate-spin" />
-              در حال بارگذاری…
+              {t("در حال بارگذاری…")}
             </div>
           ) : grouped.length === 0 ? (
             <EmptyState
               icon="inbox"
-              title="هزینه‌ای یافت نشد"
-              description="فیلترها را تغییر دهید یا هزینهٔ جدیدی ثبت کنید"
+              title={t("هزینه‌ای یافت نشد")}
+              description={t("فیلترها را تغییر دهید یا هزینهٔ جدیدی ثبت کنید")}
             />
           ) : (
             <div className="space-y-4">
@@ -677,11 +678,11 @@ export function FinanceCosts() {
                         ) : (
                           <span className="text-sm font-semibold flex items-center gap-1.5">
                             <Icon name="coins" size={14} className="text-violet-500" />
-                            هزینه‌های آزاد
+                            {t("هزینه‌های آزاد")}
                           </span>
                         )}
                         <span className="text-[10px] text-muted-foreground">
-                          {g.costs.length.toLocaleString("en-US")} هزینه
+                          {t("{p0} هزینه", { p0: g.costs.length.toLocaleString("en-US") })}
                         </span>
                       </div>
                       <span className="text-sm font-bold tabular-nums" dir="ltr">
@@ -716,7 +717,7 @@ export function FinanceCosts() {
                                 {m.label}
                               </span>
                               <span className="text-sm font-medium truncate max-w-[220px]">
-                                {c.title || c.description || "هزینه"}
+                                {c.title || c.description || t("هزینه")}
                               </span>
                               <span className={cn("text-[10px] px-2 py-0.5 rounded-full", st.cls)}>
                                 {st.label}
@@ -752,8 +753,8 @@ export function FinanceCosts() {
             emptyState={
               <EmptyState
                 icon="inbox"
-                title="هزینه‌ای یافت نشد"
-                description="فیلترها را تغییر دهید یا هزینهٔ جدیدی ثبت کنید"
+                title={t("هزینه‌ای یافت نشد")}
+                description={t("فیلترها را تغییر دهید یا هزینهٔ جدیدی ثبت کنید")}
               />
             }
           />

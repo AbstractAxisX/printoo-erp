@@ -18,6 +18,7 @@
 // order.paidAmount اعمال می‌شود — قرارداد مشترک با پیش‌فاکتور.
 
 import { normalizeItems, computeTotals, type PreInvoiceItem } from "./pre-invoice";
+import { t } from "@/lib/i18n";
 
 export type InvoiceItem = PreInvoiceItem;
 
@@ -44,19 +45,19 @@ export const INVOICE_STATUS_META: Record<
   { label: string; badge: string }
 > = {
   draft: {
-    label: "پیش‌نویس",
+    label: t("پیش‌نویس"),
     badge: "bg-muted text-muted-foreground",
   },
   issued: {
-    label: "صادرشده",
+    label: t("صادرشده"),
     badge: "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300",
   },
   paid: {
-    label: "پرداخت‌شده",
+    label: t("پرداخت‌شده"),
     badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
   },
   cancelled: {
-    label: "باطل‌شده",
+    label: t("باطل‌شده"),
     badge: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300",
   },
 };

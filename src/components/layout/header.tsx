@@ -36,6 +36,7 @@ import { relativeTime, formatDateTime } from "@/lib/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { findModule } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 type Notification = {
   id: string; title: string; message: string; type: string;
@@ -71,16 +72,16 @@ const faExactDate = (d: string) => {
 
 // فیلترهای خوانده‌شده/نوع — چیپ‌های دستی (سبک‌تر از ToggleGroup)
 const READ_FILTERS = [
-  { key: "all", label: "همه" },
-  { key: "unread", label: "خوانده‌نشده" },
+  { key: "all", label: t("همه") },
+  { key: "unread", label: t("خوانده‌نشده") },
 ] as const;
 type ReadFilter = (typeof READ_FILTERS)[number]["key"];
 
 const TYPE_FILTERS: { key: NotificationType; label: string }[] = [
-  { key: "info", label: "اطلاع" },
-  { key: "success", label: "موفق" },
-  { key: "warning", label: "هشدار" },
-  { key: "error", label: "خطا" },
+  { key: "info", label: t("اطلاع") },
+  { key: "success", label: t("موفق") },
+  { key: "warning", label: t("هشدار") },
+  { key: "error", label: t("خطا") },
 ];
 
 export function Header() {
@@ -167,7 +168,7 @@ export function Header() {
           if (isMobile) sidebar.setOpenMobile(true);
           else sidebar.setOpen(!sidebar.open);
         }}
-        aria-label="باز/بسته کردن سایدبار"
+        aria-label={t("باز/بسته کردن سایدبار")}
       >
         <Icon name="menu" size={20} className="transition-transform duration-200" />
       </Button>
@@ -204,10 +205,10 @@ export function Header() {
         size="sm"
         className="gap-1.5 rounded-lg bg-gradient-to-r from-primary to-emerald-700 px-3.5 shadow-md shadow-primary/25 transition-all duration-200 hover:shadow-lg hover:shadow-primary/30 hover:brightness-105 active:scale-95 border border-primary/30"
         onClick={() => navigate("admin", "orders-new")}
-        aria-label="سفارش جدید"
+        aria-label={t("سفارش جدید")}
       >
         <Icon name="plus" size={16} className="shrink-0" />
-        <span className="hidden sm:inline">سفارش جدید</span>
+        <span className="hidden sm:inline">{t("سفارش جدید")}</span>
       </Button>
 
       {/* سوییچ تم — مستقیم، بدون پاپ‌آپ. mounted-guard برای جلوگیری از mismatch hydration */}
@@ -216,8 +217,8 @@ export function Header() {
         size="icon"
         className="size-9 rounded-lg hover:bg-accent transition-all duration-200"
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        title={theme === "dark" ? "حالت روشن" : "حالت تاریک"}
-        aria-label={theme === "dark" ? "حالت روشن" : "حالت تاریک"}
+        title={theme === "dark" ? t("حالت روشن") : t("حالت تاریک")}
+        aria-label={theme === "dark" ? t("حالت روشن") : t("حالت تاریک")}
       >
         <Icon
           name={mounted && theme === "dark" ? "moon" : "sun"}
@@ -232,7 +233,7 @@ export function Header() {
         size="icon"
         className="size-9 rounded-lg relative hover:bg-accent transition-all duration-200"
         onClick={() => setNotifOpen(true)}
-        aria-label="اعلان‌ها"
+        aria-label={t("اعلان‌ها")}
       >
         <Icon name="bell" size={20} className="transition-transform duration-200" />
         {unread > 0 && (
@@ -245,7 +246,7 @@ export function Header() {
       <DetailDrawer
         open={notifOpen}
         onOpenChange={setNotifOpen}
-        title="اعلان‌ها"
+        title={t("اعلان‌ها")}
         icon="bell"
         widthClass="sm:max-w-md"
       >
@@ -257,10 +258,10 @@ export function Header() {
                 variant="secondary"
                 className="text-[10px] px-1.5 bg-primary/10 text-primary border border-primary/20 shrink-0"
               >
-                {fa(unread)} خوانده‌نشده
+                {t("{p0} خوانده‌نشده", { p0: fa(unread) })}
               </Badge>
             ) : (
-              <span className="text-[11px] text-muted-foreground">همهٔ اعلان‌ها خوانده شده</span>
+              <span className="text-[11px] text-muted-foreground">{t("همهٔ اعلان‌ها خوانده شده")}</span>
             )}
             <div className="flex items-center gap-1 shrink-0">
               {unread > 0 && (
@@ -270,8 +271,8 @@ export function Header() {
                   className="size-8 rounded-lg text-primary hover:text-primary"
                   onClick={() => readAll.mutate()}
                   disabled={readAll.isPending}
-                  title="همه را خواندم"
-                  aria-label="همه را خواندم"
+                  title={t("همه را خواندم")}
+                  aria-label={t("همه را خواندم")}
                 >
                   <Icon
                     name={readAll.isPending ? "loading" : "checkBadge"}
@@ -285,8 +286,8 @@ export function Header() {
                 size="icon"
                 className="size-8 rounded-lg"
                 onClick={() => void refetch()}
-                title="به‌روزرسانی"
-                aria-label="به‌روزرسانی اعلان‌ها"
+                title={t("به‌روزرسانی")}
+                aria-label={t("به‌روزرسانی اعلان‌ها")}
               >
                 <Icon
                   name="refresh"
@@ -315,7 +316,7 @@ export function Header() {
               className={chip(typeFilter === "all")}
               onClick={() => setTypeFilter("all")}
             >
-              همهٔ انواع
+              {t("همهٔ انواع")}
             </button>
             {TYPE_FILTERS.map((f) => (
               <button
@@ -339,16 +340,16 @@ export function Header() {
                 {notifications.length === 0 ? (
                   <>
                     <span className="text-sm font-medium text-foreground/80">
-                      اعلان جدیدی نیست
+                      {t("اعلان جدیدی نیست")}
                     </span>
-                    <span className="text-xs">اینجا خبرهای سفارش‌ها و تسویه‌ها می‌آید</span>
+                    <span className="text-xs">{t("اینجا خبرهای سفارش‌ها و تسویه‌ها می‌آید")}</span>
                   </>
                 ) : (
                   <>
                     <span className="text-sm font-medium text-foreground/80">
-                      اعلانی مطابق این فیلتر نیست
+                      {t("اعلانی مطابق این فیلتر نیست")}
                     </span>
-                    <span className="text-xs">فیلتر را عوض کنید تا اعلان‌ها را ببینید</span>
+                    <span className="text-xs">{t("فیلتر را عوض کنید تا اعلان‌ها را ببینید")}</span>
                   </>
                 )}
               </div>
@@ -377,11 +378,11 @@ export function Header() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium truncate">{n.title}</span>
+                        <span className="text-sm font-medium truncate">{t(n.title)}</span>
                         {!n.read && (
                           <span
                             className="size-2 rounded-full bg-emerald-500 shrink-0"
-                            aria-label="خوانده‌نشده"
+                            aria-label={t("خوانده‌نشده")}
                           />
                         )}
                       </span>
@@ -403,11 +404,11 @@ export function Header() {
           {/* فوتر دراور — شمارنده + اشاره به به‌روزرسانی خودکار */}
           <div className="mt-auto shrink-0 border-t px-4 py-2 text-xs text-muted-foreground flex items-center justify-between gap-2">
             <span className="tabular-nums">
-              {fa(unread)} خوانده‌نشده از {fa(notifications.length)}
+              {t("{p0} خوانده‌نشده از {p1}", { p0: fa(unread), p1: fa(notifications.length) })}
             </span>
             <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
               <Icon name="clock" size={11} className="shrink-0" />
-              به‌روزرسانی خودکار هر 15 ثانیه
+              {t("به‌روزرسانی خودکار هر 15 ثانیه")}
             </span>
           </div>
         </div>

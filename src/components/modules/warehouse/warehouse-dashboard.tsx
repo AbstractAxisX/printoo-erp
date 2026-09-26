@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
+import { t } from "@/lib/i18n";
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
@@ -128,55 +129,55 @@ export function WarehouseDashboard() {
     {
       key: "pending",
       icon: "packageReceive",
-      label: "منتظر بسته‌بندی",
+      label: t("منتظر بسته‌بندی"),
       value: s.pendingPackItems ?? 0,
-      hint: `${fa(s.inWarehouseOrders ?? 0)} سفارش در مرحلهٔ انبار`,
+      hint: t("{p0} سفارش در مرحلهٔ انبار", { p0: fa(s.inWarehouseOrders ?? 0) }),
       color: "amber",
       onClick: () => goPackages("all"),
     },
     {
       key: "packing",
       icon: "package",
-      label: "در حال بسته‌بندی",
+      label: t("در حال بسته‌بندی"),
       value: s.packagesPacking ?? 0,
-      hint: "بسته‌های باز و در جریان",
+      hint: t("بسته‌های باز و در جریان"),
       color: "amber",
       onClick: () => goPackages("packing"),
     },
     {
       key: "ready",
       icon: "packageAdd",
-      label: "آمادهٔ ارسال",
+      label: t("آمادهٔ ارسال"),
       value: s.packagesReady ?? 0,
-      hint: "بج خورده و آمادهٔ پیک",
+      hint: t("بج خورده و آمادهٔ پیک"),
       color: "teal",
       onClick: () => goPackages("ready"),
     },
     {
       key: "sent",
       icon: "truckDelivery",
-      label: "در راه",
+      label: t("در راه"),
       value: s.packagesSent ?? 0,
-      hint: "تحویل به پیک — در مسیر",
+      hint: t("تحویل به پیک — در مسیر"),
       color: "violet",
       onClick: () => goPackages("sent"),
     },
     {
       key: "delivered",
       icon: "packageDelivered",
-      label: "تحویل امروز",
+      label: t("تحویل امروز"),
       value: s.deliveredToday ?? 0,
-      hint: "بسته‌های تحویل‌شدهٔ امروز",
+      hint: t("بسته‌های تحویل‌شدهٔ امروز"),
       color: "emerald",
       onClick: () => goPackages("delivered"),
     },
     {
       key: "cod",
       icon: "money",
-      label: "دریافتی لجستیک ماه",
+      label: t("دریافتی لجستیک ماه"),
       value: s.codMonth ?? 0,
       isAmount: true,
-      hint: "پول در محل — ثبت‌شدهٔ این ماه",
+      hint: t("پول در محل — ثبت‌شدهٔ این ماه"),
       color: "rose",
       onClick: () => navigate("warehouse", "orders"),
     },
@@ -185,8 +186,8 @@ export function WarehouseDashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="داشبورد انبار و لجستیک"
-        description="دریافت کالا از چاپ → بسته‌بندی و بج QR → ارسال → تحویل — روی کارت‌ها کلیک کنید تا فیلترشده ببینید"
+        title={t("داشبورد انبار و لجستیک")}
+        description={t("دریافت کالا از چاپ → بسته‌بندی و بج QR → ارسال → تحویل — روی کارت‌ها کلیک کنید تا فیلترشده ببینید")}
         icon="warehouse"
         actions={
           <div className="flex items-center gap-2">
@@ -200,7 +201,7 @@ export function WarehouseDashboard() {
               }}
             >
               <Icon name="packageAdd" size={14} />
-              بسته جدید
+              {t("بسته جدید")}
             </Button>
             <Button
               variant="outline"
@@ -209,13 +210,13 @@ export function WarehouseDashboard() {
               onClick={() => navigate("warehouse", "orders")}
             >
               <Icon name="truck" size={14} />
-              سفارشات تحویل
+              {t("سفارشات تحویل")}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => qc.invalidateQueries({ queryKey: ["warehouse"] })}
-              title="به‌روزرسانی"
+              title={t("به‌روزرسانی")}
             >
               <Icon name="refresh" size={14} className={isLoading ? "animate-spin" : ""} />
             </Button>
@@ -235,28 +236,28 @@ export function WarehouseDashboard() {
         <div className="flex items-center justify-between px-5 py-3.5 border-b bg-muted/30">
           <div className="flex items-center gap-2">
             <Icon name="alertTriangle" size={18} className="text-rose-500" />
-            <h3 className="font-semibold text-sm">مواد کم‌موجود</h3>
+            <h3 className="font-semibold text-sm">{t("مواد کم‌موجود")}</h3>
             <span className="text-[11px] text-muted-foreground">
-              ({fa(lowStock.length)} مورد)
+              {t("({p0} مورد)", { p0: fa(lowStock.length) })}
             </span>
           </div>
           <button
             onClick={() => navigate("warehouse", "inventory")}
             className="text-xs text-primary hover:underline flex items-center gap-1"
           >
-            موجودی و مواد <Icon name="arrowLeft" size={12} />
+            {t("موجودی و مواد")}<Icon name="arrowLeft" size={12} />
           </button>
         </div>
         {isLoading ? (
           <div className="py-10 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
             <Icon name="loading" size={16} className="animate-spin" />
-            در حال بارگذاری...
+            {t("در حال بارگذاری...")}
           </div>
         ) : lowStock.length === 0 ? (
           <EmptyState
             icon="checkCircle"
-            title="مواد کم‌موجود نیست"
-            description="موجودی همهٔ مواد بالای حداقل تعریف‌شده است"
+            title={t("مواد کم‌موجود نیست")}
+            description={t("موجودی همهٔ مواد بالای حداقل تعریف‌شده است")}
           />
         ) : (
           <div className="divide-y max-h-[420px] overflow-y-auto scrollbar-thin">
@@ -282,10 +283,10 @@ export function WarehouseDashboard() {
                   </div>
                   <div className="shrink-0 text-left">
                     <div className="text-xs font-bold tabular-nums text-rose-600 dark:text-rose-400">
-                      {fa(m.quantity)} از {fa(m.minQuantity)} {m.unit}
+                      {t("{p0} از {p1} {p2}", { p0: fa(m.quantity), p1: fa(m.minQuantity), p2: m.unit })}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {m.quantity <= 0 ? "ناموجود" : "زیر حداقل موجودی"}
+                      {m.quantity <= 0 ? t("ناموجود") : t("زیر حداقل موجودی")}
                     </div>
                   </div>
                 </button>

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { getPreset, type TimeRange } from "@/lib/time-ranges";
 import { useAppStore } from "@/stores/app-store";
 import { useDashboardKpis } from "./use-dashboard-data";
+import { t } from "@/lib/i18n";
 
 export type KpiCardConfig = {
   key: string;
@@ -30,14 +31,14 @@ export const KPI_CARDS: KpiCardConfig[] = [
   // Phase 19 + فاز 22: «دریافتی» = پول واقعاً دریافت‌شده (RevenueLog) —
   // subValue = سود خالص دوره (دریافتی − هزینه)؛ نام از «درآمد» به «دریافتی»
   // تغییر کرد چون درآمد حس سود می‌داد (خواستهٔ صریح کارفرما).
-  { key: "revenue", label: "دریافتی", icon: "wallet", color: "emerald", isCurrency: true, subValueLabel: "سود خالص (دریافتی − هزینه)" },
-  { key: "orderValue", label: "ارزش سفارشات جدید", icon: "chart", color: "teal", isCurrency: true },
-  { key: "orders", label: "سفارشات جدید", icon: "orders", color: "violet" },
-  { key: "avgOrderValue", label: "میانگین ارزش سفارش", icon: "chart", color: "blue", isCurrency: true },
-  { key: "newCustomers", label: "مشتریان جدید", icon: "customers", color: "teal" },
-  { key: "completed", label: "تکمیل شده", icon: "checkCircle", color: "emerald" },
-  { key: "urgent", label: "سفارشات فوری", icon: "alertTriangle", color: "rose" },
-  { key: "unsettledCustomers", label: "مشتریان تسویه‌نکرده", icon: "customers", color: "rose", pointInTime: true },
+  { key: "revenue", label: t("دریافتی"), icon: "wallet", color: "emerald", isCurrency: true, subValueLabel: t("سود خالص (دریافتی − هزینه)") },
+  { key: "orderValue", label: t("ارزش سفارشات جدید"), icon: "chart", color: "teal", isCurrency: true },
+  { key: "orders", label: t("سفارشات جدید"), icon: "orders", color: "violet" },
+  { key: "avgOrderValue", label: t("میانگین ارزش سفارش"), icon: "chart", color: "blue", isCurrency: true },
+  { key: "newCustomers", label: t("مشتریان جدید"), icon: "customers", color: "teal" },
+  { key: "completed", label: t("تکمیل شده"), icon: "checkCircle", color: "emerald" },
+  { key: "urgent", label: t("سفارشات فوری"), icon: "alertTriangle", color: "rose" },
+  { key: "unsettledCustomers", label: t("مشتریان تسویه‌نکرده"), icon: "customers", color: "rose", pointInTime: true },
 ];
 
 const COLOR_MAP: Record<string, { bg: string; text: string; stroke: string }> = {
@@ -93,18 +94,18 @@ export function KpiCardsGrid({
             "size-9 rounded-lg border grid place-items-center transition",
             showChart ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"
           )}
-          title={showChart ? "نمایش اعداد" : "نمایش نمودار"}
+          title={showChart ? t("نمایش اعداد") : t("نمایش نمودار")}
         >
           <Icon name={showChart ? "grid" : "chart"} size={16} />
         </button>
         <button
           onClick={() => { onGlobalRangeChange(getPreset("this-month")); setCardRanges({}); }}
           className="size-9 rounded-lg border grid place-items-center hover:bg-accent transition text-muted-foreground hover:text-foreground"
-          title="ریست فیلترها"
+          title={t("ریست فیلترها")}
         >
           <Icon name="refresh" size={15} />
         </button>
-        <div className="text-xs text-muted-foreground mr-auto">به‌روزرسانی خودکار هر 15 ثانیه</div>
+        <div className="text-xs text-muted-foreground mr-auto">{t("به‌روزرسانی خودکار هر 15 ثانیه")}</div>
       </div>
 
       {/* KPI cards grid */}
@@ -153,7 +154,7 @@ function KpiCard({
     typeof kpi.subValue === "number" &&
     (config.pointInTime || (config.key === "revenue" && kpi.subValue !== 0));
   const subNegative = typeof kpi?.subValue === "number" && kpi.subValue < 0;
-  const subLabel = config.subValueLabel ?? "طلبِ واریزنشده";
+  const subLabel = config.subValueLabel ?? t("طلبِ واریزنشده");
 
   return (
     <Card
@@ -212,7 +213,7 @@ function KpiCard({
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-14 grid place-items-center text-xs text-muted-foreground">داده‌ای برای نمودار</div>
+              <div className="h-14 grid place-items-center text-xs text-muted-foreground">{t("داده‌ای برای نمودار")}</div>
             )}
           </div>
         )}
@@ -232,7 +233,7 @@ function KpiCard({
       ) : (
         <div className="flex items-center gap-2 mt-1.5 text-[11px]">
           <span className="text-muted-foreground">
-            کل: <span className="tabular-nums" dir="ltr">{kpi ? fmt(kpi.total) : "—"}</span>
+            {t("کل:")}<span className="tabular-nums" dir="ltr">{kpi ? fmt(kpi.total) : "—"}</span>
           </span>
           {kpi && (
             <span className={cn("flex items-center gap-0.5 font-medium", kpi.change >= 0 ? "text-emerald-600" : "text-rose-600")}>
@@ -246,14 +247,14 @@ function KpiCard({
       {/* Per-card time filter — برای متریک‌های لحظه‌ای بی‌معناست */}
       {config.pointInTime ? (
         <div className="mt-2 pt-2 border-t text-[10px] text-muted-foreground/80">
-          مقدار لحظه‌ای — بدون فیلتر زمانی
+          {t("مقدار لحظه‌ای — بدون فیلتر زمانی")}
         </div>
       ) : (
         <div className="mt-2 pt-2 border-t">
           <TimeRangePicker value={range} onChange={onRangeChange} compact className="w-full justify-between text-[11px] h-7" />
           {hasOverride && (
             <button onClick={onCardRangeReset} className="text-[10px] text-muted-foreground hover:text-foreground mt-1 flex items-center gap-1">
-              <Icon name="cancel" size={10} /> بازگشت به فیلتر اصلی ({globalLabel})
+              <Icon name="cancel" size={10} /> {t("بازگشت به فیلتر اصلی ({p0})", { p0: globalLabel })}
             </button>
           )}
         </div>
